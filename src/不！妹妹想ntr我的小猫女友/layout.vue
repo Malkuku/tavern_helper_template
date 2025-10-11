@@ -62,7 +62,6 @@ const navigateTo = (path: string) => {
 .app-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.08));
   font-family: 'Microsoft YaHei', Arial, sans-serif;
   transition: all 0.5s ease;
