@@ -9,14 +9,14 @@ const router = createRouter({
       path: '/',
       component: Layout,
       children: [
-        //{ path: '/状态界面', component: () => import('./状态界面.vue') },
-        //{ path: '/世界信息', component: () => import('./世界信息.vue') },
-        //{ path: '/多多日记', component: () => import('./多多日记.vue') },
+        { path: '/状态界面', component: () => import('./状态界面.vue') },
+        { path: '/世界信息', component: () => import('./世界信息.vue') },
+        { path: '/多多日记', component: () => import('./多多日记.vue') },
       ],
     },
   ],
 });
-router.replace('/');
+router.replace('/状态界面');
 
 $(() => {
   createApp(App).use(router).mount('#app');
