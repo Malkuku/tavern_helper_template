@@ -31,7 +31,6 @@ import { ref, onMounted, onUnmounted, onActivated } from 'vue';
 const diaryContent = ref('');
 const currentDateTime = ref('');
 const leavesKey = ref(0);
-
 function updateDiary() {
   try {
     const message_id = getCurrentMessageId();
@@ -42,22 +41,20 @@ function updateDiary() {
       return;
     }
 
-    const currentMessage = chat_messages[0];
-    const messageText = currentMessage.message;
+    const messageText = String(chat_messages[0].message);
 
-    // 从字符串末尾开始查找最后一个 <duoduo> 标签
-    const lastOpeningTag = messageText.lastIndexOf('<duoduo>');
-    const lastClosingTag = messageText.lastIndexOf('</duoduo>');
+    // 匹配最后一个 <duoduo> 标签对，且内容中不包含 <duoduo> 的
+    const regex = /<duoduo>((?:(?!<duoduo>)[\s\S])*?)<\/duoduo>(?![\s\S]*<duoduo>[\s\S]*<\/duoduo>)/;
+    const match = messageText.match(regex);
 
-    if (lastOpeningTag !== -1 && lastClosingTag !== -1 && lastClosingTag > lastOpeningTag) {
-      const contentStart = lastOpeningTag + '<duoduo>'.length;
-      const content = messageText.substring(contentStart, lastClosingTag).trim();
+    if (match && match[1]) {
+      const content = match[1].trim();
+      console.log('提取的内容:', content);
       diaryContent.value = content;
     } else {
       diaryContent.value = '';
     }
 
-    // 更新日期时间
     updateDateTime();
 
   } catch (error) {
