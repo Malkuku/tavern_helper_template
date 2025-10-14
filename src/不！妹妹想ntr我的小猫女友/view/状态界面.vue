@@ -16,7 +16,6 @@
           </div>
           <div class="progress-text">
             {{ depressionValue }}
-
           </div>
         </div>
         <div class="stage-indicator">{{ getDepressionStage(depressionValue).name }}</div>
@@ -45,6 +44,11 @@
 </template>
 
 <script setup lang="ts">
+import { watch, ref } from 'vue'
+import { useStatStore } from '../store/StatStore'
+
+const statStore = useStatStore()
+
 const depressionValue = ref(0);
 const corruptionValue = ref(0);
 const depressionReason = ref('');
@@ -80,30 +84,22 @@ const getCorruptionStage = (value: number) => {
   return stage || corruptionStages[0];
 };
 
-function updateStatus() {
-  // 获取 MVU 变量
-  const variables = Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() });
-
-  // 获取压抑值 (0-100)
-  const depression = _.get(variables, 'stat_data.角色.user.压抑值');
-  depressionValue.value = typeof depression === 'number' ? Math.max(0, Math.min(100, depression)) : 0;
-
-  // 获取恶堕值 (0-100)
-  const corruption = _.get(variables, 'stat_data.角色.user.恶堕值');
-  corruptionValue.value = typeof corruption === 'number' ? Math.max(0, Math.min(100, corruption)) : 0;
-
-  // 获取压抑值变化原因
-  const depressionReasonText = _.get(variables, 'stat_data.角色.user.压抑值变化原因');
-  depressionReason.value = depressionReasonText || '';
-
-  // 获取恶堕值变化原因
-  const corruptionReasonText = _.get(variables, 'stat_data.角色.user.恶堕值变化原因');
-  corruptionReason.value = corruptionReasonText || '';
-}
-
-onMounted(() => {
-  updateStatus();
-});
+// 监听 statStore 中的值变化
+watch(
+  [
+    () => statStore.stat_data?.角色.user.特殊状态.性压抑值,
+    () => statStore.stat_data?.角色.user.特殊状态.恶堕值,
+    () => statStore.stat_data?.角色.user.特殊状态.性压抑值变化原因,
+    () => statStore.stat_data?.角色.user.特殊状态.恶堕值变化原因
+  ],
+  ([newDepression, newCorruption, newDepressionReason, newCorruptionReason]) => {
+    depressionValue.value = newDepression!
+    corruptionValue.value = newCorruption!
+    depressionReason.value = newDepressionReason!
+    corruptionReason.value = newCorruptionReason!
+  },
+  { immediate: true } // 立即执行一次
+)
 </script>
 
 <style lang="scss" scoped>

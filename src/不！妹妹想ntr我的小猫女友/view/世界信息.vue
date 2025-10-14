@@ -21,6 +21,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { useStatStore } from '../store/StatStore';
+const statStore = useStatStore();
 const currentDate = ref('');
 const currentTime = ref('');
 const currentLocation = ref('');
@@ -39,23 +42,21 @@ const formattedDateTime = computed(() => {
   return currentDate.value || currentTime.value;
 });
 
-function updateWorldInfo() {
-  // 获取最后一楼的 MVU 变量
-  const variables = Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() });
-
-  // 获取日期
-  currentDate.value = _.get(variables, 'stat_data.世界.日期') || '';
-  // 获取当前时间
-  currentTime.value = _.get(variables, 'stat_data.世界.时间') || '';
-  // 获取地点信息
-  currentLocation.value = _.get(variables, 'stat_data.世界.地点') || '未知地点';
-  // 获取当前人物
-  currentCharacter.value = _.get(variables, 'stat_data.世界.当前人物') || '未知人物';
-}
-
-onMounted(() => {
-  updateWorldInfo();
-});
+watch(
+  [
+    () => statStore.stat_data?.世界.日期,
+    () => statStore.stat_data?.世界.时间,
+    () => statStore.stat_data?.世界.地点,
+    () => statStore.stat_data?.世界.当前人物,
+  ],
+  ([date, time, location, character]) => {
+    currentDate.value = date || '未知日期';
+    currentTime.value = time || '未知时间';
+    currentLocation.value = location || '未知地点';
+    currentCharacter.value = character || '无';
+  },
+  { immediate: true }
+)
 </script>
 
 <style lang="scss" scoped>

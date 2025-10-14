@@ -26,37 +26,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, onActivated } from 'vue';
+import { onActivated, onMounted, onUnmounted, ref } from 'vue';
+import { useStatStore } from '../store/StatStore';
+import { useMessageStore } from '../store/MessageStore';
 
+const statStore = useStatStore();
+const massageStore = useMessageStore();
 const diaryContent = ref('');
 const currentDateTime = ref('');
 const leavesKey = ref(0);
 function updateDiary() {
   try {
-    const message_id = getCurrentMessageId();
-    const chat_messages = getChatMessages(message_id);
-
-    if (!chat_messages || chat_messages.length === 0) {
-      diaryContent.value = '';
-      return;
-    }
-
-    const messageText = String(chat_messages[0].message);
-
     // 匹配最后一个 <duoduo> 标签对，且内容中不包含 <duoduo> 的
     const regex = /<duoduo>((?:(?!<duoduo>)[\s\S])*?)<\/duoduo>(?![\s\S]*<duoduo>[\s\S]*<\/duoduo>)/;
-    const match = messageText.match(regex);
+    const match = massageStore.message.match(regex);
 
     if (match && match[1]) {
-      const content = match[1].trim();
-      console.log('提取的内容:', content);
-      diaryContent.value = content;
+      diaryContent.value = match[1].trim();
     } else {
       diaryContent.value = '';
     }
-
     updateDateTime();
-
   } catch (error) {
     console.error('获取日记内容失败:', error);
     diaryContent.value = '';
@@ -64,11 +54,17 @@ function updateDiary() {
 }
 
 // 从MVU变量获取日期时间信息
+watch(
+  () => statStore.stat_data,
+  () => {
+    updateDiary();
+  },
+  { immediate: true },
+);
 function updateDateTime() {
   try {
-    const variables = Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() });
-    const date = _.get(variables, 'stat_data.世界.日期');
-    const time = _.get(variables, 'stat_data.世界.时间');
+    const date = statStore.stat_data?.世界.日期;
+    const time = statStore.stat_data?.世界.时间;
 
     if (date && time) {
       currentDateTime.value = `${date} ${time}`;
@@ -110,11 +106,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .diary-container {
-  background: linear-gradient(135deg,
-    rgba(217, 119, 6, 0.2),
-    rgba(180, 83, 9, 0.25),
-    rgba(146, 64, 14, 0.2)
-  );
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.2), rgba(180, 83, 9, 0.25), rgba(146, 64, 14, 0.2));
   border-radius: 18px;
   border: 1px solid rgba(180, 83, 9, 0.5);
   box-shadow:
