@@ -59,9 +59,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useMessageStore } from '../store/MessageStore';
+import { getCurrentMessage } from '../util/messageUtil';
 
 const currentRoute = useRoute();
 const router = useRouter();
@@ -70,6 +70,7 @@ const routes = [
   { path: '/状态界面', name: '人物状态', icon: '👤' },
   { path: '/世界信息', name: '世界信息', icon: '🌍' },
   { path: '/多多日记', name: '多多日记', icon: '📖' },
+  { path: '/角色状态', name: '角色状态', icon: '♥️'}
 ];
 
 // 判断是否在多多日记页面
@@ -142,20 +143,14 @@ const parseOptions = (message: string) => {
   return [];
 };
 
-const massageStore = useMessageStore();
 const updateOptions = () => {
-  const messageContent = massageStore.message;
-
+  const messageContent = getCurrentMessage();
   const options = parseOptions(messageContent);
   optionsList.value = options;
   showOptions.value = options.length > 0;
 };
 
-watch(
-  () => massageStore.message,
-  () => updateOptions(),
-  { immediate: true },
-);
+eventOn('era:writeDone', updateOptions);
 </script>
 
 <style lang="scss" scoped>
@@ -267,7 +262,7 @@ watch(
   }
 
   .nav-text {
-    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     position: relative;
     z-index: 1;
   }
@@ -331,7 +326,7 @@ watch(
   font-size: 12px;
   color: #e2e8f0;
   transition: color 0.3s ease;
-  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .options-content {

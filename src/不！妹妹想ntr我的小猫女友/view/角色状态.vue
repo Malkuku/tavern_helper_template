@@ -16,7 +16,7 @@
       >
         <span class="button-icon">
           <span v-if="name === '多多' && character.specialStatus?.当前形态 === '猫'">🐱</span>
-          <span v-else-if="name === 'user'">👤</span>
+          <span v-else-if="name === '我'">👤</span>
           <span v-else>🐈‍⬛</span>
         </span>
         <span class="button-text">{{ name }}</span>
@@ -35,7 +35,7 @@
           <h2 class="character-name">{{ name }}</h2>
           <div class="character-icon">
             <span v-if="name === '多多' && character.specialStatus?.当前形态 === '猫'">🐱</span>
-            <span v-else-if="name === 'user'">👤</span>
+            <span v-else-if="name === '我'">👤</span>
             <span v-else>🐈‍⬛</span>
           </div>
         </div>
@@ -83,37 +83,36 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useStatStore } from '../store/StatStore';
 
 // 当前显示的角色
-const currentCharacter = ref('user');
+const currentCharacter = ref('我');
 
 // 展开/收起状态
 const expandedSections = ref<Record<string, boolean>>({
-  user: false,
+  我: false,
   多多: false,
-  何茉茉: false,
+  何茉茉: false
 });
 
 // 角色数据
 const characters = ref({
-  user: {
+  我: {
     clothing: {
       上半身: '',
       下半身: '',
       内衣: '',
       袜子: '',
       鞋子: '',
-      配饰: '',
+      配饰: ''
     },
     bodyStatus: {
-      阴茎: '正常下垂',
+      阴茎: '正常下垂'
     },
-    thoughts: '无',
+    thoughts: '无'
   },
   多多: {
     specialStatus: {
-      当前形态: '猫',
+      当前形态: '猫'
     },
     clothing: {
       上半身: '',
@@ -121,14 +120,14 @@ const characters = ref({
       内衣: '',
       袜子: '',
       鞋子: '',
-      配饰: '',
+      配饰: ''
     },
     bodyStatus: {
       小穴: '干燥紧闭',
       菊穴: '未开发',
-      口穴: '未开发',
+      口穴: '未开发'
     },
-    thoughts: '无',
+    thoughts: '无'
   },
   何茉茉: {
     clothing: {
@@ -137,19 +136,19 @@ const characters = ref({
       内衣: '',
       袜子: '',
       鞋子: '',
-      配饰: '',
+      配饰: ''
     },
     bodyStatus: {
       小穴: '干燥紧闭',
       菊穴: '未开发',
-      口穴: '未开发',
+      口穴: '未开发'
     },
-    thoughts: '无',
-  },
+    thoughts: '无'
+  }
 });
 
 // 星星特效
-const stars = ref<Array<{ id: number; style: any }>>([]);
+const stars = ref<Array<{id: number, style: any}>>([]);
 let starInterval: number | null = null;
 
 // 切换角色
@@ -172,8 +171,8 @@ const initStars = () => {
         left: `${Math.random() * 100}%`,
         top: `${Math.random() * 100}%`,
         animationDelay: `${Math.random() * 5}s`,
-        animationDuration: `${3 + Math.random() * 4}s`,
-      },
+        animationDuration: `${3 + Math.random() * 4}s`
+      }
     });
   }
 };
@@ -181,12 +180,12 @@ const initStars = () => {
 // 获取服装类型的中文名称
 const getClothingTypeName = (type: string) => {
   const typeMap: Record<string, string> = {
-    上半身: '上衣',
-    下半身: '下装',
-    内衣: '内衣',
-    袜子: '袜子',
-    鞋子: '鞋子',
-    配饰: '配饰',
+    '上半身': '上衣',
+    '下半身': '下装',
+    '内衣': '内衣',
+    '袜子': '袜子',
+    '鞋子': '鞋子',
+    '配饰': '配饰'
   };
   return typeMap[type] || type;
 };
@@ -194,29 +193,25 @@ const getClothingTypeName = (type: string) => {
 // 获取身体部位的中文名称
 const getBodyPartName = (part: string) => {
   const partMap: Record<string, string> = {
-    小穴: '小穴',
-    阴茎: '阴茎',
-    菊穴: '菊穴',
-    口穴: '口穴',
+    '小穴': '小穴',
+    '阴茎': '阴茎',
+    '菊穴': '菊穴',
+    '口穴': '口穴'
   };
   return partMap[part] || part;
 };
 
 // 监听数据更新
-const statStore = useStatStore();
-const updateData = () => {
-  const stat = statStore.stat_data;
+eventOn('era:writeDone', (detail: { stat: any }) => {
+  const stat = detail.stat;
   if (!stat) return;
 
+  // 更新角色数据
   if (stat.角色) {
-    type CharacterKey = keyof typeof characters.value;
-
     Object.keys(stat.角色).forEach(name => {
-      const key = name as CharacterKey;
-
-      if (key in characters.value) {
-        const character = characters.value[key];
-        const statCharacter = stat.角色[key];
+      if (characters.value[name as keyof typeof characters.value]) {
+        const character = characters.value[name as keyof typeof characters.value];
+        const statCharacter = stat.角色[name];
 
         if (statCharacter.服装) {
           character.clothing = { ...statCharacter.服装 };
@@ -230,15 +225,7 @@ const updateData = () => {
       }
     });
   }
-};
-
-watch(
-  () => statStore.stat_data,
-  () => {
-    updateData();
-  },
-  { deep: true, immediate: true },
-);
+});
 
 onMounted(() => {
   initStars();
@@ -266,7 +253,7 @@ onUnmounted(() => {
   overflow: hidden;
   font-family: 'Microsoft YaHei', Arial, sans-serif;
   box-sizing: border-box;
-  width: 90%;
+  width: 90%
 }
 
 /* 星星背景特效 */
@@ -291,8 +278,7 @@ onUnmounted(() => {
 }
 
 @keyframes twinkle {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 0.3;
     transform: scale(0.8);
   }
@@ -462,6 +448,7 @@ onUnmounted(() => {
     }
   }
 
+
   .expand-icon {
     transition: transform 0.3s ease;
     color: rgba(147, 197, 253, 0.8);
@@ -490,6 +477,7 @@ onUnmounted(() => {
   }
 }
 
+
 .section-title {
   margin: 0;
   font-size: 16px;
@@ -507,8 +495,7 @@ onUnmounted(() => {
   }
 }
 
-.clothing-item,
-.body-status-item {
+.clothing-item, .body-status-item {
   display: flex;
   justify-content: space-between;
   padding: 10px 14px;
@@ -524,15 +511,13 @@ onUnmounted(() => {
   }
 }
 
-.clothing-type,
-.body-part {
+.clothing-type, .body-part {
   font-size: 14px;
   color: #cbd5e1;
   font-weight: 500;
 }
 
-.clothing-value,
-.body-value {
+.clothing-value, .body-value {
   font-size: 14px;
   color: #ffffff;
   font-weight: 500;
@@ -674,15 +659,11 @@ onUnmounted(() => {
     }
   }
 
-  .clothing-item,
-  .body-status-item {
+  .clothing-item, .body-status-item {
     padding: 8px 12px;
   }
 
-  .clothing-type,
-  .body-part,
-  .clothing-value,
-  .body-value {
+  .clothing-type, .body-part, .clothing-value, .body-value {
     font-size: 13px;
   }
 

@@ -12,6 +12,7 @@ export const router = createRouter({
         { path: '/状态界面', component: () => import('../view/状态界面.vue') },
         { path: '/世界信息', component: () => import('../view/世界信息.vue') },
         { path: '/多多日记', component: () => import('../view/多多日记.vue') },
+        { path: '/角色状态', component: () => import('../view/角色状态.vue')}
       ],
     },
   ],
