@@ -3,8 +3,7 @@
     <h2 class="page-title">人物状态</h2>
     <div class="status-content">
       <div class="status-item progress-item">
-        <div class="status-label">
-          压抑值
+        <div class="status-label">压抑值
           <span v-if="depressionReason" class="reason-text">({{ depressionReason }})</span>
         </div>
         <div class="progress-container">
@@ -12,7 +11,7 @@
             <div
               class="progress-fill depression"
               :class="getDepressionStage(depressionValue).className"
-              :style="{ width: depressionValue / 2 + '%' }"
+              :style="{ width: depressionValue + '%' }"
             ></div>
           </div>
           <div class="progress-text">
@@ -22,8 +21,7 @@
         <div class="stage-indicator">{{ getDepressionStage(depressionValue).name }}</div>
       </div>
       <div class="status-item progress-item">
-        <div class="status-label">
-          恶堕值
+        <div class="status-label">恶堕值
           <span v-if="corruptionReason" class="reason-text">({{ corruptionReason }})</span>
         </div>
         <div class="progress-container">
@@ -31,11 +29,12 @@
             <div
               class="progress-fill corruption"
               :class="getCorruptionStage(corruptionValue).className"
-              :style="{ width: corruptionValue / 3 + '%' }"
+              :style="{ width: corruptionValue + '%' }"
             ></div>
           </div>
           <div class="progress-text">
             {{ corruptionValue }}
+
           </div>
         </div>
         <div class="stage-indicator">{{ getCorruptionStage(corruptionValue).name }}</div>
@@ -45,10 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref } from 'vue';
-import { useStatStore } from '../store/StatStore';
+import { watch, ref } from 'vue'
+import { useStatStore } from '../store/StatStore'
 
-const statStore = useStatStore();
+const statStore = useStatStore()
 
 const depressionValue = ref(0);
 const corruptionValue = ref(0);
@@ -57,20 +56,20 @@ const corruptionReason = ref('');
 
 // 压抑值阶段定义
 const depressionStages = [
-  { min: 0, max: 50, name: '心如止水', className: 'stage-calm' },
-  { min: 51, max: 100, name: '焦躁不安', className: 'stage-anxious' },
-  { min: 101, max: 160, name: '欲火焚身', className: 'stage-craving' },
-  { min: 161, max: 199, name: '煎熬难忍', className: 'stage-critical' },
-  { min: 200, max: 200, name: '崩溃决堤', className: 'stage-breakdown' },
+  { min: 0, max: 20, name: '心如止水', className: 'stage-calm' },
+  { min: 21, max: 50, name: '焦躁不安', className: 'stage-anxious' },
+  { min: 51, max: 80, name: '欲火焚身', className: 'stage-craving' },
+  { min: 81, max: 99, name: '煎熬难忍', className: 'stage-critical' },
+  { min: 100, max: 100, name: '崩溃决堤', className: 'stage-breakdown' }
 ];
 
 // 恶堕值阶段定义
 const corruptionStages = [
-  { min: 0, max: 0, name: '纯洁无瑕', className: 'stage-calm' },
-  { min: 1, max: 60, name: '挣扎与罪恶', className: 'stage-guilt' },
-  { min: 61, max: 180, name: '沉沦与合理化', className: 'stage-rationalization' },
-  { min: 181, max: 280, name: '背叛与重塑', className: 'stage-betrayal' },
-  { min: 281, max: 300, name: '新的平衡', className: 'stage-new-balance' },
+  { min: 0, max: 0, name: '忠贞的爱', className: 'stage-calm' },
+  { min: 1, max: 20, name: '愧疚与挣扎', className: 'stage-guilt' },
+  { min: 21, max: 60, name: '沉沦与合理化', className: 'stage-rationalization' },
+  { min: 61, max: 90, name: '背叛与重塑', className: 'stage-betrayal' },
+  { min: 91, max: 100, name: '新的平衡', className: 'stage-new-balance' }
 ];
 
 // 获取压抑值阶段
@@ -87,15 +86,20 @@ const getCorruptionStage = (value: number) => {
 
 // 监听 statStore 中的值变化
 watch(
-  [() => statStore.stat_data],
-  () => {
-    depressionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值!;
-    corruptionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值!;
-    depressionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值变化原因!;
-    corruptionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值变化原因!;
+  [
+    () => statStore.stat_data?.角色.user.特殊状态.性压抑值,
+    () => statStore.stat_data?.角色.user.特殊状态.恶堕值,
+    () => statStore.stat_data?.角色.user.特殊状态.性压抑值变化原因,
+    () => statStore.stat_data?.角色.user.特殊状态.恶堕值变化原因
+  ],
+  ([newDepression, newCorruption, newDepressionReason, newCorruptionReason]) => {
+    depressionValue.value = newDepression!
+    corruptionValue.value = newCorruption!
+    depressionReason.value = newDepressionReason!
+    corruptionReason.value = newCorruptionReason!
   },
-  { immediate: true },
-);
+  { immediate: true } // 立即执行一次
+)
 </script>
 
 <style lang="scss" scoped>
@@ -283,6 +287,7 @@ watch(
   color: #fbbf24;
   opacity: 0.9;
   text-shadow: 0px 1px 1px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: all 0.3s ease;
@@ -294,6 +299,7 @@ watch(
   white-space: normal;
   word-break: break-word;
 }
+
 
 .stage-indicator {
   font-size: 11px;
@@ -319,8 +325,7 @@ watch(
 }
 
 @keyframes pulse-danger {
-  0%,
-  100% {
+  0%, 100% {
     box-shadow: 0 0 12px rgba(220, 38, 38, 0.4);
   }
   50% {
@@ -329,8 +334,7 @@ watch(
 }
 
 @keyframes pulse-corruption {
-  0%,
-  100% {
+  0%, 100% {
     box-shadow: 0 0 12px rgba(192, 38, 211, 0.4);
   }
   50% {
@@ -374,6 +378,7 @@ watch(
     flex-direction: column;
     gap: 1px;
   }
+
 
   .reason-text {
     max-width: 50px;

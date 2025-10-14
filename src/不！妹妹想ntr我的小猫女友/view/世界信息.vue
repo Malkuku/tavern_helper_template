@@ -44,10 +44,10 @@ const formattedDateTime = computed(() => {
 
 watch(
   [
-    () => statStore.stat_data?.世界?.日期,
-    () => statStore.stat_data?.世界?.时间,
-    () => statStore.stat_data?.世界?.地点,
-    () => statStore.stat_data?.世界?.当前人物,
+    () => statStore.stat_data?.世界.日期,
+    () => statStore.stat_data?.世界.时间,
+    () => statStore.stat_data?.世界.地点,
+    () => statStore.stat_data?.世界.当前人物,
   ],
   ([date, time, location, character]) => {
     currentDate.value = date || '未知日期';
@@ -55,8 +55,8 @@ watch(
     currentLocation.value = location || '未知地点';
     currentCharacter.value = character || '无';
   },
-  { immediate: true },
-);
+  { immediate: true }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -314,15 +314,13 @@ watch(
   0% {
     left: -100%;
   }
-  50%,
-  100% {
+  50%, 100% {
     left: 100%;
   }
 }
 
 @keyframes pulse {
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(-50%) scale(1);
     opacity: 0.8;
   }
@@ -339,14 +337,8 @@ watch(
 .info-item {
   animation: fadeIn 0.6s ease-out;
 
-  &:nth-child(1) {
-    animation-delay: 0.1s;
-  }
-  &:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  &:nth-child(3) {
-    animation-delay: 0.3s;
-  }
+  &:nth-child(1) { animation-delay: 0.1s; }
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.3s; }
 }
 </style>

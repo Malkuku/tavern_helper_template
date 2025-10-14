@@ -1,32 +1,6 @@
-```html
 <template>
   <div class="diary-container">
-    <div class="header-row">
-      <h2 class="page-title">多多日记</h2>
-      <div class="lock-control">
-        <label class="lock-switch" title="启用后将不会自动切换形态,建议使用后等待一小会,确保数据正确写入">
-          <input type="checkbox" v-model="isLocked" />
-          <span class="slider"></span>
-        </label>
-        <small class="lock-hint">锁定形态</small>
-      </div>
-    </div>
-
-    <!-- 心情值显示 -->
-    <div class="mood-section">
-      <div class="mood-header">
-        <span class="mood-label">当前心情</span>
-        <span class="mood-value">{{ moodValue }}</span>
-      </div>
-      <div class="mood-bar">
-        <div class="mood-fill" :style="{ width: moodPercentage + '%' }" :class="moodClass"></div>
-      </div>
-      <div class="mood-info">
-        <span class="mood-reason">{{ moodReason || '暂无心情变化记录' }}</span>
-        <span class="mood-form">{{ isCat ? '猫' : '猫娘' }}</span>
-      </div>
-    </div>
-
+    <h2 class="page-title">多多日记</h2>
     <div class="diary-content">
       <div v-if="diaryContent" class="diary-entry">
         <h3 class="entry-date">{{ currentDateTime }}</h3>
@@ -52,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, onMounted, onUnmounted, ref, computed, watch } from 'vue';
+import { onActivated, onMounted, onUnmounted, ref } from 'vue';
 import { useStatStore } from '../store/StatStore';
 import { useMessageStore } from '../store/MessageStore';
 
@@ -61,26 +35,6 @@ const massageStore = useMessageStore();
 const diaryContent = ref('');
 const currentDateTime = ref('');
 const leavesKey = ref(0);
-
-// 心情值相关数据
-const moodValue = ref(60);
-const moodReason = ref('无');
-const isCat = ref(true);
-const isLocked = ref(false);
-
-// 计算心情百分比和样式类
-const moodPercentage = computed(() => {
-  return Math.max(0, Math.min(300, (moodValue.value * 100) / 300));
-});
-
-const moodClass = computed(() => {
-  if (moodValue.value > 260) return 'mood-excellent';
-  if (moodValue.value > 160) return 'mood-good';
-  if (moodValue.value > 90) return 'mood-normal';
-  if (moodValue.value > 10) return 'mood-poor';
-  return 'mood-bad';
-});
-
 function updateDiary() {
   try {
     // 匹配最后一个 <duoduo> 标签对，且内容中不包含 <duoduo> 的
@@ -99,22 +53,14 @@ function updateDiary() {
   }
 }
 
-// 更新心情值数据
-function updateMoodData() {
-  try {
-    const specialStatus = statStore.stat_data?.角色?.多多?.特殊状态;
-    if (specialStatus) {
-      moodValue.value = specialStatus.心情值;
-      moodReason.value = specialStatus.心情值变化原因 || '无';
-      isCat.value = specialStatus.猫形态 === true;
-      isLocked.value = statStore.stat_data?.系统设置?.锁定多多形态!;
-    }
-  } catch (error) {
-    console.error('获取心情值数据失败:', error);
-  }
-}
-
 // 从MVU变量获取日期时间信息
+watch(
+  () => statStore.stat_data,
+  () => {
+    updateDiary();
+  },
+  { immediate: true },
+);
 function updateDateTime() {
   try {
     const date = statStore.stat_data?.世界.日期;
@@ -135,40 +81,6 @@ function updateDateTime() {
   }
 }
 
-watch(
-  () => statStore.stat_data,
-  () => {
-    updateDiary();
-    updateMoodData();
-  },
-  { immediate: true, deep: true },
-);
-
-// 监听锁定状态变化
-watch(isLocked, newVal => {
-  try {
-    if (newVal) {
-      // 锁定当前形态
-      eventEmit('era:updateByObject', {
-        系统设置: {
-          锁定多多形态: newVal,
-        },
-      });
-      toastr.info('正在锁定形态,建议你等上一小会');
-    } else {
-      eventEmit('era:updateByObject', {
-        系统设置: {
-          锁定多多形态: newVal,
-        },
-      });
-      toastr.info('正在解锁形态,建议你等上一小会');
-    }
-  } catch (error) {
-    toastr.error('切换锁定状态失败', 'error');
-    console.error('切换锁定状态失败:', error);
-  }
-});
-
 // 重置落叶动画
 function resetLeaves() {
   leavesKey.value++;
@@ -181,6 +93,7 @@ onActivated(() => {
 
 // 组件挂载时
 onMounted(() => {
+  updateDiary();
   resetLeaves();
 });
 
@@ -213,191 +126,13 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
 .page-title {
   color: #ffffff;
   font-size: 20px;
   font-weight: 700;
   text-align: center;
-  margin: 0;
+  margin: 0 0 20px 0;
   text-shadow: 0px 2px 4px rgba(146, 64, 14, 0.4);
-}
-
-/* 锁定控制区域 */
-.lock-control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.lock-hint {
-  color: #fbbf24;
-  font-size: 11px;
-  text-shadow: 0 1px 2px rgba(146, 64, 14, 0.3);
-  white-space: nowrap;
-}
-
-/* 锁定开关样式 */
-.lock-switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.lock-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.3);
-  transition: 0.4s;
-  border-radius: 34px;
-  border: 1px solid rgba(180, 83, 9, 0.5);
-}
-
-.slider:before {
-  position: absolute;
-  content: '';
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: 0.4s;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-input:checked + .slider {
-  background-color: #d97706;
-}
-
-input:checked + .slider:before {
-  transform: translateX(26px);
-}
-
-/* 心情值样式 */
-.mood-section {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(180, 83, 9, 0.3);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.mood-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.mood-label {
-  color: #fbbf24;
-  font-size: 14px;
-  font-weight: 600;
-  text-shadow: 0px 1px 2px rgba(146, 64, 14, 0.3);
-}
-
-.mood-value {
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 700;
-  text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.mood-bar {
-  width: 100%;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
-  border: 1px solid rgba(180, 83, 9, 0.2);
-}
-
-.mood-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: all 0.5s ease-in-out;
-  position: relative;
-  overflow: hidden;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-    animation: shimmer 2s infinite;
-  }
-
-  &.mood-excellent {
-    background: linear-gradient(90deg, #edb6b2, rgba(255, 177, 177, 0.9));
-  }
-
-  &.mood-good {
-    background: linear-gradient(90deg, #059669, #10b981);
-  }
-
-  &.mood-normal {
-    background: linear-gradient(90deg, #d97706, #f59e0b);
-  }
-
-  &.mood-poor {
-    background: linear-gradient(90deg, #ea580c, #f97316);
-  }
-
-  &.mood-bad {
-    background: linear-gradient(90deg, #dc2626, #ef4444);
-  }
-}
-
-.mood-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-}
-
-.mood-reason {
-  color: #f8fafc;
-  opacity: 0.8;
-  max-width: 70%;
-  line-height: 1.4;
-  word-break: break-word;
-  white-space: normal;
-}
-
-.mood-form {
-  color: #fbbf24;
-  font-weight: 600;
-  background: rgba(180, 83, 9, 0.3);
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid rgba(251, 191, 36, 0.5);
 }
 
 .diary-content {
@@ -588,15 +323,6 @@ input:checked + .slider:before {
   }
 }
 
-@keyframes shimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .diary-container {
@@ -605,59 +331,6 @@ input:checked + .slider:before {
     padding: 16px;
     margin: 0 12px;
     border-radius: 14px;
-  }
-
-  .header-row {
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .page-title {
-    font-size: 18px;
-  }
-
-  .lock-switch {
-    width: 50px;
-    height: 28px;
-  }
-  .lock-control {
-    flex-direction: row;
-    gap: 6px;
-  }
-
-  .lock-hint {
-    font-size: 10px;
-  }
-
-  .slider:before {
-    height: 20px;
-    width: 20px;
-    left: 4px;
-    bottom: 4px;
-  }
-
-  input:checked + .slider:before {
-    transform: translateX(22px);
-  }
-
-  .mood-section {
-    padding: 12px;
-    margin-bottom: 16px;
-  }
-
-  .mood-value {
-    font-size: 16px;
-  }
-
-  .mood-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .mood-reason {
-    max-width: 100%;
   }
 
   .diary-entry {
@@ -703,9 +376,5 @@ input:checked + .slider:before {
 
 .diary-entry {
   animation: fadeInUp 0.6s ease-out;
-}
-
-.mood-section {
-  animation: fadeInUp 0.4s ease-out;
 }
 </style>

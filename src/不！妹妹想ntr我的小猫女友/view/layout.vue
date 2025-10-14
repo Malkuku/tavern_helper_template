@@ -34,7 +34,12 @@
       </div>
       <div class="options-wrapper">
         <div class="options-content">
-          <div v-for="(option, index) in optionsList" :key="index" class="option-item" @click="selectOption(option)">
+          <div
+            v-for="(option, index) in optionsList"
+            :key="index"
+            class="option-item"
+            @click="selectOption(option)"
+          >
             {{ option }}
           </div>
         </div>
@@ -65,7 +70,6 @@ const routes = [
   { path: '/状态界面', name: '人物状态', icon: '👤' },
   { path: '/世界信息', name: '世界信息', icon: '🌍' },
   { path: '/多多日记', name: '多多日记', icon: '📖' },
-  { path: '/角色状态', name: '角色状态', icon: '♥️' },
 ];
 
 // 判断是否在多多日记页面
@@ -89,7 +93,7 @@ const toggleOptions = () => {
 // 选择选项
 const selectOption = (option: string) => {
   // 获取输入框元素
-  const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
+  const input =  window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
 
   if (input) {
     const currentValue = input.value.trim();
@@ -128,7 +132,7 @@ const parseOptions = (message: string) => {
       }
 
       return options;
-    } else {
+    }else{
       showOptions.value = false;
     }
   } catch (error) {
@@ -263,7 +267,7 @@ watch(
   }
 
   .nav-text {
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
     position: relative;
     z-index: 1;
   }
@@ -327,7 +331,7 @@ watch(
   font-size: 12px;
   color: #e2e8f0;
   transition: color 0.3s ease;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .options-content {
