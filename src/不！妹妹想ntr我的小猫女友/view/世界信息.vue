@@ -21,9 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useStatStore } from '../store/StatStore';
-const statStore = useStatStore();
+import { ref, computed } from 'vue';
 const currentDate = ref('');
 const currentTime = ref('');
 const currentLocation = ref('');
@@ -42,21 +40,12 @@ const formattedDateTime = computed(() => {
   return currentDate.value || currentTime.value;
 });
 
-watch(
-  [
-    () => statStore.stat_data?.世界.日期,
-    () => statStore.stat_data?.世界.时间,
-    () => statStore.stat_data?.世界.地点,
-    () => statStore.stat_data?.世界.当前人物,
-  ],
-  ([date, time, location, character]) => {
-    currentDate.value = date || '未知日期';
-    currentTime.value = time || '未知时间';
-    currentLocation.value = location || '未知地点';
-    currentCharacter.value = character || '无';
-  },
-  { immediate: true }
-)
+eventOn('era:writeDone', (detail: { stat: StatData })=>{
+  currentDate.value = detail.stat.世界.日期;
+  currentTime.value = detail.stat.世界.时间;
+  currentLocation.value = detail.stat.世界.地点;
+  currentCharacter.value = detail.stat.世界.当前人物;
+});
 </script>
 
 <style lang="scss" scoped>

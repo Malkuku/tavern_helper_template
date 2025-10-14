@@ -1,6 +1,26 @@
 <template>
   <div class="diary-container">
     <h2 class="page-title">多多日记</h2>
+
+    <!-- 心情值显示 -->
+    <div class="mood-section">
+      <div class="mood-header">
+        <span class="mood-label">当前心情</span>
+        <span class="mood-value">{{ moodValue }}</span>
+      </div>
+      <div class="mood-bar">
+        <div
+          class="mood-fill"
+          :style="{ width: moodPercentage + '%' }"
+          :class="moodClass"
+        ></div>
+      </div>
+      <div class="mood-info">
+        <span class="mood-reason">{{ moodReason || '暂无心情变化记录' }}</span>
+        <span class="mood-form">{{ currentForm }}</span>
+      </div>
+    </div>
+
     <div class="diary-content">
       <div v-if="diaryContent" class="diary-entry">
         <h3 class="entry-date">{{ currentDateTime }}</h3>
@@ -26,60 +46,60 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, onMounted, onUnmounted, ref } from 'vue';
-import { useStatStore } from '../store/StatStore';
-import { useMessageStore } from '../store/MessageStore';
+import { onActivated, onMounted, onUnmounted, ref, computed } from 'vue';
+import { getCurrentMessage } from '../util/messageUtil';
 
-const statStore = useStatStore();
-const massageStore = useMessageStore();
 const diaryContent = ref('');
 const currentDateTime = ref('');
 const leavesKey = ref(0);
-function updateDiary() {
-  try {
-    // 匹配最后一个 <duoduo> 标签对，且内容中不包含 <duoduo> 的
-    const regex = /<duoduo>((?:(?!<duoduo>)[\s\S])*?)<\/duoduo>(?![\s\S]*<duoduo>[\s\S]*<\/duoduo>)/;
-    const match = massageStore.message.match(regex);
 
-    if (match && match[1]) {
-      diaryContent.value = match[1].trim();
-    } else {
-      diaryContent.value = '';
-    }
-    updateDateTime();
-  } catch (error) {
-    console.error('获取日记内容失败:', error);
-    diaryContent.value = '';
-  }
-}
+// 心情值相关数据
+const moodValue = ref(60);
+const moodReason = ref('无');
+const currentForm = ref('猫');
 
-// 从MVU变量获取日期时间信息
-watch(
-  () => statStore.stat_data,
-  () => {
-    updateDiary();
-  },
-  { immediate: true },
-);
-function updateDateTime() {
-  try {
-    const date = statStore.stat_data?.世界.日期;
-    const time = statStore.stat_data?.世界.时间;
+// 计算心情百分比和样式类
+const moodPercentage = computed(() => {
+  return Math.max(0, Math.min(100, (moodValue.value / 100) * 100));
+});
 
-    if (date && time) {
-      currentDateTime.value = `${date} ${time}`;
-    } else if (date) {
-      currentDateTime.value = date;
-    } else if (time) {
-      currentDateTime.value = time;
-    } else {
-      currentDateTime.value = '未知时间';
-    }
-  } catch (error) {
-    console.error('获取MVU日期时间失败:', error);
+const moodClass = computed(() => {
+  if (moodValue.value >= 80) return 'mood-excellent';
+  if (moodValue.value >= 60) return 'mood-good';
+  if (moodValue.value >= 40) return 'mood-normal';
+  if (moodValue.value >= 20) return 'mood-poor';
+  return 'mood-bad';
+});
+
+eventOn('era:writeDone', (detail: { stat: StatData })=>{
+  const date = detail.stat?.世界.日期;
+  const time = detail.stat?.世界.时间;
+  if (date && time) {
+    currentDateTime.value = `${date} ${time}`;
+  } else if (date) {
+    currentDateTime.value = date;
+  } else if (time) {
+    currentDateTime.value = time;
+  } else {
     currentDateTime.value = '未知时间';
   }
-}
+
+  const specialStatus = detail.stat?.角色.多多?.特殊状态;
+  if (specialStatus) {
+    moodValue.value = specialStatus.心情值;
+    moodReason.value = specialStatus.心情值变化原因!;
+    currentForm.value = specialStatus.当前形态;
+  }
+
+  const regex = /<duoduo>((?:(?!<duoduo>)[\s\S])*?)<\/duoduo>(?![\s\S]*<duoduo>[\s\S]*<\/duoduo>)/;
+  const match = getCurrentMessage().match(regex);
+
+  if (match && match[1]) {
+    diaryContent.value = match[1].trim();
+  } else {
+    diaryContent.value = '';
+  }
+});
 
 // 重置落叶动画
 function resetLeaves() {
@@ -93,7 +113,6 @@ onActivated(() => {
 
 // 组件挂载时
 onMounted(() => {
-  updateDiary();
   resetLeaves();
 });
 
@@ -133,6 +152,112 @@ onUnmounted(() => {
   text-align: center;
   margin: 0 0 20px 0;
   text-shadow: 0px 2px 4px rgba(146, 64, 14, 0.4);
+}
+
+/* 心情值样式 */
+.mood-section {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(180, 83, 9, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.mood-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mood-label {
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0px 1px 2px rgba(146, 64, 14, 0.3);
+}
+
+.mood-value {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.mood-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+
+.mood-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: all 0.5s ease-in-out;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: shimmer 2s infinite;
+  }
+
+  &.mood-excellent {
+    background: linear-gradient(90deg, #10b981, #34d399);
+  }
+
+  &.mood-good {
+    background: linear-gradient(90deg, #059669, #10b981);
+  }
+
+  &.mood-normal {
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+  }
+
+  &.mood-poor {
+    background: linear-gradient(90deg, #ea580c, #f97316);
+  }
+
+  &.mood-bad {
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+  }
+}
+
+.mood-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.mood-reason {
+  color: #f8fafc;
+  opacity: 0.8;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mood-form {
+  color: #fbbf24;
+  font-weight: 600;
+  background: rgba(180, 83, 9, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.5);
 }
 
 .diary-content {
@@ -323,6 +448,15 @@ onUnmounted(() => {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .diary-container {
@@ -331,6 +465,25 @@ onUnmounted(() => {
     padding: 16px;
     margin: 0 12px;
     border-radius: 14px;
+  }
+
+  .mood-section {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .mood-value {
+    font-size: 16px;
+  }
+
+  .mood-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .mood-reason {
+    max-width: 100%;
   }
 
   .diary-entry {
@@ -376,5 +529,9 @@ onUnmounted(() => {
 
 .diary-entry {
   animation: fadeInUp 0.6s ease-out;
+}
+
+.mood-section {
+  animation: fadeInUp 0.4s ease-out;
 }
 </style>
