@@ -95,7 +95,7 @@ function updateDiary() {
 // 更新心情值数据
 function updateMoodData() {
   try {
-    const specialStatus = statStore.stat_data?.角色.多多?.特殊状态;
+    const specialStatus = statStore.stat_data?.角色?.多多?.特殊状态;
     if (specialStatus) {
       moodValue.value = specialStatus.心情值 || 60;
       moodReason.value = specialStatus.心情值变化原因 || '无';

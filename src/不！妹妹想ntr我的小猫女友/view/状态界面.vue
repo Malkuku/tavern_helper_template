@@ -87,13 +87,13 @@ const getCorruptionStage = (value: number) => {
 // 监听 statStore 中的值变化
 watch(
   [
-    () => statStore.stat_data?.角色.user.特殊状态
+    () => statStore.stat_data
   ],
   () => {
-    depressionValue.value = statStore.stat_data?.角色.user.特殊状态.性压抑值!
-    corruptionValue.value = statStore.stat_data?.角色.user.特殊状态.恶堕值!
-    depressionReason.value = statStore.stat_data?.角色.user.特殊状态.性压抑值变化原因!
-    corruptionReason.value = statStore.stat_data?.角色.user.特殊状态.恶堕值变化原因!
+    depressionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值!
+    corruptionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值!
+    depressionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值变化原因!
+    corruptionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值变化原因!
   },
   { immediate: true }
 )

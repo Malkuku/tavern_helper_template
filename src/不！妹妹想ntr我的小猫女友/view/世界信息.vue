@@ -44,10 +44,10 @@ const formattedDateTime = computed(() => {
 
 watch(
   [
-    () => statStore.stat_data?.世界.日期,
-    () => statStore.stat_data?.世界.时间,
-    () => statStore.stat_data?.世界.地点,
-    () => statStore.stat_data?.世界.当前人物,
+    () => statStore.stat_data?.世界?.日期,
+    () => statStore.stat_data?.世界?.时间,
+    () => statStore.stat_data?.世界?.地点,
+    () => statStore.stat_data?.世界?.当前人物,
   ],
   ([date, time, location, character]) => {
     currentDate.value = date || '未知日期';
