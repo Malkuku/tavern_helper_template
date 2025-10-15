@@ -59,9 +59,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getCurrentMessage } from '../util/messageUtil';
+import { useMessageStore } from '../store/MessageStore';
 
 const currentRoute = useRoute();
 const router = useRouter();
@@ -143,14 +143,20 @@ const parseOptions = (message: string) => {
   return [];
 };
 
+const massageStore = useMessageStore();
 const updateOptions = () => {
-  const messageContent = getCurrentMessage();
+  const messageContent = massageStore.message;
+
   const options = parseOptions(messageContent);
   optionsList.value = options;
   showOptions.value = options.length > 0;
 };
 
-eventOn('era:writeDone', updateOptions);
+watch(
+  () => massageStore.message,
+  () => updateOptions(),
+  { immediate: true },
+);
 </script>
 
 <style lang="scss" scoped>
