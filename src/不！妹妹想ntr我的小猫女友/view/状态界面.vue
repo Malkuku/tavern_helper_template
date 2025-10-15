@@ -44,7 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { watch, ref } from 'vue'
+import { useStatStore } from '../store/StatStore'
+
+const statStore = useStatStore()
 
 const depressionValue = ref(0);
 const corruptionValue = ref(0);
@@ -81,12 +84,19 @@ const getCorruptionStage = (value: number) => {
   return stage || corruptionStages[0];
 };
 
-eventOn('era:writeDone', (detail: { stat: StatData })=>{
-  depressionValue.value = detail.stat.角色.user.特殊状态.性压抑值;
-  corruptionValue.value = detail.stat.角色.user.特殊状态.恶堕值;
-  depressionReason.value = detail.stat.角色.user.特殊状态.性压抑值变化原因!;
-  corruptionReason.value = detail.stat.角色.user.特殊状态.恶堕值变化原因!;
-});
+// 监听 statStore 中的值变化
+watch(
+  [
+    () => statStore.stat_data?.角色.user.特殊状态
+  ],
+  () => {
+    depressionValue.value = statStore.stat_data?.角色.user.特殊状态.性压抑值!
+    corruptionValue.value = statStore.stat_data?.角色.user.特殊状态.恶堕值!
+    depressionReason.value = statStore.stat_data?.角色.user.特殊状态.性压抑值变化原因!
+    corruptionReason.value = statStore.stat_data?.角色.user.特殊状态.恶堕值变化原因!
+  },
+  { immediate: true }
+)
 </script>
 
 <style lang="scss" scoped>

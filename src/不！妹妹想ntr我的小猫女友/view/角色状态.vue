@@ -16,7 +16,7 @@
       >
         <span class="button-icon">
           <span v-if="name === '多多' && character.specialStatus?.当前形态 === '猫'">🐱</span>
-          <span v-else-if="name === '我'">👤</span>
+          <span v-else-if="name === 'user'">👤</span>
           <span v-else>🐈‍⬛</span>
         </span>
         <span class="button-text">{{ name }}</span>
@@ -35,7 +35,7 @@
           <h2 class="character-name">{{ name }}</h2>
           <div class="character-icon">
             <span v-if="name === '多多' && character.specialStatus?.当前形态 === '猫'">🐱</span>
-            <span v-else-if="name === '我'">👤</span>
+            <span v-else-if="name === 'user'">👤</span>
             <span v-else>🐈‍⬛</span>
           </div>
         </div>
@@ -83,20 +83,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useStatStore } from '../store/StatStore';
 
 // 当前显示的角色
-const currentCharacter = ref('我');
+const currentCharacter = ref('user');
 
 // 展开/收起状态
 const expandedSections = ref<Record<string, boolean>>({
-  我: false,
+  user: false,
   多多: false,
   何茉茉: false
 });
 
 // 角色数据
 const characters = ref({
-  我: {
+  user: {
     clothing: {
       上半身: '',
       下半身: '',
@@ -202,16 +203,20 @@ const getBodyPartName = (part: string) => {
 };
 
 // 监听数据更新
-eventOn('era:writeDone', (detail: { stat: any }) => {
-  const stat = detail.stat;
+const statStore = useStatStore();
+const updateData = () => {
+  const stat = statStore.stat_data;
   if (!stat) return;
 
-  // 更新角色数据
   if (stat.角色) {
+    type CharacterKey = keyof typeof characters.value;
+
     Object.keys(stat.角色).forEach(name => {
-      if (characters.value[name as keyof typeof characters.value]) {
-        const character = characters.value[name as keyof typeof characters.value];
-        const statCharacter = stat.角色[name];
+      const key = name as CharacterKey;
+
+      if (key in characters.value) {
+        const character = characters.value[key];
+        const statCharacter = stat.角色[key];
 
         if (statCharacter.服装) {
           character.clothing = { ...statCharacter.服装 };
@@ -225,7 +230,11 @@ eventOn('era:writeDone', (detail: { stat: any }) => {
       }
     });
   }
-});
+};
+
+watch(() => statStore.stat_data,()=>{
+  updateData();
+} , { deep: true,immediate: true },)
 
 onMounted(() => {
   initStars();

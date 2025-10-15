@@ -46,9 +46,12 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, onMounted, onUnmounted, ref, computed } from 'vue';
-import { getCurrentMessage } from '../util/messageUtil';
+import { onActivated, onMounted, onUnmounted, ref, computed, watch } from 'vue';
+import { useStatStore } from '../store/StatStore';
+import { useMessageStore } from '../store/MessageStore';
 
+const statStore = useStatStore();
+const massageStore = useMessageStore();
 const diaryContent = ref('');
 const currentDateTime = ref('');
 const leavesKey = ref(0);
@@ -71,35 +74,70 @@ const moodClass = computed(() => {
   return 'mood-bad';
 });
 
-eventOn('era:writeDone', (detail: { stat: StatData })=>{
-  const date = detail.stat?.世界.日期;
-  const time = detail.stat?.世界.时间;
-  if (date && time) {
-    currentDateTime.value = `${date} ${time}`;
-  } else if (date) {
-    currentDateTime.value = date;
-  } else if (time) {
-    currentDateTime.value = time;
-  } else {
-    currentDateTime.value = '未知时间';
-  }
+function updateDiary() {
+  try {
+    // 匹配最后一个 <duoduo> 标签对，且内容中不包含 <duoduo> 的
+    const regex = /<duoduo>((?:(?!<duoduo>)[\s\S])*?)<\/duoduo>(?![\s\S]*<duoduo>[\s\S]*<\/duoduo>)/;
+    const match = massageStore.message.match(regex);
 
-  const specialStatus = detail.stat?.角色.多多?.特殊状态;
-  if (specialStatus) {
-    moodValue.value = specialStatus.心情值;
-    moodReason.value = specialStatus.心情值变化原因!;
-    currentForm.value = specialStatus.当前形态;
-  }
-
-  const regex = /<duoduo>((?:(?!<duoduo>)[\s\S])*?)<\/duoduo>(?![\s\S]*<duoduo>[\s\S]*<\/duoduo>)/;
-  const match = getCurrentMessage().match(regex);
-
-  if (match && match[1]) {
-    diaryContent.value = match[1].trim();
-  } else {
+    if (match && match[1]) {
+      diaryContent.value = match[1].trim();
+    } else {
+      diaryContent.value = '';
+    }
+    updateDateTime();
+  } catch (error) {
+    console.error('获取日记内容失败:', error);
     diaryContent.value = '';
   }
-});
+}
+
+// 更新心情值数据
+function updateMoodData() {
+  try {
+    const specialStatus = statStore.stat_data?.角色.多多?.特殊状态;
+    if (specialStatus) {
+      moodValue.value = specialStatus.心情值 || 60;
+      moodReason.value = specialStatus.心情值变化原因 || '无';
+      currentForm.value = specialStatus.当前形态 || '猫';
+    }
+  } catch (error) {
+    console.error('获取心情值数据失败:', error);
+    moodValue.value = 60;
+    moodReason.value = '无';
+    currentForm.value = '猫';
+  }
+}
+
+// 从MVU变量获取日期时间信息
+function updateDateTime() {
+  try {
+    const date = statStore.stat_data?.世界.日期;
+    const time = statStore.stat_data?.世界.时间;
+
+    if (date && time) {
+      currentDateTime.value = `${date} ${time}`;
+    } else if (date) {
+      currentDateTime.value = date;
+    } else if (time) {
+      currentDateTime.value = time;
+    } else {
+      currentDateTime.value = '未知时间';
+    }
+  } catch (error) {
+    console.error('获取MVU日期时间失败:', error);
+    currentDateTime.value = '未知时间';
+  }
+}
+
+watch(
+  () => statStore.stat_data,
+  () => {
+    updateDiary();
+    updateMoodData();
+  },
+  { immediate: true, deep: true },
+);
 
 // 重置落叶动画
 function resetLeaves() {
@@ -246,9 +284,9 @@ onUnmounted(() => {
   color: #f8fafc;
   opacity: 0.8;
   max-width: 70%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .mood-form {
