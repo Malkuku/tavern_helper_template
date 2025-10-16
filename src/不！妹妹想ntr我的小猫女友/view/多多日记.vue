@@ -63,14 +63,14 @@ const currentForm = ref('猫');
 
 // 计算心情百分比和样式类
 const moodPercentage = computed(() => {
-  return Math.max(0, Math.min(100, (moodValue.value / 100) * 100));
+  return Math.max(0, Math.min(300, (moodValue.value * 100 / 300)));
 });
 
 const moodClass = computed(() => {
-  if (moodValue.value >= 80) return 'mood-excellent';
-  if (moodValue.value >= 60) return 'mood-good';
-  if (moodValue.value >= 40) return 'mood-normal';
-  if (moodValue.value >= 20) return 'mood-poor';
+  if (moodValue.value > 260) return 'mood-excellent';
+  if (moodValue.value > 160) return 'mood-good';
+  if (moodValue.value > 90) return 'mood-normal';
+  if (moodValue.value > 10) return 'mood-poor';
   return 'mood-bad';
 });
 
@@ -97,15 +97,12 @@ function updateMoodData() {
   try {
     const specialStatus = statStore.stat_data?.角色?.多多?.特殊状态;
     if (specialStatus) {
-      moodValue.value = specialStatus.心情值 || 60;
+      moodValue.value = specialStatus.心情值;
       moodReason.value = specialStatus.心情值变化原因 || '无';
       currentForm.value = specialStatus.当前形态 || '猫';
     }
   } catch (error) {
     console.error('获取心情值数据失败:', error);
-    moodValue.value = 60;
-    moodReason.value = '无';
-    currentForm.value = '猫';
   }
 }
 
