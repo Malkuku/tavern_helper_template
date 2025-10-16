@@ -8,6 +8,12 @@ export const useStatStore = defineStore('stat', () => {
   const stat_data = ref<StatData>();
 
   const initData = ()=>{
+    if(getCurrentMessageId() < getLastMessageId()-10){
+      console.log(`正在加载位于第${getCurrentMessageId()}楼层的旧数据`);
+      console.log('楼层过深,停止加载');
+      return;
+    }
+
     if(getCurrentMessageId() < getLastMessageId()-1){
       stat_data.value = stat_data.value = getOldStatData() as StatData;
     }else{
