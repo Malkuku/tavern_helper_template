@@ -29,7 +29,7 @@
             <div
               class="progress-fill corruption"
               :class="getCorruptionStage(corruptionValue).className"
-              :style="{ width: corruptionValue + '%' }"
+              :style="{ width: corruptionValue/3 + '%' }"
             ></div>
           </div>
           <div class="progress-text">
@@ -65,11 +65,11 @@ const depressionStages = [
 
 // 恶堕值阶段定义
 const corruptionStages = [
-  { min: 0, max: 0, name: '忠贞的爱', className: 'stage-calm' },
-  { min: 1, max: 20, name: '愧疚与挣扎', className: 'stage-guilt' },
-  { min: 21, max: 60, name: '沉沦与合理化', className: 'stage-rationalization' },
-  { min: 61, max: 90, name: '背叛与重塑', className: 'stage-betrayal' },
-  { min: 91, max: 100, name: '新的平衡', className: 'stage-new-balance' }
+  { min: 0, max: 0, name: '纯洁无瑕', className: 'stage-calm' },
+  { min: 1, max: 60, name: '挣扎与罪恶', className: 'stage-guilt' },
+  { min: 61, max: 180, name: '沉沦与合理化', className: 'stage-rationalization' },
+  { min: 181, max: 280, name: '背叛与重塑', className: 'stage-betrayal' },
+  { min: 281, max: 300, name: '新的平衡', className: 'stage-new-balance' }
 ];
 
 // 获取压抑值阶段
@@ -284,7 +284,6 @@ watch(
   color: #fbbf24;
   opacity: 0.9;
   text-shadow: 0px 1px 1px rgba(0, 0, 0, 0.5);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: all 0.3s ease;
