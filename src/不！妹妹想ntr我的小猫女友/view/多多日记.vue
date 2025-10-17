@@ -1,6 +1,16 @@
+```html
 <template>
   <div class="diary-container">
-    <h2 class="page-title">多多日记</h2>
+    <div class="header-row">
+      <h2 class="page-title">多多日记</h2>
+      <div class="lock-control">
+        <label class="lock-switch" title="启用后将不会自动切换形态,建议使用后等待一小会,确保数据正确写入">
+          <input type="checkbox" v-model="isLocked" />
+          <span class="slider"></span>
+        </label>
+        <small class="lock-hint">锁定形态</small>
+      </div>
+    </div>
 
     <!-- 心情值显示 -->
     <div class="mood-section">
@@ -17,7 +27,7 @@
       </div>
       <div class="mood-info">
         <span class="mood-reason">{{ moodReason || '暂无心情变化记录' }}</span>
-        <span class="mood-form">{{ currentForm }}</span>
+        <span class="mood-form">{{ isCat ? '猫' : '猫娘' }}</span>
       </div>
     </div>
 
@@ -59,7 +69,8 @@ const leavesKey = ref(0);
 // 心情值相关数据
 const moodValue = ref(60);
 const moodReason = ref('无');
-const currentForm = ref('猫');
+const isCat = ref(true);
+const isLocked = ref(false);
 
 // 计算心情百分比和样式类
 const moodPercentage = computed(() => {
@@ -99,7 +110,8 @@ function updateMoodData() {
     if (specialStatus) {
       moodValue.value = specialStatus.心情值;
       moodReason.value = specialStatus.心情值变化原因 || '无';
-      currentForm.value = specialStatus.当前形态 || '猫';
+      isCat.value = specialStatus.猫形态 === true;
+      isLocked.value = statStore.stat_data?.系统设置?.锁定多多形态!;
     }
   } catch (error) {
     console.error('获取心情值数据失败:', error);
@@ -135,6 +147,31 @@ watch(
   },
   { immediate: true, deep: true },
 );
+
+// 监听锁定状态变化
+watch(isLocked, (newVal) => {
+  try{
+    if (newVal) {
+      // 锁定当前形态
+      eventEmit('era:updateByObject', {
+        系统设置: {
+          锁定多多形态: newVal,
+        },
+      });
+      toastr.info('正在锁定形态,建议你等上一小会');
+    } else {
+      eventEmit('era:updateByObject', {
+        系统设置: {
+          锁定多多形态: newVal,
+        },
+      });
+      toastr.info('正在解锁形态,建议你等上一小会');
+    }
+  }catch (error){
+    toastr.error('切换锁定状态失败', 'error');
+    console.error('切换锁定状态失败:', error);
+  }
+});
 
 // 重置落叶动画
 function resetLeaves() {
@@ -180,13 +217,86 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
 .page-title {
   color: #ffffff;
   font-size: 20px;
   font-weight: 700;
   text-align: center;
-  margin: 0 0 20px 0;
+  margin: 0;
   text-shadow: 0px 2px 4px rgba(146, 64, 14, 0.4);
+}
+
+/* 锁定控制区域 */
+.lock-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.lock-hint {
+  color: #fbbf24;
+  font-size: 11px;
+  text-shadow: 0 1px 2px rgba(146, 64, 14, 0.3);
+  white-space: nowrap;
+}
+
+
+/* 锁定开关样式 */
+.lock-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.lock-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.3);
+  transition: 0.4s;
+  border-radius: 34px;
+  border: 1px solid rgba(180, 83, 9, 0.5);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .slider {
+  background-color: #d97706;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
 }
 
 /* 心情值样式 */
@@ -500,6 +610,40 @@ onUnmounted(() => {
     padding: 16px;
     margin: 0 12px;
     border-radius: 14px;
+  }
+
+  .header-row {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .lock-switch {
+    width: 50px;
+    height: 28px;
+  }
+  .lock-control {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .lock-hint {
+    font-size: 10px;
+  }
+
+  .slider:before {
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(22px);
   }
 
   .mood-section {

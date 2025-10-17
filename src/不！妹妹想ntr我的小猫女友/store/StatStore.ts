@@ -28,6 +28,7 @@ export const useStatStore = defineStore('stat', () => {
       return;
     }else{
       stat_data.value = detail.stat;
+      toastr.success('已获取最新数据');
     }
     console.log('Stat data updated:', stat_data.value);
   };
