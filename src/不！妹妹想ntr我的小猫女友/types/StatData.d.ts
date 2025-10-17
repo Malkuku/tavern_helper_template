@@ -32,7 +32,7 @@ interface StatData {
       特殊状态:{
         心情值: 60,
         心情值变化原因?: string;
-        当前形态: "猫"
+        猫形态: true
       },
       服装: {
         上半身: "",
@@ -66,7 +66,9 @@ interface StatData {
       },
       当前想法:'无'
     },
-
   },
-  version: '2.0.0';
+  version: '2.2.0',
+  系统设置:{
+    锁定多多形态:false
+  },
 }

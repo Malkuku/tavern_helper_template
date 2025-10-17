@@ -11,7 +11,7 @@
             <div
               class="progress-fill depression"
               :class="getDepressionStage(depressionValue).className"
-              :style="{ width: depressionValue + '%' }"
+              :style="{ width: depressionValue/2 + '%' }"
             ></div>
           </div>
           <div class="progress-text">
@@ -56,11 +56,11 @@ const corruptionReason = ref('');
 
 // 压抑值阶段定义
 const depressionStages = [
-  { min: 0, max: 20, name: '心如止水', className: 'stage-calm' },
-  { min: 21, max: 50, name: '焦躁不安', className: 'stage-anxious' },
-  { min: 51, max: 80, name: '欲火焚身', className: 'stage-craving' },
-  { min: 81, max: 99, name: '煎熬难忍', className: 'stage-critical' },
-  { min: 100, max: 100, name: '崩溃决堤', className: 'stage-breakdown' }
+  { min: 0, max: 50, name: '心如止水', className: 'stage-calm' },
+  { min: 51, max: 100, name: '焦躁不安', className: 'stage-anxious' },
+  { min: 101, max: 160, name: '欲火焚身', className: 'stage-craving' },
+  { min: 161, max: 199, name: '煎熬难忍', className: 'stage-critical' },
+  { min: 200, max: 200, name: '崩溃决堤', className: 'stage-breakdown' }
 ];
 
 // 恶堕值阶段定义
