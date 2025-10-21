@@ -1,5 +1,5 @@
 <template>
-  <div class="character-status" :class="{ 'starry-theme': !isStarryTheme }">
+  <div class="character-status" :class="{ 'starry-theme': isStarryTheme }">
     <!-- 人物头像区域 -->
     <div class="character-header">
       <div class="avatar-section">
@@ -16,42 +16,48 @@
     <!-- 好感度和亲密度区域 -->
     <div class="relationship-stats">
       <!-- 好感度 -->
-      <div class="stat-item" v-if="showFavor">
+      <div class="stat-item" v-if="characterData.特殊状态?.好感度 !== undefined">
         <div class="stat-header">
           <span class="stat-title">好感度</span>
-          <span class="stat-value">{{ characterFavor }}/1000</span>
+          <span class="stat-value">{{ characterData.特殊状态.好感度 }}/100</span>
         </div>
         <div class="hand-drawn-bar">
-          <div class="bar-fill" :style="{ width: favorPercentage / 10 + '%' }"></div>
+          <div
+            class="bar-fill"
+            :style="{ width: favorPercentage + '%' }"
+          ></div>
           <div class="bar-ticks">
             <span v-for="tick in 5" :key="tick" class="tick"></span>
           </div>
         </div>
         <div class="stat-change">
-          <span class="change-reason">{{ favorChangeReason || '无' }}</span>
+          <span class="change-reason">{{ characterData.特殊状态.好感度变化原因 || '无' }}</span>
         </div>
       </div>
 
       <!-- 亲密度 -->
-      <div class="stat-item" v-if="showIntimacy">
+      <div class="stat-item" v-if="userData?.特殊状态?.[characterName]?.亲密度 !== undefined">
         <div class="stat-header">
           <span class="stat-title">亲密度</span>
-          <span class="stat-value">{{ characterIntimacy }}/1000</span>
+          <span class="stat-value">{{ userData.特殊状态[characterName].亲密度 }}/100</span>
         </div>
         <div class="hand-drawn-bar intimacy-bar">
-          <div class="bar-fill" :style="{ width: intimacyPercentage / 10 + '%' }"></div>
+          <div
+            class="bar-fill"
+            :style="{ width: intimacyPercentage + '%' }"
+          ></div>
           <div class="bar-ticks">
             <span v-for="tick in 5" :key="tick" class="tick"></span>
           </div>
         </div>
         <div class="stat-change">
-          <span class="change-reason">{{ intimacyChangeReason || '无' }}</span>
+          <span class="change-reason">{{ userData.特殊状态[characterName].亲密度变化原因 || '无' }}</span>
         </div>
       </div>
     </div>
 
     <!-- 服装搭配区域 -->
-    <div class="outfit-section">
+    <div class="outfit-section" v-if="showOutfitSection && characterData.服装">
       <div class="section-header" @click="toggleOutfit">
         <h3 class="section-title">今日装扮</h3>
         <div class="toggle-icon">
@@ -61,7 +67,12 @@
       <transition name="slide-down">
         <div v-if="isOutfitExpanded" class="outfit-content">
           <div class="outfit-grid">
-            <div v-for="(item, part) in characterOutfit" :key="part" class="outfit-item">
+            <div
+              v-for="(item, part) in characterData.服装"
+              :key="part"
+              class="outfit-item"
+              v-if="item"
+            >
               <div class="outfit-part">{{ getPartName(part) }}</div>
               <div class="outfit-name">{{ item }}</div>
             </div>
@@ -71,10 +82,11 @@
     </div>
 
     <!-- 心情状态 -->
-    <div class="mood-section">
-      <h3 class="section-title">当前想法</h3>
+    <div class="mood-section" v-if="showMoodSection && characterData.当前想法">
+      <h3 class="section-title">当前心情</h3>
       <div class="mood-display">
-        <div class="mood-text">{{ characterThoughts }}</div>
+        <div class="mood-emoji">{{ getMoodEmoji(characterData.当前想法) }}</div>
+        <div class="mood-text">{{ characterData.当前想法 }}</div>
       </div>
     </div>
   </div>
@@ -82,100 +94,91 @@
 
 <script setup lang="ts">
 import { ref, computed, withDefaults } from 'vue';
-import type { StatData } from '../types/StatData';
-import { useStatStore } from '../store/StatStore';
+
+// 根据 StatData 接口定义类型
+interface SpecialStatus {
+  好感度?: number;
+  好感度变化原因?: string;
+  亲密度?: number;
+  亲密度变化原因?: string;
+}
+
+interface Outfit {
+  上半身?: string;
+  下半身?: string;
+  内衣?: string;
+  袜子?: string;
+  鞋子?: string;
+  配饰?: string;
+  [key: string]: string | undefined;
+}
+
+interface CharacterData {
+  特殊状态?: SpecialStatus;
+  服装?: Outfit;
+  当前想法?: string;
+}
+
+interface UserSpecialStatus {
+  [characterName: string]: {
+    亲密度: number;
+    亲密度变化原因: string;
+  };
+}
+
+interface UserData {
+  特殊状态: UserSpecialStatus;
+  服装: Outfit;
+  当前想法: string;
+}
+
+interface StatData {
+  角色: {
+    user: UserData;
+    [characterName: string]: CharacterData | UserData;
+  };
+}
 
 interface Props {
   statData: StatData;
   characterName: string;
   characterAvatar?: string;
   characterIdentity?: string;
-  showFavor?: boolean;
-  showIntimacy?: boolean;
+  isStarryTheme?: boolean;
+  showOutfitSection?: boolean;
+  showMoodSection?: boolean;
 }
-
-const statStore = useStatStore();
-const isStarryTheme = computed(() => {
-  return statStore.stat_data?.theme === 'autumn';
-});
 
 // 定义 props
 const props = withDefaults(defineProps<Props>(), {
   characterAvatar: '👤',
   characterIdentity: '角色',
-  showFavor: true,
-  showIntimacy: true,
+  isStarryTheme: true,
+  showOutfitSection: true,
+  showMoodSection: true
 });
 
 // 展开状态
 const isOutfitExpanded = ref(false);
 
-// 定义安全的角色数据类型
-interface CharacterData {
-  特殊状态?: {
-    好感度?: number;
-    好感度变化原因?: string;
-  };
-  服装?: Record<string, string>;
-  当前想法?: string;
-}
-
-// 安全的属性访问计算属性
-const characterData = computed((): CharacterData => {
-  const characters = props.statData?.角色;
-  if (characters && typeof characters === 'object' && props.characterName in characters) {
-    return (characters as Record<string, CharacterData>)[props.characterName] || {};
-  }
-  return {};
+// 计算属性
+const characterData = computed(() => {
+  return props.statData.角色[props.characterName] as CharacterData;
 });
 
 const userData = computed(() => {
-  return props.statData?.角色?.user || {};
-});
-
-// 好感度相关
-const characterFavor = computed(() => {
-  return characterData.value?.特殊状态?.好感度 || 0;
-});
-
-const favorChangeReason = computed(() => {
-  return characterData.value?.特殊状态?.好感度变化原因 || '未知';
-});
-
-// 亲密度相关
-const characterIntimacy = computed(() => {
-  const userStatus = userData.value?.特殊状态;
-  if (userStatus && typeof userStatus === 'object' && props.characterName in userStatus) {
-    return (userStatus as any)[props.characterName]?.亲密度 || 0;
-  }
-  return 0;
-});
-
-const intimacyChangeReason = computed(() => {
-  const userStatus = userData.value?.特殊状态;
-  if (userStatus && typeof userStatus === 'object' && props.characterName in userStatus) {
-    return (userStatus as any)[props.characterName]?.亲密度变化原因 || '未知';
-  }
-  return '';
-});
-
-// 服装数据
-const characterOutfit = computed(() => {
-  return characterData.value?.服装 || {};
-});
-
-// 当前想法
-const characterThoughts = computed(() => {
-  return characterData.value?.当前想法 || '未知';
+  return props.statData.角色.user;
 });
 
 // 计算百分比
 const favorPercentage = computed(() => {
-  return (characterFavor.value / 100) * 100;
+  const favor = characterData.value.特殊状态?.好感度 || 0;
+  return (favor / 100) * 100;
 });
 
 const intimacyPercentage = computed(() => {
-  return (characterIntimacy.value / 100) * 100;
+  const intimacy = userData.value?.特殊状态?.[props.characterName]?.亲密度 || 0;
+  return (intimacy / 100) * 100;
 });
 
 // 切换服装栏展开状态
@@ -185,19 +188,33 @@ const toggleOutfit = () => {
 
 // 获取服装部位名称
 const getPartName = (part: string) => {
-  const partNames: Record<string, string> = {
-    上半身: '上半身',
-    下半身: '下半身',
-    内衣: '内衣',
-    袜子: '袜子',
-    鞋子: '鞋子',
-    配饰: '配饰',
+  const partNames: { [key: string]: string } = {
+    '上半身': '上半身',
+    '下半身': '下半身',
+    '内衣': '内衣',
+    '袜子': '袜子',
+    '鞋子': '鞋子',
+    '配饰': '配饰'
   };
   return partNames[part] || part;
+};
+
+// 根据当前想法获取表情符号
+const getMoodEmoji = (thought: string) => {
+  if (!thought || thought === '无') return '😐';
+
+  const positiveWords = ['开心', '高兴', '快乐', '兴奋', '喜欢', '爱', '美好', '幸福'];
+  const negativeWords = ['伤心', '难过', '生气', '愤怒', '讨厌', '恨', '糟糕', '痛苦'];
+
+  if (positiveWords.some(word => thought.includes(word))) return '😊';
+  if (negativeWords.some(word => thought.includes(word))) return '😔';
+
+  return '😐';
 };
 </script>
 
 <style lang="scss" scoped>
+/* 样式保持不变，与之前相同 */
 .character-status {
   padding: 2rem;
   max-width: 800px;
@@ -308,7 +325,10 @@ const getPartName = (part: string) => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255,255,255,0.3) 50%,
+      transparent 100%);
     animation: shimmer 2s infinite;
   }
 }
@@ -543,12 +563,8 @@ const getPartName = (part: string) => {
 }
 
 @keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 // 响应式设计

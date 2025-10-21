@@ -3,14 +3,14 @@
     <!-- 顶部导航栏 -->
     <header class="header">
       <div class="nav-container">
-        <h1 class="logo">Letter Cottage</h1>
+        <h1 class="logo">信笺小筑</h1>
         <div class="theme-switcher">
           <button
-            class="theme-btn"
             @click="toggleTheme"
+            class="theme-btn"
             :title="theme === 'autumn' ? '切换到星空主题' : '切换到秋天主题'"
           >
-            {{ theme === 'autumn' ? '🍂 秋日之诗' : '🌙 星夜之歌' }}
+            {{ theme === 'autumn' ? '🌙 星空' : '🍂 秋天' }}
           </button>
         </div>
       </div>
@@ -21,17 +21,15 @@
       <div class="letter-paper">
         <!-- 左侧页签 - 像书里夹着的信笺 -->
         <div class="page-tabs">
-          <div class="page-tabs">
-            <div
-              v-for="tab in tabs"
-              :key="tab.path"
-              class="page-tab"
-              :class="{ active: isActive(tab.path) }"
-              @click="handleTabClick(tab)"
-            >
-              <div class="tab-sticker"></div>
-              <span class="tab-text">{{ tab.name }}</span>
-            </div>
+          <div
+            v-for="route in routes"
+            :key="route.path"
+            class="page-tab"
+            :class="{ active: isActive(route.path) }"
+            @click="navigateTo(route.path)"
+          >
+            <div class="tab-sticker"></div>
+            <span class="tab-text">{{ route.name }}</span>
           </div>
         </div>
 
@@ -48,7 +46,7 @@
         <!-- 装饰元素 -->
         <div class="decorations">
           <!-- 右下角钢笔 - 穿出内容区 -->
-          <div class="decoration pen">🖋️</div>
+          <div class="decoration pen" title="书写时光">🖋️</div>
 
           <!-- 左上角大护角 -->
           <div class="corner-protector top-left"></div>
@@ -62,49 +60,23 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useStatStore } from '../store/StatStore';
 
 const currentRoute = useRoute();
 const router = useRouter();
 
 // 主题状态
-const statStore = useStatStore();
-const theme = computed(() => (statStore.stat_data?.theme ? statStore.stat_data.theme : 'autumn'));
+const theme = ref<'autumn' | 'starry'>('autumn');
 
-const username = computed(() => substitudeMacros('{{user}}'));
-
-const showCharacters = ref(false);
-
-// 切换函数
-function toggleGroup() {
-  showCharacters.value = !showCharacters.value;
-}
-
-const dummyName = computed(() => (showCharacters.value ? '返回' : '角色信息'));
-
-// 全部 7 条真实路由
-const allRoutes = [
-  { path: '/user', name: username, group: 'char' },
-  { path: '/林安安', name: '林安安', group: 'char' },
-  { path: '/李沐', name: '李沐', group: 'char' },
-  { path: '/张小花', name: '张小花', group: 'char' },
-  { path: '/苏浅浅', name: '苏浅浅', group: 'char' },
-  { path: '/世界信息', name: '活动档案', group: 'todo' },
-  { path: '/TODOLIST', name: 'TODOLIST', group: 'todo' },
-  { path: '/选项', name: '展望未来', group: 'todo' },
-  { path: '/more', name: dummyName, group: 'dummy' },
+// 路由配置
+const routes = [
+  { path: '/', name: '首页' },
+  { path: '/test1', name: '我的信件' },
+  { path: '/test2', name: '写信' },
+  { path: '/test3', name: '回忆画廊' },
+  { path: '/test4', name: '关于' }
 ];
-
-const tabs = computed(() => {
-  const flag = showCharacters.value;
-  return allRoutes.filter(t => {
-    if (t.group === 'dummy') return true; // 假路由永远显示
-    return flag
-      ? t.group === 'char' // 人物模式
-      : t.group === 'todo'; // 常驻模式
-  });
-});
 
 // 改进的路由激活判断
 const isActive = (path: string) => {
@@ -115,25 +87,19 @@ const isActive = (path: string) => {
 };
 
 // 切换主题
-const toggleTheme = async () => {
-  if (!statStore.stat_data) return;
-  const currentTheme = statStore.stat_data?.theme ?? 'autumn';
-  statStore.stat_data.theme = currentTheme === 'autumn' ? 'starry' : 'autumn';
-  await updateVariablesWith(variables => _.update(variables, 'stat_data.theme', () => statStore.stat_data?.theme));
+const toggleTheme = () => {
+  theme.value = theme.value === 'autumn' ? 'starry' : 'autumn';
 };
 
 // 导航到指定路由
-function handleTabClick(tab: (typeof allRoutes)[0]) {
-  if (tab.group === 'dummy') {
-    toggleGroup(); // 假路由：只切换分组
-  } else {
-    router.push(tab.path); // 真路由：正常跳转
-  }
-}
+const navigateTo = (path: string) => {
+  router.push(path);
+};
 </script>
 
 <style lang="scss" scoped>
 .letter-layout {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   transition: all 0.5s ease;
@@ -258,7 +224,7 @@ function handleTabClick(tab: (typeof allRoutes)[0]) {
 .pen {
   position: absolute;
   bottom: -20px; /* 穿出底部 */
-  right: -15px; /* 穿出右侧 */
+  right: -15px;  /* 穿出右侧 */
   font-size: 4rem;
   opacity: 0.8;
   transition: all 0.3s ease;
@@ -352,24 +318,20 @@ function handleTabClick(tab: (typeof allRoutes)[0]) {
     border-radius: 10px;
 
     .autumn & {
-      background: linear-gradient(
-        to bottom,
+      background: linear-gradient(to bottom,
         rgba(139, 69, 19, 0.8) 0%,
         rgba(210, 180, 140, 0.6) 30%,
         rgba(210, 180, 140, 0.4) 70%,
-        rgba(139, 69, 19, 0.3) 100%
-      );
+        rgba(139, 69, 19, 0.3) 100%);
       border: 1px solid rgba(210, 180, 140, 0.5);
     }
 
     .starry & {
-      background: linear-gradient(
-        to bottom,
+      background: linear-gradient(to bottom,
         rgba(168, 216, 234, 0.8) 0%,
         rgba(26, 26, 46, 0.6) 30%,
         rgba(26, 26, 46, 0.4) 70%,
-        rgba(168, 216, 234, 0.3) 100%
-      );
+        rgba(168, 216, 234, 0.3) 100%);
       border: 1px solid rgba(168, 216, 234, 0.5);
     }
   }
@@ -514,11 +476,15 @@ function handleTabClick(tab: (typeof allRoutes)[0]) {
   pointer-events: none;
 
   .autumn & {
-    background: linear-gradient(to right, rgba(255, 250, 240, 0.8) 0%, transparent 100%);
+    background: linear-gradient(to right,
+      rgba(255, 250, 240, 0.8) 0%,
+      transparent 100%);
   }
 
   .starry & {
-    background: linear-gradient(to right, rgba(15, 52, 96, 0.8) 0%, transparent 100%);
+    background: linear-gradient(to right,
+      rgba(15, 52, 96, 0.8) 0%,
+      transparent 100%);
   }
 }
 
@@ -529,10 +495,10 @@ function handleTabClick(tab: (typeof allRoutes)[0]) {
   right: 0;
   bottom: 0;
   background-image: repeating-linear-gradient(
-    transparent,
-    transparent 23px,
-    rgba(0, 0, 0, 0.1) 23px,
-    rgba(0, 0, 0, 0.1) 24px
+      transparent,
+      transparent 23px,
+      rgba(0, 0, 0, 0.1) 23px,
+      rgba(0, 0, 0, 0.1) 24px
   );
   pointer-events: none;
   border-radius: 8px;
@@ -540,10 +506,10 @@ function handleTabClick(tab: (typeof allRoutes)[0]) {
 
   .starry & {
     background-image: repeating-linear-gradient(
-      transparent,
-      transparent 23px,
-      rgba(230, 230, 255, 0.1) 23px,
-      rgba(230, 230, 255, 0.1) 24px
+        transparent,
+        transparent 23px,
+        rgba(230, 230, 255, 0.1) 23px,
+        rgba(230, 230, 255, 0.1) 24px
     );
   }
 }
