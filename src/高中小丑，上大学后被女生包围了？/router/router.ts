@@ -8,10 +8,11 @@ export const router = createRouter({
       path: '/',
       component: Layout,
       children: [
-        {path: '/test1', component: () => import('../view/人物状态.vue')},
-        {path: '/test2', component: () => import('../view/test.vue')},
-        {path: '/test3', component: () => import('../view/test.vue')},
-        {path: '/test4', component: () => import('../view/test.vue')},
+        {path: '/user', component: () => import('../view/user.vue')},
+        {path: '/林安安', component: () => import('../view/林安安.vue')},
+        {path: '/李沐', component: () => import('../view/李沐.vue')},
+        {path: '/苏浅浅', component: () => import('../view/苏浅浅.vue')},
+        {path: '/张小花', component: () => import('../view/张小花.vue')}
       ],
     },
   ],

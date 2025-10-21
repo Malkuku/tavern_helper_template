@@ -1,4 +1,4 @@
-interface StatData {
+export interface StatData {
   "世界": {
     "日期": "",
     "地点": "",
@@ -96,4 +96,6 @@ interface StatData {
     "当前想法": "无"
   },
   },
+  version: "1.0.0",
+  theme: "autumn" | "starry"
 }

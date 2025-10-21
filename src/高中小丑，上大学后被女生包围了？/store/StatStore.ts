@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { getOldStatData } from '../util/messageUtil';
+import { StatData } from '../types/StatData';
 
 export const useStatStore = defineStore('stat', () => {
   // 状态数据
@@ -13,7 +14,6 @@ export const useStatStore = defineStore('stat', () => {
       console.log('楼层过深,停止加载');
       return;
     }
-
     if(getCurrentMessageId() < getLastMessageId()-1){
       stat_data.value = stat_data.value = getOldStatData() as StatData;
     }else{

@@ -1,6 +1,6 @@
 
 
-interface StatData {
+export interface StatData {
   世界: {
       日期: '2025-10-09';
       地点: '公寓中';

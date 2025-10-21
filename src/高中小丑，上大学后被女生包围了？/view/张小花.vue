@@ -2,9 +2,9 @@
   <CharacterStatus
     v-if="statData"
     :stat-data="statData"
-    character-name="林安安"
-    character-avatar="🐱"
-    character-identity="青梅竹马"
+    character-name="张小花"
+    character-avatar="🐨"
+    character-identity="懒虫学姐"
   />
 </template>
 

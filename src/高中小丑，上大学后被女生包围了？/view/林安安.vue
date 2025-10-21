@@ -3,8 +3,8 @@
     v-if="statData"
     :stat-data="statData"
     character-name="林安安"
-    character-avatar="🐱"
-    character-identity="青梅竹马"
+    character-avatar="👒"
+    character-identity="同事-主美"
   />
 </template>
 

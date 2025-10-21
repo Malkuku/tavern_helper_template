@@ -2,9 +2,11 @@
   <CharacterStatus
     v-if="statData"
     :stat-data="statData"
-    character-name="林安安"
-    character-avatar="🐱"
-    character-identity="青梅竹马"
+    :character-name="user"
+    character-avatar="👤"
+    character-identity="这是你，有时候又不是你"
+    :show-favor="false"
+    :show-intimacy="false"
   />
 </template>
 
@@ -19,5 +21,8 @@ const statStore = useStatStore();
 // 使用 computed 自动响应 store 变化
 const statData = computed<StatData | null>(() => {
   return statStore.stat_data || null;
+});
+const user = computed(() => {
+  return substitudeMacros('{{user}}');
 });
 </script>
