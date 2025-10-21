@@ -1,10 +1,13 @@
 <template>
   <div class="character-status" :class="theme">
+    <!-- TODOLIST 模块 -->
     <div class="todo-section">
       <div class="section-header">
         <h3 class="section-title">// TODO LIST</h3>
         <div class="section-actions">
-          <button class="clear-btn" @click="clearCompletedTasks">()=>{清空已完成 / 已失效}</button>
+          <button class="clear-btn" @click="clearCompletedTasks">
+            ()=>{清空已完成 / 已失效}
+          </button>
         </div>
       </div>
 
@@ -18,13 +21,17 @@
             :class="{
               'task-completed': task.已完成,
               'task-expired': task.已失效,
-              'task-active': !task.已完成 && !task.已失效,
+              'task-active': !task.已完成 && !task.已失效
             }"
           >
             <!-- 任务状态指示器 -->
             <div class="task-status">
               <span class="status-icon">
-                {{ task.已完成 ? '✅' : task.已失效 ? '💀' : '📌' }}
+                {{
+                  task.已完成 ? '✅' :
+                    task.已失效 ? '💀' :
+                      '📌'
+                }}
               </span>
             </div>
 
@@ -32,7 +39,9 @@
             <div class="task-content">
               <div class="task-header">
                 <span class="task-brief">// {{ taskName }}</span>
-                <span class="task-deadline" v-if="task.截止时间"> [截止: {{ task.截止时间 }}] </span>
+                <span class="task-deadline" v-if="task.截止时间">
+                  [截止: {{ task.截止时间 }}]
+                </span>
               </div>
 
               <div class="task-details">
@@ -51,9 +60,8 @@
                   <div class="progress-info">
                     <span class="code-comment">// 进度:</span>
                     <span class="progress-text">
-                      {{ task.进度 }}/{{ task.完成所需进度 }} ({{
-                        Math.min(100, Math.round((task.进度 / task.完成所需进度) * 100))
-                      }}%)
+                      {{ task.进度 }}/{{ task.完成所需进度 }}
+                      ({{ Math.min(100, Math.round((task.进度 / task.完成所需进度) * 100)) }}%)
                     </span>
                   </div>
                   <div class="progress-bar">
@@ -81,11 +89,25 @@
 
         <!-- 分页控件 -->
         <div v-if="totalPages > 1" class="pagination">
-          <button class="page-btn" :disabled="currentPage === 0" @click="currentPage--">◀ 上一页</button>
+          <button
+            class="page-btn"
+            :disabled="currentPage === 0"
+            @click="currentPage--"
+          >
+            ◀ 上一页
+          </button>
 
-          <span class="page-info"> {{ currentPage + 1 }} / {{ totalPages }} </span>
+          <span class="page-info">
+            {{ currentPage + 1 }} / {{ totalPages }}
+          </span>
 
-          <button class="page-btn" :disabled="currentPage === totalPages - 1" @click="currentPage++">下一页 ▶</button>
+          <button
+            class="page-btn"
+            :disabled="currentPage === totalPages - 1"
+            @click="currentPage++"
+          >
+            下一页 ▶
+          </button>
         </div>
       </div>
     </div>
@@ -93,92 +115,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useStatStore } from '../store/StatStore';
+import { ref, computed, onMounted } from 'vue'
+import { useStatStore } from '../store/StatStore'
 
 /* ---------- 类型定义 ---------- */
 interface Task {
-  已完成: boolean;
-  已失效: boolean;
-  目标: string;
-  完成奖励?: string;
-  进度: number;
-  完成所需进度: number;
-  截止时间?: string;
+  已完成: boolean
+  已失效: boolean
+  目标: string
+  完成奖励?: string
+  进度: number
+  完成所需进度: number
+  截止时间?: string
 }
 
 /* ---------- 分页状态 ---------- */
-const currentPage = ref(0);
-const pageSize = 3;
+const currentPage = ref(0)
+const pageSize = 3
 
 /* ---------- Store ---------- */
-const statStore = useStatStore();
+const statStore = useStatStore()
 
 const theme = computed(() => (statStore.stat_data?.theme ? statStore.stat_data.theme : 'autumn'));
 
 /* ---------- 数据 ---------- */
-const tasks = computed<Record<string, Task>>(() => (statStore.stat_data?.任务 as Record<string, Task>) || {});
+const tasks = computed<Record<string, Task>>(() =>
+  (statStore.stat_data?.任务 as Record<string, Task>) || {}
+)
 
 /* ---------- 过滤 & 排序 ---------- */
 const filteredTasks = computed<Record<string, Task>>(() => {
   const entries = Object.entries(tasks.value)
     .filter(([name]) => !name.endsWith('$template'))
     .sort(([, a], [, b]) => {
-      if (!a.已完成 && !a.已失效) return -1;
-      if (!b.已完成 && !b.已失效) return 1;
-      if (a.已完成 && !b.已完成) return -1;
-      if (!a.已完成 && b.已完成) return 1;
-      return 0;
-    });
-  return Object.fromEntries(entries) as Record<string, Task>;
-});
+    if (!a.已完成 && !a.已失效) return -1
+    if (!b.已完成 && !b.已失效) return 1
+    if (a.已完成 && !b.已完成) return -1
+    if (!a.已完成 && b.已完成) return 1
+    return 0
+  })
+  return Object.fromEntries(entries) as Record<string, Task>
+})
 
 /* ---------- 分页 ---------- */
 const paginatedTasks = computed<Record<string, Task>>(() => {
-  const start = currentPage.value * pageSize;
-  const end = start + pageSize;
-  const slice = Object.entries(filteredTasks.value).slice(start, end);
-  return Object.fromEntries(slice) as Record<string, Task>;
-});
+  const start = currentPage.value * pageSize
+  const end = start + pageSize
+  const slice = Object.entries(filteredTasks.value).slice(start, end)
+  return Object.fromEntries(slice) as Record<string, Task>
+})
 
-const totalPages = computed(() => Math.ceil(Object.keys(filteredTasks.value).length / pageSize));
+const totalPages = computed(() =>
+  Math.ceil(Object.keys(filteredTasks.value).length / pageSize)
+)
 
 /* ---------- 清空已完成 & 已失效 ---------- */
-const clearCompletedTasks = async () => {
-  if (!statStore.stat_data) {
-    throw new Error('未找到变量');
-  }
-  try {
-    // 1. 只拿当前聊天变量表（已脱壳）
-    const chatVars = getVariables({ type: 'chat' });
+const clearCompletedTasks = () => {
+  const cleaned = Object.fromEntries(
+    Object.entries(tasks.value).filter(
+      ([, t]) => !t.已完成 && !t.已失效
+    )
+  ) as Record<string, Task>
+  //TODO
+  console.log( cleaned);
+  currentPage.value = 0
+}
 
-    // 2. 局部更新：仅过滤 任务
-    const cleaned = Object.fromEntries(
-      Object.entries(chatVars.stat_data.任务 || {}).filter(([, t]) => !t.已完成 && !t.已失效),
-    );
-    console.log(cleaned);
-
-    // 3. 只写回 任务 分支，不动其他任何字段
-    await updateVariablesWith(
-      vars => ({
-        ...vars, // 保持原级
-        stat_data: {
-          ...vars.stat_data, // 保持 stat_data 其它字段
-          任务: cleaned, // 只覆盖任务
-        },
-      }),
-      { type: 'chat' },
-    );
-
-    // 4. 本地也同步（可选，保持 statStore 与槽位一致）
-    statStore.stat_data.任务 = cleaned;
-
-    currentPage.value = 0;
-    toastr.success('清理完毕');
-  } catch (e: any) {
-    toastr.error('清理失败: ' + e.message);
-  }
-};
+/* ---------- 初始化 ---------- */
+onMounted(() => {
+  statStore.initData()
+  statStore.registerListener()
+})
 </script>
 
 <style lang="scss" scoped>
