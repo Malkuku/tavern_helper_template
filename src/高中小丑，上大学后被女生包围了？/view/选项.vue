@@ -6,12 +6,19 @@
     </div>
 
     <div v-if="showOptions" class="options-list">
-      <div v-for="(option, index) in optionsList" :key="index" class="option-item" @click="selectOption(option)">
+      <div
+        v-for="(option, index) in optionsList"
+        :key="index"
+        class="option-item"
+        @click="selectOption(option)"
+      >
         <div class="option-sticker"></div>
         <span class="option-text">{{ option }}</span>
       </div>
     </div>
-    <div v-else>你的未来是一片荒原</div>
+    <div v-else>
+      你的未来是一片荒原
+    </div>
   </div>
 </template>
 
