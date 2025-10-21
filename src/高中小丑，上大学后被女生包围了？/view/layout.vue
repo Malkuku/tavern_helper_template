@@ -10,7 +10,7 @@
             @click="toggleTheme"
             :title="theme === 'autumn' ? '切换到星空主题' : '切换到秋天主题'"
           >
-            {{ theme === 'autumn' ? '🍂 秋日之诗' : '🌙 星空之歌' }}
+            {{ theme === 'autumn' ? '🍂 秋日之诗' : '🌙 星夜之歌' }}
           </button>
         </div>
       </div>
@@ -21,15 +21,17 @@
       <div class="letter-paper">
         <!-- 左侧页签 - 像书里夹着的信笺 -->
         <div class="page-tabs">
-          <div
-            v-for="route in routes"
-            :key="route.path"
-            class="page-tab"
-            :class="{ active: isActive(route.path) }"
-            @click="navigateTo(route.path)"
-          >
-            <div class="tab-sticker"></div>
-            <span class="tab-text">{{ route.name }}</span>
+          <div class="page-tabs">
+            <div
+              v-for="tab in tabs"
+              :key="tab.path"
+              class="page-tab"
+              :class="{ active: isActive(tab.path) }"
+              @click="handleTabClick(tab)"
+            >
+              <div class="tab-sticker"></div>
+              <span class="tab-text">{{ tab.name }}</span>
+            </div>
           </div>
         </div>
 
@@ -72,16 +74,38 @@ const theme = computed(() => (statStore.stat_data?.theme ? statStore.stat_data.t
 
 const username = computed(() => substitudeMacros('{{user}}'));
 
-// 路由配置
-const routes = [
-  { path: '/user', name: username },
-  { path: '/林安安', name: '林安安' },
-  { path: '/李沐', name: '李沐' },
-  { path: '/张小花', name: '张小花' },
-  { path: '/苏浅浅', name: '苏浅浅' },
-  { path: '/TODOLIST', name: 'TODOLIST' },
-  { path: '/选项', name: '选项'}
-];
+const showCharacters = ref(false)
+
+// 切换函数
+function toggleGroup() {
+  showCharacters.value = !showCharacters.value
+}
+
+const dummyName = computed(() => showCharacters.value ? '返回' : '角色信息');
+
+// 全部 7 条真实路由
+const allRoutes = [
+  { path: '/user',     name: username,  group: 'char' },
+  { path: '/林安安',   name: '林安安',   group: 'char' },
+  { path: '/李沐',     name: '李沐',     group: 'char' },
+  { path: '/张小花',   name: '张小花',   group: 'char' },
+  { path: '/苏浅浅',   name: '苏浅浅',   group: 'char' },
+  { path: '/世界信息',  name: '活动档案',  group: 'todo' },
+  { path: '/TODOLIST', name: 'TODOLIST', group: 'todo' },
+  { path: '/选项',     name: '展望未来',     group: 'todo' },
+  { path: '/more',     name: dummyName,  group: 'dummy' }
+]
+
+const tabs = computed(() => {
+  const flag = showCharacters.value
+  return allRoutes.filter(t => {
+    if (t.group === 'dummy') return true          // 假路由永远显示
+    return flag ? t.group === 'char'              // 人物模式
+      : t.group === 'todo'              // 常驻模式
+  })
+})
+
+
 
 // 改进的路由激活判断
 const isActive = (path: string) => {
@@ -100,9 +124,13 @@ const toggleTheme = async() => {
 };
 
 // 导航到指定路由
-const navigateTo = (path: string) => {
-  router.push(path);
-};
+function handleTabClick(tab: typeof allRoutes[0]) {
+  if (tab.group === 'dummy') {
+    toggleGroup()   // 假路由：只切换分组
+  } else {
+    router.push(tab.path)     // 真路由：正常跳转
+  }
+}
 </script>
 
 <style lang="scss" scoped>

@@ -15,6 +15,7 @@ export const router = createRouter({
         {path: '/张小花', component: () => import('../view/张小花.vue')},
         {path: '/TODOLIST', component: () => import('../view/TODOLIST.vue')},
         {path: '/选项', component: () => import('../view/选项.vue')},
+        {path: '/世界信息', component: () => import('../view/世界信息.vue') },
       ],
     },
   ],
