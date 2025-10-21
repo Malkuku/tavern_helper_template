@@ -34,7 +34,7 @@
 
     <div class="info-footer">
       <div class="footer-seal">
-        <div class="seal-content">活动<br />记录</div>
+        <div class="seal-content">活动记录</div>
       </div>
       <div class="footer-text">档案编号: {{ archiveId }}</div>
     </div>
@@ -42,36 +42,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useStatStore } from '../store/StatStore';
+import { computed } from 'vue'
+import { useStatStore } from '../store/StatStore'
 
-const statStore = useStatStore();
+const statStore = useStatStore()
 
 // 计算属性获取世界数据
-const statData = computed(() => statStore.stat_data);
+const statData = computed(() => statStore.stat_data)
 
 // 合并日期和时间
 const formattedDateTime = computed(() => {
-  const date = statData.value?.世界?.日期;
-  const time = statData.value?.世界?.时间;
+  const date = statData.value?.世界?.日期
+  const time = statData.value?.世界?.时间
 
   if (date && time) {
-    return `${date} ${time}`;
+    return `${date} ${time}`
   } else if (date) {
-    return `${date} 时间未记录`;
+    return `${date} 时间未记录`
   } else if (time) {
-    return `日期未记录 ${time}`;
+    return `日期未记录 ${time}`
   } else {
-    return '时空未记录';
+    return '时空未记录'
   }
-});
+})
 
 // 生成档案编号
 const archiveId = computed(() => {
-  const date = statData.value?.世界?.日期 || 'XXXX-XX-XX';
-  const location = statData.value?.世界?.地点 || 'HAJIMI';
-  return `${date}-${location}`;
-});
+  const date = statData.value?.世界?.日期 || 'XXXX-XX-XX'
+  const location = statData.value?.世界?.地点 || 'HAJIMI'
+  return `${date}-${location}`
+})
 </script>
 
 <style lang="scss" scoped>
