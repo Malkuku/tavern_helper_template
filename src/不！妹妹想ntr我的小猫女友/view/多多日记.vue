@@ -360,7 +360,7 @@ input:checked + .slider:before {
   }
 
   &.mood-excellent {
-    background: linear-gradient(90deg, #10b981, #34d399);
+    background: linear-gradient(90deg, #edb6b2, rgba(255, 177, 177, 0.9));
   }
 
   &.mood-good {
