@@ -3,14 +3,14 @@
     <!-- 顶部导航栏 -->
     <header class="header">
       <div class="nav-container">
-        <h1 class="logo">信笺小筑</h1>
+        <h1 class="logo">Letter Cottage</h1>
         <div class="theme-switcher">
           <button
-            @click="toggleTheme"
             class="theme-btn"
+            @click="toggleTheme"
             :title="theme === 'autumn' ? '切换到星空主题' : '切换到秋天主题'"
           >
-            {{ theme === 'autumn' ? '🌙 星空' : '🍂 秋天' }}
+            {{ theme === 'autumn' ? '🍂 秋日之诗' : '🌙 星空之歌' }}
           </button>
         </div>
       </div>
@@ -46,7 +46,7 @@
         <!-- 装饰元素 -->
         <div class="decorations">
           <!-- 右下角钢笔 - 穿出内容区 -->
-          <div class="decoration pen" title="书写时光">🖋️</div>
+          <div class="decoration pen">🖋️</div>
 
           <!-- 左上角大护角 -->
           <div class="corner-protector top-left"></div>
@@ -60,22 +60,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useStatStore } from '../store/StatStore';
 
 const currentRoute = useRoute();
 const router = useRouter();
 
 // 主题状态
-const theme = ref<'autumn' | 'starry'>('autumn');
+const statStore = useStatStore();
+const theme = computed(() => (statStore.stat_data?.theme ? statStore.stat_data.theme : 'autumn'));
+
+const username = computed(() => substitudeMacros('{{user}}'));
 
 // 路由配置
 const routes = [
-  { path: '/', name: '首页' },
-  { path: '/test1', name: '我的信件' },
-  { path: '/test2', name: '写信' },
-  { path: '/test3', name: '回忆画廊' },
-  { path: '/test4', name: '关于' }
+  { path: '/user', name: username },
+  { path: '/林安安', name: '林安安' },
+  { path: '/李沐', name: '李沐' },
+  { path: '/张小花', name: '张小花' },
+  { path: '/苏浅浅', name: '苏浅浅' },
+  { path: '/TODOLIST', name: 'TODOLIST' },
+  { path: '/选项', name: '选项'}
 ];
 
 // 改进的路由激活判断
@@ -87,8 +92,11 @@ const isActive = (path: string) => {
 };
 
 // 切换主题
-const toggleTheme = () => {
-  theme.value = theme.value === 'autumn' ? 'starry' : 'autumn';
+const toggleTheme = async() => {
+  if (!statStore.stat_data) return;
+  const currentTheme = statStore.stat_data?.theme ?? 'autumn';
+  statStore.stat_data.theme = currentTheme === 'autumn' ? 'starry' : 'autumn';
+  await updateVariablesWith(variables => _.update(variables, "stat_data.theme", () => statStore.stat_data?.theme));
 };
 
 // 导航到指定路由
@@ -99,7 +107,6 @@ const navigateTo = (path: string) => {
 
 <style lang="scss" scoped>
 .letter-layout {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   transition: all 0.5s ease;
@@ -224,7 +231,7 @@ const navigateTo = (path: string) => {
 .pen {
   position: absolute;
   bottom: -20px; /* 穿出底部 */
-  right: -15px;  /* 穿出右侧 */
+  right: -15px; /* 穿出右侧 */
   font-size: 4rem;
   opacity: 0.8;
   transition: all 0.3s ease;
@@ -318,20 +325,24 @@ const navigateTo = (path: string) => {
     border-radius: 10px;
 
     .autumn & {
-      background: linear-gradient(to bottom,
+      background: linear-gradient(
+        to bottom,
         rgba(139, 69, 19, 0.8) 0%,
         rgba(210, 180, 140, 0.6) 30%,
         rgba(210, 180, 140, 0.4) 70%,
-        rgba(139, 69, 19, 0.3) 100%);
+        rgba(139, 69, 19, 0.3) 100%
+      );
       border: 1px solid rgba(210, 180, 140, 0.5);
     }
 
     .starry & {
-      background: linear-gradient(to bottom,
+      background: linear-gradient(
+        to bottom,
         rgba(168, 216, 234, 0.8) 0%,
         rgba(26, 26, 46, 0.6) 30%,
         rgba(26, 26, 46, 0.4) 70%,
-        rgba(168, 216, 234, 0.3) 100%);
+        rgba(168, 216, 234, 0.3) 100%
+      );
       border: 1px solid rgba(168, 216, 234, 0.5);
     }
   }
@@ -476,15 +487,11 @@ const navigateTo = (path: string) => {
   pointer-events: none;
 
   .autumn & {
-    background: linear-gradient(to right,
-      rgba(255, 250, 240, 0.8) 0%,
-      transparent 100%);
+    background: linear-gradient(to right, rgba(255, 250, 240, 0.8) 0%, transparent 100%);
   }
 
   .starry & {
-    background: linear-gradient(to right,
-      rgba(15, 52, 96, 0.8) 0%,
-      transparent 100%);
+    background: linear-gradient(to right, rgba(15, 52, 96, 0.8) 0%, transparent 100%);
   }
 }
 
@@ -495,10 +502,10 @@ const navigateTo = (path: string) => {
   right: 0;
   bottom: 0;
   background-image: repeating-linear-gradient(
-      transparent,
-      transparent 23px,
-      rgba(0, 0, 0, 0.1) 23px,
-      rgba(0, 0, 0, 0.1) 24px
+    transparent,
+    transparent 23px,
+    rgba(0, 0, 0, 0.1) 23px,
+    rgba(0, 0, 0, 0.1) 24px
   );
   pointer-events: none;
   border-radius: 8px;
@@ -506,10 +513,10 @@ const navigateTo = (path: string) => {
 
   .starry & {
     background-image: repeating-linear-gradient(
-        transparent,
-        transparent 23px,
-        rgba(230, 230, 255, 0.1) 23px,
-        rgba(230, 230, 255, 0.1) 24px
+      transparent,
+      transparent 23px,
+      rgba(230, 230, 255, 0.1) 23px,
+      rgba(230, 230, 255, 0.1) 24px
     );
   }
 }
