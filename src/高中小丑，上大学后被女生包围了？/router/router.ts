@@ -7,6 +7,7 @@ export const router = createRouter({
     {
       path: '/',
       component: Layout,
+      redirect: '/世界信息',
       children: [
         {path: '/user', component: () => import('../view/user.vue')},
         {path: '/林安安', component: () => import('../view/林安安.vue')},

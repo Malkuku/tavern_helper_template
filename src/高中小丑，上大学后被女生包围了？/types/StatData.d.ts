@@ -97,7 +97,7 @@ export interface StatData {
     };
   };
   任务: {
-    $template: {
+    $template?: {
       简介: '';
       目标: '';
       完成奖励: '';

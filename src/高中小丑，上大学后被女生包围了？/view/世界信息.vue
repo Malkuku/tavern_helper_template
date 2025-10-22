@@ -34,7 +34,7 @@
 
     <div class="info-footer">
       <div class="footer-seal">
-        <div class="seal-content">活动记录</div>
+        <div class="seal-content">活动<br>记录</div>
       </div>
       <div class="footer-text">档案编号: {{ archiveId }}</div>
     </div>

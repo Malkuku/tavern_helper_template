@@ -19,12 +19,12 @@
       <div class="stat-item" v-if="showFavor">
         <div class="stat-header">
           <span class="stat-title">好感度</span>
-          <span class="stat-value">{{ characterFavor }}/100</span>
+          <span class="stat-value">{{ characterFavor }}/1000</span>
         </div>
         <div class="hand-drawn-bar">
           <div
             class="bar-fill"
-            :style="{ width: favorPercentage + '%' }"
+            :style="{ width: favorPercentage/10 + '%' }"
           ></div>
           <div class="bar-ticks">
             <span v-for="tick in 5" :key="tick" class="tick"></span>
@@ -39,12 +39,12 @@
       <div class="stat-item" v-if="showIntimacy">
         <div class="stat-header">
           <span class="stat-title">亲密度</span>
-          <span class="stat-value">{{ characterIntimacy }}/100</span>
+          <span class="stat-value">{{ characterIntimacy }}/1000</span>
         </div>
         <div class="hand-drawn-bar intimacy-bar">
           <div
             class="bar-fill"
-            :style="{ width: intimacyPercentage + '%' }"
+            :style="{ width: intimacyPercentage/10 + '%' }"
           ></div>
           <div class="bar-ticks">
             <span v-for="tick in 5" :key="tick" class="tick"></span>
