@@ -1,6 +1,5 @@
 <template>
   <div class="character-status" :class="theme">
-    <!-- TODOLIST 模块 -->
     <div class="todo-section">
       <div class="section-header">
         <h3 class="section-title">// TODO LIST</h3>
@@ -115,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useStatStore } from '../store/StatStore'
 
 /* ---------- 类型定义 ---------- */
@@ -170,22 +169,41 @@ const totalPages = computed(() =>
 )
 
 /* ---------- 清空已完成 & 已失效 ---------- */
-const clearCompletedTasks = () => {
-  const cleaned = Object.fromEntries(
-    Object.entries(tasks.value).filter(
-      ([, t]) => !t.已完成 && !t.已失效
-    )
-  ) as Record<string, Task>
-  //TODO
-  console.log( cleaned);
-  currentPage.value = 0
-}
+const clearCompletedTasks = async () => {
+  if(!statStore.stat_data){
+    throw new Error("未找到变量")
+  }
+  try {
+    // 1. 只拿当前聊天变量表（已脱壳）
+    const chatVars = getVariables({ type: 'chat' })
 
-/* ---------- 初始化 ---------- */
-onMounted(() => {
-  statStore.initData()
-  statStore.registerListener()
-})
+    // 2. 局部更新：仅过滤 任务
+    const cleaned = Object.fromEntries(
+      Object.entries(chatVars.stat_data.任务 || {}).filter(([, t]) => !t.已完成 && !t.已失效)
+    )
+   console.log(cleaned)
+
+    // 3. 只写回 任务 分支，不动其他任何字段
+    await updateVariablesWith(
+      vars => ({
+        ...vars,                       // 保持原级
+        stat_data: {
+          ...vars.stat_data,           // 保持 stat_data 其它字段
+          任务: cleaned                // 只覆盖任务
+        }
+      }),
+      { type: 'chat' }
+    )
+
+    // 4. 本地也同步（可选，保持 statStore 与槽位一致）
+    statStore.stat_data.任务 = cleaned
+
+    currentPage.value = 0
+    toastr.success('清理完毕')
+  } catch (e: any) {
+    toastr.error('清理失败: ' + e.message)
+  }
+}
 </script>
 
 <style lang="scss" scoped>
