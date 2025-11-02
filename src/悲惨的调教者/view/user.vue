@@ -2,7 +2,7 @@
   <div class="character-a" :class="theme">
     <div class="info-card">
       <div class="card-header">
-        <h2 class="card-title">{{ username }}</h2>
+        <h2 class="card-title">{{username}}</h2>
       </div>
 
       <div v-if="!statData" class="loading-state">
@@ -71,7 +71,9 @@
                   <span class="level-small">Lv.</span>
                 </div>
               </div>
-              <div class="progress-label">{{ experience }} / {{ nextLevelNeed }}</div>
+              <div class="progress-label">
+                {{ experience }} / {{ nextLevelNeed }}
+              </div>
             </div>
           </div>
         </section>
@@ -89,55 +91,55 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useStatStore } from '../store/StatStore';
+import { computed } from 'vue'
+import { useStatStore } from '../store/StatStore'
 
-const statStore = useStatStore();
+const statStore = useStatStore()
 
 // 主题
-const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'));
+const theme = computed(() => statStore.stat_data?.theme === 'dark' ? 'dark' : 'light')
 
 // 数据
-const statData = computed(() => statStore.stat_data);
+const statData = computed(() => statStore.stat_data)
 
 const username = computed(() => {
   return substitudeMacros('{{user}}');
 });
 
 // 角色信息
-const affection = computed(() => statData.value?.角色?.user?.特殊状态?.好感度 ?? 0);
-const affectionReason = computed(() => statData.value?.角色?.user?.特殊状态?.好感度变化原因);
-const exposure = computed(() => statData.value?.角色?.user?.特殊状态?.暴露度 ?? 0);
-const exposureReason = computed(() => statData.value?.角色?.user?.特殊状态?.暴露度变化原因);
-const experience = computed(() => statData.value?.角色?.user?.特殊状态?.调教经验值 ?? 0);
-const currentThought = computed(() => statData.value?.角色?.user?.当前想法);
+const affection = computed(() => statData.value?.角色?.user?.特殊状态?.好感度 ?? 0)
+const affectionReason = computed(() => statData.value?.角色?.user?.特殊状态?.好感度变化原因)
+const exposure = computed(() => statData.value?.角色?.user?.特殊状态?.暴露度 ?? 0)
+const exposureReason = computed(() => statData.value?.角色?.user?.特殊状态?.暴露度变化原因)
+const experience = computed(() => statData.value?.角色?.user?.特殊状态?.调教经验值 ?? 0)
+const currentThought = computed(() => statData.value?.角色?.user?.当前想法)
 
 // 阶段配置
-const affectionStages = computed<Record<string, number>>(() => statData.value?.好感度阶段?.user ?? {});
-const exposureStages = computed<Record<string, number>>(() => statData.value?.暴露度阶段?.user ?? {});
-const levelStages = computed<Record<string, number>>(() => statData.value?.调教等级阶段?.user ?? {});
-const level = computed(() => statData.value?.调教等级 ?? 0);
+const affectionStages = computed<Record<string, number>>(() => statData.value?.好感度阶段?.user ?? {})
+const exposureStages = computed<Record<string, number>>(() => statData.value?.暴露度阶段?.user ?? {})
+const levelStages = computed<Record<string, number>>(() => statData.value?.调教等级阶段?.user ?? {})
+const level = computed(() => statData.value?.调教等级 ?? 0)
 
 // 计算最大阶段值
-const maxAffection = computed(() => Math.max(...Object.values(affectionStages.value)));
-const maxExposure = computed(() => Math.max(...Object.values(exposureStages.value)));
+const maxAffection = computed(() => Math.max(...Object.values(affectionStages.value)))
+const maxExposure = computed(() => Math.max(...Object.values(exposureStages.value)))
 
 // 百分比
 const affectionPercent = computed(() => {
-  const p = Math.min(100, Math.round((affection.value / maxAffection.value) * 100));
-  return `${p}%`;
-});
+  const p = Math.min(100, Math.round((affection.value / maxAffection.value) * 100))
+  return `${p}%`
+})
 const exposurePercent = computed(() => {
-  const p = Math.min(100, Math.round((exposure.value / maxExposure.value) * 100));
-  return `${p}%`;
-});
+  const p = Math.min(100, Math.round((exposure.value / maxExposure.value) * 100))
+  return `${p}%`
+})
 
 // 下一级所需经验
-const nextLevelNeed = computed(() => Math.floor(8 * Math.log(level.value + 1) + 5));
+const nextLevelNeed = computed(() => (level.value+1) * 4)
 
 // 圆形进度条
-const levelPercent = computed(() => Math.min(100, (experience.value / nextLevelNeed.value) * 100));
-const levelCircleDash = computed(() => `${levelPercent.value}, 100`);
+const levelPercent = computed(() => Math.min(100, (experience.value / nextLevelNeed.value) * 100))
+const levelCircleDash = computed(() => `${levelPercent.value}, 100`)
 </script>
 
 <style lang="scss" scoped>
@@ -399,9 +401,7 @@ const levelCircleDash = computed(() => `${levelPercent.value}, 100`);
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .empty-icon {

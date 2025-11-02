@@ -14,7 +14,7 @@
           </div>
           <div class="info-value">
             <span class="date">{{ date || '--' }}</span>
-            <span v-if="date && time" class="separator" />
+            <span v-if="date && time" class="separator"/>
             <span class="time">{{ time || '--' }}</span>
           </div>
         </div>
@@ -46,22 +46,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useStatStore } from '../store/StatStore';
+import { computed } from 'vue'
+import { useStatStore } from '../store/StatStore'
 
-const statStore = useStatStore();
+const statStore = useStatStore()
 
 // 主题
-const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'));
+const theme = computed(() => statStore.stat_data?.theme === 'dark' ? 'dark' : 'light')
 
 // 数据
-const statData = computed(() => statStore.stat_data);
+const statData = computed(() => statStore.stat_data)
 
 // 世界信息
-const date = computed(() => statData.value?.世界?.日期);
-const location = computed(() => statData.value?.世界?.地点);
-const time = computed(() => statData.value?.世界?.时间);
-const currentCharacter = computed(() => statData.value?.世界?.当前人物);
+const date = computed(() => statData.value?.世界?.日期)
+const location = computed(() => statData.value?.世界?.地点)
+const time = computed(() => statData.value?.世界?.时间)
+const currentCharacter = computed(() => statData.value?.世界?.当前人物)
 </script>
 
 <style lang="scss" scoped>
@@ -201,9 +201,7 @@ const currentCharacter = computed(() => statData.value?.世界?.当前人物);
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 /* 空状态 */
