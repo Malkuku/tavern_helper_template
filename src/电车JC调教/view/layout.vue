@@ -19,6 +19,8 @@
             {{ item.label }}
           </a>
         </nav>
+
+
       </div>
     </header>
 
@@ -49,16 +51,16 @@ const toggleTheme = async () => {
   await updateVariablesWith(variables => _.update(variables, 'stat_data.theme', () => statStore.stat_data?.theme));
 };
 
+
 // 导航菜单
 const activeKey = ref('');
 const menuItems = [
   { key: '世界信息', label: '世界信息' },
-  { key: '选项', label: '选项' },
   { key: '星宫', label: '星宫诗羽' },
   { key: '白石', label: '白石䌷' },
   { key: '橘', label: '橘瑠奈' },
   { key: '梦', label: '夜月梦' },
-  { key: '设置', label: '设置' },
+  { key: '选项', label: '选项' },
 ];
 
 // 监听路由变化
