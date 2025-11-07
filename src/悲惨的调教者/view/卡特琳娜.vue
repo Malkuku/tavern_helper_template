@@ -36,15 +36,26 @@
               <div v-if="paranoiaReason" class="status-reason">{{ paranoiaReason }}</div>
             </div>
 
-            <!-- 身体开发等级（圆形进度条） -->
+            <!-- 身体开发等级（大圆环版） -->
             <h4 class="sub-title">身体开发等级</h4>
-            <div class="dev-grid">
-              <div v-for="(val,key) in devLevel" :key="key" class="dev-item">
-                <div class="circle-progress">
-                  <svg viewBox="0 0 36 36"><path class="c-bg" d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"/><path class="c-fg" :stroke-dasharray="devCircleDash(key)" d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"/></svg>
-                  <div class="c-text">{{ val }}</div>
+            <div class="level-big-grid">
+              <div v-for="(lv, part) in devLevel" :key="part" class="level-big-item">
+                <!-- 大圆环 -->
+                <div class="level-circle-big">
+                  <svg viewBox="0 0 36 36" class="level-svg-big">
+                    <path class="level-bg-big" d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"/>
+                    <path class="level-fg-big" :stroke-dasharray="devCircleDash(part)" d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"/>
+                  </svg>
+                  <div class="level-text-big">
+                    <span class="level-num-big">{{ lv }}</span>
+                    <span class="level-small-big">Lv.</span>
+                  </div>
                 </div>
-                <div class="dev-name">{{ key }}</div>
+                <!-- 部位名 + 经验 -->
+                <div class="level-info">
+                  <div class="level-part">{{ part }}</div>
+                  <div class="level-exp">{{ devExp[part] || 0 }} / {{ Math.floor(7 * Math.log(lv + 1) + 5) }}</div>
+                </div>
               </div>
             </div>
           </section>
@@ -118,7 +129,7 @@ const devExp    = computed(()=> statData.value?.角色?.卡特琳娜?.特殊状�
 function devCircleDash(part: string) {
   const lv  = devLevel.value[part] || 0          // 当前等级
   const exp = devExp.value[part]   || 0          // 已有经验值
-  const need = (lv + 1) * 4                      // 本级总需求
+  const need = Math.floor(7 * Math.log(lv + 1) + 5);
   const percent = Math.min(100, (exp / need) * 100)
   return `${percent}, 100`
 }
@@ -191,6 +202,87 @@ function tabTitle(p:number){ return p===1 ? '特殊状态' : p===2 ? '服装' : 
 .loading-spinner{width:40px; height:40px; border:3px solid var(--border-color); border-top-color:var(--accent); border-radius:50%; margin:0 auto 16px; animation:spin 1s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .empty-icon{font-size:48px; margin-bottom:16px; opacity:.5;}
+
+/* 大圆环网格 */
+.level-big-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 24px;
+  margin-top: 12px;
+}
+.level-big-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 20px;
+  transition: var(--transition);
+}
+.level-big-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--accent);
+}
+
+/* 大圆环 */
+.level-circle-big {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin-bottom: 12px;
+}
+.level-svg-big {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.level-bg-big {
+  fill: none;
+  stroke: var(--border-color);
+  stroke-width: 3.8;
+}
+.level-fg-big {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.4s ease;
+}
+.level-text-big {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  line-height: 1;
+}
+.level-num-big {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.level-small-big {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* 文字信息 */
+.level-info {
+  text-align: center;
+}
+.level-part {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.level-exp {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
 
 @media (max-width:768px){
   .character-a{padding:16px;}

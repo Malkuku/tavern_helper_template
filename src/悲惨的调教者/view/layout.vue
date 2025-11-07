@@ -230,19 +230,28 @@ const handleNavClick = (key: string) => {
   width: 100%;
 }
 
-/* 响应式设计 */
+/* 响应式：导航自动折行 */
 @media (max-width: 768px) {
+  /* 1. 顶部栏整体允许换行 */
   .header-content {
-    padding: 0 16px;
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 16px;
+    row-gap: 8px;
   }
 
+  /* 2. logo 占整行 */
   .logo {
+    margin-right: auto; /* 尽量靠左 */
     font-size: 18px;
-    margin-right: 24px;
   }
 
+  /* 3. 导航区自动折行 */
   .nav {
+    flex: 1 1 100%; /* 占满整行，并允许折行 */
+    flex-wrap: wrap;
     gap: 4px;
+    margin: 4px 0;
   }
 
   .nav-item {
@@ -250,6 +259,12 @@ const handleNavClick = (key: string) => {
     font-size: 13px;
   }
 
+  /* 4. 右侧按钮区紧跟在导航后面 */
+  .actions {
+    margin-left: auto; /* 靠右 */
+  }
+
+  /* 5. 主体内容减少内边距 */
   .content {
     padding: 16px;
   }

@@ -135,7 +135,7 @@ const exposurePercent = computed(() => {
 })
 
 // 下一级所需经验
-const nextLevelNeed = computed(() => (level.value+1) * 4)
+const nextLevelNeed = computed(() => Math.floor(8 * Math.log(level.value + 1) + 5));
 
 // 圆形进度条
 const levelPercent = computed(() => Math.min(100, (experience.value / nextLevelNeed.value) * 100))
