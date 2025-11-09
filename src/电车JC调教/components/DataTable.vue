@@ -1,10 +1,40 @@
 <template>
   <div class="data-table">
+    <!-- 顶部操作栏 -->
+    <div class="toolbar">
+      <button class="del-toggle" @click="toggleDeleteMode">
+        {{ deleteMode ? '取消' : '删除条目' }}
+      </button>
+    </div>
+
     <!-- 列表 -->
     <div v-if="rows.length" class="table-list">
-      <div v-for="(row, idx) in pageRows" :key="idx" class="table-row">
+      <!-- 表头：只在删除模式下出现 -->
+      <div v-if="deleteMode" class="table-header">
+        <label class="check-all">
+          <input type="checkbox" :checked="isAllChecked" @change="toggleCheckAll" />
+          <span>全选</span>
+        </label>
+      </div>
+
+      <!-- 数据行 -->
+      <div v-for="(row) in pageRows" :key="row.k" class="table-row">
+        <!-- 勾选框：只在删除模式下出现 -->
+        <input
+          v-if="deleteMode"
+          v-model="checkedKeys"
+          type="checkbox"
+          :value="row.k"
+          class="row-check"
+        />
         <span class="row-key">{{ row.k }}</span>
         <span class="row-val">{{ row.v }}</span>
+      </div>
+
+      <!-- 底部删除栏：只在删除模式下出现 -->
+      <div v-if="deleteMode && checkedKeys.length" class="batch-bar">
+        <span>已选 {{ checkedKeys.length }} 项</span>
+        <button class="del-btn" @click="deleteSelected">确认删除</button>
       </div>
     </div>
 
@@ -37,19 +67,95 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useStatStore } from '../store/StatStore';
 
 const props = withDefaults(defineProps<{
   data: Record<string, any>
+  roleName?: string
+  tableMode?: string
   pageSize?: number
   emptyText?: string
 }>(), {
-  pageSize: 15,
-  emptyText: '暂无数据'
+  pageSize: 10,
+  emptyText: '暂无数据',
+  roleName: '',
+  tableMode: ''
 })
 
 const rows = computed(() =>
-  Object.entries(props.data).map(([k, v]) => ({ k, v }))
+  Object.entries(props.data).map(([k, v]) => ({ k, v })).reverse()
 )
+
+/* --------- 删除模式开关 --------- */
+const deleteMode = ref(false)                 // 是否处于“可删除”状态
+const checkedKeys = ref<string[]>([])         // 已勾选的 key
+
+const toggleDeleteMode = () => {
+  deleteMode.value = !deleteMode.value
+  if (!deleteMode.value) checkedKeys.value = [] // 退出时清空勾选
+}
+
+/* --------- 全选逻辑 --------- */
+const isAllChecked = computed(() => {
+  const pageKeys = pageRows.value.map(r => r.k)
+  return pageKeys.length > 0 && pageKeys.every(k => checkedKeys.value.includes(k))
+})
+const toggleCheckAll = () => {
+  const pageKeys = pageRows.value.map(r => r.k)
+  if (isAllChecked.value) {
+    checkedKeys.value = checkedKeys.value.filter(k => !pageKeys.includes(k))
+  } else {
+    checkedKeys.value = Array.from(new Set([...checkedKeys.value, ...pageKeys]))
+  }
+}
+
+const statStore = useStatStore();
+
+/* --------- 删除逻辑 --------- */
+const deleteSelected = async () => {
+  if (!checkedKeys.value.length || !statStore.stat_data) return
+
+  /* 1. 整棵“数据总览”树 */
+  const total = statStore.stat_data.数据总览
+  if (!total) return
+
+  /* 2. 深克隆一份 */
+  const clone = JSON.parse(JSON.stringify(total))
+
+  /* 3. 外部已传角色名、模块名 */
+  const roleName   = props.roleName        // 橘瑠奈
+  const moduleKey  = props.tableMode       // 性交次数 / 调教回忆
+
+  /* 4. 只删当前角色-当前模块里被勾选的 key */
+  const targetMod = clone[roleName]?.[moduleKey]
+  if (!targetMod) {
+    toastr.error('找不到对应模块')
+    return
+  }
+  checkedKeys.value.forEach(k => delete targetMod[k])
+
+  /* 5. 局部写回：只覆盖“数据总览”分支，其它字段纹丝不动 */
+  await updateVariablesWith(
+    vars => ({
+      ...vars,
+      stat_data: {
+        ...vars.stat_data,
+        数据总览: clone
+      }
+    }),
+    { type: 'chat' }
+  )
+
+  /* 6. 本地同步：把 props.data 也删掉，列表立即消失 */
+  // eslint-disable-next-line vue/no-mutating-props
+  checkedKeys.value.forEach(k => delete props.data[k])
+
+  /* 7. 收尾 */
+  deleteMode.value = false
+  checkedKeys.value = []
+  current.value = 1
+  toastr.success('删除成功')
+}
 
 /* 分页逻辑 */
 const current = ref(1)
@@ -65,7 +171,7 @@ const displayPages = computed(() => {
   const cur = current.value
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
   let left = Math.max(1, cur - 3)
-  let right = Math.min(total, left + 6)
+  const right = Math.min(total, left + 6)
   if (right - left < 6) left = Math.max(1, right - 6)
   return Array.from({ length: right - left + 1 }, (_, i) => left + i)
 })
@@ -94,6 +200,59 @@ const displayPages = computed(() => {
   padding: 10px 14px;
   font-size: 14px;
 }
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.del-toggle {
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all .2s;
+}
+.del-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 表头 */
+.table-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+.check-all { display: flex; align-items: center; gap: 6px; }
+
+/* 行内 checkbox */
+.row-check { margin-right: 10px; }
+
+/* 底部操作栏 */
+.batch-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.del-btn {
+  border: 1px solid #e88080;
+  background: #fff;
+  color: #e88080;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.del-btn:hover { background: #e88080; color: #fff; }
 
 .row-key {
   margin-right: 8px;

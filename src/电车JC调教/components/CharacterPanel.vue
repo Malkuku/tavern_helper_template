@@ -32,8 +32,17 @@
                 <span class="icon">💕</span><span>好感度</span>
               </div>
               <div class="status-value">{{ affection }}</div>
+              <!-- 原有进度条 -->
               <div class="progress-bar">
                 <div class="progress-fill" :style="{width:affectionPercent}"></div>
+
+                <!-- 阶段指示线：用百分比 left，宽度 2 px -->
+                <div
+                  class="stage-tick"
+                  :class="{finished:stageInfo.finished}"
+                  :style="{left: `${stageInfo.nextVal/1000*100}%`}"
+                  :title="stageTip"
+                ></div>
               </div>
               <div class="progress-label">{{ affectionPercent }}</div>
               <div v-if="affectionReason" class="status-reason">{{ affectionReason }}</div>
@@ -107,7 +116,9 @@
             <h3 class="section-title">性交次数</h3>
             <DataTable
               :data="sexData"
-              :page-size="15"
+              :role-name="name"
+              table-mode="性交次数"
+              :page-size="10"
               empty-text="暂无记录"
             />
           </section>
@@ -119,7 +130,9 @@
             <h3 class="section-title">调教回忆</h3>
             <DataTable
               :data="trainingData"
-              :page-size="15"
+              :role-name="name"
+              table-mode="调教回忆"
+              :page-size="10"
               empty-text="暂无回忆"
             />
           </section>
@@ -153,8 +166,12 @@ const props = defineProps<{
     当前想法?: string
   }
   devLevel: Record<string, number>   // 身体开发等级
-  sexData?: Record<string, any>   // 性交次数
-  trainingData?: Record<string, any> // 调教回忆
+  sexData: Record<string, any>   // 性交次数
+  trainingData: Record<string, any> // 调教回忆
+  affectionStages: Record<string, {
+    阶段数值: number
+    事件?: { 事件描述: string; 已解决: boolean }
+  }>
 }>()
 
 /* ===== 基础 ===== */
@@ -177,6 +194,27 @@ const devDesc = computed(()=> props.character?.身体开发描述 || {})
 const affectionPercent = computed(()=>{
   // 这里仅示例：取 1000 为满值，可在外部传入阶段表再精确计算
   return `${Math.min(100, Math.round((affection.value / 1000) * 100))}%`
+})
+
+/* 计算「下一阶段」信息（替换掉前面的 stageInfo） */
+const stageInfo = computed(() => {
+  const stages = props.affectionStages || {}
+  const list = Object.entries(stages)                      // [['阶段一',{阶段数值,事件}], ...]
+    .sort((a, b) => a[1].阶段数值 - b[1].阶段数值)
+  const cur = affection.value
+  let next = list.find(([, item]) => item.阶段数值 > cur)
+  if (!next) next = list[list.length - 1]                 // 已满级
+  const [nextKey, nextItem] = next
+  return {
+    nextKey,
+    nextVal: nextItem.阶段数值,
+    finished: nextItem.事件?.已解决 ?? true               // 无事件视为已完成
+  }
+})
+
+const stageTip = computed(() => {
+  const { finished } = stageInfo.value
+  return `${finished ? '好感度事件已完成' : '好感度事件未达成'}`
 })
 
 /* 经验值需求 */
@@ -334,6 +372,7 @@ function devCircleDash(part:string){
   border-radius: 4px;
   overflow: hidden;
   margin: 8px auto 4px;
+  position: relative;
 }
 
 .progress-fill {
@@ -347,6 +386,20 @@ function devCircleDash(part:string){
   color: var(--text-tertiary);
   text-align: center;
   margin-top: 4px;
+}
+
+.stage-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;              /* 竖线 */
+  background: #faf214;     /* 未完成 */
+  transition: opacity .2s;
+  cursor: help;            /* 告诉用户可悬停 */
+  pointer-events: auto;    /* 必须，否则抓不到鼠标 */
+}
+.stage-tick.finished {
+  background: #14fa78;
 }
 
 .status-reason {
