@@ -39,6 +39,11 @@ export const router = createRouter({
           name: '选项',
           component: () => import('../view/选项.vue'),
         },
+        {
+          path:'/设置',
+          name:'设置',
+          component: () => import('../view/设置.vue'),
+        }
       ],
     },
   ],

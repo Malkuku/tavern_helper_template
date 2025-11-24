@@ -214,7 +214,7 @@ const stageInfo = computed(() => {
 
 const stageTip = computed(() => {
   const { finished } = stageInfo.value
-  return `${finished ? '好感度事件已完成' : '好感度事件未达成'}`
+  return `${finished ? `好感度事件已完成` : `好感度事件未达成`}`
 })
 
 /* 经验值需求 */
