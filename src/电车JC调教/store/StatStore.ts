@@ -25,9 +25,18 @@ export const useStatStore = defineStore('stat', () => {
     }
   };
 
+  const loadedStatData = (detail:{ stat: StatData })=>{
+    if(getCurrentMessageId() == getLastMessageId()){
+      console.log(`Stat data loaded at ${getCurrentMessageId()}:`, stat_data.value);
+      stat_data.value = detail.stat;
+      toastr.success('已获取最新数据');
+    }
+  }
+
   // 注册事件监听器
   const registerListener = () => {
     eventOn('era:queryResult', processStatData);
+    eventOn('era:writeDone', loadedStatData);
   };
 
   return {

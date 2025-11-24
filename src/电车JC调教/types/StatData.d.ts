@@ -142,6 +142,6 @@ export interface StatData {
       "最大减值": number;
     };
   };
+  "好感度池":{[key: string]: number}
   "theme": string;
-  "version": string;
 }

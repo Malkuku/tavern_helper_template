@@ -61,6 +61,7 @@ const menuItems = [
   { key: '白石', label: '白石䌷' },
   { key: '橘', label: '橘瑠奈' },
   { key: '梦', label: '夜月梦' },
+  { key: '设置', label: '设置' },
 ];
 
 // 监听路由变化
