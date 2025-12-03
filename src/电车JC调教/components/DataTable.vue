@@ -115,46 +115,47 @@ const statStore = useStatStore();
 const deleteSelected = async () => {
   if (!checkedKeys.value.length || !statStore.stat_data) return
 
-  /* 1. 整棵“数据总览”树 */
+  /* 1. 只读对照树 */
   const total = statStore.stat_data.数据总览
   if (!total) return
 
-  /* 2. 深克隆一份 */
-  const clone = JSON.parse(JSON.stringify(total))
+  const roleName  = props.roleName
+  const moduleKey = props.tableMode
 
-  /* 3. 外部已传角色名、模块名 */
-  const roleName   = props.roleName        // 橘瑠奈
-  const moduleKey  = props.tableMode       // 性交次数 / 调教回忆
+  /* 2. 构建最小删除对象 */
+  const deletePayload: any = {}
 
-  /* 4. 只删当前角色-当前模块里被勾选的 key */
-  const targetMod = clone[roleName]?.[moduleKey]
+  /* 3. 只处理当前角色-当前模块里被勾选的 key */
+  const targetMod = total[roleName]?.[moduleKey]
   if (!targetMod) {
     toastr.error('找不到对应模块')
     return
   }
-  checkedKeys.value.forEach(k => delete targetMod[k])
 
-  /* 5. 局部写回：只覆盖“数据总览”分支，其它字段纹丝不动 */
-  await updateVariablesWith(
-    vars => ({
-      ...vars,
-      stat_data: {
-        ...vars.stat_data,
-        数据总览: clone
-      }
-    }),
-    { type: 'chat' }
-  )
+  /* 4. 把要删的 key 在 deletePayload 里标记为 {} */
+  checkedKeys.value.forEach(k => {
+    // 防御：如果后端已经没有这个 key，就跳过
+    if (!(k in targetMod)) return
 
-  /* 6. 本地同步：把 props.data 也删掉，列表立即消失 */
-  // eslint-disable-next-line vue/no-mutating-props
-  checkedKeys.value.forEach(k => delete props.data[k])
+    // 逐层确保父级存在
+    if (!deletePayload[roleName]) deletePayload[roleName] = {}
+    if (!deletePayload[roleName][moduleKey]) deletePayload[roleName][moduleKey] = {}
 
-  /* 7. 收尾 */
-  deleteMode.value = false
-  checkedKeys.value = []
-  current.value = 1
+    // 只放“待删”标记
+    deletePayload[roleName][moduleKey][k] = {}
+  })
+
+  /* 5. 若没有任何有效待删键，直接返回 */
+  if (Object.keys(deletePayload).length === 0) return
+
+  /* 6. 发出去——里面只有要删的路径，其余字段不会出现 */
+  await eventEmit('era:deleteByObject', {
+    数据总览: deletePayload
+  })
+
   toastr.success('删除成功')
+
+  deleteMode.value = false
 }
 
 /* 分页逻辑 */

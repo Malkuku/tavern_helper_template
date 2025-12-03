@@ -169,19 +169,12 @@ const save = async () => {
   Object.assign(limitClone, rawLimits)
   Object.assign(eventClone, rawEvents)
 
-  /* 4. 局部回写 */
-  await updateVariablesWith(
-    vars => ({
-      ...vars,
-      stat_data: {
-        ...vars.stat_data!,
-        好感度池:      poolClone,
-        数值变化限制:  limitClone,
-        好感度事件:    eventClone
-      }
-    }),
-    { type: 'chat' }
-  )
+  await eventEmit('era:updateByObject', {
+      好感度池:      poolClone,
+      数值变化限制:  limitClone,
+      好感度事件:    eventClone
+  });
+
   toastr.success('保存配置成功')
 }
 
@@ -189,7 +182,6 @@ const save = async () => {
 const resolveEvent = async (key: string) => {
   if (!statStore.stat_data) return
   events[key].已解决 = true
-  await save()
 }
 </script>
 
