@@ -5,14 +5,14 @@ import { MessageUtil } from './MessageUtil';
  */
 const DeleteByObject = async (object: any) => {
   await eventEmit(ERAEvents.DELETE_BY_OBJECT, object);
-};
+}
 
 /**
  * 发送更新ERA对象的事件
  */
 const UpdateByObject = async (object: any) => {
   await eventEmit(ERAEvents.UPDATE_BY_OBJECT, object);
-};
+}
 
 /**
  * 发送获取ERA快照的事件
@@ -27,10 +27,11 @@ const EmitEraSnapshot = async () => {
   }
   console.error(`未找到位于第${getCurrentMessageId()}楼层的旧数据`);
   return null;
-};
+}
+
 
 export const ERAUtil = {
   DeleteByObject,
   UpdateByObject,
-  EmitEraSnapshot,
-};
+  EmitEraSnapshot
+}

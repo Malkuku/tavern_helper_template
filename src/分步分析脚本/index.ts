@@ -1,2 +1,2 @@
-import './UI/index';
-import './button';
+import './UI/index'
+import './button'

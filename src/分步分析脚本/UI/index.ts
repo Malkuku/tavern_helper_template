@@ -69,7 +69,6 @@ $(() => {
 
   // 获取 store 实例并暴露到 window，以便外部函数调用
   (window as any).eraUiStore = useUiStore(pinia);
-  useUiStore().getModelSettings();
 
   // 传送样式，也只执行一次
   teleportStyle();
@@ -80,6 +79,6 @@ $(() => {
   window.addEventListener('pagehide', unloadUI); // 再添加新的
 
   // 监听事件
-  eventOn(tavern_events.WORLDINFO_ENTRIES_LOADED, handleLoresFilter);
-  eventOn(tavern_events.MESSAGE_RECEIVED, handleMessageReceived);
+  eventOn(tavern_events.WORLDINFO_ENTRIES_LOADED,handleLoresFilter);
+  eventOn(tavern_events.MESSAGE_RECEIVED,handleMessageReceived);
 });

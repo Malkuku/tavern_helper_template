@@ -7,7 +7,7 @@ const getCurrentCharWorldBookPrimary = async () => {
     throw new Error('未能找到当前角色的世界书。');
   }
   return primary;
-};
+}
 
 /**
  * 基于正则过滤世界书名称条目
@@ -20,7 +20,7 @@ const filterWorldBookNamesRegex = (regex: RegExp, names: string[]) => {
  * 获取所有的世界书名称列表
  */
 const getAllWorldBookNames = async () => {
-  const primary = await getCurrentCharWorldBookPrimary();
+  const primary  = await getCurrentCharWorldBookPrimary();
   const bookInfo = await getWorldbook(primary);
   return bookInfo.map(t => t.name);
 };
@@ -29,7 +29,7 @@ const getAllWorldBookNames = async () => {
  * 获取世界书信息
  */
 const getWorldBookContent = async (bookNames: string[]) => {
-  const primary = await getCurrentCharWorldBookPrimary();
+  const primary  = await getCurrentCharWorldBookPrimary();
   const bookInfo = await getWorldbook(primary);
   let info = '';
   const neededBookInfo = bookInfo
@@ -44,8 +44,8 @@ const getWorldBookContent = async (bookNames: string[]) => {
 /**
  * 批量设置世界书条目
  */
-const enabledEntry = async (targets: Array<{ name: string; enabled: boolean }>) => {
-  const primary = await getCurrentCharWorldBookPrimary();
+const enabledEntry = async (targets : Array<{name:string,enabled:boolean}>) => {
+  const primary  = await getCurrentCharWorldBookPrimary();
   const bookInfo = await getWorldbook(primary);
   // 有任何一条缺失，立即失败
   const miss = targets.find(t => !bookInfo.some(e => e.name === t.name));
@@ -55,7 +55,7 @@ const enabledEntry = async (targets: Array<{ name: string; enabled: boolean }>) 
     wb.map(entry => {
       const hit = targets.find(t => t.name === entry.name);
       return hit ? { ...entry, enabled: hit.enabled } : entry;
-    }),
+    })
   );
   return true; // 全部成功
 };
@@ -63,19 +63,21 @@ const enabledEntry = async (targets: Array<{ name: string; enabled: boolean }>) 
 /**
  * 批量排除世界书条目
  */
-const removeLoresByRegex = async (lores: any, regex: RegExp, isReversed: boolean) => {
-  console.info('removeLoresByRegex: ', '开始过滤', regex, isReversed);
-  const remove = (lore: any) =>
-    _.remove(lore, entry => {
-      return isReversed ? !entry.comment.match(regex) : entry.comment.match(regex);
-    });
+const removeLoresByRegex = async (lores:any,regex:RegExp,isReversed:boolean)=>{
+  console.info('removeLoresByRegex: ', '开始过滤', regex, isReversed)
+  const remove = (lore:any) => _.remove(lore, entry => {
+    return isReversed ?
+      !entry.comment.match(regex) :
+      entry.comment.match(regex);
+  });
   remove(lores.globalLore);
   remove(lores.characterLore);
   remove(lores.chatLore);
   remove(lores.personaLore);
 
-  console.log('removeLoresByRegex过滤完成: ', lores);
-};
+  console.log('removeLoresByRegex过滤完成: ',lores);
+}
+
 
 export const WorldInfoUtil = {
   getCurrentCharWorldBookPrimary,
@@ -85,3 +87,4 @@ export const WorldInfoUtil = {
   enabledEntry,
   removeLoresByRegex,
 };
+
