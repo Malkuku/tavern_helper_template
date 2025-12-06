@@ -4,10 +4,8 @@ import { PromptUtil } from '../../Utils/PromptUtil';
 import { MessageUtil } from '../../Utils/MessageUtil';
 import { eraAwareSleep } from './utils/era-aware-sleep';
 
-/* 需要 store 的地方再拿 */
 const getUiStore = () => (window as any).eraUiStore as ReturnType<typeof useUiStore>;
 
-/* 计算属性也改成函数，调用时再求值 */
 const isAsync = computed(() => !!getUiStore()?.isAsync);
 const isUpdateEra = computed(() => !!getUiStore()?.isUpdateEra);
 const loreRegex = computed(() =>{
@@ -20,8 +18,12 @@ const loreRegex = computed(() =>{
   }
 });
 const isReversed = ref(false);
+const modelSource = computed(() => getUiStore()?.modelSource);
+const customModelSettings = computed(() => getUiStore()?.customModelSettings);
 
 const waitTime = 10000;
+
+//TODO 重发变量更新和完善错误回滚机制
 
 /**
  * 处理接收到的massage_received事件
@@ -68,13 +70,14 @@ export const handleKatEraUpdate = async () => {
         content: user_input,
       },
     ];
-
-    const result = await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream);
-    console.log("result: ",result);
+      const result = modelSource.value == 'sample' ?
+        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null) :
+        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value);
+      console.log("result: ",result);
 
     //提取并且合并消息到正文
     const variableRegex = /<(variable(?:insert|edit|delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi
-    // 只保留标签及其内部内容（标签本身也保留）
+    // 只保留标签及其内部内容
     let content = result
       .match(variableRegex)
       ?.join('') ?? '';
@@ -83,6 +86,7 @@ export const handleKatEraUpdate = async () => {
         .match(optionsRegex)
         ?.join('') ?? '';
     await MessageUtil.mergeContentToMessage(getLastMessageId(), content);
+    await eventEmit(tavern_events.MESSAGE_UPDATED, getLastMessageId());
 
     toastr.success("分步分析处理完成");
 
