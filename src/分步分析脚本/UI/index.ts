@@ -69,6 +69,7 @@ $(() => {
 
   // 获取 store 实例并暴露到 window，以便外部函数调用
   (window as any).eraUiStore = useUiStore(pinia);
+  useUiStore().getModelSettings();
 
   // 传送样式，也只执行一次
   teleportStyle();
