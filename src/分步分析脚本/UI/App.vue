@@ -49,7 +49,7 @@
           <input v-model="settings.baseURL" placeholder="https://api.openai.com/v1" />
         </div>
         <div class="row">
-          <span>API 密钥（请注意好个人隐私）</span>
+          <span>API密钥（请注意好个人隐私）</span>
           <input v-model="settings.apiKey" type="password" placeholder="sk-..." />
         </div>
         <div class="row">
@@ -57,7 +57,7 @@
           <div class="row">
             <span>模型名称</span>
             <select v-model="settings.modelName" style="flex:1">
-              <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
+              <option v-for="m in modelOptions" :key="m" :value="m" :title="m">{{ shortName(m) }}</option>
               <!-- 允许手动输入，兜底 -->
               <option v-if="settings.modelName && !modelOptions.includes(settings.modelName)" :value="settings.modelName">{{ settings.modelName }}</option>
             </select>
@@ -81,13 +81,16 @@
         </div>
       </div>
 
-      <br>
-      <div class="row">
+
+      <div class="row" style="justify-content: flex-start; gap: 12px;">
         <button class="btn small" @click="testConnect">测试连接</button>
-      </div>
-      <div v-if="modelSource === 'external'" class="row">
-        <span />
-        <button class="btn small" @click="getRemoteModels">获取模型列表</button>
+        <button
+          v-if="modelSource === 'external'"
+          class="btn small"
+          @click="getRemoteModels"
+        >
+          获取模型列表
+        </button>
       </div>
       <br>
 
@@ -365,13 +368,41 @@ const getRemoteModels = async () => {
   font-size: 14px;
   color: #252424;
 }
+/* select 本身 */
 .row select {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #d1d5db;          /* 浅灰边框 */
   border-radius: 4px;
   font-size: 14px;
-  color: #f3eaea;
+  color: #252424;
+  background: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: light;
+  transition: border-color .2s;
+}
+/* 聚焦时稍微加深一点，保持浅色风格 */
+.row select:focus {
+  outline: none;
+  border-color: #a5a5a5;
+}
+/* 强制整个 select 组件为浅色模式 */
+.row select,
+.row select option {
+  background-color: #cbc8c8 !important;
+  color: #252424 !important;
+}
+/* 禁用浏览器的颜色方案自动反色 */
+.row select {
+  color-scheme: light !important;
+}
+@media (prefers-color-scheme: dark) {
+  .row select,
+  .row select option {
+    background-color: #fff !important;
+    color: #252424 !important;
+  }
 }
 .footer {
   display: flex;
