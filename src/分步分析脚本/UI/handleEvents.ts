@@ -22,7 +22,7 @@ const modelSource = computed(() => getUiStore()?.modelSource);
 const customModelSettings = computed(() => getUiStore()?.customModelSettings);
 const profileSetting = computed(() => getUiStore()?.profileSetting);
 
-const waitTime = 8000;
+const waitTime = 10000;
 
 /**
  * 重发变量更新
@@ -75,7 +75,8 @@ export const handleMessageReceived = async (message_id:number) => {
   }
   toastr.info('开始分步分析，等待era事件完成');
   getUiStore().isUpdateEra = true;
-  await handleKatEraUpdate();
+
+  await handleKatEraUpdate();//TODO有时候ejs和era不会把宏正确替换
 }
 
 /**

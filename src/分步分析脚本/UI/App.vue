@@ -2,10 +2,14 @@
   <!-- 遮罩 -->
   <div v-if="visible" class="mask" @click.self="close">
     <div class="card">
-      <h3 class="title">ERA 分步分析设置</h3>
+      <button class="close-x" title="关闭" @click="close">&times;</button>
 
+      <h3 class="title">
+        ERA 分步分析设置
+      </h3>
       <!-- 分步分析开关 -->
       <label class="switch-row">
+
         <span>分步分析模式</span>
         <input
           type="checkbox"
@@ -287,7 +291,28 @@ const getRemoteModels = async () => {
     opacity: 0;
   }
 }
+/* 右上角关闭 × */
+.close-x {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+.close-x:hover {
+  color: #000;
+  background: rgba(0, 0, 0, 0.06);
+}
 .card {
+  position: relative;
   background: #fff;
   border-radius: 12px;
   padding: 24px 28px;
