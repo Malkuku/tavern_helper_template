@@ -20,8 +20,9 @@ const loreRegex = computed(() =>{
 const isReversed = ref(false);
 const modelSource = computed(() => getUiStore()?.modelSource);
 const customModelSettings = computed(() => getUiStore()?.customModelSettings);
+const profileSetting = computed(() => getUiStore()?.profileSetting);
 
-const waitTime = 10000;
+const waitTime = 8000;
 
 /**
  * 重发变量更新
@@ -57,8 +58,8 @@ export const reSendEraUpdate = async () => {
 /**
  * 处理接收到的massage_received事件
  */
-export const handleMessageReceived = async () => {
-  if(getLastMessageId() == 0){ //不处理0层
+export const handleMessageReceived = async (message_id:number) => {
+  if(getLastMessageId() == 0 || message_id == 0){ //不处理0层
     return;
   }
   if(!isAsync.value){
@@ -67,6 +68,10 @@ export const handleMessageReceived = async () => {
   if(isUpdateEra.value){
     toastr.warning('已有正在处理的分步分析');
     return;
+  }
+  if(MessageUtil.getMessageById(message_id).length < 200){
+    toastr.error('空回了喵~请重roll喵~');
+    throw new Error("空回了喵~请重roll喵~");
   }
   toastr.info('开始分步分析，等待era事件完成');
   getUiStore().isUpdateEra = true;
@@ -77,8 +82,8 @@ export const handleMessageReceived = async () => {
  * 合并消息内容
  */
 async function handleMessageMerge(result: string) {
-  if(result.length < 100){
-    toastr.warning('接收的分析结果为空，哈！');
+  if(result.length < 200){
+    toastr.error('接收的分析结果为空，哈！');
     throw new Error("接收的分析结果为空，哈！");
   }
   const variableRegex = /<(variable(?:insert|edit|delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi
@@ -130,10 +135,13 @@ export const handleKatEraUpdate = async () => {
         content: user_input,
       },
     ];
-      const result = modelSource.value == 'sample' ?
-        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null) :
-        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value);
-      console.log("result: ",result);
+    const result = modelSource.value == 'sample' ?
+      await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,null) :
+      modelSource.value == 'custom' ?
+        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,profileSetting) :
+        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value,null);
+
+    console.log("result: ",result);
 
     await handleMessageMerge(result);
 
