@@ -43,10 +43,24 @@ const mergeContentToMessage = async (message_id: number, content: string) => {
   await setChatMessages([{ message_id, message: msg }]);
 }
 
+/**
+ * 根据正则清除正文中的内容
+ */
+const removeContentByRegex = async (message_id: number, regexes: RegExp[]) => {
+  console.log("正在清除正文中的内容: ",message_id, regexes);
+  const chat_message = getChatMessages(message_id)[0];
+  let msg = chat_message.message;
+  for(const regex of regexes){
+    msg = msg.replace(regex, '');
+  }
+  await setChatMessages([{ message_id, message: msg }]);
+}
+
 export const MessageUtil = {
   getMessageById,
   getCurrentMessage,
   getMessagesByRange,
   mergeContentToMessage,
+  removeContentByRegex,
 };
 

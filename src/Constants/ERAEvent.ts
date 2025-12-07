@@ -1,4 +1,4 @@
-declare const ERAEvents :{
+const ERAEvents ={
   /**
    * 非破坏性地插入一个或多个变量。
    */
@@ -15,4 +15,8 @@ declare const ERAEvents :{
    * 获取快照消息
    */
   GET_SNAPSHOT_AT_MK : 'era:getSnapshotAtMk',
+  /**
+   * 发送一次差异同步
+   */
+  FORCE_SYNC :'era:forceSync'
 }
