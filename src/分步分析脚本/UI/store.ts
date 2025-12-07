@@ -42,7 +42,8 @@ export const useUiStore = defineStore('ui', () => {
     const saveVariables = {
         isAsync : isAsync.value,
         modelSource: modelSource.value,
-        customModelSettings: customModelSettings.value
+        customModelSettings: customModelSettings.value,
+        profileSetting: profileSetting.value
     };
     const cleaned = JSON.parse(JSON.stringify(saveVariables));
     await updateVariablesWith(

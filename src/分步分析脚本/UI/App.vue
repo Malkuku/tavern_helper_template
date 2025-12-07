@@ -19,6 +19,8 @@
         <span class="switch"></span>
       </label>
 
+      <span>!目前流式生成的分析的ejs替换有bug，分步模式请不要打开流式</span>
+
       <!-- 模型来源 -->
       <div class="row">
         <span>模型来源</span>
@@ -28,21 +30,26 @@
           <option value="external">额外模型</option>
         </select>
       </div>
-
-      <!-- 预设模型选择（仅 profile 时显示） -->
       <div v-if="modelSource === 'profile'" class="row">
         <span>预设模型</span>
-        <select v-model="profileSetting">
-          <option
-            v-for="p in profileList"
-            :key="p"
-            :value="p"
-            :title="p"
-          >
-            {{ shortName(p) }}
-          </option>
-        </select>
+        因为ERA和提示词模板的替换问题，目前不可用😑
       </div>
+
+
+      <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
+<!--      <div v-if="modelSource === 'profile'" class="row">-->
+<!--        <span>预设模型</span>-->
+<!--        <select v-model="profileSetting">-->
+<!--          <option-->
+<!--            v-for="p in profileList"-->
+<!--            :key="p"-->
+<!--            :value="p"-->
+<!--            :title="p"-->
+<!--          >-->
+<!--            {{ shortName(p) }}-->
+<!--          </option>-->
+<!--        </select>-->
+<!--      </div>-->
 
 
 
@@ -276,19 +283,61 @@ const getRemoteModels = async () => {
 </script>
 
 <style scoped>
+/* ---------- 直接替换/追加到 <style scoped> 里 ---------- */
 .mask {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: fade 0.2s ease;
+  overflow-y: auto; /* 允许垂直滚动 */
+  height: 100vh;
 }
+
+.card {
+  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  animation: slide 0.25s ease;
+  margin: 10vh 0; /* 从顶部和底部留出10%的空间 */
+  z-index: 10000; /* 确保card在mask之上 */
+  min-height: 300px; /* 确保最小高度 */
+}
+
+/* 小屏再收紧一点 */
+@media (max-width: 480px) {
+  .card {
+    width: 100%;
+    padding: 16px;
+  }
+}
+
 @keyframes fade {
   from {
     opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 /* 右上角关闭 × */
@@ -310,15 +359,6 @@ const getRemoteModels = async () => {
 .close-x:hover {
   color: #000;
   background: rgba(0, 0, 0, 0.06);
-}
-.card {
-  position: relative;
-  background: #fff;
-  border-radius: 12px;
-  padding: 24px 28px;
-  width: 420px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  animation: slide 0.25s ease;
 }
 @keyframes slide {
   from {
