@@ -22,7 +22,7 @@ const modelSource = computed(() => getUiStore()?.modelSource);
 const customModelSettings = computed(() => getUiStore()?.customModelSettings);
 const profileSetting = computed(() => getUiStore()?.profileSetting);
 
-const waitTime = 10000;
+const waitTime = 8000;
 
 /**
  * 重发变量更新
@@ -76,7 +76,14 @@ export const handleMessageReceived = async (message_id:number) => {
   toastr.info('开始分步分析，等待era事件完成');
   getUiStore().isUpdateEra = true;
 
-  await handleKatEraUpdate();//TODO有时候ejs和era不会把宏正确替换
+  await handleKatEraUpdate();
+  /**
+   * TODO有时候ejs和era不会把宏正确替换
+   * 目前：额外非流ok，额外解析ok
+   *  同源非流ok,同源解析ok，同源流
+   *  流式：全寄 ejs有问题
+   *  预设：全寄
+   */
 }
 
 /**
@@ -136,10 +143,11 @@ export const handleKatEraUpdate = async () => {
         content: user_input,
       },
     ];
+    console.log("modelSource: ", modelSource.value)
     const result = modelSource.value == 'sample' ?
       await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,null) :
-      modelSource.value == 'custom' ?
-        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,profileSetting) :
+      modelSource.value == 'profile' ?
+        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,profileSetting.value) :
         await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value,null);
 
     console.log("result: ",result);

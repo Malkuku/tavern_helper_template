@@ -12,9 +12,12 @@ const sendPrompt = async(user_input: string,
   console.log('After RegisterMacro');
 
   //如果profileSetting不为空，先切换预设
-  const tempProfileSetting = (await (window as any).SillyTavern.executeSlashCommands('/profile') as any).pipe;
+  let tempProfileSetting;
   if(profileSetting){
+    console.log('切换预设', profileSetting);
+    tempProfileSetting = (await (window as any).SillyTavern.executeSlashCommands('/profile') as any).pipe;
     await (window as any).SillyTavern.executeSlashCommands(`/profile ${profileSetting}`);
+    await (window as any).SillyTavern.executeSlashCommands('/regex');
   }
 
   // 发送请求以获取结果
@@ -39,6 +42,7 @@ const sendPrompt = async(user_input: string,
   //恢复预设
   if(profileSetting){
     await (window as any).SillyTavern.executeSlashCommands(`/profile ${tempProfileSetting}`);
+    await (window as any).SillyTavern.executeSlashCommands('/regex');
   }
 
   return result;
