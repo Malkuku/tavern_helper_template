@@ -79,6 +79,13 @@ $(() => {
   teleportStyle();
   console.debug('initialize', 'Vue App 已挂载，样式已传送');
 
+  // 监听路由变化，重新传输样式
+  router.afterEach(() => {
+    setTimeout(() => {
+      teleportStyle();
+    }, 50);
+  });
+
   // 在卸载时执行，并确保只绑定一次
   window.removeEventListener('pagehide', unloadUI); // 先移除旧的
   window.addEventListener('pagehide', unloadUI); // 再添加新的

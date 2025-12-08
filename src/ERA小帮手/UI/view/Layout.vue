@@ -1,117 +1,248 @@
 <template>
-    <div v-if="visible" class="mask" @click.self="close">
-      <div class="card">
-        <button class="close-x" title="关闭" @click="close">&times;</button>
+  <div v-if="visible" class="mask" @click.self="close">
+    <div class="card">
+      <!-- 顶部按钮组 -->
+      <div class="top-button-group">
+        <button
+          class="btn"
+          :class="{ active: currentRoute === '/AsyncAnalyze' }"
+          @click="goToRoute('/AsyncAnalyze')"
+        >
+          <span class="btn-text">📊分步分析配置</span>
+        </button>
+        <button
+          class="btn"
+          :class="{ active: currentRoute === '/EraDataHandle' }"
+          @click="goToRoute('/EraDataHandle')"
+        >
+          <span class="btn-text">⚙️Era变量处理配置</span>
+        </button>
+      </div>
+
+      <!-- 关闭按钮 -->
+      <button class="close-x" title="关闭" @click="close">&times;</button>
+
+      <!-- 新增：专门的 router-view 容器区域 -->
+      <div class="router-view-container">
+        <!-- 内容区 -->
         <div class="content">
-          <router-view/> <!-- 显示子路由的内容 -->
-        </div>
-        <div class="button-group">
-          <!-- 按键组 -->
-          <button class="btn" @click="goToRoute('/AsyncAnalyze')">分步分析配置</button>
-          <button class="btn" @click="goToRoute('/EraDataHandle')">Era变量处理配置</button>
+          <router-view />
         </div>
       </div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useUiStore } from '../../stores/UIStore';
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 
 const UiStore = useUiStore();
-const visible = computed(() => UiStore.showUI); // 控制遮罩的显示和隐藏
+const visible = computed(() => UiStore.showUI);
 const router = useRouter();
+const route = useRoute();
+const currentRoute = ref(route.path);
+
+// 监听路由变化
+watch(() => route.path, (newPath) => {
+  currentRoute.value = newPath;
+});
 
 const close = () => {
   UiStore.showUI = false;
 };
 
 const goToRoute = (path: string) => {
-  router.push(path); // 跳转到指定路由
+  router.push(path);
 };
 </script>
 
 <style scoped lang="scss">
-/* 遮罩样式 */
+/* 遮罩层 */
 .mask {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   overflow-y: auto;
-  height: 100vh;
+  animation: fadeIn 0.2s ease;
 }
 
-::v-deep(.card) {
+/* 卡片主体 */
+.card {
   position: relative;
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
+  background: linear-gradient(135deg, #dcd8d8 0%, #f8fafc 100%);
+  border-radius: 20px;
   width: 90%;
-  max-width: 420px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  animation: slide 0.25s ease;
-  margin: 10vh 0;
+  max-width: 500px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10000;
-  min-height: 300px;
-  display: flex;        /* 新增 */
+  min-height: 400px;
+  display: flex;
   flex-direction: column;
-  max-height: 50vh;     /* 原来 50% 改成 50vh 更直观 */
+  max-height: 70vh;
+  overflow: hidden;
 }
 
+/* 顶部按钮组 - 调整高度和位置 */
+.top-button-group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-radius: 20px 20px 0 0;
+  padding: 10px 16px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+  z-index: 1;
+  height: 56px;
+}
+
+/* 新增：router-view 容器 */
+.router-view-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 56px; /* 与顶部按钮组高度相同 */
+  padding: 24px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 0 0 20px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 内容区 */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  background: white;
+  border-radius: 12px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  /* 添加内部填充以确保内容不贴边 */
+  & > * {
+    padding: 0 8px;
+  }
+
+  /* 滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+    margin: 4px 0;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
+
+/* 按钮样式 */
+.btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #dcd8d8 0%, #f8fafc 100%);
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  min-height: 48px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: #475569;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    box-shadow:
+      0 2px 8px rgba(99, 102, 241, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+    .btn-icon {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    .btn-text {
+      font-weight: 600;
+    }
+  }
+}
+
+.btn-text {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-top: 2px;
+}
+
+/* 调整关闭按钮位置 */
 .close-x {
   position: absolute;
-  top: 12px;
+  top: 62px;
   right: 16px;
   width: 28px;
   height: 28px;
   border: none;
-  background: transparent;
-  font-size: 22px;
+  background: #f8fafc;
+  border-radius: 50%;
+  font-size: 18px;
   line-height: 1;
-  color: #666;
+  color: #64748b;
   cursor: pointer;
-  border-radius: 4px;
-  transition: color 0.2s, background 0.2s;
-}
-
-.close-x:hover {
-  color: #000;
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.content {
-  margin-bottom: 20px;
-}
-
-.button-group {
+  transition: all 0.3s ease;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+
+  &:hover {
+    background: #ef4444;
+    color: white;
+    transform: rotate(90deg);
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
+  }
 }
 
-.btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  background: #4f46e5;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn:hover {
-  background: #4338ca;
-}
-
-@keyframes fade {
+/* 动画 */
+@keyframes fadeIn {
   from {
     opacity: 0;
   }
@@ -119,14 +250,56 @@ const goToRoute = (path: string) => {
     opacity: 1;
   }
 }
-@keyframes slide {
+
+@keyframes slideUp {
   from {
-    transform: translateY(20px);
+    transform: translateY(30px) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .card {
+    max-width: 95%;
+    min-height: 360px;
+  }
+
+  .router-view-container {
+    margin-top: 52px;
+    padding: 16px;
+  }
+
+  .top-button-group {
+    padding: 8px 12px;
+    gap: 6px;
+    height: 52px;
+  }
+
+  .btn {
+    padding: 6px 8px;
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  .btn-text {
+    font-size: 10px;
+  }
+
+  .close-x {
+    top: 58px;
+    right: 12px;
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
+  }
+
+  .content {
+    border-radius: 10px;
   }
 }
 </style>

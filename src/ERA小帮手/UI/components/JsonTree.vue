@@ -64,6 +64,6 @@ function onToggle(n: JsonNode) {
 <style scoped>
 .json-tree {
   font-family: monospace;
-  font-size: 14px;
+  font-size: 12px;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div>
     <h3 class="title">
       ERA 分步分析设置
     </h3>
@@ -14,7 +14,9 @@
       <span class="switch"></span>
     </label>
 
-    <span>!目前流式生成的分析的ejs替换有bug，分步模式请不要打开流式</span>
+    <span class="tip-card">
+      ⚠️ 目前流式生成的分析的 ejs 替换有 bug，分步模式请不要打开流式
+    </span>
 
     <!-- 模型来源 -->
     <div class="row">
@@ -277,18 +279,27 @@ const getRemoteModels = async () => {
 
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/************ 通用 ************/
+* {
+  box-sizing: border-box;
+}
+
+/* 确保标题有足够的上边距 */
 .title {
-  margin: 0 0 20px;
+  margin: 8px 0 16px; /* 增加上边距 */
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #111827;
+  padding-top: 4px; /* 额外内边距 */
 }
+
+/************ 开关 ************/
 .switch-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   cursor: pointer;
   user-select: none;
 }
@@ -299,7 +310,7 @@ const getRemoteModels = async () => {
   position: relative;
   width: 40px;
   height: 22px;
-  background: #ccc;
+  background: #d1d5db;
   border-radius: 11px;
   transition: background 0.3s;
 }
@@ -315,98 +326,103 @@ const getRemoteModels = async () => {
   transition: left 0.3s;
 }
 .switch-row input:checked + .switch {
-  background: #4f46e5;
+  background: #6366f1;
 }
 .switch-row input:checked + .switch::after {
   left: 20px;
 }
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+
+/************ 提示卡片 ************/
+.tip-card {
+  display: block;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
 }
+
+/************ 行 ************/
 .row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  margin-bottom: 12px;
 }
-.row span {
+.row span:first-child {
   width: 130px;
   font-size: 14px;
-  color: #444;
+  color: #4b5563;
+  flex-shrink: 0;
 }
-.row input{
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #252424;
-}
-/* select 本身 */
+.row input,
 .row select {
   flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #d1d5db;          /* 浅灰边框 */
-  border-radius: 4px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   font-size: 14px;
-  color: #252424;
-  background: #fff;
-  appearance: none;
-  -webkit-appearance: none;
-  color-scheme: light;
-  transition: border-color .2s;
+  color: #111827;
+  background: #dcd8d8;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-/* 聚焦时稍微加深一点，保持浅色风格 */
+.row input:focus,
 .row select:focus {
   outline: none;
-  border-color: #a5a5a5;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.03);
 }
-/* 强制整个 select 组件为浅色模式 */
+
+/* 强制浅色 select */
 .row select,
 .row select option {
-  background-color: #cbc8c8 !important;
-  color: #252424 !important;
+  background: #dcd8d8 !important;
+  color: #111827 !important;
 }
-/* 禁用浏览器的颜色方案自动反色 */
-.row select {
-  color-scheme: light !important;
-}
+/* 为深色模式提供回退 */
 @media (prefers-color-scheme: dark) {
   .row select,
   .row select option {
-    background-color: #fff !important;
-    color: #252424 !important;
+    background: #dcd8d8 !important;
+    color: #111827 !important;
+  }
+
+  /* 确保在深色模式下卡片内容保持浅色 */
+  .content {
+    background: #dcd8d8;
+    color: #111827;
   }
 }
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
+
+/************ 按钮 ************/
 .btn {
   padding: 6px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    color 0.2s;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
   background: #f3f4f6;
-  color: #111;
+  color: #111827;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 .btn:hover {
   background: #e5e7eb;
 }
+.btn.small {
+  padding: 4px 12px;
+  font-size: 13px;
+}
 .btn.primary {
-  background: #4f46e5;
+  background: #6366f1;
   color: #fff;
 }
 .btn.primary:hover {
-  background: #4338ca;
+  background: #4f46e5;
 }
 .btn.danger {
   background: #ef4444;
@@ -415,8 +431,140 @@ const getRemoteModels = async () => {
 .btn.danger:hover {
   background: #dc2626;
 }
-.btn.small {
-  padding: 4px 12px;
+
+/************ 底部操作区 ************/
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/************ 列表样式 ************/
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #e5e7eb;
+}
+.list-item:last-child {
+  margin-bottom: 0;
+}
+
+/************ 标签样式 ************/
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+/************ 消息提示 ************/
+.message {
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
   font-size: 13px;
+}
+.message.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.message.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.message.info {
+  background: #e0f2fe;
+  color: #1e40af;
+  border: 1px solid #bae6fd;
+}
+
+/************ 表单组 ************/
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/************ 分隔线 ************/
+.divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 16px 0;
+  border: none;
+}
+
+/************ 卡片容器 ************/
+.card-container {
+  background: #dcd8d8;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/************ 加载状态 ************/
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/************ 工具提示 ************/
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  margin-left: 4px;
+}
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111827;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+}
+.tooltip:hover::after {
+  opacity: 1;
+  visibility: visible;
 }
 </style>
