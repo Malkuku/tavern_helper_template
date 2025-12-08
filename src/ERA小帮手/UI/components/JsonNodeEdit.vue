@@ -72,18 +72,6 @@
             :class="getValueTypeClass(node.value)"
             @dblclick="onDoubleClick"
           >{{ formatValue(node.value) }}</span>
-
-          <!-- 添加规则按钮（只在叶子节点显示） -->
-          <button
-            v-if="editModeEnabled"
-            class="add-btn"
-            title="将此路径添加到规则"
-            @click="$emit('send-path', node.path)"
-          >
-            <svg class="add-icon" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 3V13M3 8H13"/>
-            </svg>
-          </button>
         </div>
 
         <div v-else-if="!node.expanded" class="collapse-preview">
@@ -91,21 +79,27 @@
         </div>
       </template>
 
-      <!-- 操作按钮（编辑模式启用时显示） -->
+      <!-- 操作按钮（编辑模式启用时显示，且不在编辑状态） -->
       <div v-if="editModeEnabled && !isEditing" class="node-actions">
         <button
           class="action-btn"
+          title="添加子节点"
           @click="$emit('add-child', node.path)"
         >
           +
         </button>
         <button
           class="action-btn danger"
+          title="删除节点"
           @click="$emit('remove', node.path)"
         >
           ×
         </button>
-        <button class="action-btn" @click="startEdit">
+        <button
+          class="action-btn edit"
+          title="编辑节点"
+          @click="startEdit"
+        >
           编辑
         </button>
       </div>
@@ -125,7 +119,6 @@
         @edit-save="handleEditSave($event)"
         @add-child="$emit('add-child', $event)"
         @remove="$emit('remove', $event)"
-        @send-path="$emit('send-path', $event)"
       />
     </div>
   </div>
@@ -148,7 +141,6 @@ const emit = defineEmits<{
   (e: 'edit-save', payload: { path: string; value: any }): void
   (e: 'add-child', path: string): void
   (e: 'remove', path: string): void
-  (e: 'send-path', path: string): void
 }>()
 
 // 计算属性：是否启用编辑模式
@@ -166,7 +158,7 @@ function formatValue(value: any): string {
   if (value === undefined) return 'undefined'
   if (typeof value === 'boolean') return value ? 'true' : 'false'
   if (typeof value === 'string') return `"${value}"`
-  if (typeof value === 'number') return `<number>${value}`
+  if (typeof value === 'number') return `${value}`
   if (Array.isArray(value)) return `[${value.length} items]`
   if (typeof value === 'object') return `{${Object.keys(value).length} keys}`
   return String(value)
@@ -297,6 +289,7 @@ watch(isEditing, (editing) => {
     position: relative;
     z-index: 1;
     transition: background-color 0.15s ease;
+    gap: 4px;
 
     &:hover {
       background-color: rgba(99, 102, 241, 0.05);
@@ -306,8 +299,8 @@ watch(isEditing, (editing) => {
         opacity: 1;
       }
 
-      .add-btn {
-        opacity: 0.8;
+      .node-actions {
+        opacity: 1;
       }
     }
 
@@ -331,7 +324,6 @@ watch(isEditing, (editing) => {
     justify-content: center;
     width: 16px;
     height: 16px;
-    margin-right: 4px;
     cursor: pointer;
     opacity: 0.6;
     transition: all 0.2s ease;
@@ -376,7 +368,6 @@ watch(isEditing, (editing) => {
   .value-area {
     display: flex;
     align-items: center;
-    gap: 8px;
     flex: 1;
     min-width: 0;
   }
@@ -439,40 +430,6 @@ watch(isEditing, (editing) => {
     }
   }
 
-  .add-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 6px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: white;
-    cursor: pointer;
-    opacity: 0;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(99, 102, 241, 0.2);
-
-    &:hover {
-      opacity: 1;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-
-    .add-icon {
-      width: 14px;
-      height: 14px;
-      stroke-width: 2;
-    }
-  }
-
   .collapse-preview {
     color: #6b7280;
     font-size: 12px;
@@ -515,7 +472,8 @@ watch(isEditing, (editing) => {
   }
 
   .edit-input {
-    min-width: 200px;
+    min-width: 150px;
+    flex: 1;
   }
 
   .null-value {
@@ -534,6 +492,7 @@ watch(isEditing, (editing) => {
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    flex-shrink: 0;
 
     &.save {
       background: #10b981;
@@ -557,13 +516,10 @@ watch(isEditing, (editing) => {
   .node-actions {
     display: flex;
     gap: 4px;
-    margin-left: auto;
     opacity: 0;
     transition: opacity 0.2s ease;
-
-    .line:hover & {
-      opacity: 1;
-    }
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   .action-btn {
@@ -575,6 +531,7 @@ watch(isEditing, (editing) => {
     color: #64748b;
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
 
     &:hover {
       background: #f1f5f9;
@@ -587,6 +544,15 @@ watch(isEditing, (editing) => {
 
       &:hover {
         background: #fef2f2;
+      }
+    }
+
+    &.edit {
+      color: #3b82f6;
+      border-color: #bfdbfe;
+
+      &:hover {
+        background: #eff6ff;
       }
     }
   }
@@ -688,10 +654,6 @@ watch(isEditing, (editing) => {
       }
     }
 
-    .add-btn {
-      background: linear-gradient(135deg, #818cf8, #6366f1);
-    }
-
     .node-editor {
       .edit-type-select,
       .edit-input {
@@ -712,6 +674,24 @@ watch(isEditing, (editing) => {
 
       &:hover {
         background: #4b5563;
+      }
+
+      &.danger {
+        color: #f87171;
+        border-color: #7f1d1d;
+
+        &:hover {
+          background: #7f1d1d;
+        }
+      }
+
+      &.edit {
+        color: #60a5fa;
+        border-color: #1e3a8a;
+
+        &:hover {
+          background: #1e3a8a;
+        }
       }
     }
   }

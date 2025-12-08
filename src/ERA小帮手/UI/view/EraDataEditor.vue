@@ -122,6 +122,7 @@
               v-for="node in filteredTreeData"
               :key="node.path"
               :node="node"
+              :edit-mode="true"
               :editing-node="editingNode"
               @toggle="toggleNode"
               @edit-start="startEdit"

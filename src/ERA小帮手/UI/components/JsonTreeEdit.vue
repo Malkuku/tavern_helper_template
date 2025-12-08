@@ -28,7 +28,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   toggle: [node: JsonNodeType]
-  'send-path': [path: string]
   'edit-start': [path: string]
   'edit-cancel': []
   'edit-save': [payload: { path: string; value: any }]
@@ -89,10 +88,6 @@ function onAddChild(path: string) {
 
 function onRemove(path: string) {
   emit('remove', path)
-}
-
-function onSendPath(path: string) {
-  emit('send-path', path)
 }
 </script>
 
