@@ -8,6 +8,7 @@
         <div class="button-group">
           <!-- 按键组 -->
           <button class="btn" @click="goToRoute('/AsyncAnalyze')">分步分析配置</button>
+          <button class="btn" @click="goToRoute('/EraDataHandle')">Era变量处理配置</button>
         </div>
       </div>
     </div>
@@ -60,6 +61,9 @@ const goToRoute = (path: string) => {
   margin: 10vh 0;
   z-index: 10000;
   min-height: 300px;
+  display: flex;        /* 新增 */
+  flex-direction: column;
+  max-height: 50vh;     /* 原来 50% 改成 50vh 更直观 */
 }
 
 .close-x {

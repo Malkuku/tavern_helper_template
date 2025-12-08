@@ -1,4 +1,5 @@
 import { MessageUtil } from './MessageUtil';
+import { ERAEvents } from '../Constants/ERAEvent';
 
 /**
  * 发送删除ERA对象事件

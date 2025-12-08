@@ -14,6 +14,11 @@ export const router = createRouter({
           name: 'AsyncAnalyze',
           component: () => import('../view/AsyncAnalyze.vue'),
         },
+        {
+          path: '/EraDataHandle',
+          name: 'EraDataHandle',
+          component: () => import('../view/EraDataHandle.vue'),
+        },
       ],
     },
   ],
