@@ -22,11 +22,23 @@
       <!-- 2. 查看规则（默认折叠） -->
       <section v-show="activeTab === 'list'">
         <h2>规则列表</h2>
+        <div class="import-export-buttons">
+          <button class="btn small" @click="exportRules">导出规则</button>
+          <button class="btn small" @click="importRules">导入规则</button>
+        </div>
 
         <!-- 空状态提示 -->
         <div v-if="Object.keys(rules).length === 0" class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"
+            />
           </svg>
           <p>暂无规则，从规则编辑添加或从数据面板中选择路径</p>
         </div>
@@ -88,11 +100,29 @@
         </div>
         <div class="field">
           <label>范围限制:</label>
-          <input v-model="draftRange" placeholder="[0,100]" />
+          <div class="range-limit-inputs">
+            <div class="input-group">
+              <label class="input-label">min:</label>
+              <input v-model.number="draftRangeMin" type="number" placeholder="最小值" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">max:</label>
+              <input v-model.number="draftRangeMax" type="number" placeholder="最大值" />
+            </div>
+          </div>
         </div>
         <div class="field">
           <label>变化值限制:</label>
-          <input v-model="draftLimit" placeholder="[-5,10]" />
+          <div class="range-limit-inputs">
+            <div class="input-group">
+              <label class="input-label">neg:</label>
+              <input v-model.number="draftLimitNeg" type="number" placeholder="负向最大" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">pos:</label>
+              <input v-model.number="draftLimitPos" type="number" placeholder="正向最大" />
+            </div>
+          </div>
         </div>
 
         <!-- setIf 区域 -->
@@ -129,7 +159,7 @@
         </div>
 
         <!-- handle 区域 -->
-        <div class="handle-area">
+        <div class="setIf-area">
           <div>handle 运算:</div>
           <div v-for="(h, k) in draft.handle" :key="k" class="handle-item">
             <select v-model="h.op">
@@ -138,7 +168,7 @@
               <option value="multiply">乘</option>
               <option value="divide">除</option>
             </select>
-            <input v-model="h.path" placeholder="源路径: handle.path[op]this.path" />
+            <input v-model="h.path" placeholder="目标路径: this.path[op]handle.path" />
             <button class="btn danger" @click="delHandle(k as any)">删除</button>
           </div>
           <button class="btn" @click="addHandle">+ 添加 handle</button>
@@ -172,6 +202,26 @@
         </div>
       </div>
     </div>
+
+    <!-- 导入确认对话框 -->
+    <div v-if="showImportConfirm" class="modal-overlay">
+      <div class="modal">
+        <h3>导入规则</h3>
+        <p>导入新规则将覆盖当前所有规则，确定要继续吗？</p>
+        <div class="modal-actions">
+          <button class="btn primary" @click="executeImport">确认导入</button>
+          <button class="btn" @click="cancelImport">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文件导入输入 -->
+    <input ref="fileInputRef" type="file" accept=".json" style="display: none" @change="handleFileImport" />
+
+    <!-- 消息提示 -->
+    <div v-if="message" class="status-message" :class="message.type">
+      {{ message.text }}
+    </div>
   </div>
 </template>
 
@@ -180,12 +230,11 @@ import { ref, onMounted } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
 import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
 import JsonTree from '../components/JsonTree.vue';
+import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
 const rules = ref<Record<string, any>>({});
-const rangeStr = ref<Record<string, string>>({});
-const limitStr = ref<Record<string, string>>({});
 const testResult = ref<any>();
 const folded = ref<Record<string, boolean>>({}); // 折叠状态
 const editingKey = ref<string>(''); // 正在编辑的规则 key
@@ -195,14 +244,21 @@ const draft = ref<any>({
   path: '',
   order: 0,
   handle: {},
-  setIf: null // 默认无setIf条件
+  setIf: null, // 默认无setIf条件
 }); // 当前表单草稿
-const draftRange = ref('');
-const draftLimit = ref('');
+
+// 修改为独立的 min/max/neg/pos 变量
+const draftRangeMin = ref<number | null>(null);
+const draftRangeMax = ref<number | null>(null);
+const draftLimitNeg = ref<number | null>(null);
+const draftLimitPos = ref<number | null>(null);
+
 const activeTab = ref<'data' | 'rule' | 'test' | 'list'>('data');
 const showDeleteConfirm = ref(false); // 删除确认对话框显示状态
 const deletingKey = ref<string>(''); // 待删除的规则 key
-const message = ref<{text: string, type: 'success' | 'error' | 'warning'} | null>(null); // 消息提示
+const showImportConfirm = ref(false); // 导入确认对话框显示状态
+const fileInputRef = ref<HTMLInputElement>(); // 文件输入引用
+const message = ref<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null); // 消息提示
 
 const tabs = [
   { key: 'data', label: '查看数据' },
@@ -218,7 +274,6 @@ onMounted(async () => {
   const { stat_data } = getVariables({ type: 'chat' });
   statData.value = stat_data || {};
   await loadRules();
-  initStr();
   // 默认全部折叠
   Object.keys(rules.value).forEach(k => (folded.value[k] = true));
 });
@@ -232,14 +287,6 @@ async function loadRules() {
   } catch (error) {
     showMessage('规则加载失败: ' + error, 'error');
   }
-}
-
-function initStr() {
-  Object.keys(rules.value).forEach(k => {
-    const r = rules.value[k];
-    if (r.range) rangeStr.value[k] = JSON.stringify(r.range);
-    if (r.limit) limitStr.value[k] = JSON.stringify(r.limit);
-  });
 }
 
 function toggleFold(key: string) {
@@ -257,8 +304,23 @@ function editRule(key: string) {
     draft.value.enable = true;
   }
 
-  draftRange.value = JSON.stringify(draft.value.range || []);
-  draftLimit.value = JSON.stringify(draft.value.limit || []);
+  // 加载范围限制和变化值限制
+  if (draft.value.range && Array.isArray(draft.value.range) && draft.value.range.length >= 2) {
+    draftRangeMin.value = draft.value.range[0];
+    draftRangeMax.value = draft.value.range[1];
+  } else {
+    draftRangeMin.value = null;
+    draftRangeMax.value = null;
+  }
+
+  if (draft.value.limit && Array.isArray(draft.value.limit) && draft.value.limit.length >= 2) {
+    draftLimitNeg.value = draft.value.limit[0];
+    draftLimitPos.value = draft.value.limit[1];
+  } else {
+    draftLimitNeg.value = null;
+    draftLimitPos.value = null;
+  }
+
   activeTab.value = 'rule';
 }
 
@@ -269,18 +331,18 @@ function confirmSave() {
     return;
   }
 
-  try {
-    draft.value.range = draftRange.value ? JSON.parse(draftRange.value) : [];
-  } catch {
-    showMessage('range 格式错误', 'error');
-    return;
+  // 处理范围限制
+  if (draftRangeMin.value !== null && draftRangeMax.value !== null) {
+    draft.value.range = [draftRangeMin.value, draftRangeMax.value];
+  } else {
+    draft.value.range = [];
   }
 
-  try {
-    draft.value.limit = draftLimit.value ? JSON.parse(draftLimit.value) : [];
-  } catch {
-    showMessage('limit 格式错误', 'error');
-    return;
+  // 处理变化值限制
+  if (draftLimitNeg.value !== null && draftLimitPos.value !== null) {
+    draft.value.limit = [draftLimitNeg.value, draftLimitPos.value];
+  } else {
+    draft.value.limit = [];
   }
 
   // 处理setIf中的数值类型
@@ -313,8 +375,9 @@ async function saveRules() {
   try {
     // 更新 store 中的规则
     eraStore.eraDataRule = { ...rules.value };
-    // 如果有保存到后端的逻辑，可以在这里调用
-    // await eraStore.saveEraDataRules();
+    // 保存到后端
+    await eraStore.saveEraDataRules();
+    showMessage('规则保存成功', 'success');
   } catch (error) {
     showMessage('保存失败: ' + error, 'error');
   }
@@ -328,10 +391,13 @@ function cancelEdit() {
     path: '',
     order: 0,
     handle: {},
-    setIf: null
+    setIf: null,
   };
-  draftRange.value = '';
-  draftLimit.value = '';
+  // 清空输入框
+  draftRangeMin.value = null;
+  draftRangeMax.value = null;
+  draftLimitNeg.value = null;
+  draftLimitPos.value = null;
   activeTab.value = 'list'; // 返回查看列表
 }
 
@@ -340,7 +406,7 @@ function addSetIf() {
     path: '',
     if: '==',
     ifValue: '',
-    keyValue: ''
+    keyValue: '',
   };
 }
 
@@ -377,15 +443,19 @@ function usePathForRule(path: string) {
     path,
     order: 0,
     handle: {},
-    setIf: null
+    setIf: null,
+    range: [],
+    limit: [],
   };
   // 切到"编辑规则"页签方便用户继续填写
   activeTab.value = 'rule';
   editingKey.value = key;
   editKeyLocked.value = false;
   draft.value = { ...rules.value[key] };
-  draftRange.value = '';
-  draftLimit.value = '';
+  draftRangeMin.value = null;
+  draftRangeMax.value = null;
+  draftLimitNeg.value = null;
+  draftLimitPos.value = null;
 }
 
 /* ---------- 删除功能 ---------- */
@@ -407,9 +477,6 @@ async function executeDelete() {
     delete rules.value[deletingKey.value];
     // 从折叠状态中删除
     delete folded.value[deletingKey.value];
-    // 从字符串缓存中删除
-    delete rangeStr.value[deletingKey.value];
-    delete limitStr.value[deletingKey.value];
 
     // 保存更新后的规则
     await saveRules();
@@ -419,6 +486,101 @@ async function executeDelete() {
     showMessage('删除失败: ' + error, 'error');
   } finally {
     cancelDelete();
+  }
+}
+
+/* ---------- 导入导出功能 ---------- */
+function exportRules() {
+  try {
+    const exported = exportRulesToJson(rules.value);
+
+    // 创建下载链接
+    const blob = new Blob([exported], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `era-rules-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showMessage('规则导出成功', 'success');
+  } catch (error) {
+    showMessage('导出失败: ' + error, 'error');
+  }
+}
+
+function importRules() {
+  // 触发文件选择
+  if (fileInputRef.value) {
+    fileInputRef.value.click();
+  }
+}
+
+function handleFileImport(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    try {
+      const content = e.target?.result as string;
+      const importedRules = importRulesFromJson(content);
+
+      // 检查导入的规则格式
+      if (!importedRules || typeof importedRules !== 'object') {
+        showMessage('导入失败：文件格式不正确', 'error');
+        return;
+      }
+
+      // 显示确认对话框
+      showImportConfirm.value = true;
+      // 保存导入的规则到临时变量
+      (window as any)._tempImportedRules = importedRules;
+    } catch (error) {
+      showMessage('导入失败：' + error, 'error');
+    } finally {
+      // 重置文件输入
+      if (fileInputRef.value) {
+        fileInputRef.value.value = '';
+      }
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function cancelImport() {
+  showImportConfirm.value = false;
+  delete (window as any)._tempImportedRules;
+}
+
+async function executeImport() {
+  try {
+    const importedRules = (window as any)._tempImportedRules;
+    if (!importedRules) {
+      showMessage('导入失败：没有可导入的数据', 'error');
+      return;
+    }
+
+    // 替换当前规则
+    rules.value = importedRules;
+
+    // 重置折叠状态
+    folded.value = {};
+    Object.keys(rules.value).forEach(k => (folded.value[k] = true));
+
+    // 保存到 store
+    await saveRules();
+
+    showMessage('规则导入成功', 'success');
+    showImportConfirm.value = false;
+    delete (window as any)._tempImportedRules;
+  } catch (error) {
+    showMessage('导入失败：' + error, 'error');
   }
 }
 
@@ -609,13 +771,17 @@ h2 {
   color: #111827;
   background: #ffffff;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 .field input:focus,
 .field select:focus {
   outline: none;
   border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.15),
+    inset 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 /* 8. handle 区 */
@@ -649,7 +815,10 @@ h2 {
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.15s;
   background: #f3f4f6;
   color: #111827;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -721,8 +890,12 @@ hr {
   animation: spin 1s linear infinite;
 }
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 14. 空状态 */
@@ -864,19 +1037,19 @@ hr {
   right: 0;
   bottom: 0;
   background-color: #e5e7eb;
-  transition: .3s;
+  transition: 0.3s;
   border-radius: 22px;
 }
 
 .toggle-label:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 16px;
   width: 16px;
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: .3s;
+  transition: 0.3s;
   border-radius: 50%;
 }
 
@@ -940,6 +1113,64 @@ input:checked + .toggle-label:before {
   font-size: 11px;
 }
 
+.era-rule-panel {
+  margin: 8px 0 16px;
+  display: flex;
+  flex-direction: column;
+  height: 500px;
+  max-height: 80vh;
+  background: #f5f6fa;
+  font-size: 12px;
+  color: #111827;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 12px 0;
+}
+
+.import-export-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 更新范围限制的样式 */
+.range-limit-inputs {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 4px;
+  min-width: 0; /* 添加这行防止撑开 */
+}
+
+.input-label {
+  font-size: 11px;
+  color: #4b5563;
+  min-width: 28px; /* 稍微减小 */
+  white-space: nowrap;
+}
+
+.range-limit-inputs input {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 11px;
+  min-width: 0; /* 添加这行 */
+}
+
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .sticky-tabs {
@@ -958,6 +1189,15 @@ input:checked + .toggle-label:before {
 
   .content-wrapper {
     padding: 0 12px 12px;
+  }
+
+  .range-limit-inputs {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .input-group {
+    min-width: calc(50% - 4px); /* 每个占一半宽度 */
   }
 }
 </style>
