@@ -66,8 +66,8 @@
       </div>
 
       <div v-else class="json-editor-wrapper">
-        <!-- 编辑模式切换 -->
-        <div class="edit-mode-selector">
+        <!-- 工具按钮区 -->
+        <div class="edit-tools">
           <div class="mode-buttons">
             <button
               class="mode-btn"
@@ -80,6 +80,16 @@
               树形视图
             </button>
             <button
+              class="tool-btn"
+              :disabled="editMode !== 'tree'"
+              @click="openAddFieldModal"
+            >
+              <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 0 1 0 2H9v6a1 1 0 0 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
+              </svg>
+              添加字段
+            </button>
+            <button
               class="mode-btn"
               :class="{ active: editMode === 'raw' }"
               @click="editMode = 'raw'"
@@ -89,31 +99,19 @@
               </svg>
               原始JSON
             </button>
-          </div>
-
-          <div class="edit-tools">
-            <button
-              class="tool-btn"
-              :class="{ danger: editMode === 'raw' }"
-              :disabled="editMode !== 'raw'"
-              @click="formatJson"
-            >
-              <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z"/>
-              </svg>
-              格式化
-            </button>
-            <button
-              class="tool-btn"
-              @click="openAddFieldModal"
-            >
-              <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 0 1 0 2H9v6a1 1 0 0 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
-              </svg>
-              添加字段
-            </button>
-          </div>
+          <button
+            class="tool-btn"
+            :class="{ danger: editMode === 'raw' }"
+            :disabled="editMode !== 'raw'"
+            @click="formatJson"
+          >
+            <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z"/>
+            </svg>
+            格式化
+          </button>
         </div>
+      </div>
 
         <!-- 树形编辑视图 -->
         <div v-if="editMode === 'tree'" class="tree-editor">
@@ -137,7 +135,7 @@
         <!-- 原始JSON编辑视图 -->
         <div v-else class="raw-editor">
           <div class="editor-header">
-            <span class="editor-info">编辑原始JSON数据（支持语法高亮和验证）</span>
+            <span class="editor-info">编辑原始JSON数据</span>
             <span class="editor-size">字符数：{{ rawJsonValue.length }}</span>
           </div>
           <textarea
@@ -852,6 +850,47 @@ onMounted(() => {
   overflow: hidden;
 }
 
+// 强制所有表单元素使用浅色主题
+/* 强制浅色输入框和选择框 */
+input,
+select,
+textarea,
+option {
+  background: #f8fafc !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 选择框选项强制浅色 */
+select option {
+  background: #f8fafc !important;
+  color: #1e293b !important;
+}
+
+/* 输入框聚焦状态 */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* 只读和禁用状态 */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed;
+}
+
+/* 占位符颜色 */
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
 // 工具栏（保持不变）
 .editor-toolbar {
   display: flex;
@@ -939,7 +978,7 @@ onMounted(() => {
   }
 }
 
-// 搜索框（保持不变）
+// 搜索框
 .search-box {
   position: relative;
   padding: 12px 16px;
@@ -963,11 +1002,17 @@ onMounted(() => {
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
+  background: #f8fafc !important;
+  color: #1e293b !important;
 
   &:focus {
     outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: #94a3b8 !important;
   }
 }
 
@@ -1081,11 +1126,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 5px 10px;
   border: 1px solid #e2e8f0;
   background: white;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1109,6 +1154,8 @@ onMounted(() => {
 
 .edit-tools {
   display: flex;
+  margin-top: 5px;
+  margin-bottom: 5px;
   gap: 8px;
 }
 
@@ -1116,11 +1163,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border: 1px solid #e2e8f0;
   background: white;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1161,7 +1208,7 @@ onMounted(() => {
   padding: 16px;
 }
 
-// 原始JSON编辑器 - 修复黑色背景问题
+// 原始JSON编辑器
 .raw-editor {
   flex: 1;
   display: flex;
@@ -1169,6 +1216,7 @@ onMounted(() => {
   overflow: hidden;
   background: #f8fafc !important;
   color: #1e293b !important;
+  min-height: 350px;
 }
 
 .editor-header {
@@ -1227,6 +1275,10 @@ onMounted(() => {
     &:hover {
       background: #94a3b8;
     }
+  }
+
+  &::placeholder {
+    color: #94a3b8 !important;
   }
 }
 
@@ -1317,8 +1369,8 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 14px;
-  color: #1e293b;
-  background: white;
+  color: #1e293b !important;
+  background: #f8fafc !important;
   transition: all 0.2s ease;
 
   &:focus {
@@ -1326,6 +1378,16 @@ onMounted(() => {
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
+
+  &::placeholder {
+    color: #94a3b8 !important;
+  }
+}
+
+/* 强制选择框选项使用浅色 */
+.form-select option {
+  background: #f8fafc !important;
+  color: #1e293b !important;
 }
 
 // 布尔值选项
@@ -1342,10 +1404,12 @@ onMounted(() => {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
+  background: #f8fafc !important;
+  color: #1e293b !important;
   transition: all 0.2s ease;
 
   &:hover {
-    background: #f8fafc;
+    background: #f1f5f9 !important;
     border-color: #cbd5e1;
   }
 
@@ -1355,7 +1419,7 @@ onMounted(() => {
 
   span {
     font-size: 14px;
-    color: #475569;
+    color: #1e293b !important;
   }
 }
 
@@ -1386,6 +1450,7 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
+  background: #f8fafc !important;
 }
 
 .json-editor-header {
@@ -1393,13 +1458,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: #f1f5f9 !important;
   border-bottom: 1px solid #e2e8f0;
 
   span {
     font-size: 12px;
     font-weight: 500;
-    color: #64748b;
+    color: #1e293b !important;
   }
 }
 
@@ -1432,12 +1497,16 @@ onMounted(() => {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
   font-size: 13px;
   line-height: 1.5;
-  background: white;
-  color: #1e293b;
+  background: white !important;
+  color: #1e293b !important;
   min-height: 120px;
 
   &:focus {
     outline: none;
+  }
+
+  &::placeholder {
+    color: #94a3b8 !important;
   }
 }
 
@@ -1515,52 +1584,86 @@ onMounted(() => {
   }
 }
 
-/* 强制浅色背景覆盖 */
-.stat-data-editor * {
-  select,
-  select option {
+/* 深色模式强制覆盖 */
+@media (prefers-color-scheme: dark) {
+  /* 强制整个编辑器使用浅色主题 */
+  .stat-data-editor,
+  .stat-data-editor * {
     background: #f8fafc !important;
     color: #1e293b !important;
+  }
+
+  /* 强制所有输入框和选择框使用浅色 */
+  input,
+  select,
+  textarea,
+  option,
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .boolean-option {
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  /* 强制选择框选项使用浅色 */
+  select option,
+  .form-select option {
+    background: #f8fafc !important;
+    color: #1e293b !important;
+  }
+
+  /* 强制模态框使用浅色 */
+  .modal {
+    background: white !important;
+    color: #1e293b !important;
+  }
+
+  /* 强制编辑器区域使用浅色 */
+  .json-editor,
+  .json-editor-input,
+  .raw-editor,
+  .tree-editor {
+    background: #ffffff !important;
+    color: #1e293b !important;
+  }
+
+  /* 强制按钮使用浅色样式 */
+  .btn,
+  .toolbar-btn,
+  .mode-btn,
+  .tool-btn {
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .btn.primary {
+    background: #6366f1 !important;
+    color: white !important;
+    border-color: #6366f1 !important;
+  }
+
+  .mode-btn.active {
+    background: #6366f1 !important;
+    color: white !important;
   }
 }
 
-/* 为深色模式提供回退 */
-@media (prefers-color-scheme: dark) {
-  .stat-data-editor {
-    /* 确保整个编辑器在深色模式下保持浅色 */
-    background: white !important;
+/* 使用 :deep 选择器穿透子组件样式（如果需要的话） */
+:deep(.json-node-editor) {
+  input,
+  select,
+  textarea,
+  option {
+    background: #f8fafc !important;
     color: #1e293b !important;
+    border-color: #e2e8f0 !important;
   }
 
-  /* 强制所有下拉框保持浅色 */
-  select,
   select option {
     background: #f8fafc !important;
-    color: #1e293b !important;
-  }
-
-  /* 确保编辑器内容区域保持浅色 */
-  .json-editor,
-  .tree-editor,
-  .raw-editor {
-    background: #f8fafc !important;
-    color: #1e293b !important;
-  }
-
-  /* 覆盖可能继承的深色样式 */
-  .json-node-editor :deep(select),
-  .json-node-editor :deep(select option) {
-    background: #f8fafc !important;
-    color: #1e293b !important;
-  }
-
-  /* 模态框强制浅色 */
-  .modal-overlay {
-    background: rgba(0, 0, 0, 0.5) !important;
-  }
-
-  .modal {
-    background: white !important;
     color: #1e293b !important;
   }
 }

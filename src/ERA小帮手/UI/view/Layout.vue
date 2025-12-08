@@ -76,6 +76,7 @@ const goToRoute = (path: string) => {
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  height: 100vh;
   overflow-y: auto;
   animation: fadeIn 0.2s ease;
 }
@@ -92,7 +93,7 @@ const goToRoute = (path: string) => {
     0 0 0 1px rgba(255, 255, 255, 0.1);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10000;
-  min-height: 400px;
+  min-height: 600px;
   display: flex;
   flex-direction: column;
   max-height: 70vh;

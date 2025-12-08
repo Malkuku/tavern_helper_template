@@ -35,11 +35,7 @@
           class="add-btn"
           title="将此路径添加到规则"
           @click="$emit('sendPath', node.path)"
-        >
-          <svg class="add-icon" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 3V13M3 8H13"/>
-          </svg>
-        </button>
+        >+</button>
       </div>
       <div v-else-if="!node.expanded" class="collapse-preview">
         <span class="ellipsis">{{ getCollapsePreview(node) }}</span>
@@ -296,7 +292,6 @@ function getCollapsePreview(node: JsonNodeType): string {
     padding: 0;
     border: none;
     border-radius: 6px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
     color: white;
     cursor: pointer;
     opacity: 0;
@@ -310,9 +305,8 @@ function getCollapsePreview(node: JsonNodeType): string {
     }
 
     &:hover {
-      opacity: 1;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+      background: #f1f5f9;
+      border-color: #94a3b8;
     }
 
     &:active {

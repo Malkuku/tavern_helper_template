@@ -102,11 +102,9 @@
           <label>范围限制:</label>
           <div class="range-limit-inputs">
             <div class="input-group">
-              <label class="input-label">min:</label>
               <input v-model.number="draftRangeMin" type="number" placeholder="最小值" />
             </div>
             <div class="input-group">
-              <label class="input-label">max:</label>
               <input v-model.number="draftRangeMax" type="number" placeholder="最大值" />
             </div>
           </div>
@@ -115,11 +113,9 @@
           <label>变化值限制:</label>
           <div class="range-limit-inputs">
             <div class="input-group">
-              <label class="input-label">neg:</label>
               <input v-model.number="draftLimitNeg" type="number" placeholder="负向最大" />
             </div>
             <div class="input-group">
-              <label class="input-label">pos:</label>
               <input v-model.number="draftLimitPos" type="number" placeholder="正向最大" />
             </div>
           </div>
