@@ -6,6 +6,8 @@ import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } f
 import { handleLoresFilter, handleMessageReceived } from '../AsyncAnalyze/handleAsyncAnalyzeEvents';
 import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
 import { router } from './router/router';
+import { useEraDataStore } from '../stores/EraDataStore';
+import { useEraEditStore } from '../stores/EraEditStore';
 
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
@@ -74,6 +76,9 @@ $(() => {
   (window as any).UiStore = useUiStore(pinia);
   (window as any).AsyncAnalyzeStore = useAsyncAnalyzeStore(pinia);
   useAsyncAnalyzeStore().getModelSettings();
+  (window as any).EraDataStore = useEraDataStore(pinia);
+  (window as any).EraEditStore = useEraEditStore(pinia);
+
 
   // 传送样式，也只执行一次
   teleportStyle();

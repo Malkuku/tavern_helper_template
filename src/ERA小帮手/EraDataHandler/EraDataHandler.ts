@@ -16,6 +16,33 @@ const setByPath = (obj: any, path: string, val: any): void => {
   node[last] = val;
 };
 
+function setByPathArray(root: any, path: string[], value: any) {
+  let cur = root;
+  for (let i = 0; i < path.length - 1; i++) {
+    const k = path[i];
+    if (!(k in cur) || typeof cur[k] !== 'object') cur[k] = {};
+    cur = cur[k];
+  }
+  cur[path[path.length - 1]] = value;
+}
+
+/**
+ * 判断两个对象是否相等
+ */
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== 'object') return a === b;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) if (!(k in b) || !deepEqual(a[k], b[k])) return false;
+  return true;
+}
+
 /**
  * 限定范围
  */
@@ -148,4 +175,10 @@ const applyRule = (
   return clone;
 };
 
-export const EraDataHandler = { applyRule, applyHandles, applyOneHandle };
+export const EraDataHandler = {
+  setByPathArray,
+  deepEqual,
+  applyRule,
+  applyHandles,
+  applyOneHandle
+};

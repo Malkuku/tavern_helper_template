@@ -60,11 +60,11 @@
 </template>
 
 <script setup lang="ts">
-import type { JsonNode } from './JsonTree.vue'
+import { JsonNodeType } from '../types/JsonNode';
 
-defineProps<{ node: JsonNode }>()
+defineProps<{ node: JsonNodeType }>()
 defineEmits<{
-  toggle: [node: JsonNode]
+  toggle: [node: JsonNodeType]
   sendPath: [path: string]
 }>()
 
@@ -109,7 +109,7 @@ function getValueTypeClass(value: any): string {
 }
 
 // 获取折叠预览文本
-function getCollapsePreview(node: JsonNode): string {
+function getCollapsePreview(node: JsonNodeType): string {
   if (node.children) {
     const childCount = node.children.length
     const sampleKeys = node.children.slice(0, 2).map(c => c.key).join(', ')

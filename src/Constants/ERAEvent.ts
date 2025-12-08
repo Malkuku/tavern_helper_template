@@ -18,5 +18,15 @@ export const ERAEvents ={
   /**
    * 发送一次差异同步
    */
-  FORCE_SYNC :'era:forceSync'
+  FORCE_SYNC :'era:forceSync',
+
+  /**
+   * 强制同步模式
+   */
+  SYNC_MODE:{
+    AUTO: 'auto', //智能重算
+    FULL: 'full', //完全重算
+    LATEST: 'latest', //最新消息
+    ROLLBACK_TO: 'rollbackTo' //回滚到指定 message_id 处理完毕后的状态
+  }
 }

@@ -4,25 +4,37 @@
       v-for="(n, i) in roots"
       :key="i"
       :node="n"
+      :editing-node="editingNode"
       @toggle="onToggle"
-      @send-path="(p:string) => $emit('sendPath', p)"
+      @edit-start="onEditStart"
+      @edit-cancel="onEditCancel"
+      @edit-save="onEditSave"
+      @add-child="onAddChild"
+      @remove="onRemove"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import {  watch, ref } from 'vue'
+import { watch, ref } from 'vue'
 import { JsonNodeType } from '../types/JsonNode';
 import JsonNode from './JsonNode.vue';
 
 /* ---------- props / emit ---------- */
-const props = defineProps<{ data: any }>()
-const emit  = defineEmits<{
-  toggle: [node: JsonNodeType]
-  sendPath: [path: string]
+const props = defineProps<{
+  data: any
+  editingNode: string | null
 }>()
 
-
+const emit = defineEmits<{
+  toggle: [node: JsonNodeType]
+  'send-path': [path: string]
+  'edit-start': [path: string]
+  'edit-cancel': []
+  'edit-save': [payload: { path: string; value: any }]
+  'add-child': [path: string]
+  remove: [path: string]
+}>()
 
 /* ---------- 递归建树 ---------- */
 function buildTree(
@@ -36,7 +48,14 @@ function buildTree(
     const curPath = path ? `${path}.${k}` : k
     const val = obj[k]
     const isLeaf = val === null || typeof val !== 'object'
-    const node: JsonNodeType = { key: k, value: val, depth, path: curPath, isLeaf, expanded }
+    const node: JsonNodeType = {
+      key: k,
+      value: val,
+      depth,
+      path: curPath,
+      isLeaf,
+      expanded
+    }
     if (!isLeaf) node.children = buildTree(val, depth + 1, curPath, expanded)
     return node
   })
@@ -46,10 +65,34 @@ function buildTree(
 const roots = ref<JsonNodeType[]>([])
 watch(() => props.data, val => (roots.value = buildTree(val)), { immediate: true })
 
-/* ---------- 事件透传 ---------- */
+/* ---------- 事件处理 ---------- */
 function onToggle(n: JsonNodeType) {
   n.expanded = !n.expanded
   emit('toggle', n)
+}
+
+function onEditStart(path: string) {
+  emit('edit-start', path)
+}
+
+function onEditCancel() {
+  emit('edit-cancel')
+}
+
+function onEditSave(payload: { path: string; value: any }) {
+  emit('edit-save', payload)
+}
+
+function onAddChild(path: string) {
+  emit('add-child', path)
+}
+
+function onRemove(path: string) {
+  emit('remove', path)
+}
+
+function onSendPath(path: string) {
+  emit('send-path', path)
 }
 </script>
 

@@ -15,7 +15,14 @@
           :class="{ active: currentRoute === '/EraDataHandle' }"
           @click="goToRoute('/EraDataHandle')"
         >
-          <span class="btn-text">⚙️Era变量处理配置</span>
+          <span class="btn-text">⚙️Era规则配置</span>
+        </button>
+        <button
+          class="btn"
+          :class="{ active: currentRoute === '/EraDataEdit' }"
+          @click="goToRoute('/EraDataEdit')"
+        >
+          <span class="btn-text">📝Era变量编辑</span>
         </button>
       </div>
 
@@ -287,7 +294,7 @@ const goToRoute = (path: string) => {
   }
 
   .btn-text {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .close-x {
