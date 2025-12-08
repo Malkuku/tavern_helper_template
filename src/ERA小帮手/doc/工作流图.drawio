@@ -1,0 +1,153 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="第 1 页" id="J_0nAyJ2c5rupkC9ke5b">
+    <mxGraphModel dx="1463" dy="920" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="T6b--jQlQcTAYVY04L8R-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-1" target="T6b--jQlQcTAYVY04L8R-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-1" value="发送一次消息" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="240" y="60" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-2" target="T6b--jQlQcTAYVY04L8R-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-2">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="280" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-2" value="是否开启分步模式" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="210" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-4" target="T6b--jQlQcTAYVY04L8R-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-4" value="过滤掉&lt;br&gt;&amp;lt;era_analyze&amp;gt;" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="50" y="210" width="80" height="80" as="geometry" />
+        </mxCell>
+        <UserObject label="否" placeholders="1" name="Variable" id="T6b--jQlQcTAYVY04L8R-9">
+          <mxCell style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;" vertex="1" parent="1">
+            <mxGeometry x="140" y="220" width="80" height="20" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-10" value="正常发送消息" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="50" y="330" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-12" target="T6b--jQlQcTAYVY04L8R-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-12" value="is_async标记&lt;div&gt;是否为分步&lt;/div&gt;" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="90" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-18">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="280" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-18" value="过滤掉&lt;br&gt;&amp;lt;era_update&amp;gt;" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="240" y="340" width="80" height="80" as="geometry" />
+        </mxCell>
+        <UserObject label="是" placeholders="1" name="Variable" id="T6b--jQlQcTAYVY04L8R-19">
+          <mxCell style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;" vertex="1" parent="1">
+            <mxGeometry x="270" y="300" width="80" height="20" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-23">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="280" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-23" value="发送一次不带era的更新" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="230" y="460" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-25" target="T6b--jQlQcTAYVY04L8R-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-25" value="检查一次标记" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="359" y="400" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-27" value="is_updateEra&lt;br&gt;标记现在是否为正文" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="250" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.691;entryY=-0.003;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-27" target="T6b--jQlQcTAYVY04L8R-25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-31" target="T6b--jQlQcTAYVY04L8R-35">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="430" y="585" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-31" value="接收到正文&lt;br&gt;且is_updateEra为false" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="560" width="125" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-35" value="把is_updateEra置为true" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="580" width="150" height="40" as="geometry" />
+        </mxCell>
+        <UserObject label="false" placeholders="1" name="Variable" id="T6b--jQlQcTAYVY04L8R-37">
+          <mxCell style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;" vertex="1" parent="1">
+            <mxGeometry x="334" y="340" width="80" height="20" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-41" target="T6b--jQlQcTAYVY04L8R-47">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="542.25" y="440" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-41" value="准备处理era事件" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="464.5" y="490" width="155.5" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-42" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.453;entryY=1.068;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-35" target="T6b--jQlQcTAYVY04L8R-41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-47">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="540" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-47" value="检查到is_updateEra为true" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="410" width="150" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-51" target="T6b--jQlQcTAYVY04L8R-57">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="380" y="780" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="715" y="740" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-51" value="过滤&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;lt;era_ignore&amp;gt;&lt;/span&gt;&lt;div&gt;发送api请求&lt;br&gt;final置is_updateEra为false&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="540" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-68" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-55" target="T6b--jQlQcTAYVY04L8R-66">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-55" value="重算变量" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="830" width="115" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-73" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-57" target="T6b--jQlQcTAYVY04L8R-60">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-57" value="先清除正文的&amp;lt;era方法&amp;gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="710" width="135" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-60" value="合并消息到正文" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="207" y="640" width="111" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-66" value="如果不是分步&lt;div&gt;临时开启&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="472.5" y="670" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-71" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.383;entryY=0.918;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-66" target="T6b--jQlQcTAYVY04L8R-35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="T6b--jQlQcTAYVY04L8R-72" value="" style="endArrow=none;dashed=1;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="T6b--jQlQcTAYVY04L8R-60" target="T6b--jQlQcTAYVY04L8R-31">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="304.5" y="669.2893218813452" as="sourcePoint" />
+            <mxPoint x="304.5" y="619.2893218813452" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

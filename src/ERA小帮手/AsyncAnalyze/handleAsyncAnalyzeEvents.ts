@@ -1,13 +1,14 @@
-import { useUiStore } from './store';
 import { WorldInfoUtil } from '../../Utils/WorldInfoUtil';
 import { PromptUtil } from '../../Utils/PromptUtil';
 import { MessageUtil } from '../../Utils/MessageUtil';
-import { eraAwareSleep } from './utils/era-aware-sleep';
+import { eraAwareSleep } from '../utils/era-aware-sleep';
+import { ERAEvents } from '../../Constants/ERAEvent';
+import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
 
-const getUiStore = () => (window as any).eraUiStore as ReturnType<typeof useUiStore>;
+const getAsyncAnalyzeStore = () => (window as any).ApiConfigStore as ReturnType<typeof useAsyncAnalyzeStore>;
 
-const isAsync = computed(() => !!getUiStore()?.isAsync);
-const isUpdateEra = computed(() => !!getUiStore()?.isUpdateEra);
+const isAsync = computed(() => !!getAsyncAnalyzeStore()?.isAsync);
+const isUpdateEra = computed(() => !!getAsyncAnalyzeStore()?.isUpdateEra);
 const loreRegex = computed(() =>{
   if(!isAsync.value){
     return /<era_analyze>/i;
@@ -18,9 +19,9 @@ const loreRegex = computed(() =>{
   }
 });
 const isReversed = ref(false);
-const modelSource = computed(() => getUiStore()?.modelSource);
-const customModelSettings = computed(() => getUiStore()?.customModelSettings);
-const profileSetting = computed(() => getUiStore()?.profileSetting);
+const modelSource = computed(() => getAsyncAnalyzeStore()?.modelSource);
+const customModelSettings = computed(() => getAsyncAnalyzeStore()?.customModelSettings);
+const profileSetting = computed(() => getAsyncAnalyzeStore()?.profileSetting);
 
 const waitTime = 8000;
 
@@ -33,16 +34,16 @@ export const reSendEraUpdate = async () => {
     return;
   }
   toastr.info('开始变量重算，等待era事件完成');
-  const isAsyncTemp = getUiStore().isAsync;
+  const isAsyncTemp = getAsyncAnalyzeStore().isAsync;
   try{
     //先将era回滚到上次更新
     toastr.info('正在将era回滚到上次更新');
     await eventEmit('era:forceSync', { mode: 'rollbackTo', message_id: getLastMessageId() - 1 });
 
-    getUiStore().isUpdateEra = true;
+    getAsyncAnalyzeStore().isUpdateEra = true;
     if(!isAsync.value){
       toastr.info('临时开启分步分析模式');
-      getUiStore().isAsync = true;
+      getAsyncAnalyzeStore().isAsync = true;
     }
     await handleKatEraUpdate();
   }catch (e) {
@@ -50,8 +51,8 @@ export const reSendEraUpdate = async () => {
     console.error('分步分析处理失败: ',e);
     await eventEmit('era:forceSync');
   }finally {
-    getUiStore().isAsync = isAsyncTemp;
-    getUiStore().isUpdateEra = false;
+    getAsyncAnalyzeStore().isAsync = isAsyncTemp;
+    getAsyncAnalyzeStore().isUpdateEra = false;
   }
 }
 
@@ -74,7 +75,7 @@ export const handleMessageReceived = async (message_id:number) => {
     throw new Error("空回了喵~请重roll喵~");
   }
   toastr.info('开始分步分析，等待era事件完成');
-  getUiStore().isUpdateEra = true;
+  getAsyncAnalyzeStore().isUpdateEra = true;
 
   await handleKatEraUpdate();
   /**
@@ -160,8 +161,8 @@ export const handleKatEraUpdate = async () => {
     toastr.error("分步分析处理失败");
     console.error("分步分析处理失败: ",e);
   }finally {
-    await eventEmit('era:forceSync');
-    getUiStore().isUpdateEra = false;
+    await eventEmit(ERAEvents.FORCE_SYNC);
+    getAsyncAnalyzeStore().isUpdateEra = false;
   }
 }
 

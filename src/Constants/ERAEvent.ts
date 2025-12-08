@@ -1,4 +1,4 @@
-const ERAEvents ={
+export const ERAEvents ={
   /**
    * 非破坏性地插入一个或多个变量。
    */

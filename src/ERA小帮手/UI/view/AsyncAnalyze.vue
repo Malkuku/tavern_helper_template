@@ -1,42 +1,37 @@
 <template>
-  <!-- 遮罩 -->
-  <div v-if="visible" class="mask" @click.self="close">
-    <div class="card">
-      <button class="close-x" title="关闭" @click="close">&times;</button>
+  <div class="card">
+    <h3 class="title">
+      ERA 分步分析设置
+    </h3>
+    <!-- 分步分析开关 -->
+    <label class="switch-row">
+      <span>分步分析模式</span>
+      <input
+        type="checkbox"
+        :checked="asyncAnalyzeStore.isAsync"
+        @change="asyncAnalyzeStore.isAsync = !asyncAnalyzeStore.isAsync"
+      />
+      <span class="switch"></span>
+    </label>
 
-      <h3 class="title">
-        ERA 分步分析设置
-      </h3>
-      <!-- 分步分析开关 -->
-      <label class="switch-row">
+    <span>!目前流式生成的分析的ejs替换有bug，分步模式请不要打开流式</span>
 
-        <span>分步分析模式</span>
-        <input
-          type="checkbox"
-          :checked="uiStore.isAsync"
-          @change="uiStore.isAsync = !uiStore.isAsync"
-        />
-        <span class="switch"></span>
-      </label>
-
-      <span>!目前流式生成的分析的ejs替换有bug，分步模式请不要打开流式</span>
-
-      <!-- 模型来源 -->
-      <div class="row">
-        <span>模型来源</span>
-        <select v-model="modelSource">
-          <option value="sample">当前模型</option>
-          <option value="profile">预设模型</option>
-          <option value="external">额外模型</option>
-        </select>
-      </div>
-      <div v-if="modelSource === 'profile'" class="row">
-        <span>预设模型</span>
-        因为ERA和提示词模板的替换问题，目前不可用😑
-      </div>
+    <!-- 模型来源 -->
+    <div class="row">
+      <span>模型来源</span>
+      <select v-model="modelSource">
+        <option value="sample">当前模型</option>
+        <option value="profile" @click="refreshProfileList">预设模型</option>
+        <option value="external">额外模型</option>
+      </select>
+    </div>
+    <div v-if="modelSource === 'profile'" class="row">
+      <span>预设模型</span>
+      因为ERA和提示词模板的替换问题，目前不可用😑
+    </div>
 
 
-      <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
+    <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
 <!--      <div v-if="modelSource === 'profile'" class="row">-->
 <!--        <span>预设模型</span>-->
 <!--        <select v-model="profileSetting">-->
@@ -53,76 +48,76 @@
 
 
 
-      <!-- 额外模型参数（仅 external 时显示） -->
-      <div v-if="modelSource === 'external'" class="form">
+    <!-- 额外模型参数（仅 external 时显示） -->
+    <div v-if="modelSource === 'external'" class="form">
+      <div class="row">
+        <span>接口地址</span>
+        <input v-model="settings.baseURL" placeholder="https://api.openai.com/v1" />
+      </div>
+      <div class="row">
+        <span>API密钥（请注意好个人隐私）</span>
+        <input v-model="settings.apiKey" type="password" placeholder="sk-..." />
+      </div>
+      <div class="row">
+        <!-- 模型名称 -->
         <div class="row">
-          <span>接口地址</span>
-          <input v-model="settings.baseURL" placeholder="https://api.openai.com/v1" />
-        </div>
-        <div class="row">
-          <span>API密钥（请注意好个人隐私）</span>
-          <input v-model="settings.apiKey" type="password" placeholder="sk-..." />
-        </div>
-        <div class="row">
-          <!-- 模型名称 -->
-          <div class="row">
-            <span>模型名称</span>
-            <select v-model="settings.modelName" style="flex:1">
-              <option v-for="m in modelOptions" :key="m" :value="m" :title="m">{{ shortName(m) }}</option>
-              <!-- 允许手动输入，兜底 -->
-              <option v-if="settings.modelName && !modelOptions.includes(settings.modelName)" :value="settings.modelName">{{ settings.modelName }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <span>温度</span>
-          <input v-model="settings.temperature" type="number" step="0.1" min="0" max="2" />
-        </div>
-        <div class="row">
-          <span>频率惩罚</span>
-          <input v-model="settings.frequencyPenalty" type="number" step="0.1" min="-2" max="2" />
-        </div>
-        <div class="row">
-          <span>存在惩罚</span>
-          <input v-model="settings.presencePenalty" type="number" step="0.1" min="-2" max="2" />
-        </div>
-        <div class="row">
-          <span>最大Token数</span>
-          <input v-model="settings.maxTokens" type="number" min="1" />
+          <span>模型名称</span>
+          <select v-model="settings.modelName" style="flex:1">
+            <option v-for="m in modelOptions" :key="m" :value="m" :title="m">{{ shortName(m) }}</option>
+            <!-- 允许手动输入，兜底 -->
+            <option v-if="settings.modelName && !modelOptions.includes(settings.modelName)" :value="settings.modelName">{{ settings.modelName }}</option>
+          </select>
         </div>
       </div>
-
-
-      <div class="row" style="justify-content: flex-start; gap: 12px;">
-        <button class="btn small" @click="testConnect">测试连接</button>
-        <button
-          v-if="modelSource === 'external'"
-          class="btn small"
-          @click="getRemoteModels"
-        >
-          获取模型列表
-        </button>
+      <div class="row">
+        <span>温度</span>
+        <input v-model="settings.temperature" type="number" step="0.1" min="0" max="2" />
       </div>
-      <br>
-
-      <!-- 底部按钮 -->
-      <div class="footer">
-        <button class="btn" @click="close">取消</button>
-        <button class="btn danger" @click="handleClear">清空</button>
-        <button class="btn primary" @click="handleSave">保存</button>
+      <div class="row">
+        <span>频率惩罚</span>
+        <input v-model="settings.frequencyPenalty" type="number" step="0.1" min="-2" max="2" />
       </div>
-<!--      <button @click="testGetPreset">获取预设名称</button>-->
+      <div class="row">
+        <span>存在惩罚</span>
+        <input v-model="settings.presencePenalty" type="number" step="0.1" min="-2" max="2" />
+      </div>
+      <div class="row">
+        <span>最大Token数</span>
+        <input v-model="settings.maxTokens" type="number" min="1" />
+      </div>
     </div>
+
+
+    <div class="row" style="justify-content: flex-start; gap: 12px;">
+      <button class="btn small" @click="testConnect">测试连接</button>
+      <button
+        v-if="modelSource === 'external'"
+        class="btn small"
+        @click="getRemoteModels"
+      >
+        获取模型列表
+      </button>
+    </div>
+    <br>
+
+    <!-- 底部按钮 -->
+    <div class="footer">
+      <button class="btn" @click="close">取消</button>
+      <button class="btn danger" @click="handleClear">清空</button>
+      <button class="btn primary" @click="handleSave">保存</button>
+    </div>
+<!--      <button @click="testGetPreset">获取预设名称</button>-->
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
-import { useUiStore } from './store'
+import { reactive, watch } from 'vue'
+import { useUiStore } from '../../stores/UIStore'
 import * as toastr from 'toastr'
+import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore';
 
-const uiStore = useUiStore()
-const visible = computed(() => uiStore.showUI)
+const uiStore = useUiStore();
+const asyncAnalyzeStore = useAsyncAnalyzeStore();
 
 /* 预设名称缩略 */
 const shortName = (full: string, max = 36) =>
@@ -147,10 +142,9 @@ watch(
   () => uiStore.showUI,
   async v => {
     if (!v) return
-    modelSource.value  = uiStore.modelSource as any
-    profileSetting.value = uiStore.profileSetting || ''
-    Object.assign(settings, uiStore.customModelSettings)
-    await refreshProfileList()
+    modelSource.value  = asyncAnalyzeStore.modelSource as any
+    profileSetting.value = asyncAnalyzeStore.profileSetting || ''
+    Object.assign(settings, asyncAnalyzeStore.customModelSettings)
   },
   { immediate: true }
 )
@@ -171,19 +165,19 @@ const refreshProfileList = async () => {
 
 /* 保存 */
 const handleSave = async () => {
-  uiStore.modelSource      = modelSource.value
-  uiStore.profileSetting   = profileSetting.value
-  uiStore.customModelSettings = { ...settings } as any
-  await uiStore.saveModelSettings()
+  asyncAnalyzeStore.modelSource      = modelSource.value
+  asyncAnalyzeStore.profileSetting   = profileSetting.value
+  asyncAnalyzeStore.customModelSettings = { ...settings } as any
+  await asyncAnalyzeStore.saveModelSettings()
   toastr.success('设置已保存')
 }
 
 /* 清空（恢复默认） */
 const handleClear = async () => {
-  await uiStore.clearModelSettings()
-  modelSource.value      = uiStore.modelSource as any
-  profileSetting.value   = uiStore.profileSetting || ''
-  Object.assign(settings, uiStore.customModelSettings)
+  await asyncAnalyzeStore.clearModelSettings()
+  modelSource.value      = asyncAnalyzeStore.modelSource as any
+  profileSetting.value   = asyncAnalyzeStore.profileSetting || ''
+  Object.assign(settings, asyncAnalyzeStore.customModelSettings)
   toastr.info('已清空设置')
 }
 
@@ -270,102 +264,20 @@ const getRemoteModels = async () => {
       signal: ctrl.signal
     })
     clearTimeout(timer)
-    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText))
+    if (!res.ok) {
+      toastr.error(`获取失败：${res.status} ${await res.text().catch(() => res.statusText)}`)
+    }
     const body = await res.json()
     modelOptions.value = (body.data || []).map((m: any) => m.id).sort()
     toastr.success(`共拉取 ${modelOptions.value.length} 个模型`)
-  } catch (e: any) {
+  }finally {
     clearTimeout(timer)
-    toastr.error(`获取失败：${e.message || '网络错误'}`)
   }
 }
 
 </script>
 
 <style scoped>
-/* ---------- 直接替换/追加到 <style scoped> 里 ---------- */
-.mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  overflow-y: auto; /* 允许垂直滚动 */
-  height: 100vh;
-}
-
-.card {
-  position: relative;
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  width: 90%;
-  max-width: 420px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  animation: slide 0.25s ease;
-  margin: 10vh 0; /* 从顶部和底部留出10%的空间 */
-  z-index: 10000; /* 确保card在mask之上 */
-  min-height: 300px; /* 确保最小高度 */
-}
-
-/* 小屏再收紧一点 */
-@media (max-width: 480px) {
-  .card {
-    width: 100%;
-    padding: 16px;
-  }
-}
-
-@keyframes fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slide {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-/* 右上角关闭 × */
-.close-x {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  font-size: 22px;
-  line-height: 1;
-  color: #666;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: color 0.2s, background 0.2s;
-}
-.close-x:hover {
-  color: #000;
-  background: rgba(0, 0, 0, 0.06);
-}
-@keyframes slide {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-}
 .title {
   margin: 0 0 20px;
   font-size: 18px;

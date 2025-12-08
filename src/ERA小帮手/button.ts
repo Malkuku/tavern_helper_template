@@ -1,8 +1,8 @@
 /**
  * 注册酒馆助手按钮
  */
-import { useUiStore } from './UI/store';
-import { reSendEraUpdate } from './UI/handleEvents';
+import { useUiStore } from './stores/UIStore';
+import { reSendEraUpdate } from './AsyncAnalyze/handleAsyncAnalyzeEvents';
 
 $(() => {
   replaceScriptButtons([

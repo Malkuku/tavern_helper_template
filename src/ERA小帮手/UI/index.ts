@@ -1,9 +1,11 @@
 import { createPinia } from 'pinia';
 import { App as VueApp, createApp } from 'vue';
 import App from './App.vue';
-import { useUiStore } from './store';
-import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from './utils/dom';
-import { handleLoresFilter, handleMessageReceived } from './handleEvents';
+import { useUiStore } from '../stores/UIStore';
+import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from '../utils/dom';
+import { handleLoresFilter, handleMessageReceived } from '../AsyncAnalyze/handleAsyncAnalyzeEvents';
+import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
+import { router } from './router/router';
 
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
@@ -65,11 +67,13 @@ $(() => {
   vueApp = createApp(App);
   const pinia = createPinia();
   vueApp.use(pinia);
+  vueApp.use(router)
   vueApp.mount(mountPoint[0]);
 
   // 获取 store 实例并暴露到 window，以便外部函数调用
-  (window as any).eraUiStore = useUiStore(pinia);
-  useUiStore().getModelSettings();
+  (window as any).UiStore = useUiStore(pinia);
+  (window as any).AsyncAnalyzeStore = useAsyncAnalyzeStore(pinia);
+  useAsyncAnalyzeStore().getModelSettings();
 
   // 传送样式，也只执行一次
   teleportStyle();
