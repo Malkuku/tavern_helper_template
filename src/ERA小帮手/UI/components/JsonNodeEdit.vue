@@ -461,19 +461,27 @@ watch(isEditing, (editing) => {
     flex: 1;
   }
 
+  // 重要：强制选择框在浅色模式下显示
   .edit-type-select,
   .edit-input {
     padding: 4px 8px;
     border: 1px solid #cbd5e1;
     border-radius: 4px;
     font-size: 13px;
-    background: #f8fafc;
-    color: #1e293b;
+
+    // 强制浅色主题
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
   }
 
   .edit-input {
     min-width: 150px;
     flex: 1;
+  }
+
+  .edit-type-select option {
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
   }
 
   .null-value {
@@ -654,12 +662,22 @@ watch(isEditing, (editing) => {
       }
     }
 
+    // 重要：强制编辑相关的输入控件保持浅色
     .node-editor {
       .edit-type-select,
       .edit-input {
-        background: #374151;
-        border-color: #4b5563;
-        color: #f3f4f6;
+        // 强制使用浅色主题
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
+        border-color: #cbd5e1;
+
+        // 禁用浏览器的默认深色样式
+        color-scheme: light;
+      }
+
+      .edit-type-select option {
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
       }
     }
 
@@ -695,5 +713,18 @@ watch(isEditing, (editing) => {
       }
     }
   }
+}
+
+/* 全局覆盖选择框样式以确保在任何模式下都显示为浅色 */
+.edit-type-select,
+.edit-type-select option {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+}
+
+/* 强制输入框在深色模式下显示浅色 */
+.edit-input {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
 }
 </style>

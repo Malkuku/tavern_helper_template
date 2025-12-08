@@ -105,7 +105,7 @@
             </button>
             <button
               class="tool-btn"
-              @click="addNewField"
+              @click="openAddFieldModal"
             >
               <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 0 1 0 2H9v6a1 1 0 0 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
@@ -155,6 +155,144 @@
         </div>
       </div>
     </div>
+
+    <!-- 添加字段模态框 -->
+    <div v-if="showAddFieldModal" class="modal-overlay">
+      <div class="modal">
+        <h3>添加新字段</h3>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>字段路径：</label>
+            <input
+              v-model="newField.path"
+              type="text"
+              placeholder="例如：user.info.name"
+              class="form-input"
+            >
+            <div class="form-hint">
+              支持多层路径，用点分隔。如果父路径不存在会自动创建对象。
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>值类型：</label>
+            <select v-model="newField.type" class="form-select" @change="onTypeChange">
+              <option value="string">字符串</option>
+              <option value="number">数字</option>
+              <option value="boolean">布尔值</option>
+              <option value="null">空值 (null)</option>
+              <option value="object">对象 (JSON)</option>
+              <option value="array">数组 (JSON)</option>
+            </select>
+          </div>
+
+          <!-- 字符串输入 -->
+          <div v-if="newField.type === 'string'" class="form-group">
+            <label>字符串值：</label>
+            <input
+              v-model="newField.value"
+              type="text"
+              placeholder="输入字符串值"
+              class="form-input"
+            >
+          </div>
+
+          <!-- 数字输入 -->
+          <div v-else-if="newField.type === 'number'" class="form-group">
+            <label>数字值：</label>
+            <input
+              v-model.number="newField.value"
+              type="number"
+              placeholder="输入数字值"
+              class="form-input"
+              step="any"
+            >
+          </div>
+
+          <!-- 布尔值选择 -->
+          <div v-else-if="newField.type === 'boolean'" class="form-group">
+            <label>布尔值：</label>
+            <div class="boolean-options">
+              <label class="boolean-option">
+                <input
+                  v-model="newField.value"
+                  type="radio"
+                  :value="true"
+                >
+                <span>true</span>
+              </label>
+              <label class="boolean-option">
+                <input
+                  v-model="newField.value"
+                  type="radio"
+                  :value="false"
+                >
+                <span>false</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 空值显示 -->
+          <div v-else-if="newField.type === 'null'" class="form-group">
+            <div class="null-info">
+              <svg class="null-icon" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0z"/>
+              </svg>
+              <span>该字段将被设置为 null</span>
+            </div>
+          </div>
+
+          <!-- JSON对象/数组编辑器 -->
+          <div v-else-if="newField.type === 'object' || newField.type === 'array'" class="form-group">
+            <label>{{ newField.type === 'object' ? '对象值 (JSON)' : '数组值 (JSON)' }}：</label>
+            <div class="json-editor-container">
+              <div class="json-editor-header">
+                <span>JSON编辑器</span>
+                <button
+                  v-if="isValidJson"
+                  class="btn-small"
+                  title="格式化JSON"
+                  @click="formatJsonValue"
+                >
+                  <svg class="format-icon" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z"/>
+                  </svg>
+                </button>
+              </div>
+              <textarea
+                v-model="newField.jsonValue"
+                class="json-editor-input"
+                :placeholder="getJsonPlaceholder()"
+                rows="6"
+                @input="validateJson"
+              ></textarea>
+              <div v-if="jsonError" class="json-error">
+                <svg class="error-icon" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7 3h2v7H7V3zm0 9h2v2H7v-2z"/>
+                </svg>
+                <span>JSON错误：{{ jsonError }}</span>
+              </div>
+              <div v-else-if="newField.jsonValue.trim()" class="json-success">
+                <svg class="success-icon" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M13.3536 2.64645C13.5488 2.84171 13.5488 3.15829 13.3536 3.35355L6.35355 10.3536C6.15829 10.5488 5.84171 10.5488 5.64645 10.3536L3.64645 8.35355C3.45118 8.15829 3.45118 7.84171 3.64645 7.64645C3.84171 7.45118 4.15829 7.45118 4.35355 7.64645L6 9.29289L12.6464 2.64645C12.8417 2.45118 13.1583 2.45118 13.3536 2.64645Z"/>
+                </svg>
+                <span>有效的JSON格式</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn primary" :disabled="!isValidInput" @click="confirmAddField">
+            添加
+          </button>
+          <button class="btn" @click="cancelAddField">
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -185,6 +323,215 @@ const statusMessage = ref('就绪')
 
 // 树形数据
 const treeData = ref<JsonNodeType[]>([])
+
+// 添加字段模态框
+const showAddFieldModal = ref(false)
+const jsonError = ref('')
+const isValidJson = ref(false)
+
+interface NewField {
+  path: string
+  type: 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array'
+  value: string | number | boolean | null
+  jsonValue: string
+}
+
+const newField = ref<NewField>({
+  path: '',
+  type: 'string',
+  value: '', // 初始化为字符串
+  jsonValue: ''
+})
+
+// 计算属性：检查输入是否有效
+const isValidInput = computed(() => {
+  const { path, type } = newField.value
+
+  if (!path.trim()) return false
+
+  switch (type) {
+    case 'string':
+      // 对于字符串类型，确保值存在且非空
+      return typeof newField.value.value === 'string' && newField.value.value.trim() !== ''
+
+    case 'number':
+      // 对于数字类型，确保是数字且非空
+      return typeof newField.value.value === 'number' ||
+        (typeof newField.value.value === 'string' && newField.value.value.trim() !== '')
+
+    case 'boolean':
+      // 对于布尔类型，确保值存在（可能是 true/false）
+      return newField.value.value !== undefined && newField.value.value !== null
+
+    case 'null':
+      // null 类型总是有效的
+      return true
+
+    case 'object':
+    case 'array':
+      // 对于对象/数组类型，检查 JSON 是否有效
+      return isValidJson.value && newField.value.jsonValue.trim() !== ''
+
+    default:
+      return false
+  }
+})
+
+function cancelAddField() {
+  showAddFieldModal.value = false
+}
+
+// 方法
+function onTypeChange() {
+  const type = newField.value.type
+
+  // 根据类型设置默认值
+  switch (type) {
+    case 'string':
+      newField.value.value = ''
+      break
+    case 'number':
+      newField.value.value = 0
+      break
+    case 'boolean':
+      newField.value.value = true
+      break
+    case 'null':
+      newField.value.value = null
+      break
+    case 'object':
+      newField.value.jsonValue = '{}'
+      break
+    case 'array':
+      newField.value.jsonValue = '[]'
+      break
+  }
+}
+
+function getJsonPlaceholder() {
+  if (newField.value.type === 'object') {
+    return '{\n  "key1": "value1",\n  "key2": 123\n}'
+  } else {
+    return '[\n  "item1",\n  "item2",\n  123\n]'
+  }
+}
+
+function validateJson() {
+  const jsonStr = newField.value.jsonValue.trim()
+
+  if (!jsonStr) {
+    jsonError.value = ''
+    isValidJson.value = false
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(jsonStr)
+
+    // 检查类型匹配
+    if (newField.value.type === 'object' && !(parsed && typeof parsed === 'object' && !Array.isArray(parsed))) {
+      jsonError.value = '必须是有效的JSON对象（不是数组）'
+      isValidJson.value = false
+    } else if (newField.value.type === 'array' && !Array.isArray(parsed)) {
+      jsonError.value = '必须是有效的JSON数组'
+      isValidJson.value = false
+    } else {
+      jsonError.value = ''
+      isValidJson.value = true
+    }
+  } catch (error) {
+    jsonError.value = error instanceof Error ? error.message : '无效的JSON格式'
+    isValidJson.value = false
+  }
+}
+
+function formatJsonValue() {
+  if (!isValidJson.value) return
+
+  try {
+    const parsed = JSON.parse(newField.value.jsonValue)
+    newField.value.jsonValue = JSON.stringify(parsed, null, 2)
+  } catch (error) {
+    // 忽略错误
+  }
+}
+
+function openAddFieldModal() {
+  newField.value = {
+    path: '',
+    type: 'string',
+    value: '',
+    jsonValue: ''
+  }
+  jsonError.value = ''
+  isValidJson.value = false
+  showAddFieldModal.value = true
+}
+function confirmAddField() {
+  const { path, type } = newField.value
+
+  if (!path.trim()) {
+    alert('请输入字段路径')
+    return
+  }
+
+  if (!isValidInput.value) {
+    alert('请输入有效的字段值')
+    return
+  }
+
+  try {
+    let finalValue: any
+
+    switch (type) {
+      case 'string':
+        finalValue = newField.value.value
+        break
+      case 'number':
+        finalValue = parseFloat(String(newField.value.value))
+        if (isNaN(finalValue)) {
+          alert('请输入有效的数字')
+          return
+        }
+        break
+      case 'boolean':
+        finalValue = newField.value.value
+        break
+      case 'null':
+        finalValue = null
+        break
+      case 'object':
+      case 'array':
+        if (!isValidJson.value || !newField.value.jsonValue.trim()) {
+          alert('请输入有效的JSON数据')
+          return
+        }
+        finalValue = JSON.parse(newField.value.jsonValue)
+        break
+      default:
+        finalValue = newField.value.value
+    }
+
+    setValueByPath(currentData.value, path, finalValue)
+
+    // 更新原始JSON视图
+    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
+
+    // 重新生成树数据
+    treeData.value = convertToTree(currentData.value)
+
+    // 开始编辑新字段
+    editingNode.value = path
+    statusMessage.value = '已添加新字段'
+
+    showAddFieldModal.value = false
+
+  } catch (error) {
+    console.error('添加字段失败:', error)
+    alert(`添加字段失败：${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
 
 // 计算属性
 const hasChanges = computed(() => {
@@ -361,24 +708,9 @@ function saveEdit(payload: {path: string, value: any}) {
 }
 
 function addChildToNode(nodePath: string) {
-  const parent = getValueByPath(currentData.value, nodePath)
-
-  if (typeof parent === 'object' && parent !== null) {
-    const newKey = `newField${Object.keys(parent).length + 1}`
-    const newPath = nodePath ? `${nodePath}.${newKey}` : newKey
-
-    setValueByPath(currentData.value, newPath, '')
-
-    // 更新原始JSON视图
-    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-    // 重新生成树数据
-    treeData.value = convertToTree(currentData.value)
-
-    // 开始编辑新字段
-    editingNode.value = newPath
-    statusMessage.value = '已添加新字段'
-  }
+  // 打开模态框，预填父路径
+  newField.value.path = nodePath ? `${nodePath}.newField` : 'newField'
+  showAddFieldModal.value = true
 }
 
 function removeNode(nodePath: string) {
@@ -478,33 +810,7 @@ function formatJson() {
 }
 
 function addNewField() {
-  if (editMode.value === 'tree') {
-    // 在根层级添加新字段
-    const newKey = `newField${Object.keys(currentData.value).length + 1}`
-    currentData.value[newKey] = ''
-
-    // 更新原始JSON视图
-    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-    // 重新生成树数据
-    treeData.value = convertToTree(currentData.value)
-
-    // 开始编辑新字段
-    editingNode.value = newKey
-    statusMessage.value = '已添加新字段'
-  } else {
-    // 在原始JSON模式下的处理
-    try {
-      const data = JSON.parse(rawJsonValue.value)
-      const newKey = `newField${Object.keys(data).length + 1}`
-      data[newKey] = ''
-      rawJsonValue.value = JSON.stringify(data, null, 2)
-      jsonParseError.value = ''
-    } catch (error) {
-      // 如果JSON无效，创建一个新的
-      rawJsonValue.value = JSON.stringify({ newField1: '' }, null, 2)
-    }
-  }
+  openAddFieldModal()
 }
 
 // 监听搜索
@@ -855,45 +1161,56 @@ onMounted(() => {
   padding: 16px;
 }
 
-// 原始JSON编辑器
+// 原始JSON编辑器 - 修复黑色背景问题
 .raw-editor {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: #f8fafc !important;
+  color: #1e293b !important;
 }
 
 .editor-header {
   padding: 12px 16px;
-  background: #f8fafc;
+  background: #f1f5f9 !important;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: #1e293b !important;
 }
 
 .editor-info {
   font-size: 14px;
-  color: #64748b;
+  color: #64748b !important;
 }
 
 .editor-size {
   font-size: 13px;
-  color: #94a3b8;
+  color: #94a3b8 !important;
   font-family: monospace;
 }
 
 .json-editor {
   flex: 1;
   padding: 16px;
-  border: none;
   outline: none;
   resize: none;
   font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
   font-size: 14px;
   line-height: 1.5;
-  background: #f8fafc;
-  color: #1e293b;
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px;
+  margin: 16px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  &:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+  }
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -930,21 +1247,272 @@ onMounted(() => {
   }
 }
 
-/* 强制浅色下拉框样式 */
-:deep(.json-node-editor) {
-  /* 确保下拉框在JSON节点中也是浅色 */
-  select,
-  select option {
-    background: #f8fafc !important;
-    color: #1e293b !important;
+// 添加字段模态框样式
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* 全局强制浅色下拉框 */
-select,
-select option {
-  background: #f8fafc !important;
-  color: #1e293b !important;
+.modal h3 {
+  margin: 0;
+  padding: 24px 24px 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e293b;
+  background: white;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+}
+
+// 布尔值选项
+.boolean-options {
+  display: flex;
+  gap: 16px;
+}
+
+.boolean-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  input {
+    margin: 0;
+  }
+
+  span {
+    font-size: 14px;
+    color: #475569;
+  }
+}
+
+// 空值显示
+.null-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+
+  .null-icon {
+    width: 16px;
+    height: 16px;
+    color: #64748b;
+  }
+
+  span {
+    font-size: 14px;
+    color: #64748b;
+  }
+}
+
+// JSON编辑器容器
+.json-editor-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.json-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+
+  span {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+  }
+}
+
+.btn-small {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .format-icon {
+    width: 12px;
+    height: 12px;
+    color: #64748b;
+  }
+}
+
+.json-editor-input {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  background: white;
+  color: #1e293b;
+  min-height: 120px;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.json-error,
+.json-success {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-top: 1px solid #fecaca;
+}
+
+.json-error {
+  background: #fef2f2;
+  color: #dc2626;
+
+  .error-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+}
+
+.json-success {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+
+  .success-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+}
+
+.modal-actions {
+  padding: 16px 24px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  color: #475569;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn.primary {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: #4f46e5;
+    border-color: #4f46e5;
+  }
 }
 
 /* 强制浅色背景覆盖 */
@@ -960,8 +1528,8 @@ select option {
 @media (prefers-color-scheme: dark) {
   .stat-data-editor {
     /* 确保整个编辑器在深色模式下保持浅色 */
-    background: white;
-    color: #1e293b;
+    background: white !important;
+    color: #1e293b !important;
   }
 
   /* 强制所有下拉框保持浅色 */
@@ -975,14 +1543,24 @@ select option {
   .json-editor,
   .tree-editor,
   .raw-editor {
-    background: #f8fafc;
-    color: #1e293b;
+    background: #f8fafc !important;
+    color: #1e293b !important;
   }
 
   /* 覆盖可能继承的深色样式 */
   .json-node-editor :deep(select),
   .json-node-editor :deep(select option) {
     background: #f8fafc !important;
+    color: #1e293b !important;
+  }
+
+  /* 模态框强制浅色 */
+  .modal-overlay {
+    background: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .modal {
+    background: white !important;
     color: #1e293b !important;
   }
 }
@@ -1013,6 +1591,19 @@ select option {
     flex-direction: column;
     gap: 8px;
     align-items: flex-start;
+  }
+
+  .modal {
+    width: 95%;
+    margin: 10px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
   }
 }
 </style>
