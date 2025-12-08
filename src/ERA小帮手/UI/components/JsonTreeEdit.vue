@@ -94,6 +94,6 @@ function onRemove(path: string) {
 <style scoped>
 .json-tree {
   font-family: monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 </style>

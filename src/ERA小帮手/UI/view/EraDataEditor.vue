@@ -1202,10 +1202,13 @@ textarea::placeholder {
 .tree-editor {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto; // 添加横向滚动
+  min-width: min-content; // 确保内容不会被压缩
 }
 
 .json-tree {
   padding: 16px;
+  min-width: min-content;
 }
 
 // 原始JSON编辑器
@@ -1254,6 +1257,9 @@ textarea::placeholder {
   border-radius: 6px;
   margin: 16px;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: auto; // 添加滚动
+  white-space: pre; // 保持空白字符
+  min-width: min-content; // 确保内容不会被压缩
 
   &:focus {
     border-color: #6366f1 !important;

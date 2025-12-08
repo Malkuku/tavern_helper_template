@@ -257,10 +257,12 @@ watch(isEditing, (editing) => {
 })
 </script>
 
+
 <style scoped lang="scss">
+//TODO 横向滚动问题
 .json-node {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1.5;
   position: relative;
 
@@ -432,7 +434,7 @@ watch(isEditing, (editing) => {
 
   .collapse-preview {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 11px;
     font-style: italic;
     padding: 2px 6px;
     background-color: #f9fafb;
@@ -467,7 +469,7 @@ watch(isEditing, (editing) => {
     padding: 4px 8px;
     border: 1px solid #cbd5e1;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 12px;
 
     // 强制浅色主题
     background-color: #f8fafc !important;
@@ -499,7 +501,7 @@ watch(isEditing, (editing) => {
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11px;
     flex-shrink: 0;
 
     &.save {
@@ -535,7 +537,7 @@ watch(isEditing, (editing) => {
     border: 1px solid #cbd5e1;
     background: white;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 11px;
     color: #64748b;
     cursor: pointer;
     transition: all 0.2s ease;

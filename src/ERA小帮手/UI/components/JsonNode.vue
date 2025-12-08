@@ -118,7 +118,7 @@ function getCollapsePreview(node: JsonNodeType): string {
 <style scoped lang="scss">
 .json-node {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1.5;
   position: relative;
 
@@ -322,7 +322,7 @@ function getCollapsePreview(node: JsonNodeType): string {
 
   .collapse-preview {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 11px;
     font-style: italic;
     padding: 2px 6px;
     background-color: #f9fafb;

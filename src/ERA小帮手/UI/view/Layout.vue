@@ -87,7 +87,7 @@ const goToRoute = (path: string) => {
   background: linear-gradient(135deg, #dcd8d8 0%, #f8fafc 100%);
   border-radius: 20px;
   width: 90%;
-  max-width: 500px;
+  max-width: 600px;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.1);
