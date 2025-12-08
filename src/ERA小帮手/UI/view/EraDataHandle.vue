@@ -34,7 +34,13 @@
         <!-- 规则列表 -->
         <div v-for="(rule, key) in rules" :key="key" class="rule-card">
           <div class="rule-header" @click="toggleFold(key)">
-            <span class="rule-name">{{ key }}</span>
+            <div class="rule-name-container">
+              <span class="rule-name">{{ key }}</span>
+              <span class="rule-status">
+                <span class="status-indicator" :class="{ enabled: rule.enable !== false }"></span>
+                {{ rule.enable !== false ? '启用' : '禁用' }}
+              </span>
+            </div>
             <div class="rule-actions">
               <span class="fold-indicator">{{ folded[key] ? '›' : '⌄' }}</span>
             </div>
@@ -62,6 +68,15 @@
           <input v-model="editingKey" :disabled="!!editKeyLocked" placeholder="唯一标识，如: 好感度rule1" />
         </div>
 
+        <!-- 启用开关 -->
+        <div class="field">
+          <label>启用:</label>
+          <div class="toggle-switch">
+            <input v-model="draft.enable" type="checkbox" :true-value="true" :false-value="false" id="enableToggle" />
+            <label for="enableToggle" class="toggle-label"></label>
+          </div>
+        </div>
+
         <!-- 其余字段与原来一致 -->
         <div class="field">
           <label>路径:</label>
@@ -78,6 +93,39 @@
         <div class="field">
           <label>变化值限制:</label>
           <input v-model="draftLimit" placeholder="[-5,10]" />
+        </div>
+
+        <!-- setIf 区域 -->
+        <div class="setIf-area">
+          <div class="setIf-header">
+            <span>setIf 条件设置:</span>
+            <button v-if="draft.setIf" class="btn small danger" @click="draft.setIf = null">删除条件</button>
+          </div>
+          <div v-if="draft.setIf" class="setIf-content">
+            <div class="setIf-row">
+              <label>判断路径:</label>
+              <input v-model="draft.setIf.path" placeholder="如: 角色.张三.状态" />
+            </div>
+            <div class="setIf-row">
+              <label>条件操作符:</label>
+              <select v-model="draft.setIf.if">
+                <option value="==">等于 (==)</option>
+                <option value=">">大于 (&gt;)</option>
+                <option value="<">小于 (&lt;)</option>
+                <option value=">=">大于等于 (&ge;)</option>
+                <option value="<=">小于等于 (&le;)</option>
+              </select>
+            </div>
+            <div class="setIf-row">
+              <label>比较值:</label>
+              <input v-model="draft.setIf.ifValue" placeholder="如: 10" @input="parseSetIfValue" />
+            </div>
+            <div class="setIf-row">
+              <label>设置的值:</label>
+              <input v-model="draft.setIf.keyValue" placeholder="要设置的值，如: 100" @input="parseSetIfKeyValue" />
+            </div>
+          </div>
+          <button v-else class="btn" @click="addSetIf">+ 添加 setIf 条件</button>
         </div>
 
         <!-- handle 区域 -->
@@ -142,7 +190,13 @@ const testResult = ref<any>();
 const folded = ref<Record<string, boolean>>({}); // 折叠状态
 const editingKey = ref<string>(''); // 正在编辑的规则 key
 const editKeyLocked = ref<boolean>(false); // 是否锁定 key（更新时只读）
-const draft = ref<any>({ path: '', order: 0, handle: {} }); // 当前表单草稿
+const draft = ref<any>({
+  enable: true, // 默认启用
+  path: '',
+  order: 0,
+  handle: {},
+  setIf: null // 默认无setIf条件
+}); // 当前表单草稿
 const draftRange = ref('');
 const draftLimit = ref('');
 const activeTab = ref<'data' | 'rule' | 'test' | 'list'>('data');
@@ -197,6 +251,12 @@ function editRule(key: string) {
   editingKey.value = key;
   editKeyLocked.value = true;
   draft.value = JSON.parse(JSON.stringify(rules.value[key]));
+
+  // 确保enable字段存在（兼容旧规则）
+  if (draft.value.enable === undefined) {
+    draft.value.enable = true;
+  }
+
   draftRange.value = JSON.stringify(draft.value.range || []);
   draftLimit.value = JSON.stringify(draft.value.limit || []);
   activeTab.value = 'rule';
@@ -221,6 +281,21 @@ function confirmSave() {
   } catch {
     showMessage('limit 格式错误', 'error');
     return;
+  }
+
+  // 处理setIf中的数值类型
+  if (draft.value.setIf) {
+    // 确保setIf.ifValue和setIf.keyValue是正确类型
+    const ifValue = draft.value.setIf.ifValue;
+    const keyValue = draft.value.setIf.keyValue;
+
+    if (!isNaN(ifValue) && ifValue !== '') {
+      draft.value.setIf.ifValue = Number(ifValue);
+    }
+
+    if (!isNaN(keyValue) && keyValue !== '') {
+      draft.value.setIf.keyValue = Number(keyValue);
+    }
   }
 
   // 新增 or 覆盖
@@ -248,10 +323,39 @@ async function saveRules() {
 function cancelEdit() {
   editingKey.value = '';
   editKeyLocked.value = false;
-  draft.value = { path: '', order: 0, handle: {} };
+  draft.value = {
+    enable: true,
+    path: '',
+    order: 0,
+    handle: {},
+    setIf: null
+  };
   draftRange.value = '';
   draftLimit.value = '';
   activeTab.value = 'list'; // 返回查看列表
+}
+
+function addSetIf() {
+  draft.value.setIf = {
+    path: '',
+    if: '==',
+    ifValue: '',
+    keyValue: ''
+  };
+}
+
+function parseSetIfValue() {
+  const value = draft.value.setIf?.ifValue;
+  if (value && !isNaN(value) && value !== '') {
+    draft.value.setIf.ifValue = Number(value);
+  }
+}
+
+function parseSetIfKeyValue() {
+  const value = draft.value.setIf?.keyValue;
+  if (value && !isNaN(value) && value !== '') {
+    draft.value.setIf.keyValue = Number(value);
+  }
 }
 
 function addHandle() {
@@ -269,9 +373,11 @@ function delHandle(k: string) {
 function usePathForRule(path: string) {
   const key = `rule_${Date.now()}`;
   rules.value[key] = {
+    enable: true,
     path,
     order: 0,
     handle: {},
+    setIf: null
   };
   // 切到"编辑规则"页签方便用户继续填写
   activeTab.value = 'rule';
@@ -709,6 +815,129 @@ hr {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* 启用状态指示器 */
+.rule-status {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.status-indicator.enabled {
+  background: #10b981;
+}
+
+.rule-name-container {
+  display: flex;
+  align-items: center;
+}
+
+/* 启用开关 */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 22px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-label {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e5e7eb;
+  transition: .3s;
+  border-radius: 22px;
+}
+
+.toggle-label:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-label {
+  background-color: #10b981;
+}
+
+input:checked + .toggle-label:before {
+  transform: translateX(40px);
+}
+
+/* setIf 区域 */
+.setIf-area {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.setIf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.setIf-content {
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.setIf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.setIf-row label {
+  width: 80px;
+  font-size: 11px;
+  color: #4b5563;
+  flex-shrink: 0;
+}
+
+.setIf-row input,
+.setIf-row select {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.btn.small {
+  padding: 3px 8px;
+  font-size: 11px;
 }
 
 /* 响应式调整 */

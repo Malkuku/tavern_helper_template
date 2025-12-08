@@ -35,99 +35,117 @@ const applyDeltaLimit = (
 };
 
 /**
- * 根据一条 handle 描述，把“源路径”的值经过运算后累加到“目标路径”
- * 支持 add | subtract | multiply | divide
+ * 设置函数，当判断路径满足条件时，将此路径的值设置为keyValue
+ */
+const applySetIf = (
+  data: any,
+  snap: any,
+  ruleItem: EraDataRule[string]
+): boolean => {
+  const { setIf } = ruleItem;
+  if (!setIf) return false;
+
+  const judgeVal = getByPath(snap, setIf.path);
+
+  let hit = false;
+  switch (setIf.if) {
+    case '==': hit = judgeVal === setIf.ifValue; break;
+    case '>':  hit = judgeVal >  setIf.ifValue;  break;
+    case '<':  hit = judgeVal <  setIf.ifValue;  break;
+    case '>=': hit = judgeVal >= setIf.ifValue;  break;
+    case '<=': hit = judgeVal <= setIf.ifValue;  break;
+  }
+
+  if (hit) {
+    setByPath(data, ruleItem.path, setIf.keyValue);
+  }
+  return hit; // 返回是否命中，便于外面决定是否跳过后续 handle
+};
+
+/**
+ * this.path [op] handle.path
  */
 const applyOneHandle = (
   data: any,
-  snap: any,
+  ruleItem: EraDataRule[string],
   targetPath: string,
   op: string,
-  sourcePath: string
+  sourcePath: string,
+  snap: any
 ): void => {
-  const src = getByPath(data, sourcePath);
-  const dstOld = getByPath(snap, targetPath);
-  if (typeof src !== 'number' || typeof dstOld !== 'number') return;
+  const srcVal  = getByPath(snap, sourcePath);      // handle.path
+  const thisVal = getByPath(data, ruleItem.path);   // this.getByPath(data, targetPath);
 
-  let delta = 0;
+  if (typeof srcVal !== 'number' || typeof thisVal !== 'number') return;
+
+  let result = 0;
   switch (op) {
-    case 'add':      delta = src;            break;
-    case 'subtract': delta = -src;           break;
-    case 'multiply': delta = dstOld * src;   break;
-    case 'divide':   delta = src === 0 ? 0 : dstOld / src; break;
+    case 'add':      result = thisVal + srcVal; break;
+    case 'subtract': result = thisVal - srcVal; break;
+    case 'multiply': result = thisVal * srcVal; break;
+    case 'divide':   result = srcVal === 0 ? 0 : thisVal / srcVal; break;
     default: return;
   }
-
-  // multiply / divide 直接覆盖；add / subtract 做累加
-  const newV = ['multiply', 'divide'].includes(op) ? delta : dstOld + delta;
-  setByPath(data, targetPath, newV);
+  setByPath(data, targetPath, result);
 };
 
-/**
- * 处理“handle”段：按声明顺序依次执行跨路径运算
- */
+/* applyHandles */
 const applyHandles = (
   data: any,
   snap: any,
+  ruleItem: EraDataRule[string],
   handles: NonNullable<EraDataRule[string]['handle']>
 ): void => {
-  // 先按 key 排序，保证顺序可预期
   Object.entries(handles)
     .sort(([a], [b]) => a.localeCompare(b))
     .forEach(([, { op, path: sourcePath }], idx, arr) => {
-      // 这里约定：handle 的 key 就是“目标路径”
       const targetPath = arr[idx][0];
-      applyOneHandle(data, snap, targetPath, op, sourcePath);
+      applyOneHandle(data, ruleItem, targetPath, op, sourcePath, snap);
     });
 };
 
-/**
- * 处理“rule”段：按顺序依次执行跨路径运算
- * @param data 当前数据
- * @param snap 快照
- * @param ruleItem
- */
+/* 改写后的单条规则入口 */
 const applyOneRule = (
   data: any,
   snap: any,
   ruleItem: EraDataRule[string]
-): void =>{
-  const cur = getByPath(data, ruleItem.path);
-  const old = getByPath(snap, ruleItem.path);
+): void => {
+  // 1. 未启用直接跳过
+  if (!ruleItem.enable) return;
+
+  // 2. setIf 优先级最高
+  applySetIf(data, snap,ruleItem);
+
+  // 3. 如果 setIf 命中，后面 limit / range 仍要再限制一次
+  let cur = getByPath(data, ruleItem.path);
+  let old = getByPath(snap, ruleItem.path);
   if (typeof cur !== 'number' || typeof old !== 'number') return;
 
-  // 先跑 handle 运算（会修改 data）
-  if (ruleItem.handle) applyHandles(data, snap, ruleItem.handle);
+  // 4. handle 阶段（setIf 命中后也会跑）
+  if (ruleItem.handle) {
+    applyHandles(data, snap, ruleItem, ruleItem.handle);
+    cur = getByPath(data, ruleItem.path); // handle 可能再次改动它
+  }
 
-  //处理增量
+  // 5. limit -> range
   let v = ruleItem.limit
     ? applyDeltaLimit(old, cur, ruleItem.limit)
     : cur;
-
-  //再处理范围
   if (ruleItem.range) v = applyRange(v, ruleItem.range);
-
-  //更新数值
   setByPath(data, ruleItem.path, v);
-}
+};
 
-/* ---------- 应用规则 ---------- */
+/* ---------- 最外层入口（不变） ---------- */
 const applyRule = (
   data: any,
   snap: any,
   rules: EraDataRule
 ): any => {
   const clone = JSON.parse(JSON.stringify(data));
-  // 按 order 升序排列
-  const sorted = Object.entries(rules).sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+  const sorted = Object.entries(rules)
+    .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
   sorted.forEach(([, rule]) => applyOneRule(clone, snap, rule));
   return clone;
 };
 
-/* ====================  导出  ==================== */
-export const EraDataHandler = {
-  applyRule,
-  /* 测试用 */
-  applyHandles,
-  applyOneHandle,
-};
+export const EraDataHandler = { applyRule, applyHandles, applyOneHandle };
