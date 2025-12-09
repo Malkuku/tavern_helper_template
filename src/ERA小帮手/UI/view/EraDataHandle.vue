@@ -899,12 +899,12 @@ const hasCustomTestData = computed(() => {
   border: none;
   background: none;
   font-size: 13px;
-  color: #4b5563;
+  color: #111827;
   cursor: pointer;
   position: relative;
   transition: color 0.2s;
   border-radius: 6px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tabs-container button::after {
@@ -920,8 +920,8 @@ const hasCustomTestData = computed(() => {
 }
 
 .tabs-container button.active {
-  color: #6366f1;
-  font-weight: 600;
+  color: #4f46e5;
+  font-weight: 700;
 }
 
 .tabs-container button.active::after {
@@ -1017,8 +1017,9 @@ h2 {
 .field label {
   width: 70px;
   font-size: 12px;
-  color: #4b5563;
+  color: #111827;
   flex-shrink: 0;
+  font-weight: 500;
 }
 .field input,
 .field select {
@@ -1058,7 +1059,7 @@ h2 {
 }
 .handle-item span {
   font-size: 12px;
-  color: #4b5563;
+  color: #111827;
 }
 .handle-item select,
 .handle-item input {
@@ -1081,23 +1082,29 @@ h2 {
   background: #f3f4f6;
   color: #111827;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  font-weight: 500;
 }
 .btn:hover {
   background: #e5e7eb;
+  color: #000000;
 }
 .btn.primary {
-  background: #6366f1;
-  color: #fff;
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 500;
 }
 .btn.primary:hover {
-  background: #4f46e5;
+  background: #4338ca;
+  color: #ffffff;
 }
 .btn.danger {
-  background: #ef4444;
-  color: #fff;
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 500;
 }
 .btn.danger:hover {
-  background: #dc2626;
+  background: #b91c1c;
+  color: #ffffff;
 }
 
 /* 10. 底部按钮组 */
@@ -1317,8 +1324,9 @@ input:checked + .toggle-label:before {
 .setIf-row label {
   width: 80px;
   font-size: 11px;
-  color: #4b5563;
+  color: #111827;
   flex-shrink: 0;
+  font-weight: 500;
 }
 
 .setIf-row input,
@@ -1378,9 +1386,10 @@ input:checked + .toggle-label:before {
 
 .input-label {
   font-size: 11px;
-  color: #4b5563;
+  color: #111827;
   min-width: 28px; /* 稍微减小 */
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .range-limit-inputs input {
@@ -1434,7 +1443,8 @@ input:checked + .toggle-label:before {
 
 .dsl-header label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #111827;
 }
 
 .dsl-preview input {
@@ -1445,6 +1455,8 @@ input:checked + .toggle-label:before {
   font-size: 11px;
   background: #f8fafc;
   cursor: pointer;
+  color: #111827;
+  font-weight: 500;
 }
 
 .dsl-preview input:hover {
@@ -1467,13 +1479,14 @@ input:checked + .toggle-label:before {
 .handle-expression {
   margin: 4px 0;
   font-size: 11px;
-  color: #4b5563;
+  color: #111827;
   overflow-x: auto;
   word-break: break-all;
 }
 
 .handle-expression strong {
-  color: #111827;
+  color: #000000;
+  font-weight: 600;
 }
 
 /* 测试控制按钮 */
@@ -1487,10 +1500,12 @@ input:checked + .toggle-label:before {
 .rule-details {
   margin-bottom: 12px;
   font-size: 12px;
+  color: #111827;
 }
 
 .rule-details div {
   margin: 4px 0;
+  color: #111827;
 }
 
 .data-source-indicator {

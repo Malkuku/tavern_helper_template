@@ -155,6 +155,12 @@ const rawExpression = computed(() => {
   if (localExpression.value.trim()) {
     const tag = props.type === 'if' ? '<<if>' : '<<op>';
     const expression = localExpression.value.trim();
+    
+    // 如果表达式已经包含标签，则不重复添加
+    if (expression.startsWith('<<if>') || expression.startsWith('<<op>')) {
+      return expression;
+    }
+    
     return `${tag} ${expression} >`;
   }
   return localExpression.value;
@@ -274,7 +280,8 @@ watch(() => props.visible, (newVal) => {
 .component-section h4 {
   margin: 0 0 8px 0;
   font-size: 13px;
-  color: #4b5563;
+  color: #111827;
+  font-weight: 600;
 }
 
 .operator-grid {
@@ -297,6 +304,7 @@ watch(() => props.visible, (newVal) => {
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   font-size: 12px;
+  color: #111827;
 }
 
 .selected-path {
@@ -307,6 +315,7 @@ watch(() => props.visible, (newVal) => {
   border-radius: 4px;
   font-size: 11px;
   color: #0369a1;
+  font-weight: 500;
 }
 
 .dsl-preview-area {
@@ -345,6 +354,7 @@ watch(() => props.visible, (newVal) => {
 .expression-raw {
   margin-top: 10px;
   font-size: 11px;
+  color: #111827;
 }
 
 .expression-raw pre {
@@ -355,6 +365,8 @@ watch(() => props.visible, (newVal) => {
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
+  color: #000000;
+  font-weight: 500;
 }
 
 .expression-editor textarea {
@@ -390,10 +402,12 @@ watch(() => props.visible, (newVal) => {
   background: #f3f4f6;
   color: #111827;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  font-weight: 500;
 }
 
 .btn:hover {
   background: #e5e7eb;
+  color: #000000;
 }
 
 .btn.small {
@@ -402,21 +416,25 @@ watch(() => props.visible, (newVal) => {
 }
 
 .btn.primary {
-  background: #6366f1;
-  color: #fff;
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .btn.primary:hover {
-  background: #4f46e5;
+  background: #4338ca;
+  color: #ffffff;
 }
 
 .btn.danger {
-  background: #ef4444;
-  color: #fff;
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .btn.danger:hover {
-  background: #dc2626;
+  background: #b91c1c;
+  color: #ffffff;
 }
 
 @media (max-width: 768px) {
