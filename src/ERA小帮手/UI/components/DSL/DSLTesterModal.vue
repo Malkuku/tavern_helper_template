@@ -175,7 +175,7 @@ function handleRunTest() {
   width: auto;
   margin-bottom: 4px;
   font-size: 12px;
-  color: #4b5563;
+  color: #1f2937;
 }
 
 .tester-inputs input {
@@ -221,7 +221,7 @@ function handleRunTest() {
 .empty-result {
   padding: 20px;
   text-align: center;
-  color: #6b7280;
+  color: #374151;
   font-style: italic;
 }
 
