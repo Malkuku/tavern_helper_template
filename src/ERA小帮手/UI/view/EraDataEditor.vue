@@ -154,6 +154,15 @@
       </div>
     </div>
 
+    <EraConfirmModal
+      v-model:visible="showConfirmModal"
+      :title="confirmTitle"
+      :content="confirmContent"
+      :type="confirmType"
+      @confirm="handleConfirmAction"
+      @cancel="handleCancelAction"
+    />
+
     <!-- 添加字段模态框 -->
     <div v-if="showAddFieldModal" class="modal-overlay">
       <div class="modal">
@@ -299,6 +308,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useEraEditStore } from '../../stores/EraEditStore'
 import type { JsonNodeType } from '../types/JsonNode'
 import JsonNodeEdit from '../components/JsonNodeEdit.vue';
+import EraConfirmModal from '../components/EraConfirmModal.vue';
 
 // Store
 const eraEditStore = useEraEditStore()
@@ -321,6 +331,45 @@ const statusMessage = ref('就绪')
 
 // 树形数据
 const treeData = ref<JsonNodeType[]>([])
+
+// 确认弹窗相关
+const showConfirmModal = ref(false)
+const confirmTitle = ref('')
+const confirmContent = ref('')
+const confirmType = ref<'confirm' | 'alert'>('confirm')
+const pendingAction = ref<() => void>(() => {})
+
+// 打开确认弹窗
+function openConfirmModal(
+  title: string,
+  content: string,
+  type: 'confirm' | 'alert' = 'confirm',
+  onConfirm?: () => void,
+  onCancel?: () => void
+) {
+  confirmTitle.value = title
+  confirmContent.value = content
+  confirmType.value = type
+  showConfirmModal.value = true
+
+  if (onConfirm) {
+    pendingAction.value = onConfirm
+  }
+}
+
+// 处理确认
+function handleConfirmAction() {
+  if (pendingAction.value) {
+    pendingAction.value()
+  }
+  pendingAction.value = () => {}
+}
+
+// 处理取消
+function handleCancelAction() {
+  pendingAction.value = () => {}
+}
+
 
 // 添加字段模态框
 const showAddFieldModal = ref(false)
@@ -644,42 +693,59 @@ function toggleNode(node: JsonNodeType) {
 }
 
 async function saveData() {
-  try {
-    saving.value = true
-    statusMessage.value = '正在保存...'
+  // 如果有未保存的更改，可以添加确认提示
+  if (hasChanges.value) {
+    openConfirmModal(
+      '保存确认',
+      '是否保存所有更改？',
+      'confirm',
+      async () => {
+        try {
+          saving.value = true
+          statusMessage.value = '正在保存...'
 
-    // 如果是在原始JSON编辑模式，先解析
-    if (editMode.value === 'raw') {
-      try {
-        currentData.value = JSON.parse(rawJsonValue.value)
-      } catch (error) {
-        statusMessage.value = 'JSON格式错误，无法保存'
-        return
+          // 如果是在原始JSON编辑模式，先解析
+          if (editMode.value === 'raw') {
+            try {
+              currentData.value = JSON.parse(rawJsonValue.value)
+            } catch (error) {
+              statusMessage.value = 'JSON格式错误，无法保存'
+              return
+            }
+          }
+
+          await eraEditStore.saveEraEdit(currentData.value)
+
+          // 更新原始数据副本和原始JSON
+          originalData.value = JSON.parse(JSON.stringify(currentData.value))
+          rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
+
+          // 重新生成树数据
+          treeData.value = convertToTree(currentData.value)
+
+          statusMessage.value = '保存成功'
+
+          // 3秒后恢复状态
+          setTimeout(() => {
+            if (statusMessage.value === '保存成功') {
+              statusMessage.value = '就绪'
+            }
+          }, 3000)
+        } catch (error) {
+          console.error('保存失败:', error)
+          statusMessage.value = '保存失败'
+        } finally {
+          saving.value = false
+        }
       }
-    }
-
-    await eraEditStore.saveEraEdit(currentData.value)
-
-    // 更新原始数据副本和原始JSON
-    originalData.value = JSON.parse(JSON.stringify(currentData.value))
-    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-    // 重新生成树数据
-    treeData.value = convertToTree(currentData.value)
-
-    statusMessage.value = '保存成功'
-
-    // 3秒后恢复状态
-    setTimeout(() => {
-      if (statusMessage.value === '保存成功') {
-        statusMessage.value = '就绪'
-      }
-    }, 3000)
-  } catch (error) {
-    console.error('保存失败:', error)
-    statusMessage.value = '保存失败'
-  } finally {
-    saving.value = false
+    )
+  } else {
+    // 如果没有更改，直接显示提示
+    openConfirmModal(
+      '提示',
+      '没有需要保存的更改',
+      'alert'
+    )
   }
 }
 
@@ -714,33 +780,38 @@ function addChildToNode(nodePath: string) {
 function removeNode(nodePath: string) {
   if (!nodePath) return
 
-  if (confirm('确定要删除此项吗？')) {
-    const pathParts = nodePath.split('.')
-    const lastKey = pathParts.pop()!
+  openConfirmModal(
+    '删除确认',
+    '确定要删除此项吗？',
+    'confirm',
+    () => {
+      const pathParts = nodePath.split('.')
+      const lastKey = pathParts.pop()!
 
-    let parent = currentData.value
-    if (pathParts.length > 0) {
-      parent = getValueByPath(currentData.value, pathParts.join('.'))
-    }
-
-    if (parent && lastKey in parent) {
-      // 处理数组索引
-      if (Array.isArray(parent) && /^\d+$/.test(lastKey)) {
-        parent.splice(parseInt(lastKey), 1)
-      } else {
-        delete parent[lastKey]
+      let parent = currentData.value
+      if (pathParts.length > 0) {
+        parent = getValueByPath(currentData.value, pathParts.join('.'))
       }
 
-      // 更新原始JSON视图
-      rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
+      if (parent && lastKey in parent) {
+        // 处理数组索引
+        if (Array.isArray(parent) && /^\d+$/.test(lastKey)) {
+          parent.splice(parseInt(lastKey), 1)
+        } else {
+          delete parent[lastKey]
+        }
 
-      // 重新生成树数据
-      treeData.value = convertToTree(currentData.value)
+        // 更新原始JSON视图
+        rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
 
-      editingNode.value = null
-      statusMessage.value = '已删除项'
+        // 重新生成树数据
+        treeData.value = convertToTree(currentData.value)
+
+        editingNode.value = null
+        statusMessage.value = '已删除项'
+      }
     }
-  }
+  )
 }
 
 function getValueByPath(obj: any, path: string): any {
@@ -1214,7 +1285,7 @@ textarea::placeholder {
   width: 100%;
   // 确保有足够的空间显示节点上方的按钮
   padding-top: 10px;
-  
+
   // 添加滚动条样式
   &::-webkit-scrollbar {
     width: 8px;

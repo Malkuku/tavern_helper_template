@@ -84,7 +84,7 @@
         <div class="field">
           <label>启用:</label>
           <div class="toggle-switch">
-            <input v-model="draft.enable" type="checkbox" :true-value="true" :false-value="false" id="enableToggle" />
+            <input id="enableToggle" v-model="draft.enable" type="checkbox" :true-value="true" :false-value="false" />
             <label for="enableToggle" class="toggle-label"></label>
           </div>
         </div>
@@ -187,29 +187,28 @@
       </section>
     </div>
 
-    <!-- 删除确认对话框 -->
-    <div v-if="showDeleteConfirm" class="modal-overlay">
-      <div class="modal">
-        <h3>确认删除</h3>
-        <p>确定要删除规则 "{{ deletingKey }}" 吗？此操作不可恢复。</p>
-        <div class="modal-actions">
-          <button class="btn danger" @click="executeDelete">确认删除</button>
-          <button class="btn" @click="cancelDelete">取消</button>
-        </div>
-      </div>
-    </div>
+    <!-- 自定义弹窗组件 -->
+    <EraConfirmModal
+      v-model:visible="showDeleteConfirm"
+      title="确认删除"
+      content= "确定要删除该规则吗,此操作不可恢复"
+      type="confirm"
+      confirm-text="确认删除"
+      cancel-text="取消"
+      @confirm="executeDelete"
+      @cancel="cancelDelete"
+    />
 
-    <!-- 导入确认对话框 -->
-    <div v-if="showImportConfirm" class="modal-overlay">
-      <div class="modal">
-        <h3>导入规则</h3>
-        <p>导入新规则将覆盖当前所有规则，确定要继续吗？</p>
-        <div class="modal-actions">
-          <button class="btn primary" @click="executeImport">确认导入</button>
-          <button class="btn" @click="cancelImport">取消</button>
-        </div>
-      </div>
-    </div>
+    <EraConfirmModal
+      v-model:visible="showImportConfirm"
+      title="导入规则"
+      content="导入新规则将覆盖当前所有规则，确定要继续吗？"
+      type="confirm"
+      confirm-text="确认导入"
+      cancel-text="取消"
+      @confirm="executeImport"
+      @cancel="cancelImport"
+    />
 
     <!-- 文件导入输入 -->
     <input ref="fileInputRef" type="file" accept=".json" style="display: none" @change="handleFileImport" />
@@ -227,6 +226,7 @@ import { useEraDataStore } from '../../stores/EraDataStore';
 import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
 import JsonTree from '../components/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
+import EraConfirmModal from '../components/EraConfirmModal.vue';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -942,42 +942,6 @@ hr {
   background: #94a3b8;
 }
 
-/* 16. 删除确认对话框样式 */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.modal {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 20px;
-  min-width: 300px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.modal h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  color: #111827;
-}
-
-.modal p {
-  margin: 0 0 20px;
-  font-size: 13px;
-  color: #4b5563;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
 
 /* 17. 规则操作按钮 */
 .rule-operations {
