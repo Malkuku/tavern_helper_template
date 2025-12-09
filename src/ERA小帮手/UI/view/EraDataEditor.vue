@@ -15,6 +15,13 @@
           </svg>
           保存更改
         </button>
+        <!-- 添加导出草稿按钮 -->
+        <button class="toolbar-btn" :disabled="exportingDraft || !currentData" @click="exportDraft">
+          <svg class="icon" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 2a1 1 0 0 0-1 1v6H3a1 1 0 1 0 0 2h4v3a1 1 0 1 0 2 0v-3h4a1 1 0 1 0 0-2H9V3a1 1 0 0 0-1-1z"/>
+          </svg>
+          导出草稿
+        </button>
       </div>
       <div class="toolbar-right">
         <div v-if="hasChanges" class="change-indicator">
@@ -316,6 +323,7 @@ const eraEditStore = useEraEditStore()
 // 响应式数据
 const loading = ref(false)
 const saving = ref(false)
+const exportingDraft = ref(false)
 const currentData = ref<any>(null)
 const originalData = ref<any>(null)
 const searchQuery = ref('')
@@ -625,6 +633,44 @@ function filterTreeNodes(nodes: JsonNodeType[], query: string): JsonNodeType[] {
   return result
 }
 
+// 导出草稿数据
+function exportDraft() {
+  if (exportingDraft.value || !currentData.value) return
+  
+  exportingDraft.value = true
+  try {
+    // 创建带时间戳的文件名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, -5)
+    const filename = `era-stat-data-${timestamp}.json`
+    
+    // 将当前数据转换为JSON字符串
+    const dataStr = JSON.stringify(currentData.value, null, 2)
+    
+    // 创建并下载文件
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    statusMessage.value = '草稿导出成功'
+  } catch (error) {
+    console.error('导出草稿失败:', error)
+    statusMessage.value = '导出草稿失败'
+  } finally {
+    setTimeout(() => {
+      if (statusMessage.value === '草稿导出成功' || statusMessage.value === '导出草稿失败') {
+        statusMessage.value = '就绪'
+      }
+    }, 3000)
+    exportingDraft.value = false
+  }
+}
+
 async function loadData() {
   try {
     loading.value = true
@@ -876,10 +922,6 @@ function formatJson() {
   } catch (error) {
     // 保持原样
   }
-}
-
-function addNewField() {
-  openAddFieldModal()
 }
 
 // 监听搜索
@@ -1305,8 +1347,6 @@ textarea::placeholder {
 
 .json-tree {
   padding: 16px;
-  min-width: min-content;
-  // 确保树容器可以容纳换行的内容
   width: 100%;
   // 添加最小宽度以支持横向滚动
   min-width: fit-content;
@@ -1812,4 +1852,3 @@ textarea::placeholder {
     width: 100%;
   }
 }
-</style>
