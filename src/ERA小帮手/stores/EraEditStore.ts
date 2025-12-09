@@ -17,7 +17,7 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
    * 保存ERA设置
    * 1. 先取出当前快照 snap
    * 2. 与入参 object 做三路对比：删除 / 更新 / 插入
-   * 3. 按“先删再更新再插入”顺序写回
+   * 3. 按"先删再更新再插入"顺序写回
    */
   const saveEraEdit = async (object: Record<string, any>) => {
     if (!object || typeof object !== 'object') return;
@@ -50,11 +50,23 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
           : []
       );
 
-      /* 删除：只在 snap 里出现 */
+      /* 处理删除逻辑 */
       snapKeys.forEach(k => {
         if (!objKeys.has(k)) {
           const val = snapNode[k];
-          EraDataHandler.setByPathArray(deleteNode, [...path, k], val);
+          // 检查这个被删除的节点是否有子节点
+          const hasChildren = val &&
+            typeof val === 'object' &&
+            !Array.isArray(val) &&
+            Object.keys(val).length > 0;
+
+          if (hasChildren) {
+            // 如果有子节点，将父节点的值设置为空对象 {}
+            EraDataHandler.setByPathArray(deleteNode, [...path, k], {});
+          } else {
+            // 如果没有子节点或不是对象，直接删除
+            EraDataHandler.setByPathArray(deleteNode, [...path, k], val);
+          }
         }
       });
 
