@@ -315,7 +315,7 @@
 import { onMounted, ref } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
 import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
-import JsonTree from '../components/JsonTree.vue';
+import JsonTree from '../components/JsonNode/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
 import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';

@@ -314,7 +314,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEraEditStore } from '../../stores/EraEditStore'
 import type { JsonNodeType } from '../types/JsonNode'
-import JsonNodeEdit from '../components/JsonNodeEdit.vue';
+import JsonNodeEdit from '../components/JsonNode/JsonNodeEdit.vue';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
 
 // Store

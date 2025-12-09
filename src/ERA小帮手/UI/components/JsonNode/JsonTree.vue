@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import {  watch, ref } from 'vue'
-import { JsonNodeType } from '../types/JsonNode';
+import { JsonNodeType } from '../../types/JsonNode';
 import JsonNode from './JsonNode.vue';
 
 /* ---------- props / emit ---------- */

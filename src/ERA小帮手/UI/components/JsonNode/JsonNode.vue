@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { JsonNodeType } from '../types/JsonNode';
+import { JsonNodeType } from '../../types/JsonNode';
 
 defineProps<{ node: JsonNodeType }>()
 defineEmits<{

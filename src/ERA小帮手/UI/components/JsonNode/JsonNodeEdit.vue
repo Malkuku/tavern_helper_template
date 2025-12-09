@@ -132,7 +132,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { JsonNodeType } from '../types/JsonNode'
+import type { JsonNodeType } from '../../types/JsonNode'
 
 const props = defineProps<{
   node: JsonNodeType
