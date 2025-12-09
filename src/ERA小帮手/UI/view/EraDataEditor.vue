@@ -636,16 +636,16 @@ function filterTreeNodes(nodes: JsonNodeType[], query: string): JsonNodeType[] {
 // 导出草稿数据
 function exportDraft() {
   if (exportingDraft.value || !currentData.value) return
-  
+
   exportingDraft.value = true
   try {
     // 创建带时间戳的文件名
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, -5)
     const filename = `era-stat-data-${timestamp}.json`
-    
+
     // 将当前数据转换为JSON字符串
     const dataStr = JSON.stringify(currentData.value, null, 2)
-    
+
     // 创建并下载文件
     const blob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -656,7 +656,7 @@ function exportDraft() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    
+
     statusMessage.value = '草稿导出成功'
   } catch (error) {
     console.error('导出草稿失败:', error)
@@ -1852,3 +1852,4 @@ textarea::placeholder {
     width: 100%;
   }
 }
+</style>
