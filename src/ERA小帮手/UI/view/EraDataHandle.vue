@@ -152,7 +152,7 @@
 
           <div v-for="(handleItem, handleKey) in draft.handle" :key="handleKey" class="handle-editor">
             <div class="handle-header">
-              <strong>{{ handleKey }}</strong>
+              <input v-model="handleNames[handleKey]" placeholder="handle名称" class="handle-name-input" />
               <button class="btn small danger" @click="delHandle(handleKey)">删除</button>
             </div>
 
@@ -270,6 +270,28 @@
     />
 
     <EraConfirmModal
+      v-model:visible="showDuplicateRuleConfirm"
+      title="规则名称重复"
+      content="已存在同名规则，是否覆盖？"
+      type="confirm"
+      confirm-text="覆盖"
+      cancel-text="取消"
+      @confirm="saveRuleWithOverwrite"
+      @cancel="cancelRuleSave"
+    />
+
+    <EraConfirmModal
+      v-model:visible="showDuplicateHandleConfirm"
+      title="Handle名称重复"
+      content="已存在同名Handle，是否覆盖？"
+      type="confirm"
+      confirm-text="覆盖"
+      cancel-text="取消"
+      @confirm="saveRuleWithOverwrite"
+      @cancel="cancelRuleSave"
+    />
+
+    <EraConfirmModal
       v-model:visible="showImportConfirm"
       title="导入规则"
       content="导入新规则将覆盖当前所有规则，确定要继续吗？"
@@ -315,6 +337,7 @@ const draft = ref<any>({
   range: [],
   limit: [],
 });
+const handleNames = ref<Record<string, string>>({});
 
 const draftRangeMin = ref<number | null>(null);
 const draftRangeMax = ref<number | null>(null);
@@ -325,6 +348,8 @@ const activeTab = ref<'data' | 'rule' | 'test' | 'list'>('data');
 const showDeleteConfirm = ref(false);
 const deletingKey = ref<string>('');
 const showImportConfirm = ref(false);
+const showDuplicateRuleConfirm = ref(false); // 添加这行
+const showDuplicateHandleConfirm = ref(false); // 添加这行
 const fileInputRef = ref<HTMLInputElement>();
 const message = ref<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
@@ -377,7 +402,16 @@ function toggleFold(key: string) {
 function editRule(key: string) {
   editingKey.value = key;
   editKeyLocked.value = true;
+  deletingKey.value = key; // 记录原始键名
   draft.value = JSON.parse(JSON.stringify(rules.value[key]));
+
+  // 初始化handleNames
+  handleNames.value = {};
+  if (draft.value.handle) {
+    Object.keys(draft.value.handle).forEach(handleKey => {
+      handleNames.value[handleKey] = handleKey;
+    });
+  }
 
   if (draft.value.enable === undefined) {
     draft.value.enable = true;
@@ -408,6 +442,26 @@ function confirmSave() {
     return;
   }
 
+  // 检查规则是否重名
+  if ((!editKeyLocked.value || (editKeyLocked.value && editingKey.value !== deletingKey.value))
+      && rules.value[editingKey.value]) {
+    // 新增规则或重命名规则时检查是否与现有规则重名
+    showDuplicateRuleConfirm.value = true;
+    return;
+  }
+
+  // 检查handle是否重名
+  const handleKeys = Object.values(handleNames.value);
+  const uniqueHandles = new Set(handleKeys);
+  if (uniqueHandles.size !== handleKeys.length) {
+    showDuplicateHandleConfirm.value = true;
+    return;
+  }
+
+  saveRule();
+}
+
+function saveRule() {
   if (draftRangeMin.value !== null && draftRangeMax.value !== null) {
     draft.value.range = [draftRangeMin.value, draftRangeMax.value];
   } else {
@@ -420,12 +474,37 @@ function confirmSave() {
     draft.value.limit = [];
   }
 
+  // 处理handle重命名
+  const updatedHandle: Record<string, any> = {};
+  Object.keys(draft.value.handle).forEach(oldKey => {
+    const newKey = handleNames.value[oldKey] || oldKey;
+    updatedHandle[newKey] = draft.value.handle[oldKey];
+  });
+  draft.value.handle = updatedHandle;
+
+  // 如果是重命名规则，删除旧规则
+  if (editKeyLocked.value && editingKey.value !== deletingKey.value) {
+    delete rules.value[deletingKey.value];
+    delete folded.value[deletingKey.value];
+  }
+
   rules.value[editingKey.value] = JSON.parse(JSON.stringify(draft.value));
   folded.value[editingKey.value] = true;
 
   saveRules();
   showMessage(`规则 "${editingKey.value}" ${editKeyLocked.value ? '更新' : '添加'}成功`, 'success');
   cancelEdit();
+}
+
+function saveRuleWithOverwrite() {
+  showDuplicateRuleConfirm.value = false;
+  showDuplicateHandleConfirm.value = false;
+  saveRule();
+}
+
+function cancelRuleSave() {
+  showDuplicateRuleConfirm.value = false;
+  showDuplicateHandleConfirm.value = false;
 }
 
 async function saveRules() {
@@ -449,6 +528,7 @@ function cancelEdit() {
     range: [],
     limit: [],
   };
+  handleNames.value = {};
   draftRangeMin.value = null;
   draftRangeMax.value = null;
   draftLimitNeg.value = null;
@@ -457,7 +537,12 @@ function cancelEdit() {
 }
 
 function addHandle() {
-  const k = `handle_${Date.now()}`;
+  let k = `handle_${Date.now()}`;
+  // 确保初始名称唯一
+  while (handleNames.value[k]) {
+    k = `handle_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  }
+
   if (!draft.value.handle) {
     draft.value.handle = {};
   }
@@ -466,14 +551,22 @@ function addHandle() {
     if: '',
     op: ''
   };
+  // 初始化handle名称
+  handleNames.value[k] = k;
 }
 
 function delHandle(k: string | number) {
   delete draft.value.handle[k];
+  delete handleNames.value[k];
 }
 
 function usePathForRule(path: string) {
-  const key = `rule_${Date.now()}`;
+  let key = `rule_${Date.now()}`;
+  // 确保初始规则名称唯一
+  while (rules.value[key]) {
+    key = `rule_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  }
+
   rules.value[key] = {
     enable: true,
     path,
@@ -486,6 +579,7 @@ function usePathForRule(path: string) {
   editingKey.value = key;
   editKeyLocked.value = false;
   draft.value = { ...rules.value[key] };
+  handleNames.value = {};
   draftRangeMin.value = null;
   draftRangeMax.value = null;
   draftLimitNeg.value = null;
@@ -1362,6 +1456,21 @@ input:checked + .toggle-label:before {
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.handle-name-input {
+  font-weight: bold;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 4px 8px;
+  width: auto;
+  min-width: 120px;
+}
+
+.handle-name-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .dsl-builder {
