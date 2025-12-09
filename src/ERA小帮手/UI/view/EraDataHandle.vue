@@ -14,7 +14,6 @@
       <section v-show="activeTab === 'data'">
         <h2>当前 stat_data（只读）</h2>
         <div class="json-tree-box">
-          <!-- 监听 sendPath -->
           <json-tree :data="statData" @send-path="usePathForRule" />
         </div>
       </section>
@@ -25,6 +24,7 @@
         <div class="import-export-buttons">
           <button class="btn small" @click="exportRules">导出规则</button>
           <button class="btn small" @click="importRules">导入规则</button>
+          <button class="btn small primary" @click="testAllDslExpressions">测试所有 DSL 表达式</button>
         </div>
 
         <!-- 空状态提示 -->
@@ -54,13 +54,35 @@
               </span>
             </div>
             <div class="rule-actions">
+              <button class="btn small" @click.stop="testRuleDsl(key)">测试 DSL</button>
               <span class="fold-indicator">{{ folded[key] ? '›' : '⌄' }}</span>
             </div>
           </div>
 
           <div v-show="!folded[key]" class="rule-body">
             <div class="rule-content">
-              <pre>{{ JSON.stringify(rule, null, 2) }}</pre>
+              <div class="rule-details">
+                <div><strong>路径:</strong> {{ rule.path }}</div>
+                <div><strong>顺序:</strong> {{ rule.order }}</div>
+                <div v-if="rule.range"><strong>范围:</strong> [{{ rule.range[0] }}, {{ rule.range[1] }}]</div>
+                <div v-if="rule.limit"><strong>限制:</strong> [{{ rule.limit[0] }}, {{ rule.limit[1] }}]</div>
+              </div>
+
+              <!-- handle 列表 -->
+              <div v-if="rule.handle && Object.keys(rule.handle).length > 0" class="handle-list">
+                <div v-for="(handleItem, handleKey) in rule.handle" :key="handleKey" class="handle-item">
+                  <div class="handle-header">
+                    <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }})
+                  </div>
+                  <div v-if="handleItem.if" class="handle-expression">
+                    <strong>条件:</strong> {{ handleItem.if }}
+                  </div>
+                  <div class="handle-expression">
+                    <strong>操作:</strong> {{ handleItem.op }}
+                  </div>
+                </div>
+              </div>
+
               <div class="rule-operations">
                 <button class="btn primary" @click="editRule(key)">编辑</button>
                 <button class="btn danger" @click="confirmDelete(key)">删除</button>
@@ -89,7 +111,7 @@
           </div>
         </div>
 
-        <!-- 其余字段与原来一致 -->
+        <!-- 基本字段 -->
         <div class="field">
           <label>路径:</label>
           <input v-model="draft.path" placeholder="角色.*.特殊状态.好感度" />
@@ -121,53 +143,62 @@
           </div>
         </div>
 
-        <!-- setIf 区域 -->
-        <div class="setIf-area">
-          <div class="setIf-header">
-            <span>setIf 条件设置:</span>
-            <button v-if="draft.setIf" class="btn small danger" @click="draft.setIf = null">删除条件</button>
-          </div>
-          <div v-if="draft.setIf" class="setIf-content">
-            <div class="setIf-row">
-              <label>判断路径:</label>
-              <input v-model="draft.setIf.path" placeholder="如: 角色.张三.状态" />
-            </div>
-            <div class="setIf-row">
-              <label>条件操作符:</label>
-              <select v-model="draft.setIf.if">
-                <option value="==">等于 (==)</option>
-                <option value=">">大于 (&gt;)</option>
-                <option value="<">小于 (&lt;)</option>
-                <option value=">=">大于等于 (&ge;)</option>
-                <option value="<=">小于等于 (&le;)</option>
-              </select>
-            </div>
-            <div class="setIf-row">
-              <label>比较值:</label>
-              <input v-model="draft.setIf.ifValue" placeholder="如: 10" @input="parseSetIfValue" />
-            </div>
-            <div class="setIf-row">
-              <label>设置的值:</label>
-              <input v-model="draft.setIf.keyValue" placeholder="要设置的值，如: 100" @input="parseSetIfKeyValue" />
-            </div>
-          </div>
-          <button v-else class="btn" @click="addSetIf">+ 添加 setIf 条件</button>
-        </div>
-
         <!-- handle 区域 -->
-        <div class="setIf-area">
-          <div>handle 运算:</div>
-          <div v-for="(h, k) in draft.handle" :key="k" class="handle-item">
-            <select v-model="h.op">
-              <option value="add">增</option>
-              <option value="subtract">减</option>
-              <option value="multiply">乘</option>
-              <option value="divide">除</option>
-            </select>
-            <input v-model="h.path" placeholder="目标路径: this.path[op]handle.path" />
-            <button class="btn danger" @click="delHandle(k as any)">删除</button>
+        <div class="handle-area">
+          <div class="handle-area-header">
+            <span>handle 运算配置:</span>
+            <button class="btn small primary" @click="addHandle">+ 添加 handle</button>
           </div>
-          <button class="btn" @click="addHandle">+ 添加 handle</button>
+
+          <div v-for="(handleItem, handleKey) in draft.handle" :key="handleKey" class="handle-editor">
+            <div class="handle-header">
+              <strong>{{ handleKey }}</strong>
+              <button class="btn small danger" @click="delHandle(handleKey)">删除</button>
+            </div>
+
+            <div class="field">
+              <label>处理顺序:</label>
+              <input v-model.number="handleItem.order" type="number" min="0" placeholder="0" />
+            </div>
+
+            <!-- 条件表达式构建器 -->
+            <div class="dsl-builder">
+              <div class="dsl-header">
+                <label>条件表达式 (if):</label>
+                <div class="dsl-actions">
+                  <button class="btn small" @click="openDslBuilder('if', handleKey)">构建</button>
+                  <button v-if="handleItem.if" class="btn small danger" @click="clearDsl('if', handleKey)">清空</button>
+                </div>
+              </div>
+              <div class="dsl-preview">
+                <input
+                  v-model="handleItem.if"
+                  readonly
+                  placeholder="点击'构建'按钮创建条件表达式"
+                  @click="openDslBuilder('if', handleKey)"
+                />
+              </div>
+            </div>
+
+            <!-- 操作表达式构建器 -->
+            <div class="dsl-builder">
+              <div class="dsl-header">
+                <label>操作表达式 (op):</label>
+                <div class="dsl-actions">
+                  <button class="btn small" @click="openDslBuilder('op', handleKey)">构建</button>
+                  <button v-if="handleItem.op" class="btn small danger" @click="clearDsl('op', handleKey)">清空</button>
+                </div>
+              </div>
+              <div class="dsl-preview">
+                <input
+                  v-model="handleItem.op"
+                  readonly
+                  placeholder="点击'构建'按钮创建操作表达式"
+                  @click="openDslBuilder('op', handleKey)"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <hr />
@@ -180,18 +211,168 @@
       <!-- 4. 测试模拟 -->
       <section v-show="activeTab === 'test'">
         <h2>测试模拟</h2>
-        <button class="btn primary" @click="runTest">模拟更新（不保存）</button>
+        <div class="test-controls">
+          <button class="btn primary" @click="runTest">模拟更新（不保存）</button>
+          <button class="btn" @click="openDslTester">打开 DSL 测试器</button>
+        </div>
         <div class="json-tree-box">
           <json-tree :data="testResult" />
         </div>
       </section>
     </div>
 
+    <!-- DSL 构建器模态框 -->
+    <div v-if="showDslBuilder" class="dsl-builder-modal">
+      <div class="dsl-builder-content">
+        <div class="dsl-header">
+          <h3>{{ dslBuilderType === 'if' ? '条件表达式构建器' : '操作表达式构建器' }}</h3>
+          <button class="btn small" @click="closeDslBuilder">×</button>
+        </div>
+
+        <div class="dsl-builder-body">
+          <!-- 左侧：构建组件 -->
+          <div class="dsl-components">
+            <div class="component-section">
+              <h4>路径选择</h4>
+              <button class="btn small" @click="addPathComponent('$[$this]')">当前路径 ($[$this])</button>
+              <button class="btn small" @click="showPathSelector">选择其他路径...</button>
+              <div v-if="selectedPath" class="selected-path">
+                已选择: {{ selectedPath }}
+              </div>
+            </div>
+
+            <div v-if="dslBuilderType === 'if'" class="component-section">
+              <h4>比较运算符</h4>
+              <div class="operator-grid">
+                <button class="btn small" @click="addOperator('?[==]')">等于 (==)</button>
+                <button class="btn small" @click="addOperator('?[>]')">大于 (>)</button>
+                <button class="btn small" @click="addOperator('?[<]')">小于 (&lt;)</button>
+                <button class="btn small" @click="addOperator('?[>=]')">大于等于 (>=)</button>
+                <button class="btn small" @click="addOperator('?[<=]')">小于等于 (&ge;)</button>
+              </div>
+            </div>
+
+            <div v-if="dslBuilderType === 'op'" class="component-section">
+              <h4>算术运算符</h4>
+              <div class="operator-grid">
+                <button class="btn small" @click="addOperator('#[+]')">加 (+)</button>
+                <button class="btn small" @click="addOperator('#[-]')">减 (-)</button>
+                <button class="btn small" @click="addOperator('#[*]')">乘 (*)</button>
+                <button class="btn small" @click="addOperator('#[/]')">除 (/)</button>
+                <button class="btn small" @click="addOperator('#[%]')">取余 (%)</button>
+                <button class="btn small" @click="addOperator('#[**]')">幂 (**)</button>
+              </div>
+
+              <h4>函数运算符</h4>
+              <div class="operator-grid">
+                <button class="btn small" @click="addFunction('#[{ln}]')">自然对数 (ln)</button>
+                <button class="btn small" @click="addFunction('#[{log2}]')">对数 (log2)</button>
+                <button class="btn small" @click="addFunction('#[{sqrt}]')">平方根 (sqrt)</button>
+                <button class="btn small" @click="addFunction('#[{abs}]')">绝对值 (abs)</button>
+                <button class="btn small" @click="addFunction('#[{floor}]')">向下取整 (floor)</button>
+                <button class="btn small" @click="addFunction('#[{ceil}]')">向上取整 (ceil)</button>
+              </div>
+            </div>
+
+            <div class="component-section">
+              <h4>逻辑运算符</h4>
+              <div class="operator-grid">
+                <button class="btn small" @click="addOperator('?[&&]')">与 (&&)</button>
+                <button class="btn small" @click="addOperator('?[||]')">或 (||)</button>
+                <button class="btn small" @click="addParentheses">添加括号 ()</button>
+              </div>
+            </div>
+
+            <div class="component-section">
+              <h4>值</h4>
+              <div class="value-input">
+                <input v-model="customValue" placeholder="输入值" />
+                <select v-model="valueType">
+                  <option value="num">数字</option>
+                  <option value="str">字符串</option>
+                  <option value="bool">布尔值</option>
+                </select>
+                <button class="btn small primary" @click="addCustomValue">添加值</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：表达式预览和编辑 -->
+          <div class="dsl-preview-area">
+            <div class="expression-preview">
+              <h4>表达式预览</h4>
+              <div class="expression-display">
+                <code>{{ dslExpression }}</code>
+              </div>
+              <div class="expression-raw">
+                <strong>原始表达式:</strong>
+                <pre>{{ currentDslExpressionPreview }}</pre>
+              </div>
+            </div>
+
+            <div class="expression-editor">
+              <h4>手动编辑</h4>
+              <textarea v-model="currentDslExpression" rows="4" placeholder="可以在此处手动编辑表达式..."></textarea>
+              <div class="editor-actions">
+                <button class="btn small danger" @click="clearDslExpression">清空</button>
+                <button class="btn small" @click="validateExpression">验证</button>
+              </div>
+            </div>
+
+            <div class="dsl-actions">
+              <button class="btn primary" @click="applyDslExpression">应用表达式</button>
+              <button class="btn" @click="closeDslBuilder">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DSL 测试器模态框 -->
+    <div v-if="showDslTester" class="dsl-tester-modal">
+      <div class="dsl-tester-content">
+        <div class="tester-header">
+          <h3>DSL 表达式测试器</h3>
+          <button class="btn small" @click="closeDslTester">×</button>
+        </div>
+
+        <div class="tester-body">
+          <div class="tester-inputs">
+            <div class="field">
+              <label>条件表达式 (if):</label>
+              <input v-model="testIfExpr" placeholder="<<if> $[路径] ?[>=] &[{num}40]>" />
+            </div>
+            <div class="field">
+              <label>操作表达式 (op):</label>
+              <input v-model="testOpExpr" placeholder="<<op> $[路径] #[+] &[{num}10]>" />
+            </div>
+            <div class="field">
+              <label>测试路径:</label>
+              <input v-model="testPath" placeholder="角色.角色A.特殊状态.好感度" />
+            </div>
+
+            <div class="tester-actions">
+              <button class="btn primary" @click="runDslTest">运行测试</button>
+              <button class="btn" @click="closeDslTester">关闭</button>
+            </div>
+          </div>
+
+          <div class="tester-output">
+            <h4>测试结果</h4>
+            <pre v-if="testResultText">{{ testResultText }}</pre>
+            <div v-else class="empty-result">
+              测试结果将显示在这里
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 自定义弹窗组件 -->
     <EraConfirmModal
       v-model:visible="showDeleteConfirm"
       title="确认删除"
-      content= "确定要删除该规则吗,此操作不可恢复"
+      content="确定要删除该规则吗？此操作不可恢复"
       type="confirm"
       confirm-text="确认删除"
       cancel-text="取消"
@@ -221,40 +402,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
 import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
 import JsonTree from '../components/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
+import { DSLHandler } from '../../../Utils/DSLHandler/DSLHandler';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
 const rules = ref<Record<string, any>>({});
 const testResult = ref<any>();
-const folded = ref<Record<string, boolean>>({}); // 折叠状态
-const editingKey = ref<string>(''); // 正在编辑的规则 key
-const editKeyLocked = ref<boolean>(false); // 是否锁定 key（更新时只读）
+const folded = ref<Record<string, boolean>>({});
+const editingKey = ref<string>('');
+const editKeyLocked = ref<boolean>(false);
 const draft = ref<any>({
-  enable: true, // 默认启用
+  enable: true,
   path: '',
   order: 0,
   handle: {},
-  setIf: null, // 默认无setIf条件
-}); // 当前表单草稿
+  range: [],
+  limit: [],
+});
 
-// 修改为独立的 min/max/neg/pos 变量
 const draftRangeMin = ref<number | null>(null);
 const draftRangeMax = ref<number | null>(null);
 const draftLimitNeg = ref<number | null>(null);
 const draftLimitPos = ref<number | null>(null);
 
 const activeTab = ref<'data' | 'rule' | 'test' | 'list'>('data');
-const showDeleteConfirm = ref(false); // 删除确认对话框显示状态
-const deletingKey = ref<string>(''); // 待删除的规则 key
-const showImportConfirm = ref(false); // 导入确认对话框显示状态
-const fileInputRef = ref<HTMLInputElement>(); // 文件输入引用
-const message = ref<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null); // 消息提示
+const showDeleteConfirm = ref(false);
+const deletingKey = ref<string>('');
+const showImportConfirm = ref(false);
+const fileInputRef = ref<HTMLInputElement>();
+const message = ref<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+// DSL 构建器相关
+const showDslBuilder = ref(false);
+const dslBuilderType = ref<'if' | 'op'>('if');
+const currentDslHandleKey = ref<string>('');
+const dslExpression = ref('');
+const currentDslExpression = ref(''); // 用于DSL构建器的原始表达式
+const selectedPath = ref<string>('');
+const customValue = ref<string>('');
+const valueType = ref<'num' | 'str' | 'bool'>('num');
+
+// DSL 测试器相关
+const showDslTester = ref(false);
+const testIfExpr = ref<string>('');
+const testOpExpr = ref<string>('');
+const testPath = ref<string>('');
+const testResultText = ref<string>('');
 
 const tabs = [
   { key: 'data', label: '查看数据' },
@@ -270,11 +469,10 @@ onMounted(async () => {
   const { stat_data } = getVariables({ type: 'chat' });
   statData.value = stat_data || {};
   await loadRules();
-  // 默认全部折叠
   Object.keys(rules.value).forEach(k => (folded.value[k] = true));
 });
 
-/* ---------- 工具 ---------- */
+/* ---------- 工具函数 ---------- */
 async function loadRules() {
   try {
     await eraStore.getEraDataRules();
@@ -290,17 +488,14 @@ function toggleFold(key: string) {
 }
 
 function editRule(key: string) {
-  // 把已有规则载入草稿
   editingKey.value = key;
   editKeyLocked.value = true;
   draft.value = JSON.parse(JSON.stringify(rules.value[key]));
 
-  // 确保enable字段存在（兼容旧规则）
   if (draft.value.enable === undefined) {
     draft.value.enable = true;
   }
 
-  // 加载范围限制和变化值限制
   if (draft.value.range && Array.isArray(draft.value.range) && draft.value.range.length >= 2) {
     draftRangeMin.value = draft.value.range[0];
     draftRangeMax.value = draft.value.range[1];
@@ -321,57 +516,34 @@ function editRule(key: string) {
 }
 
 function confirmSave() {
-  // 简单校验
   if (!editingKey.value) {
     showMessage('请输入规则名称', 'error');
     return;
   }
 
-  // 处理范围限制
   if (draftRangeMin.value !== null && draftRangeMax.value !== null) {
     draft.value.range = [draftRangeMin.value, draftRangeMax.value];
   } else {
     draft.value.range = [];
   }
 
-  // 处理变化值限制
   if (draftLimitNeg.value !== null && draftLimitPos.value !== null) {
     draft.value.limit = [draftLimitNeg.value, draftLimitPos.value];
   } else {
     draft.value.limit = [];
   }
 
-  // 处理setIf中的数值类型
-  if (draft.value.setIf) {
-    // 确保setIf.ifValue和setIf.keyValue是正确类型
-    const ifValue = draft.value.setIf.ifValue;
-    const keyValue = draft.value.setIf.keyValue;
-
-    if (!isNaN(ifValue) && ifValue !== '') {
-      draft.value.setIf.ifValue = Number(ifValue);
-    }
-
-    if (!isNaN(keyValue) && keyValue !== '') {
-      draft.value.setIf.keyValue = Number(keyValue);
-    }
-  }
-
-  // 新增 or 覆盖
   rules.value[editingKey.value] = JSON.parse(JSON.stringify(draft.value));
-  folded.value[editingKey.value] = true; // 默认折叠
+  folded.value[editingKey.value] = true;
 
-  // 保存到 store
   saveRules();
-
   showMessage(`规则 "${editingKey.value}" ${editKeyLocked.value ? '更新' : '添加'}成功`, 'success');
   cancelEdit();
 }
 
 async function saveRules() {
   try {
-    // 更新 store 中的规则
     eraStore.eraDataRule = { ...rules.value };
-    // 保存到后端
     await eraStore.saveEraDataRules();
     showMessage('规则保存成功', 'success');
   } catch (error) {
@@ -387,48 +559,29 @@ function cancelEdit() {
     path: '',
     order: 0,
     handle: {},
-    setIf: null,
+    range: [],
+    limit: [],
   };
-  // 清空输入框
   draftRangeMin.value = null;
   draftRangeMax.value = null;
   draftLimitNeg.value = null;
   draftLimitPos.value = null;
-  activeTab.value = 'list'; // 返回查看列表
-}
-
-function addSetIf() {
-  draft.value.setIf = {
-    path: '',
-    if: '==',
-    ifValue: '',
-    keyValue: '',
-  };
-}
-
-function parseSetIfValue() {
-  const value = draft.value.setIf?.ifValue;
-  if (value && !isNaN(value) && value !== '') {
-    draft.value.setIf.ifValue = Number(value);
-  }
-}
-
-function parseSetIfKeyValue() {
-  const value = draft.value.setIf?.keyValue;
-  if (value && !isNaN(value) && value !== '') {
-    draft.value.setIf.keyValue = Number(value);
-  }
+  activeTab.value = 'list';
 }
 
 function addHandle() {
-  const k = `target_${Date.now()}`;
+  const k = `handle_${Date.now()}`;
   if (!draft.value.handle) {
     draft.value.handle = {};
   }
-  draft.value.handle[k] = { op: 'add', path: '' };
+  draft.value.handle[k] = {
+    order: 0,
+    if: '',
+    op: ''
+  };
 }
 
-function delHandle(k: string) {
+function delHandle(k: string | number) {
   delete draft.value.handle[k];
 }
 
@@ -439,11 +592,9 @@ function usePathForRule(path: string) {
     path,
     order: 0,
     handle: {},
-    setIf: null,
     range: [],
     limit: [],
   };
-  // 切到"编辑规则"页签方便用户继续填写
   activeTab.value = 'rule';
   editingKey.value = key;
   editKeyLocked.value = false;
@@ -452,6 +603,242 @@ function usePathForRule(path: string) {
   draftRangeMax.value = null;
   draftLimitNeg.value = null;
   draftLimitPos.value = null;
+}
+
+/* ---------- DSL 构建器 ---------- */
+function openDslBuilder(type: 'if' | 'op', handleKey: string | number) {
+  dslBuilderType.value = type;
+  currentDslHandleKey.value = handleKey as string;
+
+  const handleItem = draft.value.handle[handleKey];
+  if (handleItem && handleItem[type]) {
+    currentDslExpression.value = handleItem[type];
+  } else {
+    currentDslExpression.value = '';
+  }
+
+  showDslBuilder.value = true;
+}
+
+function closeDslBuilder() {
+  showDslBuilder.value = false;
+  dslExpression.value = '';
+  currentDslExpression.value = '';
+  selectedPath.value = '';
+  customValue.value = '';
+}
+
+function applyDslExpression() {
+  if (!currentDslHandleKey.value || !currentDslExpression.value) {
+    showMessage('表达式为空', 'error');
+    return;
+  }
+
+  const handleItem = draft.value.handle[currentDslHandleKey.value];
+  if (handleItem) {
+    handleItem[dslBuilderType.value] = currentDslExpression.value;
+    showMessage('表达式已应用', 'success');
+  }
+
+  closeDslBuilder();
+}
+
+function addPathComponent(path: string) {
+  currentDslExpression.value = currentDslExpression.value + ' ' + path;
+}
+
+function showPathSelector() {
+  // 这里可以打开路径选择器，从 statData 中选择路径
+  selectedPath.value = draft.value.path || '$[$this]';
+  addPathComponent(`$[${selectedPath.value}]`);
+}
+
+function addOperator(operator: string) {
+  currentDslExpression.value = currentDslExpression.value + ' ' + operator;
+}
+
+function addFunction(func: string) {
+  currentDslExpression.value = currentDslExpression.value + ' ' + func;
+}
+
+function addParentheses() {
+  currentDslExpression.value = '(' + currentDslExpression.value + ')';
+}
+
+function addCustomValue() {
+  if (!customValue.value) {
+    showMessage('请输入值', 'error');
+    return;
+  }
+
+  let valueString = '';
+  switch (valueType.value) {
+    case 'num':
+      valueString = `&[{num}${customValue.value}]`;
+      break;
+    case 'str':
+      valueString = `&[{str}${customValue.value}]`;
+      break;
+    case 'bool':
+      valueString = `&[{bool}${customValue.value}]`;
+      break;
+  }
+
+  currentDslExpression.value = currentDslExpression.value + ' ' + valueString;
+  customValue.value = '';
+}
+
+function clearDslExpression() {
+  currentDslExpression.value = '';
+}
+
+function clearDsl(type: 'if' | 'op', handleKey: string | number) {
+  const handleItem = draft.value.handle[handleKey];
+  if (handleItem) {
+    handleItem[type] = '';
+  }
+}
+
+function validateExpression() {
+  if (!currentDslExpression.value) {
+    showMessage('表达式为空', 'error');
+    return;
+  }
+
+  try {
+    // 这里可以添加更复杂的验证逻辑
+    if (dslBuilderType.value === 'if') {
+      if (!currentDslExpression.value.includes('?[')) {
+        showMessage('条件表达式应包含比较运算符 ?[...]', 'warning');
+      }
+    } else if (!currentDslExpression.value.includes('#')) {
+        showMessage('操作表达式应包含操作符 #[...]', 'warning');
+      }
+    showMessage('表达式格式基本正确', 'success');
+  } catch (error) {
+    showMessage('表达式验证失败: ' + error, 'error');
+  }
+}
+
+// 计算 DSL 表达式预览
+const currentDslExpressionPreview = computed({
+  get: () => {
+    if (!currentDslExpression.value) return '';
+
+    if (dslBuilderType.value === 'if') {
+      return `<<if> ${currentDslExpression.value}>`;
+    } else {
+      return `<<op> ${currentDslExpression.value}>`;
+    }
+  },
+  set: (value) => {
+    // 移除前缀和后缀
+    if (value.startsWith('<<if> ') && value.endsWith('>')) {
+      currentDslExpression.value = value.slice(6, -1).trim();
+    } else if (value.startsWith('<<op> ') && value.endsWith('>')) {
+      currentDslExpression.value = value.slice(6, -1).trim();
+    } else {
+      currentDslExpression.value = value;
+    }
+  }
+});
+
+/* ---------- DSL 测试器 ---------- */
+function openDslTester() {
+  showDslTester.value = true;
+  testIfExpr.value = '';
+  testOpExpr.value = '';
+  testPath.value = '';
+  testResultText.value = '';
+}
+
+function closeDslTester() {
+  showDslTester.value = false;
+}
+
+function runDslTest() {
+  try {
+    const snap = JSON.parse(JSON.stringify(statData.value));
+    const testData = JSON.parse(JSON.stringify(statData.value));
+
+    if (!testPath.value) {
+      showMessage('请输入测试路径', 'error');
+      return;
+    }
+
+    const result = DSLHandler.testDsl(
+      testData,
+      snap,
+      testPath.value,
+      testIfExpr.value,
+      testOpExpr.value
+    );
+
+    testResultText.value = result;
+    showMessage('DSL 测试完成', 'success');
+  } catch (error) {
+    testResultText.value = `测试失败: ${error}`;
+    showMessage('测试失败: ' + error, 'error');
+  }
+}
+
+function testRuleDsl(ruleKey: string) {
+  const rule = rules.value[ruleKey];
+  if (!rule || !rule.handle) {
+    showMessage('该规则没有配置 handle', 'warning');
+    return;
+  }
+
+  let testOutput = `规则: ${ruleKey}\n`;
+  testOutput += `路径: ${rule.path}\n`;
+  testOutput += '='.repeat(40) + '\n\n';
+
+  for (const [handleKey, handleItem] of Object.entries(rule.handle as Record<string, any>)) {
+    testOutput += `handle: ${handleKey}\n`;
+
+    if (handleItem.if) {
+      testOutput += `条件表达式: ${handleItem.if}\n`;
+    }
+
+    if (handleItem.op) {
+      testOutput += `操作表达式: ${handleItem.op}\n`;
+    }
+
+    testOutput += '-'.repeat(30) + '\n';
+  }
+
+  showDslTester.value = true;
+  testPath.value = rule.path;
+  testResultText.value = testOutput;
+}
+
+function testAllDslExpressions() {
+  let testOutput = '所有规则 DSL 表达式测试\n';
+  testOutput += '='.repeat(50) + '\n\n';
+
+  for (const [ruleKey, rule] of Object.entries(rules.value)) {
+    if (!rule.handle || Object.keys(rule.handle).length === 0) continue;
+
+    testOutput += `规则: ${ruleKey}\n`;
+    testOutput += `路径: ${rule.path}\n`;
+
+    for (const [handleKey, handleItem] of Object.entries(rule.handle as Record<string, any>)) {
+      testOutput += `  handle: ${handleKey}\n`;
+
+      if (handleItem.if) {
+        testOutput += `    条件: ${handleItem.if}\n`;
+      }
+
+      if (handleItem.op) {
+        testOutput += `    操作: ${handleItem.op}\n`;
+      }
+    }
+
+    testOutput += '-'.repeat(40) + '\n';
+  }
+
+  showDslTester.value = true;
+  testResultText.value = testOutput;
 }
 
 /* ---------- 删除功能 ---------- */
@@ -469,14 +856,9 @@ async function executeDelete() {
   if (!deletingKey.value) return;
 
   try {
-    // 从规则对象中删除
     delete rules.value[deletingKey.value];
-    // 从折叠状态中删除
     delete folded.value[deletingKey.value];
-
-    // 保存更新后的规则
     await saveRules();
-
     showMessage(`规则 "${deletingKey.value}" 删除成功`, 'success');
   } catch (error) {
     showMessage('删除失败: ' + error, 'error');
@@ -489,8 +871,6 @@ async function executeDelete() {
 function exportRules() {
   try {
     const exported = exportRulesToJson(rules.value);
-
-    // 创建下载链接
     const blob = new Blob([exported], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -500,7 +880,6 @@ function exportRules() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
     showMessage('规则导出成功', 'success');
   } catch (error) {
     showMessage('导出失败: ' + error, 'error');
@@ -508,7 +887,6 @@ function exportRules() {
 }
 
 function importRules() {
-  // 触发文件选择
   if (fileInputRef.value) {
     fileInputRef.value.click();
   }
@@ -526,20 +904,16 @@ function handleFileImport(event: Event) {
       const content = e.target?.result as string;
       const importedRules = importRulesFromJson(content);
 
-      // 检查导入的规则格式
       if (!importedRules || typeof importedRules !== 'object') {
         showMessage('导入失败：文件格式不正确', 'error');
         return;
       }
 
-      // 显示确认对话框
       showImportConfirm.value = true;
-      // 保存导入的规则到临时变量
       (window as any)._tempImportedRules = importedRules;
     } catch (error) {
       showMessage('导入失败：' + error, 'error');
     } finally {
-      // 重置文件输入
       if (fileInputRef.value) {
         fileInputRef.value.value = '';
       }
@@ -562,16 +936,10 @@ async function executeImport() {
       return;
     }
 
-    // 替换当前规则
     rules.value = importedRules;
-
-    // 重置折叠状态
     folded.value = {};
     Object.keys(rules.value).forEach(k => (folded.value[k] = true));
-
-    // 保存到 store
     await saveRules();
-
     showMessage('规则导入成功', 'success');
     showImportConfirm.value = false;
     delete (window as any)._tempImportedRules;
@@ -1131,8 +1499,389 @@ input:checked + .toggle-label:before {
 }
 
 
+
+/* DSL 构建器模态框 */
+.dsl-builder-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dsl-builder-content {
+  background: white;
+  width: 90%;
+  max-width: 1000px;
+  height: 80vh;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dsl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dsl-builder-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dsl-components {
+  flex: 0 0 40%;
+  padding: 16px;
+  overflow-y: auto;
+  border-right: 1px solid #e2e8f0;
+  background: #f9fafb;
+}
+
+.component-section {
+  margin-bottom: 20px;
+}
+
+.component-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.operator-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.value-input {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.value-input input,
+.value-input select {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.selected-path {
+  margin-top: 8px;
+  padding: 6px;
+  background: #e8f4fd;
+  border: 1px solid #b3d4fc;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #0369a1;
+}
+
+.dsl-preview-area {
+  flex: 0 0 60%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.expression-preview,
+.expression-editor {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.expression-display {
+  margin: 8px 0;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.expression-raw {
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.expression-raw pre {
+  margin: 4px 0 0 0;
+  padding: 6px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.expression-editor textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.dsl-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+/* DSL 测试器模态框 */
+.dsl-tester-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dsl-tester-content {
+  background: white;
+  width: 90%;
+  max-width: 800px;
+  height: 70vh;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tester-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tester-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tester-inputs {
+  flex: 0 0 40%;
+  padding: 16px;
+  overflow-y: auto;
+  border-right: 1px solid #e2e8f0;
+}
+
+.tester-inputs .field {
+  margin-bottom: 12px;
+}
+
+.tester-inputs .field label {
+  width: 100px;
+}
+
+.tester-inputs input {
+  flex: 1;
+}
+
+.tester-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 8px;
+}
+
+.tester-output {
+  flex: 0 0 60%;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.tester-output h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #111827;
+}
+
+.tester-output pre {
+  margin: 0;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-height: calc(100% - 30px);
+  overflow-y: auto;
+}
+
+.empty-result {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* handle 区域样式更新 */
+.handle-area {
+  margin-top: 16px;
+}
+
+.handle-area-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.handle-editor {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.handle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dsl-builder {
+  margin: 8px 0;
+}
+
+.dsl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.dsl-header label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dsl-preview input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 11px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.dsl-preview input:hover {
+  background: #f1f5f9;
+}
+
+/* 规则列表中的 handle 显示 */
+.handle-list {
+  margin: 12px 0;
+}
+
+.handle-list .handle-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.handle-expression {
+  margin: 4px 0;
+  font-size: 11px;
+  color: #4b5563;
+  overflow-x: auto;
+  word-break: break-all;
+}
+
+.handle-expression strong {
+  color: #111827;
+}
+
+/* 测试控制按钮 */
+.test-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* 规则详情显示 */
+.rule-details {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.rule-details div {
+  margin: 4px 0;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
+  .dsl-builder-body,
+  .tester-body {
+    flex-direction: column;
+  }
+
+  .dsl-components,
+  .dsl-preview-area,
+  .tester-inputs,
+  .tester-output {
+    flex: none;
+    width: 100%;
+    height: auto;
+    max-height: 50%;
+    overflow-y: auto;
+  }
+
+  .dsl-components,
+  .tester-inputs {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .operator-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .sticky-tabs {
     padding: 0;
   }

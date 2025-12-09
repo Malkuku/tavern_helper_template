@@ -59,6 +59,37 @@ const getValueByPathDirect = (data: any, path: string, snapshot?: any): any[] =>
 }
 
 /**
+ * 测试dsl语法
+ * @param testData 测试数据
+ * @param snapshot 快照数据
+ * @param path 测试路径
+ * @param ifExpr if表达式 '<<if> $[角色.角色A.特殊状态.好感度] ?[>=] &[{num}40]>'
+ * @param opExpr op表达式 '<<op> $[角色.角色A.特殊状态.好感度] #[+] &[{num}10]>
+ */
+const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,opExpr: string)=>{
+  const planeSnapshot = JSON.parse(JSON.stringify(snapshot));
+  const context = createEvalContext(testData, planeSnapshot, path);
+  // 测试条件表达式
+  let output = '';
+  if(ifExpr){
+    const result = DSLEngine.evaluateIf(ifExpr, context);
+    output += `条件表达式：${ifExpr}\n`;
+    output += `条件表达式结果：${JSON.stringify(result)}\n`
+    output += '========================\n';
+  }
+
+  // 测试操作表达式
+  if(opExpr){
+    const result = DSLEngine.evaluateOp(opExpr, context);
+    output += `操作表达式：${opExpr}\n`;
+    output += `条件表达式结果：${JSON.stringify(result)}\n`;
+    output += '========================\n';
+  }
+
+  return output;
+}
+
+/**
  * 向外提供dsl的接口
  */
 export const DSLHandler = {
@@ -66,5 +97,6 @@ export const DSLHandler = {
   evaluateIf,
   evaluateOp,
   getValueByPath,
-  getValueByPathDirect
+  getValueByPathDirect,
+  testDsl
 }
