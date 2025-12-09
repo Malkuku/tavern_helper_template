@@ -1210,10 +1210,26 @@ textarea::placeholder {
 .tree-editor {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   width: 100%;
   // 确保有足够的空间显示节点上方的按钮
   padding-top: 10px;
+  
+  // 添加滚动条样式
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
 }
 
 .json-tree {
@@ -1221,6 +1237,8 @@ textarea::placeholder {
   min-width: min-content;
   // 确保树容器可以容纳换行的内容
   width: 100%;
+  // 添加最小宽度以支持横向滚动
+  min-width: fit-content;
 }
 
 // 原始JSON编辑器
@@ -1319,11 +1337,7 @@ textarea::placeholder {
 
 // 添加字段模态框样式
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: absolute;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -1336,8 +1350,8 @@ textarea::placeholder {
   background: white;
   border-radius: 12px;
   width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
+  max-width: 450px;
+  max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease;

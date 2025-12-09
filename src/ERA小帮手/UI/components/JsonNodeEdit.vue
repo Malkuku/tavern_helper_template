@@ -268,14 +268,14 @@ watch(isEditing, (editing) => {
 
 
 <style scoped lang="scss">
-//TODO 横向滚动问题
+//TODO 目前移动端的按钮悬浮定位仍然有非常大的问题，暂时不知道怎么修
 .json-node {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', 'JetBrains Mono', monospace;
   font-size: 11px;
   line-height: 1.5;
   position: relative;
   // 为节点设置最大宽度，超出则换行
-  max-width: 550px;
+  max-width: unset;
 
   // 添加连接线
   &::before {
@@ -305,6 +305,8 @@ watch(isEditing, (editing) => {
     gap: 4px;
     // 允许换行显示
     flex-wrap: wrap;
+    // 确保内容可以正确换行
+    min-width: min-content;
 
     // 当悬停或编辑时，为按钮留出空间
     &:hover,
@@ -359,8 +361,8 @@ watch(isEditing, (editing) => {
     }
 
     .arrow-icon {
-      width: 12px;
-      height: 12px;
+      width: 15px;
+      height: 15px;
       color: #6b7280;
       transition: transform 0.2s ease;
     }
@@ -563,6 +565,22 @@ watch(isEditing, (editing) => {
     .line:hover & {
       opacity: 1;
     }
+
+    // 移动端适配，增加按钮尺寸
+    @media (max-width: 768px) {
+      gap: 6px;
+      padding: 4px 6px;
+
+      .action-btn {
+        padding: 4px 10px;
+        font-size: 12px;
+        min-width: 40px;
+        min-height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
   }
 
   // 当节点处于编辑状态时，确保有足够的空间显示按钮
@@ -580,6 +598,11 @@ watch(isEditing, (editing) => {
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    min-width: 30px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
       background: #f1f5f9;

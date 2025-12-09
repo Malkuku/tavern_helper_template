@@ -191,8 +191,8 @@ function getCollapsePreview(node: JsonNodeType): string {
     }
 
     .arrow-icon {
-      width: 12px;
-      height: 12px;
+      width: 15px;
+      height: 15px;
       color: #6b7280;
       transition: transform 0.2s ease;
     }

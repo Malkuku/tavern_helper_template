@@ -97,11 +97,19 @@ function onRemove(path: string) {
   font-size: 11px;
   // 添加横向滚动以防止内容溢出
   overflow-x: auto;
-  // 隐藏滚动条但保留滚动功能
+  // 不隐藏滚动条，让用户知道可以滚动
   &::-webkit-scrollbar {
-    display: none;
+    height: 8px;
   }
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
 }
 </style>
