@@ -72,9 +72,9 @@ function formatValue(value: any): string {
     case 'string':
       return `"${value}"`
     case 'number':
-      return `<number>${value}`
+      return `${value}`
     case 'boolean':
-      return `<boolean>${value}`
+      return `${value}`
     case 'object':
       if (value === null) return 'null'
       if (Array.isArray(value)) return `[${value.length} items]`
@@ -238,7 +238,10 @@ function getCollapsePreview(node: JsonNodeType): string {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 400px;
+    white-space: normal;
+    word-break: break-all;
+    word-wrap: break-word;
 
     // 不同类型值的颜色
     &.type-string {
@@ -287,16 +290,17 @@ function getCollapsePreview(node: JsonNodeType): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 15px;
+    height: 15px;
     padding: 0;
     border: none;
     border-radius: 6px;
-    color: white;
+    color: #fffbfb;
     cursor: pointer;
     opacity: 0;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    background-color: #b6ffbb;
     box-shadow: 0 1px 2px rgba(99, 102, 241, 0.2);
 
     // 修正选择器：从 .line:hover & 改为直接父元素选择器
@@ -305,8 +309,8 @@ function getCollapsePreview(node: JsonNodeType): string {
     }
 
     &:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
+      background: #75b8f1;
+      border-color: #75b8f1;
     }
 
     &:active {
@@ -333,7 +337,10 @@ function getCollapsePreview(node: JsonNodeType): string {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 400px;
+    white-space: normal;
+    word-break: break-all;
+    word-wrap: break-word;
 
     .ellipsis {
       display: inline-block;

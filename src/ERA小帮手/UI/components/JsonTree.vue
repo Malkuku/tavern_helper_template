@@ -57,5 +57,7 @@ function onToggle(n: JsonNodeType) {
 .json-tree {
   font-family: monospace;
   font-size: 11px;
+  overflow-x: auto; /* 添加横向滚动 */
+  white-space: nowrap; /* 防止换行 */
 }
 </style>
