@@ -1103,6 +1103,14 @@ textarea::placeholder {
   height: 100%;
   display: flex;
   flex-direction: column;
+  // 添加横向滚动支持
+  overflow-x: auto;
+}
+
+.json-tree {
+  padding: 16px;
+  // 确保内容宽度适应其子元素
+  min-width: 100%;
 }
 
 // 编辑模式选择器
@@ -1202,13 +1210,17 @@ textarea::placeholder {
 .tree-editor {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto; // 添加横向滚动
-  min-width: min-content; // 确保内容不会被压缩
+  overflow-x: hidden;
+  width: 100%;
+  // 确保有足够的空间显示节点上方的按钮
+  padding-top: 10px;
 }
 
 .json-tree {
   padding: 16px;
   min-width: min-content;
+  // 确保树容器可以容纳换行的内容
+  width: 100%;
 }
 
 // 原始JSON编辑器

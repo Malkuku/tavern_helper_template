@@ -91,9 +91,17 @@ function onRemove(path: string) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .json-tree {
   font-family: monospace;
   font-size: 11px;
+  // 添加横向滚动以防止内容溢出
+  overflow-x: auto;
+  // 隐藏滚动条但保留滚动功能
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

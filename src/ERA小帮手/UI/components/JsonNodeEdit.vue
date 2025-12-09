@@ -80,7 +80,13 @@
       </template>
 
       <!-- 操作按钮（编辑模式启用时显示，且不在编辑状态） -->
-      <div v-if="editModeEnabled && !isEditing" class="node-actions">
+      <div
+        v-if="editModeEnabled && !isEditing"
+        class="node-actions"
+        :class="{ visible: showActions }"
+        @mouseenter="showActions = true"
+        @mouseleave="showActions = false"
+      >
         <button
           class="action-btn"
           title="添加子节点"
@@ -142,6 +148,9 @@ const emit = defineEmits<{
   (e: 'add-child', path: string): void
   (e: 'remove', path: string): void
 }>()
+
+// 控制动作按钮显示状态
+const showActions = ref(false)
 
 // 计算属性：是否启用编辑模式
 const editModeEnabled = computed(() => props.editMode !== false) // 默认启用
@@ -265,6 +274,8 @@ watch(isEditing, (editing) => {
   font-size: 11px;
   line-height: 1.5;
   position: relative;
+  // 为节点设置最大宽度，超出则换行
+  max-width: 550px;
 
   // 添加连接线
   &::before {
@@ -285,13 +296,21 @@ watch(isEditing, (editing) => {
 
   .line {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     min-height: 28px;
     padding: 4px 8px;
     position: relative;
     z-index: 1;
     transition: background-color 0.15s ease;
     gap: 4px;
+    // 允许换行显示
+    flex-wrap: wrap;
+
+    // 当悬停或编辑时，为按钮留出空间
+    &:hover,
+    &.editing {
+      padding-top: 35px;
+    }
 
     &:hover {
       background-color: rgba(99, 102, 241, 0.05);
@@ -331,6 +350,7 @@ watch(isEditing, (editing) => {
     transition: all 0.2s ease;
     border-radius: 3px;
     flex-shrink: 0;
+    margin-top: 6px;
 
     &:hover {
       opacity: 1;
@@ -370,8 +390,8 @@ watch(isEditing, (editing) => {
   .value-area {
     display: flex;
     align-items: center;
-    flex: 1;
     min-width: 0;
+    flex: 1 1 auto;
   }
 
   .val {
@@ -382,12 +402,12 @@ watch(isEditing, (editing) => {
     border-radius: 4px;
     border: 1px solid #f3f4f6;
     line-height: 1.3;
-    flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-all;
+    word-wrap: break-word;
     cursor: pointer;
+    max-width: 400px;
 
     // 不同类型值的颜色
     &.type-string {
@@ -441,7 +461,6 @@ watch(isEditing, (editing) => {
     border-radius: 4px;
     border: 1px dashed #e5e7eb;
     line-height: 1.3;
-    flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -460,7 +479,8 @@ watch(isEditing, (editing) => {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
   }
 
   // 重要：强制选择框在浅色模式下显示
@@ -528,8 +548,26 @@ watch(isEditing, (editing) => {
     gap: 4px;
     opacity: 0;
     transition: opacity 0.2s ease;
-    margin-left: auto;
-    flex-shrink: 0;
+    position: absolute;
+    top: 5px;
+    left: 50px;
+    background: white;
+    border-radius: 4px;
+    padding: 2px 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+    white-space: nowrap;
+
+    // 显示状态
+    &.visible,
+    .line:hover & {
+      opacity: 1;
+    }
+  }
+
+  // 当节点处于编辑状态时，确保有足够的空间显示按钮
+  &.editing .line {
+    margin-top: 30px;
   }
 
   .action-btn {
@@ -571,6 +609,7 @@ watch(isEditing, (editing) => {
     border-left: 1px dashed #e2e8f0;
     margin-left: 10px;
     padding-left: 10px;
+    min-width: fit-content;
   }
 
   // 最后一个节点的连接线调整
