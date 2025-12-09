@@ -23,7 +23,6 @@
         <h2>规则列表</h2>
         <div class="import-export-buttons">
           <FileImportExport
-            ref="ruleImportExportRef"
             import-text="导入规则"
             export-text="导出规则"
             confirm-title="导入规则"
@@ -365,9 +364,6 @@ const testOpExpr = ref<string>('');
 const testPath = ref<string>('');
 const testRulesData = ref<Array<{name: string, rule: any}> | null>(null);
 const testResultText = ref<string>('');
-
-// 引入新的导入导出组件引用
-const ruleImportExportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
 
 const tabs = [
   { key: 'data', label: '查看数据' },

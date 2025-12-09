@@ -1,35 +1,35 @@
 <template>
   <div class="file-import-export">
-    <input 
-      ref="fileInputRef" 
-      type="file" 
-      :accept="accept" 
-      style="display: none" 
+    <input
+      ref="fileInputRef"
+      type="file"
+      :accept="accept"
+      style="display: none"
       @change="handleFileImport"
     />
-    
-    <div class="button-group" v-if="showButtons">
-      <button 
-        class="btn small" 
+
+    <div v-if="showButtons" class="button-group">
+      <button
+        class="btn small"
         :class="{ disabled: importing }"
         @click="triggerImport"
       >
         <span v-if="importing" class="loading-spinner"></span>
         {{ importText }}
       </button>
-      
-      <button 
-        class="btn small primary" 
+
+      <button
+        class="btn small primary"
         :class="{ disabled: exporting }"
         @click="exportFile"
       >
         <span v-if="exporting" class="loading-spinner"></span>
         {{ exportText }}
       </button>
-      
+
       <slot name="extra-buttons"></slot>
     </div>
-    
+
     <!-- 确认对话框 -->
     <EraConfirmModal
       v-model:visible="showConfirm"
@@ -41,7 +41,7 @@
       @confirm="executeImport"
       @cancel="cancelImport"
     />
-    
+
     <!-- 消息提示 -->
     <div v-if="message" class="status-message" :class="message.type">
       {{ message.text }}
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import EraConfirmModal from './EraConfirmModal.vue';
 
 // Props 定义
@@ -115,7 +115,7 @@ const tempFileData = ref<{ content: string; file: File } | null>(null);
 // 触发文件选择
 function triggerImport() {
   if (importing.value) return;
-  
+
   if (fileInputRef.value) {
     fileInputRef.value.click();
   }
@@ -128,12 +128,12 @@ function handleFileImport(event: Event) {
 
   const file = input.files[0];
   emit('file-selected', file);
-  
+
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
       const content = e.target?.result as string;
-      
+
       // 如果需要确认，则显示确认对话框
       if (props.requireConfirm) {
         tempFileData.value = { content, file };
@@ -142,7 +142,7 @@ function handleFileImport(event: Event) {
         // 直接执行导入
         emit('import-confirmed', content, file);
       }
-      
+
       emit('file-loaded', content, file);
     } catch (error) {
       const errorMsg = `文件读取失败: ${error}`;
@@ -171,7 +171,7 @@ function handleFileImport(event: Event) {
 // 执行导入
 function executeImport() {
   showConfirm.value = false;
-  
+
   if (tempFileData.value) {
     importing.value = true;
     try {
@@ -200,7 +200,7 @@ function cancelImport() {
 // 导出文件
 function exportFile() {
   if (exporting.value) return;
-  
+
   exporting.value = true;
   try {
     emit('export-data');
@@ -218,17 +218,11 @@ function exportFile() {
 function showMessage(text: string, type: 'success' | 'error' | 'warning') {
   message.value = { text, type };
   emit('message', text, type);
-  
+
   setTimeout(() => {
     message.value = null;
   }, 3000);
 }
-
-// 暴露方法给父组件
-defineExpose({
-  triggerImport,
-  exportFile
-});
 </script>
 
 <style scoped lang="scss">
@@ -319,4 +313,3 @@ defineExpose({
   border: 1px solid #fde68a;
 }
 </style>
-</file>
