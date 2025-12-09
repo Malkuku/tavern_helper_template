@@ -75,16 +75,14 @@ interface Props {
   ifExpr?: string;
   opExpr?: string;
   path?: string;
-  ruleData?: SingleRuleData | null;
-  allRulesData?: Array<{name: string, rule: any}> | null;
+  rulesData?: Array<{name: string, rule: any}> | null;
   resultText?: string;
+  statData?: any;
 }
 
 interface Emits {
   (e: 'update:visible', value: boolean): void;
   (e: 'close'): void;
-  (e: 'run-test', data: { ifExpr: string; opExpr: string; path: string }): void;
-  (e: 'run-rules-test', rulesData: Array<{name: string, rule: any}>): void;
   (e: 'update:if-expr', value: string): void;
   (e: 'update:op-expr', value: string): void;
   (e: 'update:path', value: string): void;
@@ -94,9 +92,9 @@ const props = withDefaults(defineProps<Props>(), {
   ifExpr: '',
   opExpr: '',
   path: '',
-  ruleData: null,
-  allRulesData: null,
-  resultText: ''
+  rulesData: null,
+  resultText: '',
+  statData: () => ({})
 });
 
 const emit = defineEmits<Emits>();
@@ -105,13 +103,13 @@ const localIfExpr = ref(props.ifExpr);
 const localOpExpr = ref(props.opExpr);
 const localPath = ref(props.path);
 const resultText = ref(props.resultText);
-const ruleName = ref(props.ruleData?.name || '');
-const rulePath = ref(props.ruleData?.path || '');
+const ruleName = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].name : '');
+const rulePath = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].rule.path : '');
 
 // 确定测试模式
 const testMode = computed(() => {
-  if (props.allRulesData) return 'all';
-  if (props.ruleData) return 'rule';
+  if (props.rulesData && props.rulesData.length > 1) return 'all';
+  if (props.rulesData && props.rulesData.length === 1) return 'rule';
   return 'single';
 });
 
@@ -141,9 +139,11 @@ watch(() => props.resultText, (value) => {
   resultText.value = value;
 });
 
-watch(() => props.ruleData, (value) => {
-  ruleName.value = value?.name || '';
-  rulePath.value = value?.path || '';
+watch(() => props.rulesData, (value) => {
+  if (value && value.length > 0) {
+    ruleName.value = value[0].name;
+    rulePath.value = value[0].rule.path;
+  }
 });
 
 // 同步本地变化到父组件
@@ -165,25 +165,53 @@ function handleClose() {
 }
 
 function handleRunTest() {
+  // 在发出事件之前，先打印调试信息，适用于所有情况
+  console.log('测试模式:', testMode.value);
+  console.log('发送测试信息:', {
+    ifExpr: localIfExpr.value,
+    opExpr: localOpExpr.value,
+    path: localPath.value,
+    rulesData: props.rulesData
+  });
+  
   switch (testMode.value) {
     case 'all':
-      runRulesTest(props.allRulesData || []);
-      break;
     case 'rule':
-      runRulesTest([{name: props.ruleData!.name, rule: {path: props.ruleData!.path, handle: props.ruleData!.handles}}]);
+      runRulesTest(props.rulesData || []);
       break;
     default:
-      // 在发出事件之前，先打印调试信息
-      console.log('Sending test data:', {
+      runSingleTest({
         ifExpr: localIfExpr.value,
         opExpr: localOpExpr.value,
         path: localPath.value
       });
-      emit('run-test', {
-        ifExpr: localIfExpr.value,
-        opExpr: localOpExpr.value,
-        path: localPath.value
-      });
+  }
+}
+
+function runSingleTest(data: { ifExpr: string; opExpr: string; path: string }) {
+  try {
+    // 打印传入的数据用于调试
+    console.log('Received test data:', data);
+    
+    const snap = JSON.parse(JSON.stringify(props.statData));
+    const testData = JSON.parse(JSON.stringify(props.statData));
+
+    if (!data.path) {
+      resultText.value = '请输入测试路径';
+      return;
+    }
+
+    const result = DSLHandler.testDsl(
+      testData,
+      snap,
+      data.path,
+      data.ifExpr,
+      data.opExpr
+    );
+
+    resultText.value = result;
+  } catch (error) {
+    resultText.value = `测试失败: ${error}`;
   }
 }
 
@@ -194,18 +222,21 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
     if (rulesData.length > 1) {
       output = '所有规则 DSL 表达式测试\n';
       output += '='.repeat(50) + '\n\n';
+    } else if (rulesData.length === 1) {
+      output = `规则: ${rulesData[0].name}\n`;
+      output += `路径: ${rulesData[0].rule.path}\n`;
+      output += '='.repeat(50) + '\n\n';
     }
 
     // 遍历所有规则
     for (const {name, rule} of rulesData) {
       if (!rule.handle || Object.keys(rule.handle).length === 0) {
-        output += `规则: ${name} (跳过 - 无handle)\n`;
-        output += '-'.repeat(40) + '\n';
+        output += `(跳过 - 无handle)\n`;
+        if (rulesData.length > 1) {
+          output += '-'.repeat(40) + '\n';
+        }
         continue;
       }
-
-      output += `规则: ${name}\n`;
-      output += `路径: ${rule.path}\n`;
 
       // 准备规则测试数据
       const handles = Object.entries(rule.handle as Record<string, any>).map(([key, handleItem]) => ({
@@ -219,13 +250,13 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
       const sortedHandles = [...handles].sort((a, b) => a.order - b.order);
 
       // 初始化测试数据和快照
-      const testData = JSON.parse(JSON.stringify((window as any).getVariables({ type: 'chat' }).stat_data || {}));
-      const snapshot = JSON.parse(JSON.stringify((window as any).getVariables({ type: 'chat' }).stat_data || {}));
+      const testData = JSON.parse(JSON.stringify(props.statData || {}));
+      const snapshot = JSON.parse(JSON.stringify(props.statData || {}));
 
       // 依次执行每个handle
       for (let i = 0; i < sortedHandles.length; i++) {
         const handle = sortedHandles[i];
-        output += `  第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order})\n`;
+        output += `第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order})\n`;
 
         try {
           // 使用当前testData作为输入进行测试
@@ -237,12 +268,12 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
             handle.opExpr || ''
           );
 
-          output += '  ' + result.split('\n').join('\n  ');
+          output += result.split('\n').join('\n') + '\n';
         } catch (error) {
-          output += `  测试执行出错: ${error}\n`;
+          output += `测试执行出错: ${error}\n`;
         }
 
-        output += '  ' + '-'.repeat(25) + '\n';
+        output += '-'.repeat(25) + '\n';
       }
 
       if (rulesData.length > 1) {
