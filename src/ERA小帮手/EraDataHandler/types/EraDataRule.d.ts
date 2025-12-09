@@ -7,19 +7,28 @@ export interface EraDataRule{
       limit?: [number, number] //数据限制 [-5,10]
       handle?:{ //处理函数
         [key: string]:{
-          "op":string //操作符 //add subtract multiply divide
-          "path":string //要处理的路径: this.path [op] handle.path
+          order: number //处理顺序，将所有规则按照顺序处理，值越小越先处理。默认为0
+          //判断可选条件表达式<<if>  >
+          // <<if> $[path] ?[==] $[$this]>
+          // <<if> ($[path1] ?[<=] $[$this]) ?[&&] ($[$this] ?(==) &[])>
+          // ?[] 写判断符号,支持== > < <= >= 符号 和 && || 逻辑运算符,()表示优先级
+          // $[] 里面写路径$this表示当前路径,否则用path表示一个完整路径
+          // &[{}] 表示一个值，可以是number,string,boolean,null,array,object
+          // 比如&[{num}1],符号为{num},{str},{bool},{null},{arr},{obj}
+          if?:string
+          //操作表达式 <<op> >
+          // <<op> $[path] #[+] $($this)>
+          // 用#[]表示操作符号,支持+ - * / % ** 运算符
+          // #[{}],表示一些特殊的符号,支持ln,log2,sqrt,abs,floor,ceil
+          // 比如#[{ln}$(path)] 表示ln(path)
+          // $[] 里面写路径，同上
+          // &[] 表示一个值，同上
+          op:string
         }
-      }
-      setIf?:{ //设置函数，当判断路径满足条件时，将此路径的值设置为keyValue
-        path:string //判断路径
-        if:string //判断条件[==,>,<,<=,>=]
-        ifValue:any //判断值
-        keyValue:any //要设置的值
       }
   }
 
   /**
-   * 优先级：1.setIf 2.handle 3.range 4.limit
+   * 优先级 1.handle 2.limit 3.range
    */
 }

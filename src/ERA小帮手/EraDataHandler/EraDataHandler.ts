@@ -1,30 +1,10 @@
 import { EraDataRule } from './types/EraDataRule';
-
+import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
 /**
- * 通过path路径获取对象的一个值
+ * 通过path路径获取对象的一个值（不支持通配符）
  */
 const getByPath = (obj: any, path: string): any =>
   path.split('.').reduce((o, k) => o?.[k], obj);
-
-/**
- * 通过path路径设置对象一个值
- */
-const setByPath = (obj: any, path: string, val: any): void => {
-  const keys = path.split('.');
-  const last = keys.pop()!;
-  const node = keys.reduce((o, k) => (o[k] ??= {}), obj);
-  node[last] = val;
-};
-
-function setByPathArray(root: any, path: string[], value: any) {
-  let cur = root;
-  for (let i = 0; i < path.length - 1; i++) {
-    const k = path[i];
-    if (!(k in cur) || typeof cur[k] !== 'object') cur[k] = {};
-    cur = cur[k];
-  }
-  cur[path[path.length - 1]] = value;
-}
 
 /**
  * 判断两个对象是否相等
@@ -50,135 +30,203 @@ const applyRange = (v: number, [min, max]: [number, number]): number =>
   Math.max(min, Math.min(v, max));
 
 /**
- * 限定增量范围
+ * 应用range限制
  */
-const applyDeltaLimit = (
-  oldV: number,
-  newV: number,
-  [neg, pos]: [number, number]
-): number => {
-  const d = newV - oldV;
-  return oldV + (d > 0 ? Math.min(d, pos) : Math.max(d, neg));
+const applyRangeLimit = (
+  data: any,
+  ruleItem: EraDataRule[string]
+): void => {
+  if (!ruleItem.range) return;
+
+  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
+  const [min, max] = ruleItem.range;
+
+  targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
+    if (typeof currentValue !== 'number') return;
+
+    const finalValue = applyRange(currentValue, [min, max]);
+
+    if (finalValue !== currentValue) {
+      const pathSegments = targetFullPath.split('.');
+      setByPathArray(data, pathSegments, finalValue);
+    }
+  });
 };
 
 /**
- * 设置函数，当判断路径满足条件时，将此路径的值设置为keyValue
+ * 应用limit限制（需要快照值）
  */
-const applySetIf = (
+const applyDeltaLimit = (
+  data: any,
+  snap: any,
+  ruleItem: EraDataRule[string]
+): void => {
+  if (!ruleItem.limit) return;
+
+  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
+  const [neg, pos] = ruleItem.limit;
+
+  targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
+    if (typeof currentValue !== 'number') return;
+
+    // 获取快照中的原始值
+    const snapValue = getByPath(snap, targetFullPath);
+    if (typeof snapValue !== 'number') return;
+
+    const d = currentValue - snapValue;
+    const finalValue = snapValue + (d > 0 ? Math.min(d, pos) : Math.max(d, neg));
+
+    if (finalValue !== currentValue) {
+      const pathSegments = targetFullPath.split('.');
+      setByPathArray(data, pathSegments, finalValue);
+    }
+  });
+};
+
+/**
+ * 处理单个handle（包含条件判断）
+ */
+const applyOneHandle = (
+  data: any,
+  snap: any,
+  ruleItem: EraDataRule[string],
+  handleKey: string,
+  handleItem: NonNullable<EraDataRule[string]['handle']>[string]
+): boolean => {
+  const { if: ifExpr, op: opExpr } = handleItem;
+
+  // 获取当前规则的目标路径（可能包含通配符）
+  const targetPathPattern = ruleItem.path;
+
+  // 获取所有匹配的目标路径位置
+  const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern);
+
+  // 如果没有匹配项，直接返回
+  if (targetMatches.length === 0) {
+    return false;
+  }
+
+  let hasApplied = false;
+
+  // 对每个匹配的目标路径进行处理
+  targetMatches.forEach(({ value: targetValue, path: targetFullPath }) => {
+    // 创建求值上下文
+    const context = DSLHandler.createEvalContext(data, snap, targetFullPath);
+
+    // 如果有条件表达式，先判断条件
+    if (ifExpr) {
+      const result = DSLHandler.evaluateIf(ifExpr, context);
+      if (!result.success || !result.value) {
+        return; // 条件不满足，跳过这个目标
+      }
+    }
+
+    // 执行操作表达式
+    const opResult = DSLHandler.evaluateOp(opExpr, context);
+    if (!opResult.success) {
+      console.warn(`操作表达式执行失败: ${opExpr}`, opResult.error);
+      return;
+    }
+
+    // 设置结果值（支持通配符的路径需要特殊处理）
+    const pathSegments = targetFullPath.split('.');
+    setByPathArray(data, pathSegments, opResult.value);
+
+    hasApplied = true;
+  });
+
+  return hasApplied;
+};
+
+/**
+ * 应用所有handles（修正排序逻辑）
+ */
+const applyHandles = (
   data: any,
   snap: any,
   ruleItem: EraDataRule[string]
 ): boolean => {
-  const { setIf } = ruleItem;
-  if (!setIf) return false;
+  if (!ruleItem.handle) return false;
 
-  const judgeVal = getByPath(snap, setIf.path);
+  let hasApplied = false;
 
-  let hit = false;
-  switch (setIf.if) {
-    case '==': hit = judgeVal === setIf.ifValue; break;
-    case '>':  hit = judgeVal >  setIf.ifValue;  break;
-    case '<':  hit = judgeVal <  setIf.ifValue;  break;
-    case '>=': hit = judgeVal >= setIf.ifValue;  break;
-    case '<=': hit = judgeVal <= setIf.ifValue;  break;
+  // 按照order排序处理，如果没有order则默认为0
+  const sortedHandles = Object.entries(ruleItem.handle)
+    .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+
+  for (const [handleKey, handleItem] of sortedHandles) {
+    const applied = applyOneHandle(data, snap, ruleItem, handleKey, handleItem);
+    if (applied) {
+      hasApplied = true;
+    }
   }
 
-  if (hit) {
-    setByPath(data, ruleItem.path, setIf.keyValue);
-  }
-  return hit; // 返回是否命中，便于外面决定是否跳过后续 handle
+  return hasApplied;
 };
 
 /**
- * this.path [op] handle.path
+ * 单条规则处理入口（修正处理顺序）
  */
-const applyOneHandle = (
-  data: any,
-  ruleItem: EraDataRule[string],
-  targetPath: string,
-  op: string,
-  sourcePath: string,
-  snap: any
-): void => {
-  const srcVal  = getByPath(snap, sourcePath);      // handle.path
-  const thisVal = getByPath(data, ruleItem.path);   // this.getByPath(data, targetPath);
-
-  if (typeof srcVal !== 'number' || typeof thisVal !== 'number') return;
-
-  let result = 0;
-  switch (op) {
-    case 'add':      result = thisVal + srcVal; break;
-    case 'subtract': result = thisVal - srcVal; break;
-    case 'multiply': result = thisVal * srcVal; break;
-    case 'divide':   result = srcVal === 0 ? 0 : thisVal / srcVal; break;
-    default: return;
-  }
-  setByPath(data, targetPath, result);
-};
-
-/* applyHandles */
-const applyHandles = (
-  data: any,
-  snap: any,
-  ruleItem: EraDataRule[string],
-  handles: NonNullable<EraDataRule[string]['handle']>
-): void => {
-  Object.entries(handles)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .forEach(([, { op, path: sourcePath }], idx, arr) => {
-      const targetPath = arr[idx][0];
-      applyOneHandle(data, ruleItem, targetPath, op, sourcePath, snap);
-    });
-};
-
-/* 改写后的单条规则入口 */
 const applyOneRule = (
   data: any,
   snap: any,
   ruleItem: EraDataRule[string]
 ): void => {
-  // 1. 未启用直接跳过
+  // 1. 检查是否启用
   if (!ruleItem.enable) return;
 
-  // 2. setIf 优先级最高
-  applySetIf(data, snap,ruleItem);
+  // 2. 应用handle（优先级1）
+  applyHandles(data, snap, ruleItem);
 
-  // 3. 如果 setIf 命中，后面 limit / range 仍要再限制一次
-  let cur = getByPath(data, ruleItem.path);
-  let old = getByPath(snap, ruleItem.path);
-  if (typeof cur !== 'number' || typeof old !== 'number') return;
+  // 3. 应用limit（优先级2）
+  applyDeltaLimit(data, snap, ruleItem);
 
-  // 4. handle 阶段（setIf 命中后也会跑）
-  if (ruleItem.handle) {
-    applyHandles(data, snap, ruleItem, ruleItem.handle);
-    cur = getByPath(data, ruleItem.path); // handle 可能再次改动它
-  }
-
-  // 5. limit -> range
-  let v = ruleItem.limit
-    ? applyDeltaLimit(old, cur, ruleItem.limit)
-    : cur;
-  if (ruleItem.range) v = applyRange(v, ruleItem.range);
-  setByPath(data, ruleItem.path, v);
+  // 4. 应用range（优先级3）
+  applyRangeLimit(data, ruleItem);
 };
 
-/* ---------- 最外层入口（不变） ---------- */
+
+/**
+ * 主入口函数 - 应用所有规则
+ */
 const applyRule = (
   data: any,
   snap: any,
   rules: EraDataRule
 ): any => {
+  // 深拷贝原始数据，避免直接修改
   const clone = JSON.parse(JSON.stringify(data));
-  const sorted = Object.entries(rules)
+
+  // 按照order排序规则
+  const sortedRules = Object.entries(rules)
     .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
-  sorted.forEach(([, rule]) => applyOneRule(clone, snap, rule));
+
+  // 应用每条规则
+  sortedRules.forEach(([, rule]) => {
+    applyOneRule(clone, snap, rule);
+  });
+
   return clone;
 };
+
+/**
+ * 通过路径数组设置值（工具函数）
+ */
+function setByPathArray(root: any, path: string[], value: any) {
+  let cur = root;
+  for (let i = 0; i < path.length - 1; i++) {
+    const k = path[i];
+    if (!(k in cur) || typeof cur[k] !== 'object') cur[k] = {};
+    cur = cur[k];
+  }
+  cur[path[path.length - 1]] = value;
+}
 
 export const EraDataHandler = {
   setByPathArray,
   deepEqual,
   applyRule,
   applyHandles,
-  applyOneHandle
+  applyOneHandle,
+  applyOneRule
 };

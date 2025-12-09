@@ -24,6 +24,15 @@
         >
           <span class="btn-text">📝Era变量编辑</span>
         </button>
+
+        <button
+          v-if="true"
+          class="btn"
+          :class="{ active: currentRoute === '/tempTest' }"
+          @click="goToRoute('/tempTest')"
+        >
+          <span class="btn-text">临时测试</span>
+        </button>
       </div>
 
       <!-- 关闭按钮 -->

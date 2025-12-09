@@ -24,6 +24,11 @@ export const router = createRouter({
           name: 'EraDataEdit',
           component: () => import('../view/EraDataEditor.vue'),
         },
+        {
+          path: '/tempTest',
+          name: 'tempTest',
+          component: () => import('../view/MyTempTest.vue'),
+        }
       ],
     },
   ],
