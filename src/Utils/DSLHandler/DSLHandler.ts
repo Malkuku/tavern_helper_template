@@ -43,9 +43,10 @@ const evaluateOp = (opExpr: string, context: EvalContext): DSLResult => {
  * @param data 数据对象
  * @param path 路径
  * @param snapshot 快照对象
+ * @param wildcardMapping 通配符映射
  */
-const getValueByPath = (data: any, path: string, snapshot?: any): any[] => {
-  return dslGetValueByPath(data, path, snapshot);
+const getValueByPath = (data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): any[] => {
+  return dslGetValueByPath(data, path, snapshot, wildcardMapping);
 }
 
 /**

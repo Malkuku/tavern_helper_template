@@ -64,13 +64,14 @@ export class DSLEngine {
    * 解析路径中的通配符并获取所有匹配的路径
    * @param data 数据对象
    * @param pathPattern 带通配符的路径，如 "角色.*.特殊状态.好感度"
+   * @param wildcardMapping 通配符映射，用于保持同一层级的一致性
    * @returns 匹配的所有完整路径数组
    */
-  static expandWildcardPaths(data: any, pathPattern: string): string[] {
+  static expandWildcardPaths(data: any, pathPattern: string, wildcardMapping: Record<string, string> = {}): string[] {
     const parts = pathPattern.split('.');
     const results: string[] = [];
 
-    this._expandRecursive(data, parts, 0, [], results);
+    this._expandRecursive(data, parts, 0, [], results, wildcardMapping);
     return results;
   }
 
@@ -79,7 +80,8 @@ export class DSLEngine {
     parts: string[],
     index: number,
     currentPath: string[],
-    results: string[]
+    results: string[],
+    wildcardMapping: Record<string, string>
   ) {
     if (index >= parts.length) {
       results.push(currentPath.join('.'));
@@ -91,15 +93,36 @@ export class DSLEngine {
     if (part === '*') {
       // 通配符：遍历所有属性
       if (node && typeof node === 'object') {
-        for (const key in node) {
-          if (Object.prototype.hasOwnProperty.call(node, key)) {
+        // 检查是否已经有该层级的映射
+        const levelKey = `level_${index}`;
+        if (wildcardMapping[levelKey]) {
+          // 使用已有的映射
+          const mappedKey = wildcardMapping[levelKey];
+          if (mappedKey in node) {
             this._expandRecursive(
-              node[key],
+              node[mappedKey],
               parts,
               index + 1,
-              [...currentPath, key],
-              results
+              [...currentPath, mappedKey],
+              results,
+              wildcardMapping
             );
+          }
+        } else {
+          // 第一次遇到该层级的通配符，遍历所有属性
+          for (const key in node) {
+            if (Object.prototype.hasOwnProperty.call(node, key)) {
+              // 创建新的映射
+              const newMapping = { ...wildcardMapping, [levelKey]: key };
+              this._expandRecursive(
+                node[key],
+                parts,
+                index + 1,
+                [...currentPath, key],
+                results,
+                newMapping
+              );
+            }
           }
         }
       }
@@ -112,7 +135,8 @@ export class DSLEngine {
           parts,
           index + 1,
           [...currentPath, part],
-          results
+          results,
+          wildcardMapping
         );
       }
     }

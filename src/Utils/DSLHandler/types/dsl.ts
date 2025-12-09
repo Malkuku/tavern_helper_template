@@ -36,5 +36,5 @@ export interface EvalContext {
   data: any;           // 当前数据（会修改）
   snapshot: any;       // 快照（只读）
   thisPath: string;    // 当前规则处理的路径
-  getValueByPath: (path: string, fromSnapshot?: boolean) => any;
+  getValueByPath: (path: string, fromSnapshot?: boolean, wildcardMapping?: Record<string, string>) => any;
 }

@@ -2,10 +2,24 @@
 import { ASTNode, BinaryOpNode, UnaryOpNode, IdentifierNode, LiteralNode } from './parser';
 import { EvalContext } from './types/dsl';
 
+// 存储通配符映射的全局变量，用于在同一表达式中保持通配符一致性
+let wildcardMapping: Record<string, string> = {};
+
 export class DSLEvaluator {
   constructor(private context: EvalContext) {}
 
   evaluate(node: ASTNode): any {
+    // 初始化通配符映射
+    wildcardMapping = {};
+    
+    const result = this._evaluate(node);
+    
+    // 清空通配符映射
+    wildcardMapping = {};
+    return result;
+  }
+
+  private _evaluate(node: ASTNode): any {
     switch (node.type) {
       case 'BinaryOp':
         return this.evaluateBinaryOp(node);
@@ -103,10 +117,10 @@ export class DSLEvaluator {
   private evaluateIdentifier(node: IdentifierNode): any {
     // 特殊变量 $this
     if (node.path === '$this') {
-      return this.context.getValueByPath(this.context.thisPath);
+      return this.context.getValueByPath(this.context.thisPath, false, wildcardMapping);
     }
 
-    return this.context.getValueByPath(node.path);
+    return this.context.getValueByPath(node.path, false, wildcardMapping);
   }
 
   private evaluateLiteral(node: LiteralNode): any {
