@@ -154,9 +154,41 @@ const applyHandles = (
   const sortedHandles = Object.entries(ruleItem.handle)
     .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
+  // 逐个应用handle，保证按顺序执行
   for (const [handleKey, handleItem] of sortedHandles) {
-    const applied = applyOneHandle(data, snap, ruleItem, handleKey, handleItem);
-    if (applied) {
+    // 对每个匹配的目标路径进行处理
+    const targetPathPattern = ruleItem.path;
+    const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern);
+
+    // 如果没有匹配项，继续下一个handle
+    if (targetMatches.length === 0) {
+      continue;
+    }
+
+    // 对每个匹配的目标路径应用当前handle
+    for (const { path: targetFullPath } of targetMatches) {
+      // 创建求值上下文
+      const context = DSLHandler.createEvalContext(data, snap, targetFullPath);
+      
+      // 如果有条件表达式，先判断条件
+      if (handleItem.if) {
+        const result = DSLHandler.evaluateIf(handleItem.if, context);
+        if (!result.success || !result.value) {
+          continue; // 条件不满足，跳过这个目标
+        }
+      }
+
+      // 执行操作表达式
+      const opResult = DSLHandler.evaluateOp(handleItem.op, context);
+      if (!opResult.success) {
+        console.warn(`操作表达式执行失败: ${handleItem.op}`, opResult.error);
+        continue;
+      }
+
+      // 设置结果值
+      const pathSegments = targetFullPath.split('.');
+      setByPathArray(data, pathSegments, opResult.value);
+      
       hasApplied = true;
     }
   }
