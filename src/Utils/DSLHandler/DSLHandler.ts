@@ -2,6 +2,7 @@ import {
   createEvalContext as dslCreatEvalContext,
   getValueByPath as dslGetValueByPath,
   getValueByPathDirect as dslGetValueByPathDirect,
+  setValueByPath as dslSetValueByPath
 } from './utils';
 import { EvalContext } from './types/dsl';
 import { DSLEngine, DSLResult } from './dsl-engine';
@@ -70,6 +71,16 @@ const getValueByPathDirect = (data: any, path: string, snapshot?: any): {path: s
 }
 
 /**
+ * 通过路径设置值
+ * @param data 数据对象
+ * @param path 路径
+ * @param value 值
+ */
+const setValueByPath = (data: any, path: string, value: any): void => {
+  return dslSetValueByPath(data, path, value);
+};
+
+/**
  * 测试dsl语法
  * @param testData 测试数据
  * @param snapshot 快照数据
@@ -102,9 +113,23 @@ const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,
   if(opExpr){
     const result = DSLEngine.evaluateOp(opExpr, context);
     output += `操作表达式：${opExpr}\n`;
-    output += `条件表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
-    console.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
+    output += `操作表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
+    console.log(`操作表达式：${opExpr}，结果：${JSON.stringify(result)}`);
     output += '========================\n';
+    
+    // 如果操作成功并且有返回值，则更新测试数据
+    if (result.success && result.value) {
+      // 处理返回的路径和值
+      if (Array.isArray(result.value)) {
+        // 多个路径的情况（通配符）
+        result.value.forEach(({ path: resultPath, value: resultValue }) => {
+          setValueByPath(testData, resultPath, resultValue);
+        });
+      } else {
+        // 单个值的情况
+        setValueByPath(testData, path, result.value);
+      }
+    }
   }
 
   return output;
@@ -119,5 +144,6 @@ export const DSLHandler = {
   evaluateOp,
   getValueByPath,
   getValueByPathDirect,
+  setValueByPath,
   testDsl
 }

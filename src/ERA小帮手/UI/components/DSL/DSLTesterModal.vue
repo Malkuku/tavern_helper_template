@@ -2,23 +2,37 @@
   <div v-if="visible" class="dsl-tester-modal" @click.self="handleClose">
     <div class="dsl-tester-content">
       <div class="tester-header">
-        <h3>DSL 表达式测试器</h3>
+        <h3>{{ modalTitle }}</h3>
         <button class="btn small" @click="handleClose">×</button>
       </div>
 
       <div class="tester-body">
         <div class="tester-inputs">
-          <div class="field">
+          <div v-if="testMode === 'single'" class="field">
             <label>条件表达式 (if):</label>
             <input v-model="localIfExpr" placeholder="<<if> $[路径] ?[>=] &[{num}40]>" />
           </div>
-          <div class="field">
+          <div v-if="testMode === 'single'" class="field">
             <label>操作表达式 (op):</label>
             <input v-model="localOpExpr" placeholder="<<op> $[路径] #[+] &[{num}10]>" />
           </div>
-          <div class="field">
+          <div v-if="testMode === 'single'" class="field">
             <label>测试路径:</label>
             <input v-model="localPath" placeholder="角色.角色A.特殊状态.好感度" />
+          </div>
+
+          <div v-if="testMode === 'rule'" class="field">
+            <label>规则名称:</label>
+            <input v-model="ruleName" disabled />
+          </div>
+          <div v-if="testMode === 'rule'" class="field">
+            <label>规则路径:</label>
+            <input v-model="rulePath" disabled />
+          </div>
+
+          <div v-if="testMode === 'all'" class="field">
+            <label>测试类型:</label>
+            <input value="所有规则测试" disabled />
           </div>
 
           <div class="tester-actions">
@@ -40,13 +54,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
+
+interface RuleHandle {
+  key: string;
+  order: number;
+  ifExpr: string;
+  opExpr: string;
+}
+
+interface SingleRuleData {
+  name: string;
+  path: string;
+  handles: RuleHandle[];
+}
 
 interface Props {
   visible: boolean;
   ifExpr?: string;
   opExpr?: string;
   path?: string;
+  ruleData?: SingleRuleData | null;
+  allRulesData?: Array<{name: string, rule: any}> | null;
   resultText?: string;
 }
 
@@ -54,6 +84,7 @@ interface Emits {
   (e: 'update:visible', value: boolean): void;
   (e: 'close'): void;
   (e: 'run-test', data: { ifExpr: string; opExpr: string; path: string }): void;
+  (e: 'run-rules-test', rulesData: Array<{name: string, rule: any}>): void;
   (e: 'update:if-expr', value: string): void;
   (e: 'update:op-expr', value: string): void;
   (e: 'update:path', value: string): void;
@@ -63,6 +94,8 @@ const props = withDefaults(defineProps<Props>(), {
   ifExpr: '',
   opExpr: '',
   path: '',
+  ruleData: null,
+  allRulesData: null,
   resultText: ''
 });
 
@@ -72,6 +105,24 @@ const localIfExpr = ref(props.ifExpr);
 const localOpExpr = ref(props.opExpr);
 const localPath = ref(props.path);
 const resultText = ref(props.resultText);
+const ruleName = ref(props.ruleData?.name || '');
+const rulePath = ref(props.ruleData?.path || '');
+
+// 确定测试模式
+const testMode = computed(() => {
+  if (props.allRulesData) return 'all';
+  if (props.ruleData) return 'rule';
+  return 'single';
+});
+
+// 计算标题
+const modalTitle = computed(() => {
+  switch (testMode.value) {
+    case 'all': return 'DSL 表达式测试器 - 所有规则';
+    case 'rule': return 'DSL 表达式测试器 - 规则测试';
+    default: return 'DSL 表达式测试器';
+  }
+});
 
 // 同步props变化到本地refs
 watch(() => props.ifExpr, (value) => {
@@ -88,6 +139,11 @@ watch(() => props.path, (value) => {
 
 watch(() => props.resultText, (value) => {
   resultText.value = value;
+});
+
+watch(() => props.ruleData, (value) => {
+  ruleName.value = value?.name || '';
+  rulePath.value = value?.path || '';
 });
 
 // 同步本地变化到父组件
@@ -109,11 +165,95 @@ function handleClose() {
 }
 
 function handleRunTest() {
-  emit('run-test', {
-    ifExpr: localIfExpr.value,
-    opExpr: localOpExpr.value,
-    path: localPath.value
-  });
+  switch (testMode.value) {
+    case 'all':
+      runRulesTest(props.allRulesData || []);
+      break;
+    case 'rule':
+      runRulesTest([{name: props.ruleData!.name, rule: {path: props.ruleData!.path, handle: props.ruleData!.handles}}]);
+      break;
+    default:
+      // 在发出事件之前，先打印调试信息
+      console.log('Sending test data:', {
+        ifExpr: localIfExpr.value,
+        opExpr: localOpExpr.value,
+        path: localPath.value
+      });
+      emit('run-test', {
+        ifExpr: localIfExpr.value,
+        opExpr: localOpExpr.value,
+        path: localPath.value
+      });
+  }
+}
+
+function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
+  try {
+    let output = '';
+
+    if (rulesData.length > 1) {
+      output = '所有规则 DSL 表达式测试\n';
+      output += '='.repeat(50) + '\n\n';
+    }
+
+    // 遍历所有规则
+    for (const {name, rule} of rulesData) {
+      if (!rule.handle || Object.keys(rule.handle).length === 0) {
+        output += `规则: ${name} (跳过 - 无handle)\n`;
+        output += '-'.repeat(40) + '\n';
+        continue;
+      }
+
+      output += `规则: ${name}\n`;
+      output += `路径: ${rule.path}\n`;
+
+      // 准备规则测试数据
+      const handles = Object.entries(rule.handle as Record<string, any>).map(([key, handleItem]) => ({
+        key,
+        order: handleItem.order || 0,
+        ifExpr: handleItem.if || '',
+        opExpr: handleItem.op || ''
+      }));
+
+      // 按顺序排序handles
+      const sortedHandles = [...handles].sort((a, b) => a.order - b.order);
+
+      // 初始化测试数据和快照
+      const testData = JSON.parse(JSON.stringify((window as any).getVariables({ type: 'chat' }).stat_data || {}));
+      const snapshot = JSON.parse(JSON.stringify((window as any).getVariables({ type: 'chat' }).stat_data || {}));
+
+      // 依次执行每个handle
+      for (let i = 0; i < sortedHandles.length; i++) {
+        const handle = sortedHandles[i];
+        output += `  第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order})\n`;
+
+        try {
+          // 使用当前testData作为输入进行测试
+          const result = DSLHandler.testDsl(
+            testData,  // 直接传入testData，让testDsl内部修改它
+            snapshot,
+            rule.path,
+            handle.ifExpr || '',
+            handle.opExpr || ''
+          );
+
+          output += '  ' + result.split('\n').join('\n  ');
+        } catch (error) {
+          output += `  测试执行出错: ${error}\n`;
+        }
+
+        output += '  ' + '-'.repeat(25) + '\n';
+      }
+
+      if (rulesData.length > 1) {
+        output += '-'.repeat(40) + '\n';
+      }
+    }
+
+    resultText.value = output;
+  } catch (error) {
+    resultText.value = `测试运行失败: ${error}`;
+  }
 }
 </script>
 
@@ -184,6 +324,11 @@ function handleRunTest() {
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   font-size: 12px;
+}
+
+.tester-inputs input:disabled {
+  background-color: #f3f4f6;
+  color: #6b7280;
 }
 
 .tester-actions {

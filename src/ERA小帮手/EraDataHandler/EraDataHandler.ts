@@ -235,7 +235,7 @@ const applyHandles = (
 
   // 逐个应用handle，保证按顺序执行
   for (const [handleKey, handleItem] of sortedHandles) {
-    // 对每个匹配的目标路径进行处理
+    // 对每个匹配的目标路径应用当前handle
     const targetPathPattern = ruleItem.path;
     const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern);
 

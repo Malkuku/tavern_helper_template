@@ -61,3 +61,26 @@ export function createEvalContext(
     }
   };
 }
+
+/**
+ * 通过路径设置值
+ * @param data 数据对象
+ * @param path 路径
+ * @param value 值
+ */
+export function setValueByPath(data: any, path: string, value: any): void {
+  const pathSegments = path.split('.');
+  let current = data;
+  
+  // 遍历到倒数第二个路径段
+  for (let i = 0; i < pathSegments.length - 1; i++) {
+    const segment = pathSegments[i];
+    if (!(segment in current) || typeof current[segment] !== 'object') {
+      current[segment] = {};
+    }
+    current = current[segment];
+  }
+  
+  // 设置最后一个路径段的值
+  current[pathSegments[pathSegments.length - 1]] = value;
+}

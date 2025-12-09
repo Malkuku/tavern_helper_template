@@ -24,7 +24,7 @@
         <div class="import-export-buttons">
           <button class="btn small" @click="exportRules">导出规则</button>
           <button class="btn small" @click="importRules">导入规则</button>
-          <button class="btn small primary" @click="testAllDslExpressions">测试所有 DSL 表达式</button>
+          <button class="btn small primary" @click="testDslExpressions()">测试所有 DSL 表达式</button>
         </div>
 
         <!-- 空状态提示 -->
@@ -54,7 +54,7 @@
               </span>
             </div>
             <div class="rule-actions">
-              <button class="btn small" @click.stop="testRuleDsl(key)">测试 DSL</button>
+              <button class="btn small" @click.stop="testDslExpressions(key)">测试 DSL</button>
               <span class="fold-indicator">{{ folded[key] ? '›' : '⌄' }}</span>
             </div>
           </div>
@@ -251,8 +251,11 @@
       v-model:if-expr="testIfExpr"
       v-model:op-expr="testOpExpr"
       v-model:path="testPath"
+      :rule-data="testRuleData"
+      :all-rules-data="testAllRulesData"
       :result-text="testResultText"
       @run-test="runDslTest"
+      @run-rules-test="runRulesTest"
       @close="closeDslTester"
     />
 
@@ -339,6 +342,17 @@ const showDslTester = ref(false);
 const testIfExpr = ref<string>('');
 const testOpExpr = ref<string>('');
 const testPath = ref<string>('');
+const testRuleData = ref<{
+  name: string;
+  path: string;
+  handles: Array<{
+    key: string;
+    order: number;
+    ifExpr: string;
+    opExpr: string;
+  }>;
+} | null>(null);
+const testAllRulesData = ref<Array<{name: string, rule: any}> | null>(null);
 const testResultText = ref<string>('');
 
 const tabs = [
@@ -571,6 +585,8 @@ function openDslTester() {
   testIfExpr.value = '';
   testOpExpr.value = '';
   testPath.value = '';
+  testRuleData.value = null;
+  testAllRulesData.value = null;
   testResultText.value = '';
 }
 
@@ -580,6 +596,9 @@ function closeDslTester() {
 
 function runDslTest(data: { ifExpr: string; opExpr: string; path: string }) {
   try {
+    // 打印传入的数据用于调试
+    console.log('Received test data:', data);
+    
     const snap = JSON.parse(JSON.stringify(statData.value));
     const testData = JSON.parse(JSON.stringify(statData.value));
 
@@ -598,86 +617,184 @@ function runDslTest(data: { ifExpr: string; opExpr: string; path: string }) {
 
     testResultText.value = result;
     showMessage('DSL 测试完成', 'success');
+    showDslTester.value = true;
   } catch (error) {
     testResultText.value = `测试失败: ${error}`;
     showMessage('测试失败: ' + error, 'error');
+    showDslTester.value = true;
   }
 }
 
-function testRuleDsl(ruleKey: string) {
-  const rule = rules.value[ruleKey];
-  if (!rule || !rule.handle) {
-    showMessage('该规则没有配置 handle', 'warning');
-    return;
-  }
-
-  // 收集所有表达式进行测试
-  let allTestsOutput = `规则: ${ruleKey}\n`;
-  allTestsOutput += `路径: ${rule.path}\n`;
-  allTestsOutput += '='.repeat(40) + '\n\n';
-
-  const testData = JSON.parse(JSON.stringify(statData.value));
-  const snapshot = JSON.parse(JSON.stringify(statData.value));
-  
-  for (const [handleKey, handleItem] of Object.entries(rule.handle as Record<string, any>)) {
-    allTestsOutput += `handle: ${handleKey}\n`;
-    
-    try {
-      const result = DSLHandler.testDsl(
-        testData,
-        snapshot,
-        rule.path,
-        handleItem.if || '',
-        handleItem.op || ''
-      );
-      allTestsOutput += result;
-    } catch (error) {
-      allTestsOutput += `测试执行出错: ${error}\n`;
+// 统一的DSL测试方法，可以测试单个规则或所有规则
+function testDslExpressions(ruleKey?: string) {
+  // 如果提供了ruleKey，则测试单个规则，否则测试所有规则
+  if (ruleKey) {
+    const rule = rules.value[ruleKey];
+    if (!rule || !rule.handle) {
+      showMessage('该规则没有配置 handle', 'warning');
+      return;
     }
+
+    // 准备规则测试数据
+    const handles = Object.entries(rule.handle as Record<string, any>).map(([key, handleItem]) => ({
+      key,
+      order: handleItem.order || 0,
+      ifExpr: handleItem.if || '',
+      opExpr: handleItem.op || ''
+    }));
+
+    testRuleData.value = {
+      name: ruleKey,
+      path: rule.path,
+      handles
+    };
     
-    allTestsOutput += '-'.repeat(30) + '\n';
+    // 直接执行单个规则测试而不是仅仅显示测试器
+    runSingleRuleTest(ruleKey, rule);
+    return;
+  } else {
+    // 测试所有规则
+    const rulesArray = Object.entries(rules.value).map(([name, rule]) => ({
+      name,
+      rule: {
+        path: rule.path,
+        handle: rule.handle
+      }
+    }));
+
+    testAllRulesData.value = rulesArray;
   }
 
   showDslTester.value = true;
-  testPath.value = rule.path;
-  testResultText.value = allTestsOutput;
+  testResultText.value = '';
 }
 
-function testAllDslExpressions() {
-  let testOutput = '所有规则 DSL 表达式测试\n';
-  testOutput += '='.repeat(50) + '\n\n';
-
-  const testData = JSON.parse(JSON.stringify(statData.value));
-  const snapshot = JSON.parse(JSON.stringify(statData.value));
-
-  for (const [ruleKey, rule] of Object.entries(rules.value)) {
-    if (!rule.handle || Object.keys(rule.handle).length === 0) continue;
-
-    testOutput += `规则: ${ruleKey}\n`;
-    testOutput += `路径: ${rule.path}\n`;
-
-    for (const [handleKey, handleItem] of Object.entries(rule.handle as Record<string, any>)) {
-      testOutput += `  handle: ${handleKey}\n`;
+// 执行单个规则测试
+function runSingleRuleTest(ruleKey: string, rule: any) {
+  try {
+    let output = '';
+    output = `规则: ${ruleKey}\n`;
+    output += `路径: ${rule.path}\n`;
+    output += '='.repeat(50) + '\n\n';
+    
+    if (!rule.handle || Object.keys(rule.handle).length === 0) {
+      output += '(跳过 - 无handle)\n';
+    } else {
+      // 初始化测试数据和快照
+      const testData = JSON.parse(JSON.stringify(statData.value));
+      const snapshot = JSON.parse(JSON.stringify(statData.value));
       
-      try {
-        const result = DSLHandler.testDsl(
-          testData,
-          snapshot,
-          rule.path,
-          handleItem.if || '',
-          handleItem.op || ''
-        );
-        testOutput += result;
-      } catch (error) {
-        testOutput += `    测试执行出错: ${error}\n`;
+      // 准备规则测试数据
+      const handles = Object.entries(rule.handle as Record<string, any>).map(([key, handleItem]) => ({
+        key,
+        order: handleItem.order || 0,
+        ifExpr: handleItem.if || '',
+        opExpr: handleItem.op || ''
+      }));
+
+      // 按顺序排序handles
+      const sortedHandles = [...handles].sort((a, b) => a.order - b.order);
+
+      // 依次执行每个handle
+      for (let i = 0; i < sortedHandles.length; i++) {
+        const handle = sortedHandles[i];
+        output += `第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order})\n`;
+
+        try {
+          // 使用当前testData作为输入进行测试
+          const result = DSLHandler.testDsl(
+            testData,
+            snapshot,
+            rule.path,
+            handle.ifExpr || '',
+            handle.opExpr || ''
+          );
+
+          output += result.split('\n').join('\n') + '\n';
+        } catch (error) {
+          output += `测试执行出错: ${error}\n`;
+        }
+
+        output += '-'.repeat(25) + '\n';
       }
     }
 
-    testOutput += '-'.repeat(40) + '\n';
+    testResultText.value = output;
+    showDslTester.value = true;
+  } catch (error) {
+    testResultText.value = `测试运行失败: ${error}`;
+    showDslTester.value = true;
   }
+}
 
-  showDslTester.value = true;
-  testResultText.value = testOutput;
+// 执行多个规则测试
+function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
+  try {
+    let output = '';
+
+    if (rulesData.length > 1) {
+      output = '所有规则 DSL 表达式测试\n';
+      output += '='.repeat(50) + '\n\n';
+      
+      // 初始化测试数据和快照
+      const testData = JSON.parse(JSON.stringify(statData.value));
+      const snapshot = JSON.parse(JSON.stringify(statData.value));
+      
+      // 遍历所有规则
+      for (const {name, rule} of rulesData) {
+        if (!rule.handle || Object.keys(rule.handle).length === 0) {
+          output += `规则: ${name} (跳过 - 无handle)\n`;
+          output += '-'.repeat(40) + '\n';
+          continue;
+        }
+
+        output += `规则: ${name}\n`;
+        output += `路径: ${rule.path}\n`;
+
+        // 准备规则测试数据
+        const handles = Object.entries(rule.handle as Record<string, any>).map(([key, handleItem]) => ({
+          key,
+          order: handleItem.order || 0,
+          ifExpr: handleItem.if || '',
+          opExpr: handleItem.op || ''
+        }));
+
+        // 按顺序排序handles
+        const sortedHandles = [...handles].sort((a, b) => a.order - b.order);
+
+        // 依次执行每个handle
+        for (let i = 0; i < sortedHandles.length; i++) {
+          const handle = sortedHandles[i];
+          output += `  第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order})\n`;
+
+          try {
+            // 使用当前testData作为输入进行测试
+            const result = DSLHandler.testDsl(
+              testData,  // 直接传入testData，让testDsl内部修改它
+              snapshot,
+              rule.path,
+              handle.ifExpr || '',
+              handle.opExpr || ''
+            );
+
+            output += '  ' + result.split('\n').join('\n  ');
+          } catch (error) {
+            output += `  测试执行出错: ${error}\n`;
+          }
+
+          output += '  ' + '-'.repeat(25) + '\n';
+        }
+
+        output += '-'.repeat(40) + '\n';
+      }
+    }
+
+    testResultText.value = output;
+    showDslTester.value = true;
+  } catch (error) {
+    testResultText.value = `测试运行失败: ${error}`;
+    showDslTester.value = true;
+  }
 }
 
 /* ---------- 删除功能 ---------- */
