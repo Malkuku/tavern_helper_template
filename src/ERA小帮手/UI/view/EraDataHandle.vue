@@ -22,9 +22,16 @@
       <section v-show="activeTab === 'list'">
         <h2>规则列表</h2>
         <div class="import-export-buttons">
-          <button class="btn small" @click="exportRules">导出规则</button>
-          <button class="btn small" @click="importRules">导入规则</button>
-          <button class="btn small primary" @click="testDslExpressions()">测试所有 DSL 表达式</button>
+          <FileImportExport
+            ref="ruleImportExportRef"
+            import-text="导入规则"
+            export-text="导出规则"
+            confirm-title="导入规则"
+            confirm-content="导入新规则将覆盖当前所有规则，确定要继续吗？"
+            @export-data="exportRules"
+            @import-confirmed="handleImportConfirmed"
+            @error="handleImportError"
+          />
         </div>
 
         <!-- 空状态提示 -->
@@ -213,7 +220,14 @@
         <div class="section-header">
           <h2>测试模拟</h2>
           <div class="test-controls">
-            <button class="btn small" @click="importTestData">导入测试数据</button>
+            <FileImportExport
+              ref="testDataImportExportRef"
+              import-text="导入测试数据"
+              export-text="导出测试结果"
+              :require-confirm="false"
+              @file-loaded="handleTestDataLoaded"
+              @export-data="exportTestResults"
+            />
             <button v-if="hasCustomTestData" class="btn small" @click="resetToOriginalData">恢复原始数据</button>
             <button class="btn small primary" @click="runTest">模拟更新（不保存）</button>
             <button class="btn small" @click="openDslTester">打开 DSL 测试器</button>
@@ -284,26 +298,12 @@
       v-model:visible="showDuplicateHandleConfirm"
       title="Handle名称重复"
       content="已存在同名Handle，是否覆盖？"
-      type="confirm"
+       type="confirm"
       confirm-text="覆盖"
       cancel-text="取消"
       @confirm="saveRuleWithOverwrite"
       @cancel="cancelRuleSave"
     />
-
-    <EraConfirmModal
-      v-model:visible="showImportConfirm"
-      title="导入规则"
-      content="导入新规则将覆盖当前所有规则，确定要继续吗？"
-      type="confirm"
-      confirm-text="确认导入"
-      cancel-text="取消"
-      @confirm="executeImport"
-      @cancel="cancelImport"
-    />
-
-    <!-- 文件导入输入 -->
-    <input ref="fileInputRef" type="file" accept=".json" style="display: none" @change="handleFileImport" />
 
     <!-- 消息提示 -->
     <div v-if="message" class="status-message" :class="message.type">
@@ -321,6 +321,7 @@ import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesU
 import EraConfirmModal from '../components/EraConfirmModal.vue';
 import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';
 import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
+import FileImportExport from '../components/FileImportExport.vue';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -347,10 +348,8 @@ const draftLimitPos = ref<number | null>(null);
 const activeTab = ref<'data' | 'rule' | 'test' | 'list'>('data');
 const showDeleteConfirm = ref(false);
 const deletingKey = ref<string>('');
-const showImportConfirm = ref(false);
-const showDuplicateRuleConfirm = ref(false); // 添加这行
-const showDuplicateHandleConfirm = ref(false); // 添加这行
-const fileInputRef = ref<HTMLInputElement>();
+const showDuplicateRuleConfirm = ref(false);
+const showDuplicateHandleConfirm = ref(false);
 const message = ref<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
 // DSL 构建器相关
@@ -366,6 +365,9 @@ const testOpExpr = ref<string>('');
 const testPath = ref<string>('');
 const testRulesData = ref<Array<{name: string, rule: any}> | null>(null);
 const testResultText = ref<string>('');
+
+// 引入新的导入导出组件引用
+const ruleImportExportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
 
 const tabs = [
   { key: 'data', label: '查看数据' },
@@ -693,8 +695,6 @@ function testDslExpressions(ruleKey?: string) {
     }];
   } else {
     // 测试所有规则
-
-
     testRulesData.value = Object.entries(rules.value).map(([name, rule]) => ({
       name,
       rule: {
@@ -753,66 +753,28 @@ function exportRules() {
   }
 }
 
-function importRules() {
-  if (fileInputRef.value) {
-    fileInputRef.value.click();
-  }
-}
-
-function handleFileImport(event: Event) {
-  const input = event.target as HTMLInputElement;
-  if (!input.files || input.files.length === 0) return;
-
-  const file = input.files[0];
-  const reader = new FileReader();
-
-  reader.onload = e => {
-    try {
-      const content = e.target?.result as string;
-      const importedRules = importRulesFromJson(content);
-
-      if (!importedRules || typeof importedRules !== 'object') {
-        showMessage('导入失败：文件格式不正确', 'error');
-        return;
-      }
-
-      showImportConfirm.value = true;
-      (window as any)._tempImportedRules = importedRules;
-    } catch (error) {
-      showMessage('导入失败：' + error, 'error');
-    } finally {
-      if (fileInputRef.value) {
-        fileInputRef.value.value = '';
-      }
-    }
-  };
-
-  reader.readAsText(file);
-}
-
-function cancelImport() {
-  showImportConfirm.value = false;
-  delete (window as any)._tempImportedRules;
-}
-
-async function executeImport() {
+// 使用新的导入处理方法
+function handleImportConfirmed(content: string, _file: File) {
   try {
-    const importedRules = (window as any)._tempImportedRules;
-    if (!importedRules) {
-      showMessage('导入失败：没有可导入的数据', 'error');
+    const importedRules = importRulesFromJson(content);
+
+    if (!importedRules || typeof importedRules !== 'object') {
+      showMessage('导入失败：文件格式不正确', 'error');
       return;
     }
 
     rules.value = importedRules;
     folded.value = {};
     Object.keys(rules.value).forEach(k => (folded.value[k] = true));
-    await saveRules();
+    saveRules();
     showMessage('规则导入成功', 'success');
-    showImportConfirm.value = false;
-    delete (window as any)._tempImportedRules;
   } catch (error) {
     showMessage('导入失败：' + error, 'error');
   }
+}
+
+function handleImportError(error: string) {
+  showMessage(error, 'error');
 }
 
 /* ---------- 测试 ---------- */
@@ -836,47 +798,45 @@ function showMessage(text: string, type: 'success' | 'error' | 'warning') {
 }
 
 /* ---------- 测试数据文件处理 ---------- */
-function importTestData() {
-  // 创建隐藏的文件输入元素
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.style.display = 'none';
+function handleTestDataLoaded(content: string, _file: File) {
+  try {
+    const testData = JSON.parse(content);
 
-  input.onchange = (event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+    // 验证数据结构
+    if (typeof testData !== 'object' || testData === null) {
+      showMessage('无效的 JSON 数据', 'error');
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const testData = JSON.parse(content);
+    // 将导入的数据设为当前测试数据
+    statData.value = testData;
+    showMessage('测试数据导入成功', 'success');
 
-        // 验证数据结构
-        if (typeof testData !== 'object' || testData === null) {
-          showMessage('无效的 JSON 数据', 'error');
-          return;
-        }
+    // 自动切换到测试标签页
+    activeTab.value = 'test';
+  } catch (error) {
+    showMessage('文件读取失败: ' + error, 'error');
+  }
+}
 
-        // 将导入的数据设为当前测试数据
-        statData.value = testData;
-        showMessage('测试数据导入成功', 'success');
-
-        // 自动切换到测试标签页
-        activeTab.value = 'test';
-      } catch (error) {
-        showMessage('文件读取失败: ' + error, 'error');
-      }
-    };
-
-    reader.readAsText(file);
-    // 清理文件输入
-    document.body.removeChild(input);
-  };
-
-  document.body.appendChild(input);
-  input.click();
+function exportTestResults() {
+  try {
+    // 导出当前测试结果或原始数据
+    const dataToExport = testResult.value || statData.value;
+    const json = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `era-test-data-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showMessage('测试数据导出成功', 'success');
+  } catch (error) {
+    showMessage('导出失败: ' + error, 'error');
+  }
 }
 
 function resetToOriginalData() {
@@ -897,13 +857,14 @@ const hasCustomTestData = computed(() => {
   margin: 8px 0 16px;
   display: flex;
   flex-direction: column;
-  height: 500px; /* 或 calc(100vh - 200px) 根据实际情况调整 */
-  max-height: 80vh; /* 限制最大高度 */
+  height: 500px;
+  max-height: 80vh;
   background: #f5f6fa;
   font-size: 12px;
   color: #111827;
-  border-radius: 8px; /* 可选：添加圆角 */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* 可选：添加阴影 */
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 /* 2. 固定的页签容器 */
@@ -918,7 +879,7 @@ const hasCustomTestData = computed(() => {
 .tabs-container {
   display: flex;
   gap: 8px;
-  padding: 12px 16px 8px; /* 调整内边距 */
+  padding: 12px 16px 8px;
   background: #f5f6fa;
 }
 
@@ -964,7 +925,7 @@ const hasCustomTestData = computed(() => {
 /* 3. 内容包装器 */
 .content-wrapper {
   flex: 1;
-  min-height: 0; /* 关键：允许元素收缩 */
+  min-height: 0;
   overflow-y: auto;
   padding: 0 16px 16px;
 }
@@ -975,7 +936,7 @@ section {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-top: 12px; /* 每个section顶部增加内边距 */
+  padding-top: 12px;
 }
 
 h2 {
@@ -1005,6 +966,7 @@ h2 {
   overflow: hidden;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
+
 .rule-header {
   display: flex;
   justify-content: space-between;
@@ -1015,17 +977,17 @@ h2 {
   user-select: none;
   font-weight: 500;
 }
+
 .rule-header span:last-child {
   font-size: 14px;
   transition: transform 0.2s;
 }
-.rule-header.folded span:last-child {
-  transform: rotate(-90deg);
-}
+
 .rule-body {
   padding: 10px;
   border-top: 1px solid #e5e7eb;
 }
+
 .rule-body pre {
   margin: 0 0 8px;
   font-size: 11px;
@@ -1042,6 +1004,7 @@ h2 {
   gap: 8px;
   margin-bottom: 8px;
 }
+
 .field label {
   width: 70px;
   font-size: 12px;
@@ -1049,6 +1012,7 @@ h2 {
   flex-shrink: 0;
   font-weight: 500;
 }
+
 .field input,
 .field select {
   flex: 1;
@@ -1063,6 +1027,7 @@ h2 {
     border-color 0.2s,
     box-shadow 0.2s;
 }
+
 .field input:focus,
 .field select:focus {
   outline: none;
@@ -1079,16 +1044,19 @@ h2 {
   background: #f9fafb;
   border-radius: 6px;
 }
+
 .handle-item {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
 }
+
 .handle-item span {
   font-size: 12px;
   color: #111827;
 }
+
 .handle-item select,
 .handle-item input {
   flex: 1;
@@ -1112,24 +1080,29 @@ h2 {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   font-weight: 500;
 }
+
 .btn:hover {
   background: #e5e7eb;
   color: #000000;
 }
+
 .btn.primary {
   background: #4f46e5;
   color: #ffffff;
   font-weight: 500;
 }
+
 .btn.primary:hover {
   background: #4338ca;
   color: #ffffff;
 }
+
 .btn.danger {
   background: #dc2626;
   color: #ffffff;
   font-weight: 500;
 }
+
 .btn.danger:hover {
   background: #b91c1c;
   color: #ffffff;
@@ -1157,39 +1130,23 @@ hr {
   font-size: 11px;
   margin-bottom: 8px;
 }
+
 .status-message.success {
   background: #d1fae5;
   color: #065f46;
   border: 1px solid #a7f3d0;
 }
+
 .status-message.error {
   background: #fee2e2;
   color: #991b1b;
   border: 1px solid #fecaca;
 }
+
 .status-message.warning {
   background: #fef3c7;
   color: #92400e;
   border: 1px solid #fde68a;
-}
-
-/* 13. 加载状态 */
-.loading-spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #f3f4f6;
-  border-top: 2px solid #6366f1;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 /* 14. 空状态 */
@@ -1203,6 +1160,7 @@ hr {
   font-size: 11px;
   text-align: center;
 }
+
 .empty-state svg {
   width: 24px;
   height: 24px;
@@ -1214,13 +1172,16 @@ hr {
 .content-wrapper::-webkit-scrollbar {
   width: 8px;
 }
+
 .content-wrapper::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .content-wrapper::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
 .content-wrapper::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -1228,14 +1189,17 @@ hr {
 .json-tree-box::-webkit-scrollbar {
   width: 6px;
 }
+
 .json-tree-box::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 3px;
 }
+
 .json-tree-box::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
+
 .json-tree-box::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -1318,71 +1282,9 @@ input:checked + .toggle-label:before {
   transform: translateX(40px);
 }
 
-/* setIf 区域 */
-.setIf-area {
-  margin-top: 12px;
-  padding: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-}
-
-.setIf-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.setIf-content {
-  background: #ffffff;
-  padding: 10px;
-  border-radius: 4px;
-  border: 1px solid #e2e8f0;
-}
-
-.setIf-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.setIf-row label {
-  width: 80px;
-  font-size: 11px;
-  color: #111827;
-  flex-shrink: 0;
-  font-weight: 500;
-}
-
-.setIf-row input,
-.setIf-row select {
-  flex: 1;
-  padding: 4px 6px;
-  font-size: 11px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-}
-
 .btn.small {
   padding: 3px 8px;
   font-size: 11px;
-}
-
-.era-rule-panel {
-  margin: 8px 0 16px;
-  display: flex;
-  flex-direction: column;
-  height: 500px;
-  max-height: 80vh;
-  background: #f5f6fa;
-  font-size: 12px;
-  color: #111827;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: relative;
 }
 
 .section-header {
@@ -1409,13 +1311,13 @@ input:checked + .toggle-label:before {
   align-items: center;
   flex: 1;
   gap: 4px;
-  min-width: 0; /* 添加这行防止撑开 */
+  min-width: 0;
 }
 
 .input-label {
   font-size: 11px;
   color: #111827;
-  min-width: 28px; /* 稍微减小 */
+  min-width: 28px;
   white-space: nowrap;
   font-weight: 500;
 }
@@ -1426,7 +1328,7 @@ input:checked + .toggle-label:before {
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   font-size: 11px;
-  min-width: 0; /* 添加这行 */
+  min-width: 0;
 }
 
 /* handle 区域样式更新 */
@@ -1562,22 +1464,10 @@ input:checked + .toggle-label:before {
   margin-bottom: 12px;
   font-size: 12px;
   color: #0369a1;
-
-  .indicator-icon {
-    font-size: 14px;
-  }
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.test-controls {
-  display: flex;
-  gap: 8px;
+.data-source-indicator .indicator-icon {
+  font-size: 14px;
 }
 
 /* 响应式调整 */
@@ -1606,7 +1496,7 @@ input:checked + .toggle-label:before {
   }
 
   .input-group {
-    min-width: calc(50% - 4px); /* 每个占一半宽度 */
+    min-width: calc(50% - 4px);
   }
 }
 </style>
