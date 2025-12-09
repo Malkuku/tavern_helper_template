@@ -611,32 +611,44 @@ function testRuleDsl(ruleKey: string) {
     return;
   }
 
-  let testOutput = `规则: ${ruleKey}\n`;
-  testOutput += `路径: ${rule.path}\n`;
-  testOutput += '='.repeat(40) + '\n\n';
+  // 收集所有表达式进行测试
+  let allTestsOutput = `规则: ${ruleKey}\n`;
+  allTestsOutput += `路径: ${rule.path}\n`;
+  allTestsOutput += '='.repeat(40) + '\n\n';
 
+  const testData = JSON.parse(JSON.stringify(statData.value));
+  const snapshot = JSON.parse(JSON.stringify(statData.value));
+  
   for (const [handleKey, handleItem] of Object.entries(rule.handle as Record<string, any>)) {
-    testOutput += `handle: ${handleKey}\n`;
-
-    if (handleItem.if) {
-      testOutput += `条件表达式: ${handleItem.if}\n`;
+    allTestsOutput += `handle: ${handleKey}\n`;
+    
+    try {
+      const result = DSLHandler.testDsl(
+        testData,
+        snapshot,
+        rule.path,
+        handleItem.if || '',
+        handleItem.op || ''
+      );
+      allTestsOutput += result;
+    } catch (error) {
+      allTestsOutput += `测试执行出错: ${error}\n`;
     }
-
-    if (handleItem.op) {
-      testOutput += `操作表达式: ${handleItem.op}\n`;
-    }
-
-    testOutput += '-'.repeat(30) + '\n';
+    
+    allTestsOutput += '-'.repeat(30) + '\n';
   }
 
   showDslTester.value = true;
   testPath.value = rule.path;
-  testResultText.value = testOutput;
+  testResultText.value = allTestsOutput;
 }
 
 function testAllDslExpressions() {
   let testOutput = '所有规则 DSL 表达式测试\n';
   testOutput += '='.repeat(50) + '\n\n';
+
+  const testData = JSON.parse(JSON.stringify(statData.value));
+  const snapshot = JSON.parse(JSON.stringify(statData.value));
 
   for (const [ruleKey, rule] of Object.entries(rules.value)) {
     if (!rule.handle || Object.keys(rule.handle).length === 0) continue;
@@ -646,13 +658,18 @@ function testAllDslExpressions() {
 
     for (const [handleKey, handleItem] of Object.entries(rule.handle as Record<string, any>)) {
       testOutput += `  handle: ${handleKey}\n`;
-
-      if (handleItem.if) {
-        testOutput += `    条件: ${handleItem.if}\n`;
-      }
-
-      if (handleItem.op) {
-        testOutput += `    操作: ${handleItem.op}\n`;
+      
+      try {
+        const result = DSLHandler.testDsl(
+          testData,
+          snapshot,
+          rule.path,
+          handleItem.if || '',
+          handleItem.op || ''
+        );
+        testOutput += result;
+      } catch (error) {
+        testOutput += `    测试执行出错: ${error}\n`;
       }
     }
 
