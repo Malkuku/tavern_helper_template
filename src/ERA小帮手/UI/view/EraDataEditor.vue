@@ -1,6 +1,6 @@
 <template>
   <div class="stat-data-editor">
-    <!-- 顶部工具栏（保持不变） -->
+    <!-- 顶部工具栏 -->
     <div class="editor-toolbar">
       <div class="toolbar-left">
         <button class="toolbar-btn" :disabled="loading" @click="loadData">
@@ -15,13 +15,16 @@
           </svg>
           保存更改
         </button>
-        <!-- 添加导出草稿按钮 -->
-        <button class="toolbar-btn" :disabled="exportingDraft || !currentData" @click="exportDraft">
-          <svg class="icon" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 2a1 1 0 0 0-1 1v6H3a1 1 0 1 0 0 2h4v3a1 1 0 1 0 2 0v-3h4a1 1 0 1 0 0-2H9V3a1 1 0 0 0-1-1z"/>
-          </svg>
-          导出草稿
-        </button>
+
+        <!-- 使用 FileImportExport 组件替换原来的导入/导出按钮 -->
+        <FileImportExport
+          ref="fileImportExportRef"
+          import-text="导入JSON"
+          export-text="导出草稿"
+          :require-confirm="true"
+          @file-loaded="handleFileLoaded"
+          @export-data="exportDraft"
+        />
       </div>
       <div class="toolbar-right">
         <div v-if="hasChanges" class="change-indicator">
@@ -34,7 +37,7 @@
       </div>
     </div>
 
-    <!-- 搜索框（保持不变） -->
+    <!-- 搜索框 -->
     <div class="search-box">
       <svg class="search-icon" viewBox="0 0 16 16" fill="currentColor">
         <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
@@ -316,6 +319,7 @@ import { useEraEditStore } from '../../stores/EraEditStore'
 import type { JsonNodeType } from '../types/JsonNode'
 import JsonNodeEdit from '../components/JsonNode/JsonNodeEdit.vue';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
+import FileImportExport from '../components/FileImportExport.vue';
 import { eraLogger } from '../../utils/EraHelperLogger';
 
 // Store
@@ -324,12 +328,14 @@ const eraEditStore = useEraEditStore()
 // 响应式数据
 const loading = ref(false)
 const saving = ref(false)
-const exportingDraft = ref(false)
 const currentData = ref<any>(null)
 const originalData = ref<any>(null)
 const searchQuery = ref('')
 const editMode = ref<'tree' | 'raw'>('tree')
 const editingNode = ref<string | null>(null)
+
+// 组件引用
+const fileImportExportRef = ref<InstanceType<typeof FileImportExport> | null>(null)
 
 // 原始JSON编辑
 const rawJsonValue = ref('')
@@ -379,215 +385,26 @@ function handleCancelAction() {
   pendingAction.value = () => {}
 }
 
-
-// 添加字段模态框
-const showAddFieldModal = ref(false)
-const jsonError = ref('')
-const isValidJson = ref(false)
-
-interface NewField {
-  path: string
-  type: 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array'
-  value: string | number | boolean | null
-  jsonValue: string
-}
-
-const newField = ref<NewField>({
-  path: '',
-  type: 'string',
-  value: '', // 初始化为字符串
-  jsonValue: ''
-})
-
-// 计算属性：检查输入是否有效
-const isValidInput = computed(() => {
-  const { path, type } = newField.value
-
-  if (!path.trim()) return false
-
-  switch (type) {
-    case 'string':
-      // 对于字符串类型，确保值存在且非空
-      return typeof newField.value.value === 'string' && newField.value.value.trim() !== ''
-
-    case 'number':
-      // 对于数字类型，确保是数字且非空
-      return typeof newField.value.value === 'number' ||
-        (typeof newField.value.value === 'string' && newField.value.value.trim() !== '')
-
-    case 'boolean':
-      // 对于布尔类型，确保值存在（可能是 true/false）
-      return newField.value.value !== undefined && newField.value.value !== null
-
-    case 'null':
-      // null 类型总是有效的
-      return true
-
-    case 'object':
-    case 'array':
-      // 对于对象/数组类型，检查 JSON 是否有效
-      return isValidJson.value && newField.value.jsonValue.trim() !== ''
-
-    default:
-      return false
-  }
-})
-
-function cancelAddField() {
-  showAddFieldModal.value = false
-}
-
-// 方法
-function onTypeChange() {
-  const type = newField.value.type
-
-  // 根据类型设置默认值
-  switch (type) {
-    case 'string':
-      newField.value.value = ''
-      break
-    case 'number':
-      newField.value.value = 0
-      break
-    case 'boolean':
-      newField.value.value = true
-      break
-    case 'null':
-      newField.value.value = null
-      break
-    case 'object':
-      newField.value.jsonValue = '{}'
-      break
-    case 'array':
-      newField.value.jsonValue = '[]'
-      break
-  }
-}
-
-function getJsonPlaceholder() {
-  if (newField.value.type === 'object') {
-    return '{\n  "key1": "value1",\n  "key2": 123\n}'
-  } else {
-    return '[\n  "item1",\n  "item2",\n  123\n]'
-  }
-}
-
-function validateJson() {
-  const jsonStr = newField.value.jsonValue.trim()
-
-  if (!jsonStr) {
-    jsonError.value = ''
-    isValidJson.value = false
-    return
-  }
-
+// 处理导入的文件
+function handleFileLoaded(content: string) {
   try {
-    const parsed = JSON.parse(jsonStr)
+    const jsonData = JSON.parse(content)
 
-    // 检查类型匹配
-    if (newField.value.type === 'object' && !(parsed && typeof parsed === 'object' && !Array.isArray(parsed))) {
-      jsonError.value = '必须是有效的JSON对象（不是数组）'
-      isValidJson.value = false
-    } else if (newField.value.type === 'array' && !Array.isArray(parsed)) {
-      jsonError.value = '必须是有效的JSON数组'
-      isValidJson.value = false
-    } else {
-      jsonError.value = ''
-      isValidJson.value = true
-    }
+    // 更新当前数据
+    currentData.value = jsonData
+    originalData.value = JSON.parse(JSON.stringify(jsonData))
+    rawJsonValue.value = JSON.stringify(jsonData, null, 2)
+
+    // 转换为树形结构
+    treeData.value = convertToTree(jsonData)
+
+    statusMessage.value = `成功导入数据，共 ${countNodes(treeData.value)} 个节点`
   } catch (error) {
-    jsonError.value = error instanceof Error ? error.message : '无效的JSON格式'
-    isValidJson.value = false
+    eraLogger.error('导入数据失败:', error)
+    statusMessage.value = '导入失败，请检查文件格式'
+    alert(`导入失败：${error instanceof Error ? error.message : '未知错误'}`)
   }
 }
-
-function formatJsonValue() {
-  if (!isValidJson.value) return
-
-  try {
-    const parsed = JSON.parse(newField.value.jsonValue)
-    newField.value.jsonValue = JSON.stringify(parsed, null, 2)
-  } catch (error) {
-    // 忽略错误
-  }
-}
-
-function openAddFieldModal() {
-  newField.value = {
-    path: '',
-    type: 'string',
-    value: '',
-    jsonValue: ''
-  }
-  jsonError.value = ''
-  isValidJson.value = false
-  showAddFieldModal.value = true
-}
-function confirmAddField() {
-  const { path, type } = newField.value
-
-  if (!path.trim()) {
-    alert('请输入字段路径')
-    return
-  }
-
-  if (!isValidInput.value) {
-    alert('请输入有效的字段值')
-    return
-  }
-
-  try {
-    let finalValue: any
-
-    switch (type) {
-      case 'string':
-        finalValue = newField.value.value
-        break
-      case 'number':
-        finalValue = parseFloat(String(newField.value.value))
-        if (isNaN(finalValue)) {
-          alert('请输入有效的数字')
-          return
-        }
-        break
-      case 'boolean':
-        finalValue = newField.value.value
-        break
-      case 'null':
-        finalValue = null
-        break
-      case 'object':
-      case 'array':
-        if (!isValidJson.value || !newField.value.jsonValue.trim()) {
-          alert('请输入有效的JSON数据')
-          return
-        }
-        finalValue = JSON.parse(newField.value.jsonValue)
-        break
-      default:
-        finalValue = newField.value.value
-    }
-
-    setValueByPath(currentData.value, path, finalValue)
-
-    // 更新原始JSON视图
-    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-    // 重新生成树数据
-    treeData.value = convertToTree(currentData.value)
-
-    // 开始编辑新字段
-    editingNode.value = path
-    statusMessage.value = '已添加新字段'
-
-    showAddFieldModal.value = false
-
-  } catch (error) {
-    eraLogger.error('添加字段失败:', error)
-    alert(`添加字段失败：${error instanceof Error ? error.message : '未知错误'}`)
-  }
-}
-
 
 // 计算属性
 const hasChanges = computed(() => {
@@ -636,9 +453,8 @@ function filterTreeNodes(nodes: JsonNodeType[], query: string): JsonNodeType[] {
 
 // 导出草稿数据
 function exportDraft() {
-  if (exportingDraft.value || !currentData.value) return
+  if (!currentData.value) return
 
-  exportingDraft.value = true
   try {
     // 创建带时间戳的文件名
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, -5)
@@ -668,7 +484,6 @@ function exportDraft() {
         statusMessage.value = '就绪'
       }
     }, 3000)
-    exportingDraft.value = false
   }
 }
 
@@ -948,6 +763,214 @@ function expandMatchingNodes(nodes: JsonNodeType[]) {
   }
 }
 
+// 添加字段模态框
+const showAddFieldModal = ref(false)
+const jsonError = ref('')
+const isValidJson = ref(false)
+
+interface NewField {
+  path: string
+  type: 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array'
+  value: string | number | boolean | null
+  jsonValue: string
+}
+
+const newField = ref<NewField>({
+  path: '',
+  type: 'string',
+  value: '', // 初始化为字符串
+  jsonValue: ''
+})
+
+// 计算属性：检查输入是否有效
+const isValidInput = computed(() => {
+  const { path, type } = newField.value
+
+  if (!path.trim()) return false
+
+  switch (type) {
+    case 'string':
+      // 对于字符串类型，确保值存在且非空
+      return typeof newField.value.value === 'string' && newField.value.value.trim() !== ''
+
+    case 'number':
+      // 对于数字类型，确保是数字且非空
+      return typeof newField.value.value === 'number' ||
+        (typeof newField.value.value === 'string' && newField.value.value.trim() !== '')
+
+    case 'boolean':
+      // 对于布尔类型，确保值存在（可能是 true/false）
+      return newField.value.value !== undefined && newField.value.value !== null
+
+    case 'null':
+      // null 类型总是有效的
+      return true
+
+    case 'object':
+    case 'array':
+      // 对于对象/数组类型，检查 JSON 是否有效
+      return isValidJson.value && newField.value.jsonValue.trim() !== ''
+
+    default:
+      return false
+  }
+})
+
+function cancelAddField() {
+  showAddFieldModal.value = false
+}
+
+// 方法
+function onTypeChange() {
+  const type = newField.value.type
+
+  // 根据类型设置默认值
+  switch (type) {
+    case 'string':
+      newField.value.value = ''
+      break
+    case 'number':
+      newField.value.value = 0
+      break
+    case 'boolean':
+      newField.value.value = true
+      break
+    case 'null':
+      newField.value.value = null
+      break
+    case 'object':
+      newField.value.jsonValue = '{}'
+      break
+    case 'array':
+      newField.value.jsonValue = '[]'
+      break
+  }
+}
+
+function getJsonPlaceholder() {
+  if (newField.value.type === 'object') {
+    return '{\n  "key1": "value1",\n  "key2": 123\n}'
+  } else {
+    return '[\n  "item1",\n  "item2",\n  123\n]'
+  }
+}
+
+function validateJson() {
+  const jsonStr = newField.value.jsonValue.trim()
+
+  if (!jsonStr) {
+    jsonError.value = ''
+    isValidJson.value = false
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(jsonStr)
+
+    // 检查类型匹配
+    if (newField.value.type === 'object' && !(parsed && typeof parsed === 'object' && !Array.isArray(parsed))) {
+      jsonError.value = '必须是有效的JSON对象（不是数组）'
+      isValidJson.value = false
+    } else if (newField.value.type === 'array' && !Array.isArray(parsed)) {
+      jsonError.value = '必须是有效的JSON数组'
+      isValidJson.value = false
+    } else {
+      jsonError.value = ''
+      isValidJson.value = true
+    }
+  } catch (error) {
+    jsonError.value = error instanceof Error ? error.message : '无效的JSON格式'
+    isValidJson.value = false
+  }
+}
+
+function formatJsonValue() {
+  if (!isValidJson.value) return
+
+  try {
+    const parsed = JSON.parse(newField.value.jsonValue)
+    newField.value.jsonValue = JSON.stringify(parsed, null, 2)
+  } catch (error) {
+    // 忽略错误
+  }
+}
+
+function openAddFieldModal() {
+  newField.value = {
+    path: '',
+    type: 'string',
+    value: '',
+    jsonValue: ''
+  }
+  jsonError.value = ''
+  isValidJson.value = false
+  showAddFieldModal.value = true
+}
+function confirmAddField() {
+  const { path, type } = newField.value
+
+  if (!path.trim()) {
+    alert('请输入字段路径')
+    return
+  }
+
+  if (!isValidInput.value) {
+    alert('请输入有效的字段值')
+    return
+  }
+
+  try {
+    let finalValue: any
+
+    switch (type) {
+      case 'string':
+        finalValue = newField.value.value
+        break
+      case 'number':
+        finalValue = parseFloat(String(newField.value.value))
+        if (isNaN(finalValue)) {
+          alert('请输入有效的数字')
+          return
+        }
+        break
+      case 'boolean':
+        finalValue = newField.value.value
+        break
+      case 'null':
+        finalValue = null
+        break
+      case 'object':
+      case 'array':
+        if (!isValidJson.value || !newField.value.jsonValue.trim()) {
+          alert('请输入有效的JSON数据')
+          return
+        }
+        finalValue = JSON.parse(newField.value.jsonValue)
+        break
+      default:
+        finalValue = newField.value.value
+    }
+
+    setValueByPath(currentData.value, path, finalValue)
+
+    // 更新原始JSON视图
+    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
+
+    // 重新生成树数据
+    treeData.value = convertToTree(currentData.value)
+
+    // 开始编辑新字段
+    editingNode.value = path
+    statusMessage.value = '已添加新字段'
+
+    showAddFieldModal.value = false
+
+  } catch (error) {
+    eraLogger.error('添加字段失败:', error)
+    alert(`添加字段失败：${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
 // 生命周期
 onMounted(() => {
   loadData()
@@ -1005,7 +1028,7 @@ textarea::placeholder {
   opacity: 1;
 }
 
-// 工具栏（保持不变）
+// 工具栏
 .editor-toolbar {
   display: flex;
   justify-content: space-between;
@@ -1023,22 +1046,22 @@ textarea::placeholder {
 .toolbar-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 4px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: white;
   color: #475569;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 
   &:hover:not(:disabled) {
     background: #f1f5f9;
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   }
 
   &:disabled {
@@ -1047,8 +1070,8 @@ textarea::placeholder {
   }
 
   .icon {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
   }
 }
 
@@ -1247,12 +1270,12 @@ textarea::placeholder {
 .mode-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 4px 8px;
   border: 1px solid #e2e8f0;
   background: white;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1269,27 +1292,20 @@ textarea::placeholder {
   }
 
   .mode-icon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
-}
-
-.edit-tools {
-  display: flex;
-  margin-top: 5px;
-  margin-bottom: 5px;
-  gap: 8px;
 }
 
 .tool-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 4px 8px;
   border: 1px solid #e2e8f0;
   background: white;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1315,9 +1331,16 @@ textarea::placeholder {
   }
 
   .tool-icon {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
   }
+}
+
+.edit-tools {
+  display: flex;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  gap: 6px;
 }
 
 // 树形编辑器
