@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
+import { eraLogger } from '../../../utils/EraHelperLogger';
 
 interface RuleHandle {
   key: string;
@@ -166,14 +167,14 @@ function handleClose() {
 
 function handleRunTest() {
   // 在发出事件之前，先打印调试信息，适用于所有情况
-  console.log('测试模式:', testMode.value);
-  console.log('发送测试信息:', {
+  eraLogger.log('测试模式:', testMode.value);
+  eraLogger.log('发送测试信息:', {
     ifExpr: localIfExpr.value,
     opExpr: localOpExpr.value,
     path: localPath.value,
     rulesData: props.rulesData
   });
-  
+
   switch (testMode.value) {
     case 'all':
     case 'rule':
@@ -191,8 +192,8 @@ function handleRunTest() {
 function runSingleTest(data: { ifExpr: string; opExpr: string; path: string }) {
   try {
     // 打印传入的数据用于调试
-    console.log('Received test data:', data);
-    
+    eraLogger.log('Received test data:', data);
+
     const snap = JSON.parse(JSON.stringify(props.statData));
     const testData = JSON.parse(JSON.stringify(props.statData));
 

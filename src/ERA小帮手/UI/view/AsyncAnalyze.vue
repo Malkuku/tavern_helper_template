@@ -117,6 +117,7 @@ import { reactive, watch } from 'vue'
 import { useUiStore } from '../../stores/UIStore'
 import * as toastr from 'toastr'
 import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore';
+import { eraLogger } from '../../utils/EraHelperLogger';
 
 const uiStore = useUiStore();
 const asyncAnalyzeStore = useAsyncAnalyzeStore();
@@ -156,11 +157,11 @@ const refreshProfileList = async () => {
   try {
     const result = await (window as any).SillyTavern.executeSlashCommands('/profile-list');
     profileList.value = JSON.parse(result.pipe);
-    console.log('预设名称列表:', profileList.value);
+    eraLogger.log('预设名称列表:', profileList.value);
     profileSetting.value = profileList.value[0] // 默认选中第一个
   } catch (e) {
     toastr.error('获取预设列表失败');
-    console.error('刷新预设列表失败', e)
+    eraLogger.error('刷新预设列表失败', e)
     profileList.value = []
   }
 }
@@ -198,7 +199,7 @@ const testConnect = async () => {
       let tempProfileSetting;
       if(modelSource.value === 'profile'){
         tempProfileSetting = (await (window as any).SillyTavern.executeSlashCommands('/profile') as any).pipe;
-        console.log('当前预设名称:', tempProfileSetting);
+        eraLogger.log('当前预设名称:', tempProfileSetting);
         await (window as any).SillyTavern.executeSlashCommands(`/profile ${profileSetting.value}`);
       }
       // 用 ST 自带指令检查当前模型是否在线

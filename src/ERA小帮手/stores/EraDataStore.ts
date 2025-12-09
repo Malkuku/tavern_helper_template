@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { EraDataRule } from '../EraDataHandler/types/EraDataRule';
+import { eraLogger } from '../utils/EraHelperLogger';
 
 export const useEraDataStore = defineStore('KatEraData', () => {
   // 储存的EraData规则
@@ -12,7 +13,7 @@ export const useEraDataStore = defineStore('KatEraData', () => {
     const variables = getVariables({type: 'script', script_id: getScriptId()});
     const era_data_rule = variables.era_data_rule;
     eraDataRule.value = era_data_rule || {};
-    console.log('获取更新规则设置: ',eraDataRule);
+    eraLogger.log('获取更新规则设置: ',eraDataRule.value);
   }
 
   /**

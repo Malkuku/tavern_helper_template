@@ -316,6 +316,7 @@ import { useEraEditStore } from '../../stores/EraEditStore'
 import type { JsonNodeType } from '../types/JsonNode'
 import JsonNodeEdit from '../components/JsonNode/JsonNodeEdit.vue';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
+import { eraLogger } from '../../utils/EraHelperLogger';
 
 // Store
 const eraEditStore = useEraEditStore()
@@ -582,7 +583,7 @@ function confirmAddField() {
     showAddFieldModal.value = false
 
   } catch (error) {
-    console.error('添加字段失败:', error)
+    eraLogger.error('添加字段失败:', error)
     alert(`添加字段失败：${error instanceof Error ? error.message : '未知错误'}`)
   }
 }
@@ -659,7 +660,7 @@ function exportDraft() {
 
     statusMessage.value = '草稿导出成功'
   } catch (error) {
-    console.error('导出草稿失败:', error)
+    eraLogger.error('导出草稿失败:', error)
     statusMessage.value = '导出草稿失败'
   } finally {
     setTimeout(() => {
@@ -686,7 +687,7 @@ async function loadData() {
 
     statusMessage.value = `已加载数据，共 ${countNodes(treeData.value)} 个节点`
   } catch (error) {
-    console.error('加载数据失败:', error)
+    eraLogger.error('加载数据失败:', error)
     statusMessage.value = '加载失败'
     currentData.value = null
     treeData.value = []
@@ -778,7 +779,7 @@ async function saveData() {
             }
           }, 3000)
         } catch (error) {
-          console.error('保存失败:', error)
+          eraLogger.error('保存失败:', error)
           statusMessage.value = '保存失败'
         } finally {
           saving.value = false

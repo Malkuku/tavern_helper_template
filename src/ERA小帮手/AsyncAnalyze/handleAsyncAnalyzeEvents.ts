@@ -4,6 +4,7 @@ import { MessageUtil } from '../../Utils/MessageUtil';
 import { eraAwareSleep } from '../utils/era-aware-sleep';
 import { ERAEvents } from '../../Constants/ERAEvent';
 import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
+import { eraLogger } from '../utils/EraHelperLogger';
 
 const getAsyncAnalyzeStore = () => (window as any).ApiConfigStore as ReturnType<typeof useAsyncAnalyzeStore>;
 
@@ -48,7 +49,7 @@ export const reSendEraUpdate = async () => {
     await handleKatEraUpdate();
   }catch (e) {
     toastr.error('分步分析处理失败');
-    console.error('分步分析处理失败: ',e);
+    eraLogger.error('分步分析处理失败: ',e);
     await eventEmit('era:forceSync');
   }finally {
     getAsyncAnalyzeStore().isAsync = isAsyncTemp;
@@ -144,14 +145,14 @@ export const handleKatEraUpdate = async () => {
         content: user_input,
       },
     ];
-    console.log("modelSource: ", modelSource.value)
+    eraLogger.log("modelSource: ", modelSource.value)
     const result = modelSource.value == 'sample' ?
       await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,null) :
       modelSource.value == 'profile' ?
         await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,profileSetting.value) :
         await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value,null);
 
-    console.log("result: ",result);
+    eraLogger.log("result: ",result);
 
     await handleMessageMerge(result);
 
@@ -159,7 +160,7 @@ export const handleKatEraUpdate = async () => {
 
   }catch (e){
     toastr.error("分步分析处理失败");
-    console.error("分步分析处理失败: ",e);
+    eraLogger.error("分步分析处理失败: ",e);
   }finally {
     await eventEmit(ERAEvents.FORCE_SYNC);
     getAsyncAnalyzeStore().isUpdateEra = false;
@@ -170,7 +171,7 @@ export const handleKatEraUpdate = async () => {
  * 处理世界书内容的排除
  */
 export const handleLoresFilter = async (lores:any) =>{
-  console.log("WORLDINFO_ENTRIES_LOADED: ",lores);
+  eraLogger.log("WORLDINFO_ENTRIES_LOADED: ",lores);
   await WorldInfoUtil.removeLoresByRegex(lores, loreRegex.value, isReversed.value);
 }
 

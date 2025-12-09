@@ -1,5 +1,7 @@
 // src/utils/rule-utils.ts
 
+import { eraLogger } from './EraHelperLogger';
+
 /**
  * 导出规则为JSON字符串
  * @param rules 规则对象
@@ -19,7 +21,7 @@ export function exportRulesToJson(rules: Record<string, any>, pretty: boolean = 
       ? JSON.stringify(exportData, null, 2)
       : JSON.stringify(exportData);
   } catch (error) {
-    console.error('导出规则失败:', error);
+    eraLogger.error('导出规则失败:', error);
     throw new Error('导出规则失败');
   }
 }
@@ -48,7 +50,7 @@ export function importRulesFromJson(jsonString: string): Record<string, any> {
       return data;
     }
   } catch (error) {
-    console.error('导入规则失败:', error);
+    eraLogger.error('导入规则失败:', error);
     throw new Error('解析规则文件失败');
   }
 }

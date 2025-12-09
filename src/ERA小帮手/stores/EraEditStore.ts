@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ERAUtil } from '../../Utils/ERAUtil';
 import { ERAEvents } from '../../Constants/ERAEvent';
 import { EraDataHandler } from '../EraDataHandler/EraDataHandler';
+import { eraLogger } from '../utils/EraHelperLogger';
 
 export const useEraEditStore = defineStore('KatEraEdit', () => {
   /**
@@ -9,7 +10,7 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
    */
   const getStatData = async () => {
     const { stat_data } = getVariables({type: 'chat'});
-    console.log('获取stat_data内容: ',stat_data);
+    eraLogger.log('获取stat_data内容: ',stat_data);
     return stat_data || {};
   }
 

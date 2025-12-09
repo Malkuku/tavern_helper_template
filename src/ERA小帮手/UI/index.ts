@@ -8,6 +8,7 @@ import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
 import { router } from './router/router';
 import { useEraDataStore } from '../stores/EraDataStore';
 import { useEraEditStore } from '../stores/EraEditStore';
+import { eraLogger } from '../utils/EraHelperLogger';
 
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
@@ -17,12 +18,12 @@ let mountPoint: JQuery<HTMLDivElement> | null = null;
 //  * @param viewName 要切换到的视图名称
 //  */
 // function switchView(viewName: 'FloatingBall' | 'ExpandedView') {
-//   console.debug('switchView', `请求切换视图到: ${viewName}`);
+//   eraLogger.debug('switchView', `请求切换视图到: ${viewName}`);
 //   // 初始化后，store 实例将可用
 //   if ((window as any).eraUiStore) {
 //     (window as any).eraUiStore.switchView(viewName);
 //   } else {
-//     console.warn('switchView', 'UI store尚未初始化');
+//     eraLogger.warn('switchView', 'UI store尚未初始化');
 //   }
 // }
 
@@ -31,24 +32,24 @@ let mountPoint: JQuery<HTMLDivElement> | null = null;
 
 function unmountVueApp() {
   if (vueApp) {
-    console.debug('unmountVueApp', '卸载 Vue 实例');
+    eraLogger.debug('unmountVueApp', '卸载 Vue 实例');
     vueApp.unmount();
     vueApp = null;
   }
 }
 
 function unloadUI() {
-  console.log('unloadUI', 'UI 脚本开始卸载');
+  eraLogger.log('unloadUI', 'UI 脚本开始卸载');
   unmountVueApp();
   deteleportStyle();
   if (mountPoint) {
-    console.debug('unloadUI', '销毁挂载点');
+    eraLogger.debug('unloadUI', '销毁挂载点');
     destroyMountPoint();
     mountPoint = null;
   }
   // 卸载时自我清理，防止内存泄漏
   window.removeEventListener('pagehide', unloadUI);
-  console.log('unloadUI', 'UI 脚本卸载完成');
+  eraLogger.log('unloadUI', 'UI 脚本卸载完成');
 
   // 取消监听事件
   eventClearAll();
@@ -56,14 +57,14 @@ function unloadUI() {
 
 // 在加载时执行
 $(() => {
-  console.log('initialize', 'UI 脚本开始初始化');
+  eraLogger.log('initialize', 'UI 脚本开始初始化');
   // 创建挂载点
   mountPoint = createMountPoint();
-  console.debug('$(document).ready', '创建挂载点', mountPoint);
+  eraLogger.debug('$(document).ready', '创建挂载点', mountPoint);
 
   // 将挂载点添加到 body
   $('body').append(mountPoint);
-  console.debug('$(document).ready', '挂载点已添加到 body');
+  eraLogger.debug('$(document).ready', '挂载点已添加到 body');
 
   // 创建并挂载 Vue 实例
   vueApp = createApp(App);
@@ -82,7 +83,7 @@ $(() => {
 
   // 传送样式，也只执行一次
   teleportStyle();
-  console.debug('initialize', 'Vue App 已挂载，样式已传送');
+  eraLogger.debug('initialize', 'Vue App 已挂载，样式已传送');
 
   // 监听路由变化，重新传输样式
   router.afterEach(() => {

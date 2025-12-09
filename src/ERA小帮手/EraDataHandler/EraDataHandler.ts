@@ -1,5 +1,6 @@
 import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
+import { eraLogger } from '../utils/EraHelperLogger';
 
 /**
  * 定义操作结果的接口
@@ -48,7 +49,7 @@ const applyRangeLimit = (
   ruleItem: EraDataRule[string]
 ): OperationResult[] => {
   const results: OperationResult[] = [];
-  
+
   if (!ruleItem.range) return results;
 
   const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
@@ -83,7 +84,7 @@ const applyRangeLimit = (
       });
     }
   });
-  
+
   return results;
 };
 
@@ -96,7 +97,7 @@ const applyDeltaLimit = (
   ruleItem: EraDataRule[string]
 ): OperationResult[] => {
   const results: OperationResult[] = [];
-  
+
   if (!ruleItem.limit) return results;
 
   const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
@@ -144,7 +145,7 @@ const applyDeltaLimit = (
       });
     }
   });
-  
+
   return results;
 };
 
@@ -193,7 +194,7 @@ const applyOneHandle = (
     // 执行操作表达式
     const opResult = DSLHandler.evaluateOp(opExpr, context);
     if (!opResult.success) {
-      console.warn(`操作表达式执行失败: ${opExpr}`, opResult.error);
+      eraLogger.warn(`操作表达式执行失败: ${opExpr}`, opResult.error);
       results.push({
         path: targetFullPath,
         value: targetValue,
@@ -226,7 +227,7 @@ const applyHandles = (
   ruleItem: EraDataRule[string]
 ): OperationResult[] => {
   const results: OperationResult[] = [];
-  
+
   if (!ruleItem.handle) return results;
 
   // 按照order排序处理，如果没有order则默认为0
@@ -248,7 +249,7 @@ const applyHandles = (
     for (const { path: targetFullPath, value: targetValue } of targetMatches) {
       // 创建求值上下文
       const context = DSLHandler.createEvalContext(data, snap, targetFullPath);
-      
+
       // 如果有条件表达式，先判断条件
       if (handleItem.if) {
         const result = DSLHandler.evaluateIf(handleItem.if, context);
@@ -265,7 +266,7 @@ const applyHandles = (
       // 执行操作表达式
       const opResult = DSLHandler.evaluateOp(handleItem.op, context);
       if (!opResult.success) {
-        console.warn(`操作表达式执行失败: ${handleItem.op}`, opResult.error);
+        eraLogger.warn(`操作表达式执行失败: ${handleItem.op}`, opResult.error);
         results.push({
           path: targetFullPath,
           value: targetValue,
@@ -278,7 +279,7 @@ const applyHandles = (
       // 设置结果值
       const pathSegments = targetFullPath.split('.');
       setByPathArray(data, pathSegments, opResult.value);
-      
+
       results.push({
         path: targetFullPath,
         value: opResult.value,
@@ -299,7 +300,7 @@ const applyOneRule = (
   ruleItem: EraDataRule[string]
 ): OperationResult[] => {
   const results: OperationResult[] = [];
-  
+
   // 1. 检查是否启用
   if (!ruleItem.enable) return results;
 
@@ -311,7 +312,7 @@ const applyOneRule = (
 
   // 4. 应用range（优先级3）
   results.push(...applyRangeLimit(data, ruleItem));
-  
+
   return results;
 };
 
@@ -326,7 +327,7 @@ const applyRule = (
 ): { data: any, results: OperationResult[] } => {
   // 深拷贝原始数据，避免直接修改
   const clone = JSON.parse(JSON.stringify(data));
-  
+
   const allResults: OperationResult[] = [];
 
   // 按照order排序规则
