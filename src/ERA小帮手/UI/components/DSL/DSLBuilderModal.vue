@@ -77,10 +77,6 @@
         <!-- 右侧：表达式预览和编辑 -->
         <div class="dsl-preview-area">
           <div class="expression-preview">
-            <h4>表达式预览</h4>
-            <div class="expression-display">
-              <code>{{ previewExpression }}</code>
-            </div>
             <div class="expression-raw">
               <strong>原始表达式:</strong>
               <pre>{{ rawExpression }}</pre>
@@ -154,14 +150,15 @@ const title = computed(() => {
   return props.type === 'if' ? '条件表达式构建器' : '操作表达式构建器';
 });
 
-const previewExpression = computed(() => {
-  if (!localExpression.value) return '';
-  return props.type === 'if'
-    ? `<<if> ${localExpression.value}>`
-    : `<<op> ${localExpression.value}>`;
+const rawExpression = computed(() => {
+  // 根据类型添加对应的标签
+  if (localExpression.value.trim()) {
+    const tag = props.type === 'if' ? '<<if>' : '<<op>';
+    const expression = localExpression.value.trim();
+    return `${tag} ${expression} >`;
+  }
+  return localExpression.value;
 });
-
-const rawExpression = computed(() => localExpression.value);
 
 function handleClose() {
   emit('update:visible', false);
@@ -173,7 +170,8 @@ function handleApply() {
   if (!localExpression.value.trim()) {
     return;
   }
-  emit('apply', localExpression.value.trim());
+  // 应用完整的表达式（包含标签）
+  emit('apply', rawExpression.value);
   handleClose();
 }
 
@@ -338,6 +336,12 @@ watch(() => props.visible, (newVal) => {
   overflow-x: auto;
 }
 
+.expression-text {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 .expression-raw {
   margin-top: 10px;
   font-size: 11px;
@@ -349,6 +353,8 @@ watch(() => props.visible, (newVal) => {
   background: #f3f4f6;
   border-radius: 4px;
   overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .expression-editor textarea {

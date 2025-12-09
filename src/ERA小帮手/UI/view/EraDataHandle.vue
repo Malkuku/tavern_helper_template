@@ -210,13 +210,24 @@
 
       <!-- 4. 测试模拟 -->
       <section v-show="activeTab === 'test'">
-        <h2>测试模拟</h2>
-        <div class="test-controls">
-          <button class="btn primary" @click="runTest">模拟更新（不保存）</button>
-          <button class="btn" @click="openDslTester">打开 DSL 测试器</button>
+        <div class="section-header">
+          <h2>测试模拟</h2>
+          <div class="test-controls">
+            <button class="btn small" @click="importTestData">导入测试数据</button>
+            <button v-if="hasCustomTestData" class="btn small" @click="resetToOriginalData">恢复原始数据</button>
+            <button class="btn small primary" @click="runTest">模拟更新（不保存）</button>
+            <button class="btn small" @click="openDslTester">打开 DSL 测试器</button>
+          </div>
         </div>
+
+        <!-- 显示当前数据来源 -->
+        <div v-if="hasCustomTestData" class="data-source-indicator">
+          <span class="indicator-icon">📁</span>
+          <span>当前使用自定义测试数据</span>
+        </div>
+
         <div class="json-tree-box">
-          <json-tree :data="testResult" />
+          <json-tree :data="testResult || statData" />
         </div>
       </section>
     </div>
@@ -778,6 +789,62 @@ function showMessage(text: string, type: 'success' | 'error' | 'warning') {
     message.value = null;
   }, 3000);
 }
+
+/* ---------- 测试数据文件处理 ---------- */
+function importTestData() {
+  // 创建隐藏的文件输入元素
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.style.display = 'none';
+
+  input.onchange = (event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const testData = JSON.parse(content);
+
+        // 验证数据结构
+        if (typeof testData !== 'object' || testData === null) {
+          showMessage('无效的 JSON 数据', 'error');
+          return;
+        }
+
+        // 将导入的数据设为当前测试数据
+        statData.value = testData;
+        showMessage('测试数据导入成功', 'success');
+
+        // 自动切换到测试标签页
+        activeTab.value = 'test';
+      } catch (error) {
+        showMessage('文件读取失败: ' + error, 'error');
+      }
+    };
+
+    reader.readAsText(file);
+    // 清理文件输入
+    document.body.removeChild(input);
+  };
+
+  document.body.appendChild(input);
+  input.click();
+}
+
+function resetToOriginalData() {
+  // 重置为原始数据
+  const { stat_data } = getVariables({ type: 'chat' });
+  statData.value = stat_data || {};
+  showMessage('已恢复原始数据', 'success');
+}
+
+const hasCustomTestData = computed(() => {
+  const original = getVariables({ type: 'chat' }).stat_data;
+  return JSON.stringify(statData.value) !== JSON.stringify(original);
+});
 </script>
 
 <style scoped lang="scss">
@@ -1407,6 +1474,35 @@ input:checked + .toggle-label:before {
 
 .rule-details div {
   margin: 4px 0;
+}
+
+.data-source-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #0369a1;
+
+  .indicator-icon {
+    font-size: 14px;
+  }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.test-controls {
+  display: flex;
+  gap: 8px;
 }
 
 /* 响应式调整 */

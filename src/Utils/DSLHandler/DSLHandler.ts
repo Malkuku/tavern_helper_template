@@ -68,13 +68,22 @@ const getValueByPathDirect = (data: any, path: string, snapshot?: any): any[] =>
  */
 const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,opExpr: string)=>{
   const planeSnapshot = JSON.parse(JSON.stringify(snapshot));
+  console.log(
+    '加载测试数据:', testData,
+    '快照:', planeSnapshot,
+    '测试路径:', path,
+    '条件表达式:', ifExpr,
+    '操作表达式:', opExpr,
+  )
+
   const context = createEvalContext(testData, planeSnapshot, path);
   // 测试条件表达式
   let output = '';
   if(ifExpr){
     const result = DSLEngine.evaluateIf(ifExpr, context);
     output += `条件表达式：${ifExpr}\n`;
-    output += `条件表达式结果：${JSON.stringify(result)}\n`
+    output += `条件表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`
+    console.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
     output += '========================\n';
   }
 
@@ -82,7 +91,8 @@ const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,
   if(opExpr){
     const result = DSLEngine.evaluateOp(opExpr, context);
     output += `操作表达式：${opExpr}\n`;
-    output += `条件表达式结果：${JSON.stringify(result)}\n`;
+    output += `条件表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
+    console.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
     output += '========================\n';
   }
 
