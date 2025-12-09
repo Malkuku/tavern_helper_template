@@ -7,6 +7,16 @@ import { EvalContext } from './types/dsl';
 import { DSLEngine, DSLResult } from './dsl-engine';
 
 /**
+ * 定义操作结果的接口
+ */
+interface OperationResult {
+  path: string;
+  value: any;
+  success: boolean;
+  error?: string;
+}
+
+/**
  * 创建求值上下文
  * @param data 当前数据（会修改）
  * @param snapshot 快照（只读）
@@ -45,7 +55,7 @@ const evaluateOp = (opExpr: string, context: EvalContext): DSLResult => {
  * @param snapshot 快照对象
  * @param wildcardMapping 通配符映射
  */
-const getValueByPath = (data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): any[] => {
+const getValueByPath = (data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): {path: string, value: any}[] => {
   return dslGetValueByPath(data, path, snapshot, wildcardMapping);
 }
 
@@ -55,7 +65,7 @@ const getValueByPath = (data: any, path: string, snapshot?: any, wildcardMapping
  * @param path 路径
  * @param snapshot 快照对象
  */
-const getValueByPathDirect = (data: any, path: string, snapshot?: any): any[] => {
+const getValueByPathDirect = (data: any, path: string, snapshot?: any): {path: string, value: any}[] => {
   return dslGetValueByPathDirect(data, path, snapshot);
 }
 

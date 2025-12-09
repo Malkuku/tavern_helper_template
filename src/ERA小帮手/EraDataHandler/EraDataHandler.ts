@@ -1,5 +1,16 @@
 import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
+
+/**
+ * 定义操作结果的接口
+ */
+interface OperationResult {
+  path: string;
+  value: any;
+  success: boolean;
+  error?: string;
+}
+
 /**
  * 通过path路径获取对象的一个值（不支持通配符）
  */
@@ -35,22 +46,45 @@ const applyRange = (v: number, [min, max]: [number, number]): number =>
 const applyRangeLimit = (
   data: any,
   ruleItem: EraDataRule[string]
-): void => {
-  if (!ruleItem.range) return;
+): OperationResult[] => {
+  const results: OperationResult[] = [];
+  
+  if (!ruleItem.range) return results;
 
   const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
   const [min, max] = ruleItem.range;
 
   targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
-    if (typeof currentValue !== 'number') return;
+    if (typeof currentValue !== 'number') {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: false,
+        error: 'Value is not a number'
+      });
+      return;
+    }
 
     const finalValue = applyRange(currentValue, [min, max]);
 
     if (finalValue !== currentValue) {
       const pathSegments = targetFullPath.split('.');
       setByPathArray(data, pathSegments, finalValue);
+      results.push({
+        path: targetFullPath,
+        value: finalValue,
+        success: true
+      });
+    } else {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: true
+      });
     }
   });
+  
+  return results;
 };
 
 /**
@@ -60,18 +94,36 @@ const applyDeltaLimit = (
   data: any,
   snap: any,
   ruleItem: EraDataRule[string]
-): void => {
-  if (!ruleItem.limit) return;
+): OperationResult[] => {
+  const results: OperationResult[] = [];
+  
+  if (!ruleItem.limit) return results;
 
   const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
   const [neg, pos] = ruleItem.limit;
 
   targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
-    if (typeof currentValue !== 'number') return;
+    if (typeof currentValue !== 'number') {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: false,
+        error: 'Value is not a number'
+      });
+      return;
+    }
 
     // 获取快照中的原始值
     const snapValue = getByPath(snap, targetFullPath);
-    if (typeof snapValue !== 'number') return;
+    if (typeof snapValue !== 'number') {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: false,
+        error: 'Snapshot value is not a number'
+      });
+      return;
+    }
 
     const d = currentValue - snapValue;
     const finalValue = snapValue + (d > 0 ? Math.min(d, pos) : Math.max(d, neg));
@@ -79,8 +131,21 @@ const applyDeltaLimit = (
     if (finalValue !== currentValue) {
       const pathSegments = targetFullPath.split('.');
       setByPathArray(data, pathSegments, finalValue);
+      results.push({
+        path: targetFullPath,
+        value: finalValue,
+        success: true
+      });
+    } else {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: true
+      });
     }
   });
+  
+  return results;
 };
 
 /**
@@ -92,7 +157,8 @@ const applyOneHandle = (
   ruleItem: EraDataRule[string],
   handleKey: string,
   handleItem: NonNullable<EraDataRule[string]['handle']>[string]
-): boolean => {
+): OperationResult[] => {
+  const results: OperationResult[] = [];
   const { if: ifExpr, op: opExpr } = handleItem;
 
   // 获取当前规则的目标路径（可能包含通配符）
@@ -103,10 +169,8 @@ const applyOneHandle = (
 
   // 如果没有匹配项，直接返回
   if (targetMatches.length === 0) {
-    return false;
+    return results;
   }
-
-  let hasApplied = false;
 
   // 对每个匹配的目标路径进行处理
   targetMatches.forEach(({ value: targetValue, path: targetFullPath }) => {
@@ -117,6 +181,11 @@ const applyOneHandle = (
     if (ifExpr) {
       const result = DSLHandler.evaluateIf(ifExpr, context);
       if (!result.success || !result.value) {
+        results.push({
+          path: targetFullPath,
+          value: targetValue,
+          success: true // 条件判断为false不算错误
+        });
         return; // 条件不满足，跳过这个目标
       }
     }
@@ -125,6 +194,12 @@ const applyOneHandle = (
     const opResult = DSLHandler.evaluateOp(opExpr, context);
     if (!opResult.success) {
       console.warn(`操作表达式执行失败: ${opExpr}`, opResult.error);
+      results.push({
+        path: targetFullPath,
+        value: targetValue,
+        success: false,
+        error: opResult.error
+      });
       return;
     }
 
@@ -132,10 +207,14 @@ const applyOneHandle = (
     const pathSegments = targetFullPath.split('.');
     setByPathArray(data, pathSegments, opResult.value);
 
-    hasApplied = true;
+    results.push({
+      path: targetFullPath,
+      value: opResult.value,
+      success: true
+    });
   });
 
-  return hasApplied;
+  return results;
 };
 
 /**
@@ -145,10 +224,10 @@ const applyHandles = (
   data: any,
   snap: any,
   ruleItem: EraDataRule[string]
-): boolean => {
-  if (!ruleItem.handle) return false;
-
-  let hasApplied = false;
+): OperationResult[] => {
+  const results: OperationResult[] = [];
+  
+  if (!ruleItem.handle) return results;
 
   // 按照order排序处理，如果没有order则默认为0
   const sortedHandles = Object.entries(ruleItem.handle)
@@ -166,7 +245,7 @@ const applyHandles = (
     }
 
     // 对每个匹配的目标路径应用当前handle
-    for (const { path: targetFullPath } of targetMatches) {
+    for (const { path: targetFullPath, value: targetValue } of targetMatches) {
       // 创建求值上下文
       const context = DSLHandler.createEvalContext(data, snap, targetFullPath);
       
@@ -174,6 +253,11 @@ const applyHandles = (
       if (handleItem.if) {
         const result = DSLHandler.evaluateIf(handleItem.if, context);
         if (!result.success || !result.value) {
+          results.push({
+            path: targetFullPath,
+            value: targetValue,
+            success: true // 条件判断为false不算错误
+          });
           continue; // 条件不满足，跳过这个目标
         }
       }
@@ -182,6 +266,12 @@ const applyHandles = (
       const opResult = DSLHandler.evaluateOp(handleItem.op, context);
       if (!opResult.success) {
         console.warn(`操作表达式执行失败: ${handleItem.op}`, opResult.error);
+        results.push({
+          path: targetFullPath,
+          value: targetValue,
+          success: false,
+          error: opResult.error
+        });
         continue;
       }
 
@@ -189,11 +279,15 @@ const applyHandles = (
       const pathSegments = targetFullPath.split('.');
       setByPathArray(data, pathSegments, opResult.value);
       
-      hasApplied = true;
+      results.push({
+        path: targetFullPath,
+        value: opResult.value,
+        success: true
+      });
     }
   }
 
-  return hasApplied;
+  return results;
 };
 
 /**
@@ -203,18 +297,22 @@ const applyOneRule = (
   data: any,
   snap: any,
   ruleItem: EraDataRule[string]
-): void => {
+): OperationResult[] => {
+  const results: OperationResult[] = [];
+  
   // 1. 检查是否启用
-  if (!ruleItem.enable) return;
+  if (!ruleItem.enable) return results;
 
   // 2. 应用handle（优先级1）
-  applyHandles(data, snap, ruleItem);
+  results.push(...applyHandles(data, snap, ruleItem));
 
   // 3. 应用limit（优先级2）
-  applyDeltaLimit(data, snap, ruleItem);
+  results.push(...applyDeltaLimit(data, snap, ruleItem));
 
   // 4. 应用range（优先级3）
-  applyRangeLimit(data, ruleItem);
+  results.push(...applyRangeLimit(data, ruleItem));
+  
+  return results;
 };
 
 
@@ -225,9 +323,11 @@ const applyRule = (
   data: any,
   snap: any,
   rules: EraDataRule
-): any => {
+): { data: any, results: OperationResult[] } => {
   // 深拷贝原始数据，避免直接修改
   const clone = JSON.parse(JSON.stringify(data));
+  
+  const allResults: OperationResult[] = [];
 
   // 按照order排序规则
   const sortedRules = Object.entries(rules)
@@ -235,10 +335,11 @@ const applyRule = (
 
   // 应用每条规则
   sortedRules.forEach(([, rule]) => {
-    applyOneRule(clone, snap, rule);
+    const ruleResults = applyOneRule(clone, snap, rule);
+    allResults.push(...ruleResults);
   });
 
-  return clone;
+  return { data: clone, results: allResults };
 };
 
 /**

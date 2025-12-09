@@ -38,6 +38,21 @@ export class DSLEvaluator {
     const left = this.evaluate(node.left);
     const right = this.evaluate(node.right);
 
+    // 处理数组情况（通配符路径）
+    if (Array.isArray(left) || Array.isArray(right)) {
+      // 如果任一操作数是数组，我们需要特殊处理
+      if (Array.isArray(left) && Array.isArray(right)) {
+        // 两个都是数组
+        return this.performArrayOperation(left, right, node.operator);
+      } else if (Array.isArray(left)) {
+        // 只有左侧是数组
+        return left.map(item => this.performOperation(item.value, right, node.operator));
+      } else {
+        // 只有右侧是数组
+        return right.map(item => this.performOperation(left, item.value, node.operator));
+      }
+    }
+
     switch (node.operator) {
       // 逻辑运算符
       case '&&':
@@ -84,10 +99,89 @@ export class DSLEvaluator {
     }
   }
 
+  private performArrayOperation(left: any[], right: any[], operator: string): any[] {
+    const result: any[] = [];
+    
+    // 确保两个数组长度相同
+    const maxLength = Math.max(left.length, right.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      const l = i < left.length ? left[i].value : left[left.length - 1].value;
+      const r = i < right.length ? right[i].value : right[right.length - 1].value;
+      const path = i < left.length ? left[i].path : right[i].path;
+      
+      result.push({
+        path,
+        value: this.performOperation(l, r, operator)
+      });
+    }
+    
+    return result;
+  }
+
+  private performOperation(left: any, right: any, operator: string): any {
+    switch (operator) {
+      // 逻辑运算符
+      case '&&':
+        return left && right;
+      case '||':
+        return left || right;
+
+      // 比较运算符
+      case '==':
+        return this.deepEqual(left, right);
+      case '!=':
+        return !this.deepEqual(left, right);
+      case '<':
+        return left < right;
+      case '>':
+        return left > right;
+      case '<=':
+        return left <= right;
+      case '>=':
+        return left >= right;
+
+      // 算术运算符
+      case '+':
+        return left + right;
+      case '-':
+        return left - right;
+      case '*':
+        return left * right;
+      case '/':
+        if (right === 0) {
+          throw new Error('Division by zero');
+        }
+        return left / right;
+      case '%':
+        if (right === 0) {
+          throw new Error('Division by zero in modulo operation');
+        }
+        return left % right;
+      case '**':
+        return Math.pow(left, right);
+
+      default:
+        throw new Error(`Unknown binary operator: ${operator}`);
+    }
+  }
+
   private evaluateUnaryOp(node: UnaryOpNode): any {
     const operand = this.evaluate(node.operand);
 
-    switch (node.operator) {
+    // 处理数组情况（通配符路径）
+    if (Array.isArray(operand)) {
+      return operand.map(item => ({
+        path: item.path,
+        value: this.performUnaryOperation(item.value, node.operator)
+      }));
+    }
+
+    return this.performUnaryOperation(operand, node.operator);
+  }
+
+  private performUnaryOperation(operand: any, operator: string): any {
+    switch (operator) {
       case '{ln}':
         if (operand <= 0) {
           throw new Error('Logarithm of non-positive number');
@@ -110,7 +204,7 @@ export class DSLEvaluator {
       case '{ceil}':
         return Math.ceil(operand);
       default:
-        throw new Error(`Unknown unary operator: ${node.operator}`);
+        throw new Error(`Unknown unary operator: ${operator}`);
     }
   }
 
@@ -124,7 +218,7 @@ export class DSLEvaluator {
   }
 
   private evaluateLiteral(node: LiteralNode): any {
-    return node.value.value;
+    return [{ path: '', value: node.value.value }]; // 文本节点没有路径
   }
 
   private deepEqual(a: any, b: any): boolean {

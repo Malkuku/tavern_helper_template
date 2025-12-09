@@ -9,7 +9,7 @@ import { EvalContext } from './types/dsl';
  * @param snapshot 快照对象
  * @param wildcardMapping 通配符映射，用于保持同一层级的一致性
  */
-export function getValueByPath(data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): any[] {
+export function getValueByPath(data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): {path: string, value: any}[] {
   // 如果包含通配符，展开所有路径
   if (path.includes('.*.')) {
     const paths = DSLEngine.expandWildcardPaths(data, path, wildcardMapping);
@@ -26,9 +26,10 @@ export function getValueByPath(data: any, path: string, snapshot?: any, wildcard
 /**
  * 直接通过路径获取值（不支持通配符）
  */
-export function getValueByPathDirect(data: any, path: string, snapshot?: any): any {
+export function getValueByPathDirect(data: any, path: string, snapshot?: any): {path: string, value: any}[] {
   const target = snapshot || data;
-  return path.split('.').reduce((obj, key) => obj?.[key], target);
+  const value = path.split('.').reduce((obj, key) => obj?.[key], target);
+  return [{ path, value }];
 }
 
 /**
@@ -48,9 +49,12 @@ export function createEvalContext(
       // 如果有通配符映射，则使用它
       if (wildcardMapping && path.includes('.*.')) {
         const expandedPaths = DSLEngine.expandWildcardPaths(target, path, wildcardMapping);
-        // 返回第一个匹配的值
+        // 返回所有匹配的值
         if (expandedPaths.length > 0) {
-          return getValueByPathDirect(target, expandedPaths[0]);
+          return expandedPaths.map(p => ({
+            path: p,
+            value: getValueByPathDirect(target, p)[0].value
+          }));
         }
       }
       return getValueByPathDirect(target, path);
