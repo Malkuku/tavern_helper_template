@@ -137,7 +137,7 @@ const applyRangeLimit = (
   if (!ruleItem.range) return results;
 
   // 使用snap来展开通配符路径
-  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path, snap);
+  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
   const [min, max] = ruleItem.range;
 
   targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
@@ -446,27 +446,18 @@ const mergeDataToSnapshot = (data: any, snap: any): any => {
 
 /**
  * 比较两个对象，找出不同的部分
+ * 只比较值的变化，不考虑类型变化，因为mergeDataToSnapshot已经保证了类型相同
  */
 const diffObjects = (obj: any, base: any): any => {
-  const diff: any = {};
-
-  const compare = (current: any, original: any, path: string[] = []) => {
-    if (typeof current !== typeof original ||
-        (typeof current !== 'object' && current !== original) ||
-        current === null ||
-        original === null) {
-      // 基本类型或null值不同
-      return current;
+  const compare = (current: any, original: any, path: string[] = []): any => {
+    // 对于基本类型，直接比较值
+    if (typeof current !== 'object' || current === null || original === null) {
+      return current !== original ? current : undefined;
     }
 
-    if (Array.isArray(current) !== Array.isArray(original)) {
-      // 一个是数组另一个不是
-      return current;
-    }
-
-    if (Array.isArray(current)) {
-      // 都是数组
-      if (current.length !== original.length) {
+    // 处理数组情况
+    if (Array.isArray(current) || Array.isArray(original)) {
+      if (!Array.isArray(current) || !Array.isArray(original) || current.length !== original.length) {
         return current;
       }
 
@@ -484,35 +475,22 @@ const diffObjects = (obj: any, base: any): any => {
       return hasChanges ? arrayDiff : undefined;
     }
 
-    if (typeof current === 'object') {
-      // 都是对象
-      let hasChanges = false;
-      const objDiff: any = {};
+    // 处理对象情况
+    let hasChanges = false;
+    const objDiff: any = {};
 
-      // 检查当前对象的所有属性
-      for (const key in current) {
-        if (current.hasOwnProperty(key)) {
-          const valueDiff = compare(current[key], original[key], [...path, key]);
-          if (valueDiff !== undefined) {
-            objDiff[key] = valueDiff;
-            hasChanges = true;
-          }
-        }
-      }
-
-      // 检查是否有新增的属性
-      for (const key in original) {
-        if (original.hasOwnProperty(key) && !current.hasOwnProperty(key)) {
-          // 属性被删除了，标记为undefined
-          objDiff[key] = undefined;
+    // 检查所有当前对象的属性
+    for (const key in current) {
+      if (Object.prototype.hasOwnProperty.call(current, key)) {
+        const valueDiff = compare(current[key], original[key], [...path, key]);
+        if (valueDiff !== undefined) {
+          objDiff[key] = valueDiff;
           hasChanges = true;
         }
       }
-
-      return hasChanges ? objDiff : undefined;
     }
 
-    return undefined; // 没有变化
+    return hasChanges ? objDiff : undefined;
   };
 
   const result = compare(obj, base);
