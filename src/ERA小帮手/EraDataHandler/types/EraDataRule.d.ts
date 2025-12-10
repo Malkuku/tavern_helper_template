@@ -8,6 +8,7 @@ export interface EraDataRule{
       handle?:{ //处理函数
         [key: string]:{
           order: number //处理顺序，将所有规则按照顺序处理，值越小越先处理。默认为0
+          loop?: number //循环次数，默认为1且不能小于1，最大值为10000 //如果配置了if表达式，当结果为false时，直接终止循环
           //判断可选条件表达式<<if>  >
           // <<if> $[path] ?[==] $[$this]>
           // <<if> ($[path1] ?[<=] $[$this]) ?[&&] ($[$this] ?(==) &[])>

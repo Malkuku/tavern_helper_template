@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
+import { EraDataHandler } from '../../../EraDataHandler/EraDataHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
 
 interface RuleHandle {
@@ -63,6 +63,7 @@ interface RuleHandle {
   order: number;
   ifExpr: string;
   opExpr: string;
+  loop: number;
 }
 
 interface SingleRuleData {
@@ -203,7 +204,7 @@ function runSingleTest(data: { ifExpr: string; opExpr: string; path: string }) {
       return;
     }
 
-    const result = DSLHandler.testDsl(
+    const result = EraDataHandler.testDsl(
       testData,
       snap,
       data.path,
@@ -245,7 +246,8 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
         key,
         order: handleItem.order || 0,
         ifExpr: handleItem.if || '',
-        opExpr: handleItem.op || ''
+        opExpr: handleItem.op || '',
+        loop: handleItem.loop || 1
       }));
 
       // 按顺序排序handles
@@ -258,16 +260,17 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
       // 依次执行每个handle
       for (let i = 0; i < sortedHandles.length; i++) {
         const handle = sortedHandles[i];
-        output += `第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order})\n`;
+        output += `第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order}, 循环: ${handle.loop})\n`;
 
         try {
           // 使用当前testData作为输入进行测试
-          const result = DSLHandler.testDsl(
+          const result = EraDataHandler.testDsl(
             testData,  // 直接传入testData，让testDsl内部修改它
             snapshot,
             rule.path,
             handle.ifExpr || '',
-            handle.opExpr || ''
+            handle.opExpr || '',
+            handle.loop || 1
           );
 
           output += result.split('\n').join('\n') + '\n';

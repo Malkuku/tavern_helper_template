@@ -1,6 +1,9 @@
 import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
 import { eraLogger } from '../utils/EraHelperLogger';
+import { DSLResult } from '../../Utils/DSLHandler/dsl-engine';
+
+const MAX_LOOP_COUNT = 2000;
 
 /**
  * 定义操作结果的接口
@@ -272,64 +275,70 @@ const applyHandles = (
       continue;
     }
 
+    // 获取循环次数，默认为1，最大为10000
+    const loopCount = Math.max(1, Math.min(handleItem.loop ?? 1, MAX_LOOP_COUNT));
+
     // 对每个匹配的目标路径应用当前handle
     for (const { path: targetFullPath, value: targetValue } of targetMatches) {
-      // 创建求值上下文
-      const context = DSLHandler.createEvalContext(data, snap, targetFullPath);
+      // 循环执行
+      for (let i = 0; i < loopCount; i++) {
+        // 每次循环都创建新的上下文，确保使用最新的数据
+        const context = DSLHandler.createEvalContext(data, snap, targetFullPath);
 
-      // 如果有条件表达式，先判断条件
-      if (handleItem.if) {
-        const result = DSLHandler.evaluateIf(handleItem.if, context);
-        if (!result.success || !result.value) {
+        // 如果有条件表达式，先判断条件
+        if (handleItem.if) {
+          const result = DSLHandler.evaluateIf(handleItem.if, context);
+          if (!result.success || !result.value) {
+            results.push({
+              path: targetFullPath,
+              value: targetValue,
+              success: true, // 条件判断为false不算错误
+              log: `条件判断: ${targetFullPath} handle "${handleKey}" 条件 "${handleItem.if}" 未满足，终止循环 (${i + 1}/${loopCount})`
+            });
+            break; // 条件不满足，跳出循环
+          }
+        }
+
+        // 执行操作表达式
+        const opResult = DSLHandler.evaluateOp(handleItem.op, context);
+        if (!opResult.success) {
+          eraLogger.warn(`操作表达式执行失败: ${handleItem.op}`, opResult.error);
           results.push({
             path: targetFullPath,
             value: targetValue,
-            success: true, // 条件判断为false不算错误
-            log: `条件判断: ${targetFullPath} handle "${handleKey}" 条件 "${handleItem.if}" 未满足，跳过操作`
+            success: false,
+            error: opResult.error,
+            log: `操作执行失败: ${targetFullPath} handle "${handleKey}" 表达式 "${handleItem.op}" 执行出错: ${opResult.error}`
           });
-          continue; // 条件不满足，跳过这个目标
+          break; // 执行失败，跳出循环
         }
-      }
 
-      // 执行操作表达式
-      const opResult = DSLHandler.evaluateOp(handleItem.op, context);
-      if (!opResult.success) {
-        eraLogger.warn(`操作表达式执行失败: ${handleItem.op}`, opResult.error);
-        results.push({
-          path: targetFullPath,
-          value: targetValue,
-          success: false,
-          error: opResult.error,
-          log: `操作执行失败: ${targetFullPath} handle "${handleKey}" 表达式 "${handleItem.op}" 执行出错: ${opResult.error}`
-        });
-        continue;
-      }
+        // 处理操作表达式的结果
+        // 如果结果是数组（通配符路径的情况），需要分别处理每个路径
+        if (Array.isArray(opResult.value)) {
+          opResult.value.forEach(({ path, value }) => {
+            const pathSegments = path.split('.');
+            setByPathArray(data, pathSegments, value);
 
-      // 处理操作表达式的结果
-      // 如果结果是数组（通配符路径的情况），需要分别处理每个路径
-      if (Array.isArray(opResult.value)) {
-        opResult.value.forEach(({ path, value }) => {
-          const pathSegments = path.split('.');
-          setByPathArray(data, pathSegments, value);
+            results.push({
+              path,
+              value,
+              success: true,
+              log: `操作执行成功: ${path} handle "${handleKey}" 第${i + 1}次循环，值更新为 ${value} (表达式: "${handleItem.op}")`
+            });
+          });
+        } else {
+          // 单个值的情况
+          const pathSegments = targetFullPath.split('.');
+          setByPathArray(data, pathSegments, opResult.value);
 
           results.push({
-            path,
-            value,
+            path: targetFullPath,
+            value: opResult.value,
             success: true,
-            log: `操作执行成功: ${path} handle "${handleKey}" 值更新为 ${value} (表达式: "${handleItem.op}")`
+            log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 第${i + 1}次循环，值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
           });
-        });
-      } else {
-        // 单个值的情况
-        const pathSegments = targetFullPath.split('.');
-        setByPathArray(data, pathSegments, opResult.value);
-
-        results.push({
-          path: targetFullPath,
-          value: opResult.value,
-          success: true,
-          log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
-        });
+        }
       }
     }
   }
@@ -425,11 +434,95 @@ function setByPathArray(root: any, path: string[], value: any) {
   cur[path[path.length - 1]] = value;
 }
 
+/**
+ * 测试dsl语法
+ * @param testData 测试数据
+ * @param snapshot 快照数据
+ * @param path 测试路径
+ * @param ifExpr if表达式 '<<if> $[角色.角色A.特殊状态.好感度] ?[>=] &[{num}40]>'
+ * @param opExpr op表达式 '<<op> $[角色.角色A.特殊状态.好感度] #[+] &[{num}10]>
+ * @param loopCount 循环次数，默认为1
+ */
+const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,opExpr: string, loopCount: number = 1)=>{
+  const planeSnapshot = JSON.parse(JSON.stringify(snapshot));
+  eraLogger.log(
+    '加载测试数据:', testData,
+    '快照:', planeSnapshot,
+    '测试路径:', path,
+    '条件表达式:', ifExpr,
+    '操作表达式:', opExpr,
+    '循环次数:', loopCount
+  )
+
+  // 限制循环次数在合理范围内
+  const actualLoopCount = Math.max(1, Math.min(loopCount ?? 1, MAX_LOOP_COUNT));
+
+  let output = '';
+
+  // 循环执行
+  for (let i = 0; i < actualLoopCount; i++) {
+    if (actualLoopCount > 1) {
+      output += `第${i + 1}次循环:\n`;
+    }
+
+    const context = DSLHandler.createEvalContext(testData, planeSnapshot, path);
+    // 测试条件表达式
+    let conditionResult: DSLResult | null = null;
+    if(ifExpr){
+      const result = DSLHandler.evaluateIf(ifExpr, context);
+      conditionResult = result;
+      output += `条件表达式：${ifExpr}\n`;
+      output += `条件表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`
+      eraLogger.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
+      output += '========================\n';
+    }
+
+    // 测试操作表达式
+    if(opExpr){
+      // 如果有条件表达式且结果为false，则不执行操作表达式
+      if (conditionResult && !conditionResult.value) {
+        output += `由于条件表达式结果为false，跳过执行操作表达式：${opExpr}\n`;
+        eraLogger.log(`由于条件表达式结果为false，跳过执行操作表达式：${opExpr}`);
+        output += '========================\n';
+        break; // 条件不满足，跳出循环
+      } else {
+        const result = DSLHandler.evaluateOp(opExpr, context);
+        output += `操作表达式：${opExpr}\n`;
+        output += `操作表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
+        eraLogger.log(`操作表达式：${opExpr}，结果：${JSON.stringify(result)}`);
+        output += '========================\n';
+
+        // 如果操作成功并且有返回值，则更新测试数据
+        if (result.success && result.value) {
+          // 处理返回的路径和值
+          if (Array.isArray(result.value)) {
+            // 多个路径的情况（通配符）
+            result.value.forEach(({ path: resultPath, value: resultValue }) => {
+              DSLHandler.setValueByPath(testData, resultPath, resultValue);
+            });
+          } else {
+            // 单个值的情况
+            DSLHandler.setValueByPath(testData, path, result.value);
+          }
+        }
+
+        // 如果是最后一次循环，不需要换行
+        if (i < actualLoopCount - 1) {
+          output += '\n';
+        }
+      }
+    }
+  }
+
+  return output;
+}
+
 export const EraDataHandler = {
   setByPathArray,
   deepEqual,
   applyRule,
   applyHandles,
   applyOneHandle,
-  applyOneRule
+  applyOneRule,
+  testDsl
 };

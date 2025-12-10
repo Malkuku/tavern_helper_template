@@ -88,7 +88,7 @@
               <div v-if="rule.handle && Object.keys(rule.handle).length > 0" class="handle-list">
                 <div v-for="(handleItem, handleKey) in rule.handle" :key="handleKey" class="handle-item">
                   <div class="handle-header">
-                    <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }})
+                    <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }}, 循环: {{ handleItem.loop }})
                   </div>
                   <div v-if="handleItem.if" class="handle-expression">
                     <strong>条件:</strong> {{ handleItem.if }}
@@ -175,6 +175,11 @@
             <div class="field">
               <label>处理顺序:</label>
               <input v-model.number="handleItem.order" type="number" min="0" placeholder="0" />
+            </div>
+
+            <div class="field">
+              <label>循环次数:</label>
+              <input v-model.number="handleItem.loop" type="number" min="1" max="1000" placeholder="1" />
             </div>
 
             <!-- 条件表达式构建器 -->
@@ -538,6 +543,7 @@ function addHandle() {
   }
   draft.value.handle[k] = {
     order: 0,
+    loop: 1,
     if: '',
     op: ''
   };
