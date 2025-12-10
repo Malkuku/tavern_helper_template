@@ -9,12 +9,22 @@
       </div>
     </div>
 
+    <!-- 路径收集框 -->
+    <PathCollection
+      v-if="activeTab === 'rule'"
+      :paths="collectedPaths"
+      :is-expanded="isPathCollectionExpanded"
+      @update:is-expanded="isPathCollectionExpanded = $event"
+      @remove-path="removePath"
+      @clear-all="clearAllPaths"
+    />
+
     <div class="content-wrapper">
       <!-- 1.查看数据 -->
       <section v-show="activeTab === 'data'">
         <h2>当前 stat_data（只读）</h2>
         <div class="json-tree-box">
-          <json-tree :data="statData" @send-path="usePathForRule" />
+          <json-tree :data="statData" @send-path="collectPath" />
         </div>
       </section>
 
@@ -321,6 +331,7 @@ import EraConfirmModal from '../components/EraConfirmModal.vue';
 import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';
 import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
 import FileImportExport from '../components/FileImportExport.vue';
+import PathCollection from '../components/PathCollection.vue';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -338,6 +349,10 @@ const draft = ref<any>({
   limit: [],
 });
 const handleNames = ref<Record<string, string>>({});
+
+// 路径收集相关
+const collectedPaths = ref<string[]>([]);
+const isPathCollectionExpanded = ref(false);
 
 const draftRangeMin = ref<number | null>(null);
 const draftRangeMax = ref<number | null>(null);
@@ -558,31 +573,25 @@ function delHandle(k: string | number) {
   delete handleNames.value[k];
 }
 
-function usePathForRule(path: string) {
-  let key = `rule_${Date.now()}`;
-  // 确保初始规则名称唯一
-  while (rules.value[key]) {
-    key = `rule_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+function collectPath(path: string) {
+  // 添加路径到收集列表
+  if (!collectedPaths.value.includes(path)) {
+    collectedPaths.value.push(path);
+    toastr.success('路径已复制到收集箱', '');
+  } else {
+    toastr.warning('路径已在收集箱中', '');
   }
-
-  rules.value[key] = {
-    enable: true,
-    path,
-    order: 0,
-    handle: {},
-    range: [],
-    limit: [],
-  };
-  activeTab.value = 'rule';
-  editingKey.value = key;
-  editKeyLocked.value = false;
-  draft.value = { ...rules.value[key] };
-  handleNames.value = {};
-  draftRangeMin.value = null;
-  draftRangeMax.value = null;
-  draftLimitNeg.value = null;
-  draftLimitPos.value = null;
 }
+
+function removePath(index: number) {
+  collectedPaths.value.splice(index, 1);
+}
+
+function clearAllPaths() {
+  collectedPaths.value = [];
+}
+
+// 保留collectPath方法供JsonTree组件调用，其他方法已移到PathCollection组件中
 
 /* ---------- DSL 构建器 ---------- */
 function openDslBuilder(type: 'if' | 'op', handleKey: string | number) {
@@ -846,6 +855,8 @@ const hasCustomTestData = computed(() => {
   const original = getVariables({ type: 'chat' }).stat_data;
   return JSON.stringify(statData.value) !== JSON.stringify(original);
 });
+
+
 </script>
 
 <style scoped lang="scss">
