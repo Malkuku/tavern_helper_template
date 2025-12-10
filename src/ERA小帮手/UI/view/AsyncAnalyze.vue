@@ -1,105 +1,133 @@
 <template>
   <div>
-    <h3 class="title">
-      ERA 分步分析设置
-    </h3>
-    <!-- 分步分析开关 -->
-    <label class="switch-row">
-      <span>分步分析模式</span>
-      <input
-        type="checkbox"
-        :checked="asyncAnalyzeStore.isAsync"
-        @change="asyncAnalyzeStore.isAsync = !asyncAnalyzeStore.isAsync"
-      />
-      <span class="switch"></span>
-    </label>
-
-    <span class="tip-card">
-      ⚠️ 目前流式生成的分析的 ejs 替换有 bug，分步模式请不要打开流式
-    </span>
-
-    <!-- 模型来源 -->
-    <div class="row">
-      <span>模型来源</span>
-      <select v-model="modelSource">
-        <option value="sample">当前模型</option>
-        <option value="profile" @click="refreshProfileList">预设模型</option>
-        <option value="external">额外模型</option>
-      </select>
-    </div>
-    <div v-if="modelSource === 'profile'" class="row">
-      <span>预设模型</span>
-      因为ERA和提示词模板的替换问题，目前不可用😑
-    </div>
-
-
-    <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
-<!--      <div v-if="modelSource === 'profile'" class="row">-->
-<!--        <span>预设模型</span>-->
-<!--        <select v-model="profileSetting">-->
-<!--          <option-->
-<!--            v-for="p in profileList"-->
-<!--            :key="p"-->
-<!--            :value="p"-->
-<!--            :title="p"-->
-<!--          >-->
-<!--            {{ shortName(p) }}-->
-<!--          </option>-->
-<!--        </select>-->
-<!--      </div>-->
-
-
-
-    <!-- 额外模型参数（仅 external 时显示） -->
-    <div v-if="modelSource === 'external'" class="form">
-      <div class="row">
-        <span>接口地址</span>
-        <input v-model="settings.baseURL" placeholder="https://api.openai.com/v1" />
-      </div>
-      <div class="row">
-        <span>API密钥（请注意好个人隐私）</span>
-        <input v-model="settings.apiKey" type="password" placeholder="sk-..." />
-      </div>
-      <div class="row">
-        <!-- 模型名称 -->
-        <div class="row">
-          <span>模型名称</span>
-          <select v-model="settings.modelName" style="flex:1">
-            <option v-for="m in modelOptions" :key="m" :value="m" :title="m">{{ shortName(m) }}</option>
-            <!-- 允许手动输入，兜底 -->
-            <option v-if="settings.modelName && !modelOptions.includes(settings.modelName)" :value="settings.modelName">{{ settings.modelName }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <span>温度</span>
-        <input v-model="settings.temperature" type="number" step="0.1" min="0" max="2" />
-      </div>
-      <div class="row">
-        <span>频率惩罚</span>
-        <input v-model="settings.frequencyPenalty" type="number" step="0.1" min="-2" max="2" />
-      </div>
-      <div class="row">
-        <span>存在惩罚</span>
-        <input v-model="settings.presencePenalty" type="number" step="0.1" min="-2" max="2" />
-      </div>
-      <div class="row">
-        <span>最大Token数</span>
-        <input v-model="settings.maxTokens" type="number" min="1" />
-      </div>
-    </div>
-
-
-    <div class="row" style="justify-content: flex-start; gap: 12px;">
-      <button class="btn small" @click="testConnect">测试连接</button>
+    <!-- 页面导航 -->
+    <div class="page-tabs">
       <button
-        v-if="modelSource === 'external'"
-        class="btn small"
-        @click="getRemoteModels"
+        class="tab-button"
+        :class="{ active: currentPage === 'model' }"
+        @click="currentPage = 'model'"
       >
-        获取模型列表
+        模型配置
+      </button>
+      <button
+        class="tab-button"
+        :class="{ active: currentPage === 'worldinfo' }"
+        @click="currentPage = 'worldinfo'"
+      >
+        世界书与正则配置
       </button>
     </div>
+
+    <!-- 第一页：模型配置 -->
+    <div v-show="currentPage === 'model'">
+      <h3 class="title">
+        ERA 分步分析设置
+      </h3>
+      <!-- 分步分析开关 -->
+      <label class="switch-row">
+        <span>分步分析模式</span>
+        <input
+          type="checkbox"
+          :checked="asyncAnalyzeStore.isAsync"
+          @change="asyncAnalyzeStore.isAsync = !asyncAnalyzeStore.isAsync"
+        />
+        <span class="switch"></span>
+      </label>
+
+      <span class="tip-card">
+        ⚠️ 目前流式生成的分析的 ejs 替换有 bug，分步模式请不要打开流式
+      </span>
+
+      <!-- 模型来源 -->
+      <div class="row">
+        <span>模型来源</span>
+        <select v-model="modelSource">
+          <option value="sample">当前模型</option>
+          <option value="profile" @click="refreshProfileList">预设模型</option>
+          <option value="external">额外模型</option>
+      </select>
+      </div>
+      <div v-if="modelSource === 'profile'" class="row">
+        <span>预设模型</span>
+        因为ERA和提示词模板的替换问题，目前不可用😑
+      </div>
+
+
+      <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
+  <!--      <div v-if="modelSource === 'profile'" class="row">-->
+  <!--        <span>预设模型</span>-->
+  <!--        <select v-model="profileSetting">-->
+  <!--          <option-->
+  <!--            v-for="p in profileList"-->
+  <!--            :key="p"-->
+  <!--            :value="p"-->
+  <!--            :title="p"-->
+  <!--          >-->
+  <!--            {{ shortName(p) }}-->
+  <!--          </option>-->
+  <!--        </select>-->
+  <!--      </div>-->
+
+
+
+      <!-- 额外模型参数（仅 external 时显示） -->
+      <div v-if="modelSource === 'external'" class="form">
+        <div class="row">
+          <span>接口地址</span>
+          <input v-model="settings.baseURL" placeholder="https://api.openai.com/v1" />
+        </div>
+        <div class="row">
+          <span>API密钥（请注意好个人隐私）</span>
+          <input v-model="settings.apiKey" type="password" placeholder="sk-..." />
+        </div>
+        <div class="row">
+          <!-- 模型名称 -->
+          <div class="row">
+            <span>模型名称</span>
+            <select v-model="settings.modelName" style="flex:1">
+              <option v-for="m in modelOptions" :key="m" :value="m" :title="m">{{ shortName(m) }}</option>
+              <!-- 允许手动输入，兜底 -->
+              <option v-if="settings.modelName && !modelOptions.includes(settings.modelName)" :value="settings.modelName">{{ settings.modelName }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <span>温度</span>
+          <input v-model="settings.temperature" type="number" step="0.1" min="0" max="2" />
+        </div>
+        <div class="row">
+          <span>频率惩罚</span>
+          <input v-model="settings.frequencyPenalty" type="number" step="0.1" min="-2" max="2" />
+        </div>
+        <div class="row">
+          <span>存在惩罚</span>
+          <input v-model="settings.presencePenalty" type="number" step="0.1" min="-2" max="2" />
+        </div>
+        <div class="row">
+          <span>最大Token数</span>
+          <input v-model="settings.maxTokens" type="number" min="1" />
+        </div>
+      </div>
+
+
+      <div class="row" style="justify-content: flex-start; gap: 12px;">
+        <button class="btn small" @click="testConnect">测试连接</button>
+        <button
+          v-if="modelSource === 'external'"
+          class="btn small"
+          @click="getRemoteModels"
+        >
+          获取模型列表
+        </button>
+      </div>
+    </div>
+
+    <!-- 第二页：世界书与正则配置 -->
+    <div v-show="currentPage === 'worldinfo'">
+      <h3 class="title">世界书与正则配置</h3>
+      <WorldInfoAndRegexConfig />
+    </div>
+
     <br>
 
     <!-- 底部按钮 -->
@@ -108,19 +136,22 @@
       <button class="btn danger" @click="handleClear">清空</button>
       <button class="btn primary" @click="handleSave">保存</button>
     </div>
-<!--      <button @click="testGetPreset">获取预设名称</button>-->
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, watch, ref } from 'vue'
 import { useUiStore } from '../../stores/UIStore'
 import * as toastr from 'toastr'
 import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore';
 import { eraLogger } from '../../utils/EraHelperLogger';
+import WorldInfoAndRegexConfig from '../components/WorldInfoAndRegexConfig.vue';
 
 const uiStore = useUiStore();
 const asyncAnalyzeStore = useAsyncAnalyzeStore();
+
+// 页面控制
+const currentPage = ref<'model' | 'worldinfo'>('model');
 
 /* 预设名称缩略 */
 const shortName = (full: string, max = 36) =>
@@ -168,20 +199,28 @@ const refreshProfileList = async () => {
 
 /* 保存 */
 const handleSave = async () => {
-  asyncAnalyzeStore.modelSource      = modelSource.value
-  asyncAnalyzeStore.profileSetting   = profileSetting.value
-  asyncAnalyzeStore.customModelSettings = { ...settings } as any
-  await asyncAnalyzeStore.saveModelSettings()
-  toastr.success('设置已保存')
+  // 如果在模型配置页面，则保存模型设置
+  if (currentPage.value === 'model') {
+    asyncAnalyzeStore.modelSource      = modelSource.value
+    asyncAnalyzeStore.profileSetting   = profileSetting.value
+    asyncAnalyzeStore.customModelSettings = { ...settings } as any
+    await asyncAnalyzeStore.saveModelSettings()
+    toastr.success('设置已保存')
+  }
+  // 如果在世界书与正则配置页面，则由子组件负责保存
 }
 
 /* 清空（恢复默认） */
 const handleClear = async () => {
-  await asyncAnalyzeStore.clearModelSettings()
-  modelSource.value      = asyncAnalyzeStore.modelSource as any
-  profileSetting.value   = asyncAnalyzeStore.profileSetting || ''
-  Object.assign(settings, asyncAnalyzeStore.customModelSettings)
-  toastr.info('已清空设置')
+  // 如果在模型配置页面，则清空模型设置
+  if (currentPage.value === 'model') {
+    await asyncAnalyzeStore.clearModelSettings()
+    modelSource.value      = asyncAnalyzeStore.modelSource as any
+    profileSetting.value   = asyncAnalyzeStore.profileSetting || ''
+    Object.assign(settings, asyncAnalyzeStore.customModelSettings)
+    toastr.info('已清空设置')
+  }
+  // 如果在世界书与正则配置页面，则由子组件负责清空
 }
 
 const close = () => {
@@ -567,5 +606,31 @@ const getRemoteModels = async () => {
 .tooltip:hover::after {
   opacity: 1;
   visibility: visible;
+}
+
+/************ 页面标签 ************/
+.page-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+
+  &.active {
+    color: #6366f1;
+    border-bottom: 2px solid #6366f1;
+  }
+
+  &:hover:not(.active) {
+    color: #111827;
+  }
 }
 </style>
