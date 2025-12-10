@@ -8,35 +8,26 @@
 
       <div class="tester-body">
         <div class="tester-inputs">
-          <div class="field">
-            <label>导入的数据:</label>
-            <textarea 
-              v-model="localImportedDataText" 
-              placeholder="导入的测试数据将显示在这里"
-              readonly
-            ></textarea>
-          </div>
-
-          <div class="field">
-            <label>测试结果:</label>
-            <textarea 
-              v-model="localResultDataText" 
-              placeholder="测试结果将显示在这里"
-              readonly
-            ></textarea>
+          <div class="import-actions">
+            <FileImportExport
+              ref="fileImportRef"
+              import-text="导入JSON"
+              :require-confirm="false"
+              @file-loaded="handleTestDataLoaded"
+              @error="handleImportError"
+            />
+            <button class="btn" :disabled="!importedDataObj" @click="handleRunTest">运行测试</button>
+            <button class="btn" @click="handleClose">关闭</button>
           </div>
 
           <div class="field">
             <label>执行日志:</label>
-            <textarea 
-              v-model="localExecutionLog" 
+            <textarea
+              v-model="localExecutionLog"
               placeholder="执行过程日志将显示在这里"
               readonly
+              class="light-theme"
             ></textarea>
-          </div>
-
-          <div class="tester-actions">
-            <button class="btn" @click="handleClose">关闭</button>
           </div>
         </div>
 
@@ -44,12 +35,25 @@
           <h4>数据对比视图</h4>
           <div class="data-comparison">
             <div class="data-section">
+              <h5>导入的数据</h5>
+              <div class="json-display">
+                <JsonTree v-if="importedDataObj" :data="importedDataObj" />
+                <div v-else class="empty-json">暂无数据</div>
+              </div>
+            </div>
+            <div class="data-section">
               <h5>原始数据</h5>
-              <pre>{{ localImportedDataFormatted }}</pre>
+              <div class="json-display">
+                <JsonTree v-if="importedDataObj" :data="importedDataObj" />
+                <div v-else class="empty-json">暂无数据</div>
+              </div>
             </div>
             <div class="data-section">
               <h5>测试结果</h5>
-              <pre>{{ localResultDataFormatted }}</pre>
+              <div class="json-display">
+                <JsonTree v-if="resultDataObj" :data="resultDataObj" />
+                <div v-else class="empty-json">暂无数据</div>
+              </div>
             </div>
           </div>
         </div>
@@ -59,7 +63,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
+import JsonTree from './JsonNode/JsonTree.vue';
+import FileImportExport from './FileImportExport.vue';
 
 interface Props {
   visible: boolean;
@@ -71,6 +77,7 @@ interface Props {
 interface Emits {
   (e: 'update:visible', value: boolean): void;
   (e: 'close'): void;
+  (e: 'run-test', testData: any): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -86,43 +93,64 @@ const localImportedDataText = ref('');
 const localResultDataText = ref('');
 const localExecutionLog = ref('');
 
-// 格式化显示数据
-const localImportedDataFormatted = computed(() => {
-  try {
-    return JSON.stringify(props.importedData, null, 2);
-  } catch (e) {
-    return '无法格式化数据';
-  }
-});
+// JSON对象用于JsonTree展示
+const importedDataObj = ref<any>(null);
+const resultDataObj = ref<any>(null);
 
-const localResultDataFormatted = computed(() => {
-  try {
-    return JSON.stringify(props.resultData, null, 2);
-  } catch (e) {
-    return '无法格式化数据';
-  }
-});
+// 文件导入引用
+const fileImportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
+
 
 // 监听props变化并更新本地变量
 watch(() => props.importedData, (newVal) => {
   try {
     localImportedDataText.value = JSON.stringify(newVal, null, 2);
+    importedDataObj.value = newVal;
   } catch (e) {
     localImportedDataText.value = '无法序列化数据';
+    importedDataObj.value = null;
   }
 }, { deep: true, immediate: true });
 
 watch(() => props.resultData, (newVal) => {
   try {
     localResultDataText.value = JSON.stringify(newVal, null, 2);
+    resultDataObj.value = newVal;
   } catch (e) {
     localResultDataText.value = '无法序列化数据';
+    resultDataObj.value = null;
   }
 }, { deep: true, immediate: true });
 
 watch(() => props.executionLog, (newVal) => {
   localExecutionLog.value = newVal;
 }, { immediate: true });
+
+// 处理测试数据加载
+function handleTestDataLoaded(content: string, file: File) {
+  try {
+    const jsonData = JSON.parse(content);
+    localImportedDataText.value = content;
+    importedDataObj.value = jsonData;
+    toastr.success(`成功导入测试数据: ${file.name}`, '');
+  } catch (error) {
+    const errorMsg = `JSON解析失败: ${error}`;
+    toastr.error(errorMsg, '');
+    console.error(errorMsg, error);
+  }
+}
+
+// 处理导入错误
+function handleImportError(error: string) {
+  toastr.error(`导入失败: ${error}`, '');
+}
+
+// 运行测试
+function handleRunTest() {
+  if (importedDataObj.value) {
+    emit('run-test', importedDataObj.value);
+  }
+}
 
 function handleClose() {
   emit('update:visible', false);
@@ -194,6 +222,11 @@ function handleClose() {
   color: #1f2937;
 }
 
+.import-actions {
+  margin-bottom: 8px;
+  gap: 4px;
+}
+
 .tester-inputs textarea {
   flex: 1;
   padding: 6px 8px;
@@ -203,6 +236,11 @@ function handleClose() {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   resize: none;
   min-height: 80px;
+}
+
+.tester-inputs textarea.light-theme {
+  background-color: #ffffff !important;
+  color: #000000 !important;
 }
 
 .tester-inputs textarea:disabled {
@@ -232,14 +270,15 @@ function handleClose() {
 .data-comparison {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 4px;
   height: 100%;
 }
 
 .data-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  max-height: 350px;
+  flex: 1;
 }
 
 .data-section h5 {
@@ -248,23 +287,29 @@ function handleClose() {
   color: #374151;
 }
 
-.data-section pre {
+.json-display {
   flex: 1;
   margin: 0;
   padding: 12px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 11px;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
   overflow-y: auto;
-  max-height: calc(50% - 20px);
+  min-height: 100px; /* 添加最小高度确保能显示内容 */
+}
+
+.empty-json {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .btn {
   padding: 5px 12px;
+  margin-left: 5px;
   border: none;
   border-radius: 6px;
   font-size: 12px;
@@ -277,6 +322,11 @@ function handleClose() {
 
 .btn:hover {
   background: #e5e7eb;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn.small {

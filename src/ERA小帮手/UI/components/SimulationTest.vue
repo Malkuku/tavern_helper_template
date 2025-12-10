@@ -3,7 +3,7 @@
     <div class="section-header">
       <h2>测试模拟</h2>
       <div class="test-controls">
-        <button class="btn small primary" @click="runTest">模拟更新（不保存）</button>
+        <button class="btn small" @click="openSimulationTestModal">打开模拟测试</button>
         <button class="btn small" @click="openDslTester">打开 DSL 测试器</button>
       </div>
     </div>
@@ -25,6 +25,7 @@
       :execution-log="executionLog"
       @update:visible="showSimulationModal = $event"
       @close="closeSimulationModal"
+      @run-test="handleRunTest"
     />
 
     <!-- DSL 测试器模态框 -->
@@ -84,16 +85,6 @@ const testResultText = ref<string>('');
 const collectedPaths = ref<string[]>([]);
 const isPathCollectionExpanded = ref(true);
 
-const collectPath = (path: string) => {
-  // 添加路径到收集列表
-  if (!collectedPaths.value.includes(path)) {
-    collectedPaths.value.push(path);
-    toastr.success('路径已复制到收集箱', '');
-  } else {
-    toastr.warning('路径已在收集箱中', '');
-  }
-};
-
 const removePath = (index: number) => {
   collectedPaths.value.splice(index, 1);
 };
@@ -107,18 +98,26 @@ onMounted(() => {
   isPathCollectionExpanded.value = true;
 });
 
-const runTest = () => {
+// 处理运行测试事件
+const handleRunTest = (testData: any) => {
   try {
-    const snap = JSON.parse(JSON.stringify(props.statData));
-    const clone = JSON.parse(JSON.stringify(props.statData));
+    const snap = JSON.parse(JSON.stringify(testData));
+    const clone = JSON.parse(JSON.stringify(testData));
     const result = EraDataHandler.applyRule(clone, snap, props.rules);
     testResultData.value = result.data;
     executionLog.value = result.log;
-    showSimulationModal.value = true;
     toastr.success('测试运行成功', '');
   } catch (error) {
     toastr.error('测试运行失败: ' + error, '');
   }
+};
+
+// 打开模拟测试模态框的方法
+const openSimulationTestModal = () => {
+  // 重置测试结果
+  testResultData.value = null;
+  executionLog.value = '';
+  showSimulationModal.value = true;
 };
 
 const openDslTester = () => {
