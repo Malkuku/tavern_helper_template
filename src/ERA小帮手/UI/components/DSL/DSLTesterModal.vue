@@ -23,11 +23,11 @@
 
           <div v-if="testMode === 'rule'" class="field">
             <label>规则名称:</label>
-            <input v-model="ruleName" disabled />
+            <input v-model="localRuleName" disabled />
           </div>
           <div v-if="testMode === 'rule'" class="field">
             <label>规则路径:</label>
-            <input v-model="rulePath" disabled />
+            <input v-model="localRulePath" disabled />
           </div>
 
           <div v-if="testMode === 'all'" class="field">
@@ -43,7 +43,7 @@
 
         <div class="tester-output">
           <h4>测试结果</h4>
-          <pre v-if="resultText">{{ resultText }}</pre>
+          <pre v-if="localResultText">{{ localResultText }}</pre>
           <div v-else class="empty-result">
             测试结果将显示在这里
           </div>
@@ -100,12 +100,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
+// 创建本地响应式变量
 const localIfExpr = ref(props.ifExpr);
 const localOpExpr = ref(props.opExpr);
 const localPath = ref(props.path);
-const resultText = ref(props.resultText);
-const ruleName = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].name : '');
-const rulePath = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].rule.path : '');
+const localResultText = ref(props.resultText);
+const localRuleName = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].name : '');
+const localRulePath = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].rule.path : '');
 
 // 确定测试模式
 const testMode = computed(() => {
@@ -123,7 +124,7 @@ const modalTitle = computed(() => {
   }
 });
 
-// 同步props变化到本地refs
+// 监听props变化并更新本地变量
 watch(() => props.ifExpr, (value) => {
   localIfExpr.value = value;
 });
@@ -137,17 +138,17 @@ watch(() => props.path, (value) => {
 });
 
 watch(() => props.resultText, (value) => {
-  resultText.value = value;
+  localResultText.value = value;
 });
 
 watch(() => props.rulesData, (value) => {
   if (value && value.length > 0) {
-    ruleName.value = value[0].name;
-    rulePath.value = value[0].rule.path;
+    localRuleName.value = value[0].name;
+    localRulePath.value = value[0].rule.path;
   }
 });
 
-// 同步本地变化到父组件
+// 监听本地变量变化并更新父组件
 watch(localIfExpr, (value) => {
   emit('update:if-expr', value);
 });
@@ -198,7 +199,7 @@ function runSingleTest(data: { ifExpr: string; opExpr: string; path: string }) {
     const testData = JSON.parse(JSON.stringify(props.statData));
 
     if (!data.path) {
-      resultText.value = '请输入测试路径';
+      localResultText.value = '请输入测试路径';
       return;
     }
 
@@ -210,9 +211,9 @@ function runSingleTest(data: { ifExpr: string; opExpr: string; path: string }) {
       data.opExpr
     );
 
-    resultText.value = result;
+    localResultText.value = result;
   } catch (error) {
-    resultText.value = `测试失败: ${error}`;
+    localResultText.value = `测试失败: ${error}`;
   }
 }
 
@@ -282,9 +283,9 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
       }
     }
 
-    resultText.value = output;
+    localResultText.value = output;
   } catch (error) {
-    resultText.value = `测试运行失败: ${error}`;
+    localResultText.value = `测试运行失败: ${error}`;
   }
 }
 </script>

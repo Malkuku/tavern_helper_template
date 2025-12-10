@@ -226,9 +226,9 @@
 
       <!-- 4. 测试模拟 -->
       <section v-show="activeTab === 'test'">
-        <SimulationTest 
-          :rules="rules" 
-          :stat-data="statData" 
+        <SimulationTest
+          :rules="rules"
+          :stat-data="statData"
           @update-stat-data="updateStatData"
         />
       </section>
@@ -303,7 +303,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
-import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
 import JsonTree from '../components/JsonNode/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
@@ -316,7 +315,6 @@ import SimulationTest from '../components/SimulationTest.vue';
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
 const rules = ref<Record<string, any>>({});
-const testResult = ref<any>();
 const folded = ref<Record<string, boolean>>({});
 const editingKey = ref<string>('');
 const editKeyLocked = ref<boolean>(false);
@@ -647,16 +645,6 @@ function validateDslExpression() {
   }
 }
 
-/* ---------- DSL 测试器 ---------- */
-function openDslTester() {
-  showDslTester.value = true;
-  testIfExpr.value = '';
-  testOpExpr.value = '';
-  testPath.value = '';
-  testRulesData.value = null;
-  testResultText.value = '';
-}
-
 function closeDslTester() {
   showDslTester.value = false;
 }
@@ -762,18 +750,6 @@ function handleImportError(error: string) {
   showMessage(error, 'error');
 }
 
-/* ---------- 测试 ---------- */
-function runTest() {
-  try {
-    const snap = JSON.parse(JSON.stringify(statData.value));
-    const clone = JSON.parse(JSON.stringify(statData.value));
-    testResult.value = EraDataHandler.applyRule(clone, snap, rules.value);
-    showMessage('测试运行成功', 'success');
-  } catch (error) {
-    showMessage('测试运行失败: ' + error, 'error');
-  }
-}
-
 /* ---------- 消息提示 ---------- */
 function showMessage(text: string, type: 'success' | 'error' | 'warning') {
   message.value = { text, type };
@@ -781,60 +757,6 @@ function showMessage(text: string, type: 'success' | 'error' | 'warning') {
     message.value = null;
   }, 3000);
 }
-
-/* ---------- 测试数据文件处理 ---------- */
-function handleTestDataLoaded(content: string, _file: File) {
-  try {
-    const testData = JSON.parse(content);
-
-    // 验证数据结构
-    if (typeof testData !== 'object' || testData === null) {
-      showMessage('无效的 JSON 数据', 'error');
-      return;
-    }
-
-    // 将导入的数据设为当前测试数据
-    statData.value = testData;
-    showMessage('测试数据导入成功', 'success');
-
-    // 自动切换到测试标签页
-    activeTab.value = 'test';
-  } catch (error) {
-    showMessage('文件读取失败: ' + error, 'error');
-  }
-}
-
-function exportTestResults() {
-  try {
-    // 导出当前测试结果或原始数据
-    const dataToExport = testResult.value || statData.value;
-    const json = JSON.stringify(dataToExport, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `era-test-data-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showMessage('测试数据导出成功', 'success');
-  } catch (error) {
-    showMessage('导出失败: ' + error, 'error');
-  }
-}
-
-function resetToOriginalData() {
-  // 重置为原始数据
-  const { stat_data } = getVariables({ type: 'chat' });
-  statData.value = stat_data || {};
-  showMessage('已恢复原始数据', 'success');
-}
-
-const hasCustomTestData = computed(() => {
-  const original = getVariables({ type: 'chat' }).stat_data;
-  return JSON.stringify(statData.value) !== JSON.stringify(original);
-});
 
 const updateStatData = (newStatData: any) => {
   statData.value = newStatData;

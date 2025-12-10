@@ -10,6 +10,7 @@ interface OperationResult {
   value: any;
   success: boolean;
   error?: string;
+  log?: string;
 }
 
 /**
@@ -61,7 +62,8 @@ const applyRangeLimit = (
         path: targetFullPath,
         value: currentValue,
         success: false,
-        error: 'Value is not a number'
+        error: 'Value is not a number',
+        log: `Range检查: ${targetFullPath} 值不是数字`
       });
       return;
     }
@@ -74,13 +76,15 @@ const applyRangeLimit = (
       results.push({
         path: targetFullPath,
         value: finalValue,
-        success: true
+        success: true,
+        log: `Range限制: ${targetFullPath} 从 ${currentValue} 调整为 ${finalValue} (范围: [${min}, ${max}])`
       });
     } else {
       results.push({
         path: targetFullPath,
         value: currentValue,
-        success: true
+        success: true,
+        log: `Range检查: ${targetFullPath} 值 ${currentValue} 在范围内 [${min}, ${max}]`
       });
     }
   });
@@ -109,7 +113,8 @@ const applyDeltaLimit = (
         path: targetFullPath,
         value: currentValue,
         success: false,
-        error: 'Value is not a number'
+        error: 'Value is not a number',
+        log: `Limit检查: ${targetFullPath} 值不是数字`
       });
       return;
     }
@@ -121,7 +126,8 @@ const applyDeltaLimit = (
         path: targetFullPath,
         value: currentValue,
         success: false,
-        error: 'Snapshot value is not a number'
+        error: 'Snapshot value is not a number',
+        log: `Limit检查: ${targetFullPath} 快照值不是数字`
       });
       return;
     }
@@ -135,13 +141,15 @@ const applyDeltaLimit = (
       results.push({
         path: targetFullPath,
         value: finalValue,
-        success: true
+        success: true,
+        log: `Limit限制: ${targetFullPath} 从 ${currentValue} 调整为 ${finalValue} (相对快照值 ${snapValue} 的变化被限制在 [${neg}, ${pos}] 范围内)`
       });
     } else {
       results.push({
         path: targetFullPath,
         value: currentValue,
-        success: true
+        success: true,
+        log: `Limit检查: ${targetFullPath} 值 ${currentValue} 相对于快照值 ${snapValue} 的变化 ${d} 在允许范围内 [${neg}, ${pos}]`
       });
     }
   });
@@ -185,7 +193,8 @@ const applyOneHandle = (
         results.push({
           path: targetFullPath,
           value: targetValue,
-          success: true // 条件判断为false不算错误
+          success: true, // 条件判断为false不算错误
+          log: `条件判断: ${targetFullPath} 条件 "${ifExpr}" 未满足，跳过操作`
         });
         return; // 条件不满足，跳过这个目标
       }
@@ -199,7 +208,8 @@ const applyOneHandle = (
         path: targetFullPath,
         value: targetValue,
         success: false,
-        error: opResult.error
+        error: opResult.error,
+        log: `操作执行失败: ${targetFullPath} 表达式 "${opExpr}" 执行出错: ${opResult.error}`
       });
       return;
     }
@@ -211,7 +221,8 @@ const applyOneHandle = (
     results.push({
       path: targetFullPath,
       value: opResult.value,
-      success: true
+      success: true,
+      log: `操作执行成功: ${targetFullPath} 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${opExpr}")`
     });
   });
 
@@ -257,7 +268,8 @@ const applyHandles = (
           results.push({
             path: targetFullPath,
             value: targetValue,
-            success: true // 条件判断为false不算错误
+            success: true, // 条件判断为false不算错误
+            log: `条件判断: ${targetFullPath} handle "${handleKey}" 条件 "${handleItem.if}" 未满足，跳过操作`
           });
           continue; // 条件不满足，跳过这个目标
         }
@@ -271,7 +283,8 @@ const applyHandles = (
           path: targetFullPath,
           value: targetValue,
           success: false,
-          error: opResult.error
+          error: opResult.error,
+          log: `操作执行失败: ${targetFullPath} handle "${handleKey}" 表达式 "${handleItem.op}" 执行出错: ${opResult.error}`
         });
         continue;
       }
@@ -283,7 +296,8 @@ const applyHandles = (
       results.push({
         path: targetFullPath,
         value: opResult.value,
-        success: true
+        success: true,
+        log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
       });
     }
   }
@@ -302,7 +316,15 @@ const applyOneRule = (
   const results: OperationResult[] = [];
 
   // 1. 检查是否启用
-  if (!ruleItem.enable) return results;
+  if (!ruleItem.enable) {
+    results.push({
+      path: ruleItem.path,
+      value: undefined,
+      success: true,
+      log: `规则未启用，跳过处理`
+    });
+    return results;
+  }
 
   // 2. 应用handle（优先级1）
   results.push(...applyHandles(data, snap, ruleItem));
@@ -324,7 +346,7 @@ const applyRule = (
   data: any,
   snap: any,
   rules: EraDataRule
-): { data: any, results: OperationResult[] } => {
+): { data: any, results: OperationResult[], log: string } => {
   // 深拷贝原始数据，避免直接修改
   const clone = JSON.parse(JSON.stringify(data));
 
@@ -335,12 +357,26 @@ const applyRule = (
     .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
   // 应用每条规则
-  sortedRules.forEach(([, rule]) => {
+  sortedRules.forEach(([ruleName, rule]) => {
     const ruleResults = applyOneRule(clone, snap, rule);
+    // 为每个结果添加规则名称前缀
+    ruleResults.forEach(result => {
+      if (!result.log) {
+        result.log = '';
+      }
+      result.log = `[${ruleName}] ${result.log}`;
+    });
     allResults.push(...ruleResults);
   });
 
-  return { data: clone, results: allResults };
+  // 生成执行日志
+  const logs = allResults
+    .filter(result => result.log)
+    .map(result => result.log);
+
+  const logText = logs.length > 0 ? logs.join('\n') : '没有执行任何操作';
+
+  return { data: clone, results: allResults, log: logText };
 };
 
 /**

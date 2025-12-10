@@ -3,24 +3,9 @@
     <div class="section-header">
       <h2>测试模拟</h2>
       <div class="test-controls">
-        <FileImportExport
-          ref="testDataImportExportRef"
-          import-text="导入测试数据"
-          export-text="导出测试结果"
-          :require-confirm="false"
-          @file-loaded="handleTestDataLoaded"
-          @export-data="exportTestResults"
-        />
-        <button v-if="hasCustomTestData" class="btn small" @click="resetToOriginalData">恢复原始数据</button>
         <button class="btn small primary" @click="runTest">模拟更新（不保存）</button>
         <button class="btn small" @click="openDslTester">打开 DSL 测试器</button>
       </div>
-    </div>
-
-    <!-- 显示当前数据来源 -->
-    <div v-if="hasCustomTestData" class="data-source-indicator">
-      <span class="indicator-icon">📁</span>
-      <span>当前使用自定义测试数据</span>
     </div>
 
     <!-- 路径收集框 -->
@@ -32,29 +17,38 @@
       @clear-all="clearAllPaths"
     />
 
-    <div class="json-tree-box">
-      <json-tree :data="testResult || statData" @send-path="collectPath" />
-    </div>
+    <!-- 模拟测试模态框 -->
+    <SimulationTestModal
+      :visible="showSimulationModal"
+      :imported-data="statData"
+      :result-data="testResultData"
+      :execution-log="executionLog"
+      @update:visible="showSimulationModal = $event"
+      @close="closeSimulationModal"
+    />
 
     <!-- DSL 测试器模态框 -->
     <DslTesterModal
-      v-model:visible="showDslTester"
-      v-model:if-expr="testIfExpr"
-      v-model:op-expr="testOpExpr"
-      v-model:path="testPath"
+      :visible="showDslTester"
+      :if-expr="testIfExpr"
+      :op-expr="testOpExpr"
+      :path="testPath"
       :rules-data="testRulesData"
       :stat-data="statData"
       :result-text="testResultText"
+      @update:visible="showDslTester = $event"
+      @update:if-expr="testIfExpr = $event"
+      @update:op-expr="testOpExpr = $event"
+      @update:path="testPath = $event"
       @close="closeDslTester"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import JsonTree from '../components/JsonNode/JsonTree.vue';
+import { ref, onMounted } from 'vue';
 import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
-import FileImportExport from '../components/FileImportExport.vue';
+import SimulationTestModal from '../components/SimulationTestModal.vue';
 import PathCollection from '../components/PathCollection.vue';
 import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
 
@@ -72,7 +66,11 @@ const props = defineProps({
 const emit = defineEmits(['update-stat-data']);
 
 // 测试结果
-const testResult = ref<any>();
+const testResultData = ref<any>();
+const executionLog = ref<string>('');
+
+// 模拟测试模态框相关
+const showSimulationModal = ref(false);
 
 // DSL 测试器相关
 const showDslTester = ref(false);
@@ -84,7 +82,7 @@ const testResultText = ref<string>('');
 
 // 路径收集相关
 const collectedPaths = ref<string[]>([]);
-const isPathCollectionExpanded = ref(false);
+const isPathCollectionExpanded = ref(true);
 
 const collectPath = (path: string) => {
   // 添加路径到收集列表
@@ -104,16 +102,19 @@ const clearAllPaths = () => {
   collectedPaths.value = [];
 };
 
-const hasCustomTestData = computed(() => {
-  const original = getVariables({ type: 'chat' }).stat_data;
-  return JSON.stringify(props.statData) !== JSON.stringify(original);
+onMounted(() => {
+  // 页面加载时展开路径收集框
+  isPathCollectionExpanded.value = true;
 });
 
 const runTest = () => {
   try {
     const snap = JSON.parse(JSON.stringify(props.statData));
     const clone = JSON.parse(JSON.stringify(props.statData));
-    testResult.value = EraDataHandler.applyRule(clone, snap, props.rules);
+    const result = EraDataHandler.applyRule(clone, snap, props.rules);
+    testResultData.value = result.data;
+    executionLog.value = result.log;
+    showSimulationModal.value = true;
     toastr.success('测试运行成功', '');
   } catch (error) {
     toastr.error('测试运行失败: ' + error, '');
@@ -133,49 +134,8 @@ const closeDslTester = () => {
   showDslTester.value = false;
 };
 
-const handleTestDataLoaded = (content: string, _file: File) => {
-  try {
-    const testData = JSON.parse(content);
-
-    // 验证数据结构
-    if (typeof testData !== 'object' || testData === null) {
-      toastr.error('无效的 JSON 数据', '');
-      return;
-    }
-
-    // 将导入的数据设为当前测试数据
-    emit('update-stat-data', testData);
-    toastr.success('测试数据导入成功', '');
-  } catch (error) {
-    toastr.error('文件读取失败: ' + error, '');
-  }
-};
-
-const exportTestResults = () => {
-  try {
-    // 导出当前测试结果或原始数据
-    const dataToExport = testResult.value || props.statData;
-    const json = JSON.stringify(dataToExport, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `era-test-data-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toastr.success('测试数据导出成功', '');
-  } catch (error) {
-    toastr.error('导出失败: ' + error, '');
-  }
-};
-
-const resetToOriginalData = () => {
-  // 重置为原始数据
-  const { stat_data } = getVariables({ type: 'chat' });
-  emit('update-stat-data', stat_data || {});
-  toastr.success('已恢复原始数据', '');
+const closeSimulationModal = () => {
+  showSimulationModal.value = false;
 };
 </script>
 
@@ -198,34 +158,6 @@ const resetToOriginalData = () => {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
-}
-
-.json-tree-box {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.data-source-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  font-size: 12px;
-  color: #0369a1;
-}
-
-.data-source-indicator .indicator-icon {
-  font-size: 14px;
 }
 
 /* 按钮样式 */
