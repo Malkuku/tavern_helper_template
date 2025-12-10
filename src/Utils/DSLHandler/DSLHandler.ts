@@ -6,6 +6,7 @@ import {
 } from './utils';
 import { EvalContext } from './types/dsl';
 import { DSLEngine, DSLResult } from './dsl-engine';
+import { eraLogger } from '../../ERA小帮手/utils/EraHelperLogger';
 
 /**
  * 定义操作结果的接口
@@ -90,7 +91,7 @@ const setValueByPath = (data: any, path: string, value: any): void => {
  */
 const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,opExpr: string)=>{
   const planeSnapshot = JSON.parse(JSON.stringify(snapshot));
-  console.log(
+  eraLogger.log(
     '加载测试数据:', testData,
     '快照:', planeSnapshot,
     '测试路径:', path,
@@ -101,33 +102,42 @@ const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,
   const context = createEvalContext(testData, planeSnapshot, path);
   // 测试条件表达式
   let output = '';
+  let conditionResult: DSLResult | null = null;
   if(ifExpr){
     const result = DSLEngine.evaluateIf(ifExpr, context);
+    conditionResult = result;
     output += `条件表达式：${ifExpr}\n`;
     output += `条件表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`
-    console.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
+    eraLogger.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
     output += '========================\n';
   }
 
   // 测试操作表达式
   if(opExpr){
-    const result = DSLEngine.evaluateOp(opExpr, context);
-    output += `操作表达式：${opExpr}\n`;
-    output += `操作表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
-    console.log(`操作表达式：${opExpr}，结果：${JSON.stringify(result)}`);
-    output += '========================\n';
-    
-    // 如果操作成功并且有返回值，则更新测试数据
-    if (result.success && result.value) {
-      // 处理返回的路径和值
-      if (Array.isArray(result.value)) {
-        // 多个路径的情况（通配符）
-        result.value.forEach(({ path: resultPath, value: resultValue }) => {
-          setValueByPath(testData, resultPath, resultValue);
-        });
-      } else {
-        // 单个值的情况
-        setValueByPath(testData, path, result.value);
+    // 如果有条件表达式且结果为false，则不执行操作表达式
+    if (conditionResult && !conditionResult.value) {
+      output += `由于条件表达式结果为false，跳过执行操作表达式：${opExpr}\n`;
+      eraLogger.log(`由于条件表达式结果为false，跳过执行操作表达式：${opExpr}`);
+      output += '========================\n';
+    } else {
+      const result = DSLEngine.evaluateOp(opExpr, context);
+      output += `操作表达式：${opExpr}\n`;
+      output += `操作表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
+      eraLogger.log(`操作表达式：${opExpr}，结果：${JSON.stringify(result)}`);
+      output += '========================\n';
+
+      // 如果操作成功并且有返回值，则更新测试数据
+      if (result.success && result.value) {
+        // 处理返回的路径和值
+        if (Array.isArray(result.value)) {
+          // 多个路径的情况（通配符）
+          result.value.forEach(({ path: resultPath, value: resultValue }) => {
+            setValueByPath(testData, resultPath, resultValue);
+          });
+        } else {
+          // 单个值的情况
+          setValueByPath(testData, path, result.value);
+        }
       }
     }
   }
