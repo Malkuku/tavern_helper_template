@@ -2,10 +2,10 @@
   <div class="simulation-test">
     <div class="section-header">
       <h2>测试模拟</h2>
-      <div class="test-controls">
-        <button class="btn small" @click="openSimulationTestModal">打开模拟测试</button>
-        <button class="btn small" @click="openDslTester">打开 DSL 测试器</button>
-      </div>
+    </div>
+    <div class="test-controls">
+      <button class="btn" @click="openSimulationTestModal">打开模拟测试</button>
+      <button class="btn" @click="openDslTester">打开 DSL 测试器</button>
     </div>
 
     <!-- 路径收集框 -->
@@ -155,8 +155,14 @@ const closeSimulationModal = () => {
 
 .test-controls {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.test-controls .btn {
+  padding: 8px 16px;
+  font-size: 14px;
 }
 
 /* 按钮样式 */
