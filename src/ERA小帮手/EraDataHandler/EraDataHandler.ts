@@ -383,11 +383,11 @@ const applyOneRule = (
 /**
  * 主入口函数 - 应用所有规则
  */
-const applyRule = (
+const applyRule = async (
   data: any,
   snap: any,
   rules: EraDataRule
-): { data: any, results: OperationResult[], log: string } => {
+): Promise<{ data: any, results: OperationResult[], log: string }> => {
   // 深拷贝原始数据，避免直接修改
   const clone = JSON.parse(JSON.stringify(data));
 
@@ -398,7 +398,7 @@ const applyRule = (
     .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
   // 应用每条规则
-  sortedRules.forEach(([ruleName, rule]) => {
+  for (const [ruleName, rule] of sortedRules) {
     const ruleResults = applyOneRule(clone, snap, rule);
     // 为每个结果添加规则名称前缀
     ruleResults.forEach(result => {
@@ -408,7 +408,10 @@ const applyRule = (
       result.log = `[${ruleName}] ${result.log}`;
     });
     allResults.push(...ruleResults);
-  });
+    
+    // 添加异步延迟，避免阻塞主线程
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
 
   // 生成执行日志
   const logs = allResults

@@ -146,6 +146,7 @@ import * as toastr from 'toastr'
 import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore';
 import { eraLogger } from '../../utils/EraHelperLogger';
 import WorldInfoAndRegexConfig from '../components/WorldInfoAndRegexConfig.vue';
+import { handleEraRulesOnMessageReceived } from '../../AsyncAnalyze/handleAsyncAnalyzeEvents';
 
 const uiStore = useUiStore();
 const asyncAnalyzeStore = useAsyncAnalyzeStore();

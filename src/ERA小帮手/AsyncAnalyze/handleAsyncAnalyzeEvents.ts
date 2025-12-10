@@ -5,8 +5,13 @@ import { eraAwareSleep } from '../utils/era-aware-sleep';
 import { ERAEvents } from '../../Constants/ERAEvent';
 import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
 import { eraLogger } from '../utils/EraHelperLogger';
+import { EraDataHandler } from '../EraDataHandler/EraDataHandler';
+import { useEraDataStore } from '../stores/EraDataStore';
+import { useEraEditStore } from '../stores/EraEditStore';
 
-const getAsyncAnalyzeStore = () => (window as any).ApiConfigStore as ReturnType<typeof useAsyncAnalyzeStore>;
+const getAsyncAnalyzeStore = () => (window as any).AsyncAnalyzeStore as ReturnType<typeof useAsyncAnalyzeStore>;
+const getEraDataStore = () => (window as any).EraDataStore as ReturnType<typeof useEraDataStore>;
+const getEraEditStore = () => (window as any).EraEditStore as ReturnType<typeof useEraEditStore>;
 
 const isAsync = computed(() => !!getAsyncAnalyzeStore()?.isAsync);
 const isUpdateEra = computed(() => !!getAsyncAnalyzeStore()?.isUpdateEra);
@@ -93,6 +98,67 @@ export const handleMessageReceived = async (message_id:number) => {
 }
 
 /**
+ * 处理ERA变量更新
+ */
+export const handleEraRulesOnMessageReceived = async (message_id:number) => {
+  if(!isAsync.value){
+    eraLogger.info('处于同步分析模式,跳过接收消息时的处理');
+    return;
+  }
+  const chat_message = getChatMessages(message_id)[0];
+  const msg = chat_message.message;
+  const result = await handleEraRules(msg);
+  await setChatMessages([{ message_id, message: result }]);
+}
+
+/**
+ * 处理ERA变量更新
+ * @param result
+ */
+async function handleEraRules(result: string) {
+  // 从消息中提取出edit内容，应用EraDataRule处理数据
+  const regexEdit = /<VariableEdit>((?:(?!<VariableEdit>)[\s\S])*?)<\/VariableEdit>(?![\s\S]*<VariableEdit>[\s\S]*<\/VariableEdit>)/;
+  const editMatch = result.match(regexEdit);
+
+  if (editMatch && editMatch[1]) {
+    try {
+      // 解析VariableEdit中的JSON数据
+      const editData = JSON.parse(editMatch[1]);
+
+      // 获取快照数据
+      const snapshotData = await getEraEditStore().getStatData();
+      if (snapshotData == null) {
+        toastr.error("快照数据为空,跳过处理");
+        return result;
+      }
+
+      //获取EraRules
+      const rules = getEraDataStore().eraDataRule;
+
+      // 应用规则处理数据
+      const { data: updatedData, log } = await EraDataHandler.applyRule(
+        editData,
+        snapshotData,
+        rules,
+      );
+
+      const updatedContent = JSON.stringify(updatedData);
+      result = result.replace(
+        /<VariableEdit>[\s\S]*?<\/VariableEdit>/,
+        `<VariableEdit>\n${updatedContent}\n</VariableEdit>`
+      );
+
+      // 记录处理日志
+      eraLogger.log("变量更新日志：", log);
+    } catch (e) {
+      eraLogger.error("变量更新失败：", e);
+      toastr.error("变量更新失败");
+    }
+  }
+  return result;
+}
+
+/**
  * 合并消息内容
  */
 async function handleMessageMerge(result: string) {
@@ -109,6 +175,8 @@ async function handleMessageMerge(result: string) {
     }
   });
   await MessageUtil.removeContentByRegex(getLastMessageId(), filterList);
+
+  result = await handleEraRules(result);
 
   //提取并且合并消息到正文
    // 只保留标签及其内部内容

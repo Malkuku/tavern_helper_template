@@ -3,7 +3,11 @@ import { App as VueApp, createApp } from 'vue';
 import App from './App.vue';
 import { useUiStore } from '../stores/UIStore';
 import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from '../utils/dom';
-import { handleLoresFilter, handleMessageReceived } from '../AsyncAnalyze/handleAsyncAnalyzeEvents';
+import {
+  handleEraRulesOnMessageReceived,
+  handleLoresFilter,
+  handleMessageReceived,
+} from '../AsyncAnalyze/handleAsyncAnalyzeEvents';
 import { useAsyncAnalyzeStore } from '../stores/AsyncAnalyzeStore';
 import { router } from './router/router';
 import { useEraDataStore } from '../stores/EraDataStore';
@@ -103,4 +107,5 @@ $(() => {
   // 监听事件
   eventOn(tavern_events.WORLDINFO_ENTRIES_LOADED,handleLoresFilter);
   eventOn(tavern_events.MESSAGE_RECEIVED,handleMessageReceived);
+  eventOn(tavern_events.MESSAGE_RECEIVED, handleEraRulesOnMessageReceived);
 });
