@@ -1,5 +1,5 @@
 <template>
-  <div v-if="visible" class="mask" @click.self="close">
+  <div v-if="visible" class="mask">
     <div class="card">
       <!-- 顶部按钮组 -->
       <div class="top-button-group">
