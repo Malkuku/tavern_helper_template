@@ -1,9 +1,16 @@
 import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
 import { eraLogger } from '../utils/EraHelperLogger';
-import { DSLResult } from '../../Utils/DSLHandler/dsl-engine';
 
 const MAX_LOOP_COUNT = 2000;
+
+/*
+ 关于更新的逻辑：
+ 首先收到了一份可能只包含了snap部分数据的data
+ 先通过data把snap补全为完整的数据（即先获取一份snap的备份，用data对备份进行一次不做任何检查（没有handle，limit，range）的更新）
+ 此时我们初始化了一份完整的更新后的数据，然后再把这个数据应用规则更新
+ 处理数据结束后，对比更新后的数据和原始的快照，去除掉没有改变的项，然后返回最终结果
+ */
 
 /**
  * 定义操作结果的接口
@@ -64,7 +71,8 @@ const applyDeltaLimit = (
 
   if (!ruleItem.limit) return results;
 
-  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
+  // 使用snap来展开通配符路径
+  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path, snap);
   const [neg, pos] = ruleItem.limit;
 
   targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
@@ -128,7 +136,8 @@ const applyRangeLimit = (
 
   if (!ruleItem.range) return results;
 
-  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
+  // 使用snap来展开通配符路径
+  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path, snap);
   const [min, max] = ruleItem.range;
 
   targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
@@ -183,8 +192,8 @@ const applyOneHandle = (
   // 获取当前规则的目标路径（可能包含通配符）
   const targetPathPattern = ruleItem.path;
 
-  // 获取所有匹配的目标路径位置
-  const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern);
+  // 获取所有匹配的目标路径位置，使用snap来展开通配符路径
+  const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern, snap);
 
   // 如果没有匹配项，直接返回
   if (targetMatches.length === 0) {
@@ -273,9 +282,9 @@ const applyHandles = (
 
   // 逐个应用handle，保证按顺序执行
   for (const [handleKey, handleItem] of sortedHandles) {
-    // 对每个匹配的目标路径应用当前handle
+    // 对每个匹配的目标路径应用当前handle，使用snap来展开通配符路径
     const targetPathPattern = ruleItem.path;
-    const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern);
+    const targetMatches = DSLHandler.getValueByPath(data, targetPathPattern, snap);
 
     // 如果没有匹配项，继续下一个handle
     if (targetMatches.length === 0) {
@@ -337,13 +346,13 @@ const applyHandles = (
         } else {
           // 单个值的情况，但如果我们的目标路径包含通配符，我们需要特殊处理
           const opPathResult = DSLHandler.getValueByPath(data, handleItem.op.match(/\$\[(.*?)\]/)?.[1] || targetFullPath);
-          
+
           if (opPathResult.length > 1) {
             // 如果操作路径也包含通配符并匹配多个路径
             opPathResult.forEach(({ path, value }) => {
               const pathSegments = path.split('.');
               setByPathArray(data, pathSegments, opResult.value);
-              
+
               results.push({
                 path,
                 value: opResult.value,
@@ -406,6 +415,111 @@ const applyOneRule = (
 
 
 /**
+ * 合并数据到快照中，创建完整的数据对象
+ * 只有当data中的值类型与snap中相应位置的值类型相同时才进行合并，不新增属性
+ */
+const mergeDataToSnapshot = (data: any, snap: any): any => {
+  // 深拷贝快照作为基础
+  const merged = JSON.parse(JSON.stringify(snap));
+
+  // 递归合并data到merged中，只合并类型相同的值，不新增属性
+  const merge = (target: any, source: any) => {
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        // 只有当目标对象中存在该键且类型相同时才进行合并
+        if (Object.prototype.hasOwnProperty.call(target, key) && typeof target[key] === typeof source[key]) {
+          if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
+            // 递归处理嵌套对象
+            merge(target[key], source[key]);
+          } else if (Array.isArray(target[key]) === Array.isArray(source[key])) {
+            // 确保数组和非数组类型匹配后再赋值
+            target[key] = source[key];
+          }
+        }
+      }
+    }
+  };
+
+  merge(merged, data);
+  return merged;
+};
+
+/**
+ * 比较两个对象，找出不同的部分
+ */
+const diffObjects = (obj: any, base: any): any => {
+  const diff: any = {};
+
+  const compare = (current: any, original: any, path: string[] = []) => {
+    if (typeof current !== typeof original ||
+        (typeof current !== 'object' && current !== original) ||
+        current === null ||
+        original === null) {
+      // 基本类型或null值不同
+      return current;
+    }
+
+    if (Array.isArray(current) !== Array.isArray(original)) {
+      // 一个是数组另一个不是
+      return current;
+    }
+
+    if (Array.isArray(current)) {
+      // 都是数组
+      if (current.length !== original.length) {
+        return current;
+      }
+
+      const arrayDiff: any[] = [];
+      let hasChanges = false;
+
+      for (let i = 0; i < current.length; i++) {
+        const itemDiff = compare(current[i], original[i], [...path, String(i)]);
+        if (itemDiff !== undefined) {
+          arrayDiff[i] = itemDiff;
+          hasChanges = true;
+        }
+      }
+
+      return hasChanges ? arrayDiff : undefined;
+    }
+
+    if (typeof current === 'object') {
+      // 都是对象
+      let hasChanges = false;
+      const objDiff: any = {};
+
+      // 检查当前对象的所有属性
+      for (const key in current) {
+        if (current.hasOwnProperty(key)) {
+          const valueDiff = compare(current[key], original[key], [...path, key]);
+          if (valueDiff !== undefined) {
+            objDiff[key] = valueDiff;
+            hasChanges = true;
+          }
+        }
+      }
+
+      // 检查是否有新增的属性
+      for (const key in original) {
+        if (original.hasOwnProperty(key) && !current.hasOwnProperty(key)) {
+          // 属性被删除了，标记为undefined
+          objDiff[key] = undefined;
+          hasChanges = true;
+        }
+      }
+
+      return hasChanges ? objDiff : undefined;
+    }
+
+    return undefined; // 没有变化
+  };
+
+  const result = compare(obj, base);
+  return result || {};
+};
+
+/**
  * 主入口函数 - 应用所有规则
  */
 const applyRule = async (
@@ -413,8 +527,11 @@ const applyRule = async (
   snap: any,
   rules: EraDataRule
 ): Promise<{ data: any, results: OperationResult[], log: string }> => {
-  // 深拷贝原始数据，避免直接修改
-  const clone = JSON.parse(JSON.stringify(data));
+  // 首先将data合并到snap中，创建完整的数据对象
+  const fullData = mergeDataToSnapshot(data, snap);
+
+  // 深拷贝fullData，避免直接修改
+  const clone = JSON.parse(JSON.stringify(fullData));
 
   const allResults: OperationResult[] = [];
 
@@ -433,7 +550,7 @@ const applyRule = async (
       result.log = `[${ruleName}] ${result.log}`;
     });
     allResults.push(...ruleResults);
-    
+
     // 添加异步延迟，避免阻塞主线程
     await new Promise(resolve => setTimeout(resolve, 0));
   }
@@ -444,9 +561,11 @@ const applyRule = async (
     .map(result => result.log);
 
   const logText = logs.length > 0 ? logs.join('\n') : '没有执行任何操作';
-  eraLogger.log("执行日志：",logText)
 
-  return { data: clone, results: allResults, log: logText };
+  // 比较处理后的数据和原始快照，只返回变化的部分
+  const diffData = diffObjects(clone, snap);
+
+  return { data: diffData, results: allResults, log: logText };
 };
 
 /**
@@ -481,74 +600,40 @@ function setByPathArray(root: any, path: string[], value: any) {
  * @param loopCount 循环次数，默认为1
  */
 const testDsl = (testData: object,snapshot: object, path: string,ifExpr: string,opExpr: string, loopCount: number = 1)=>{
-  const planeSnapshot = JSON.parse(JSON.stringify(snapshot));
-  eraLogger.log(
-    '加载测试数据:', testData,
-    '快照:', planeSnapshot,
-    '测试路径:', path,
-    '条件表达式:', ifExpr,
-    '操作表达式:', opExpr,
-    '循环次数:', loopCount
-  )
-
-  // 限制循环次数在合理范围内
-  const actualLoopCount = Math.max(1, Math.min(loopCount ?? 1, MAX_LOOP_COUNT));
-
-  let output = '';
-
-  // 循环执行
-  for (let i = 0; i < actualLoopCount; i++) {
-    if (actualLoopCount > 1) {
-      output += `第${i + 1}次循环:\n`;
-    }
-
-    const context = DSLHandler.createEvalContext(testData, planeSnapshot, path);
-    // 测试条件表达式
-    let conditionResult: DSLResult | null = null;
-    if(ifExpr){
-      const result = DSLHandler.evaluateIf(ifExpr, context);
-      conditionResult = result;
-      output += `条件表达式：${ifExpr}\n`;
-      output += `条件表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`
-      eraLogger.log(`条件表达式：${ifExpr}，结果：${JSON.stringify(result)}`);
-      output += '========================\n';
-    }
-
-    // 测试操作表达式
-    if(opExpr){
-      // 如果有条件表达式且结果为false，则不执行操作表达式
-      if (conditionResult && !conditionResult.value) {
-        output += `由于条件表达式结果为false，跳过执行操作表达式：${opExpr}\n`;
-        eraLogger.log(`由于条件表达式结果为false，跳过执行操作表达式：${opExpr}`);
-        output += '========================\n';
-        break; // 条件不满足，跳出循环
-      } else {
-        const result = DSLHandler.evaluateOp(opExpr, context);
-        output += `操作表达式：${opExpr}\n`;
-        output += `操作表达式结果：${JSON.stringify(result) || '表达式存在错误'}\n`;
-        eraLogger.log(`操作表达式：${opExpr}，结果：${JSON.stringify(result)}`);
-        output += '========================\n';
-
-        // 如果操作成功并且有返回值，则更新测试数据
-        if (result.success && result.value) {
-          // 处理返回的路径和值
-          if (Array.isArray(result.value)) {
-            // 多个路径的情况（通配符）
-            result.value.forEach(({ path: resultPath, value: resultValue }) => {
-              DSLHandler.setValueByPath(testData, resultPath, resultValue);
-            });
-          } else {
-            // 单个值的情况
-            DSLHandler.setValueByPath(testData, path, result.value);
-          }
-        }
-
-        // 如果是最后一次循环，不需要换行
-        if (i < actualLoopCount - 1) {
-          output += '\n';
+  // 创建临时规则对象以便重用现有逻辑
+  const tempRule = {
+    temp: {
+      order: 0,
+      enable: true,
+      path,
+      handle: {
+        test: {
+          order:0,
+          if: ifExpr,
+          op: opExpr,
+          loop: loopCount
         }
       }
     }
+  };
+
+  // 使用现有的 applyRule 函数来处理测试
+  const result = applyOneRule(testData, snapshot, tempRule.temp);
+
+  // 格式化结果为字符串输出
+  let output = '';
+  result.forEach((res, index) => {
+    if (index > 0) output += '\n';
+    output += `路径: ${res.path}\n`;
+    output += `值: ${JSON.stringify(res.value)}\n`;
+    output += `成功: ${res.success}\n`;
+    if (res.error) output += `错误: ${res.error}\n`;
+    if (res.log) output += `日志: ${res.log}\n`;
+    output += '========================';
+  });
+
+  if (result.length === 0) {
+    output = '没有执行任何操作';
   }
 
   return output;
