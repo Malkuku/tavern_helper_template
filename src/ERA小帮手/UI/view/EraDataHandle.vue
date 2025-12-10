@@ -226,32 +226,11 @@
 
       <!-- 4. 测试模拟 -->
       <section v-show="activeTab === 'test'">
-        <div class="section-header">
-          <h2>测试模拟</h2>
-          <div class="test-controls">
-            <FileImportExport
-              ref="testDataImportExportRef"
-              import-text="导入测试数据"
-              export-text="导出测试结果"
-              :require-confirm="false"
-              @file-loaded="handleTestDataLoaded"
-              @export-data="exportTestResults"
-            />
-            <button v-if="hasCustomTestData" class="btn small" @click="resetToOriginalData">恢复原始数据</button>
-            <button class="btn small primary" @click="runTest">模拟更新（不保存）</button>
-            <button class="btn small" @click="openDslTester">打开 DSL 测试器</button>
-          </div>
-        </div>
-
-        <!-- 显示当前数据来源 -->
-        <div v-if="hasCustomTestData" class="data-source-indicator">
-          <span class="indicator-icon">📁</span>
-          <span>当前使用自定义测试数据</span>
-        </div>
-
-        <div class="json-tree-box">
-          <json-tree :data="testResult || statData" />
-        </div>
+        <SimulationTest 
+          :rules="rules" 
+          :stat-data="statData" 
+          @update-stat-data="updateStatData"
+        />
       </section>
     </div>
 
@@ -332,6 +311,7 @@ import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';
 import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
 import FileImportExport from '../components/FileImportExport.vue';
 import PathCollection from '../components/PathCollection.vue';
+import SimulationTest from '../components/SimulationTest.vue';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -856,6 +836,9 @@ const hasCustomTestData = computed(() => {
   return JSON.stringify(statData.value) !== JSON.stringify(original);
 });
 
+const updateStatData = (newStatData: any) => {
+  statData.value = newStatData;
+};
 
 </script>
 
@@ -985,23 +968,9 @@ h2 {
   font-weight: 500;
 }
 
-.rule-header span:last-child {
-  font-size: 14px;
-  transition: transform 0.2s;
-}
-
 .rule-body {
   padding: 10px;
   border-top: 1px solid #e5e7eb;
-}
-
-.rule-body pre {
-  margin: 0 0 8px;
-  font-size: 11px;
-  background: #f3f4f6;
-  padding: 6px;
-  border-radius: 4px;
-  overflow: auto;
 }
 
 /* 7. 表单字段 */
@@ -1050,25 +1019,6 @@ h2 {
   padding: 10px;
   background: #f9fafb;
   border-radius: 6px;
-}
-
-.handle-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.handle-item span {
-  font-size: 12px;
-  color: #111827;
-}
-
-.handle-item select,
-.handle-item input {
-  flex: 1;
-  padding: 4px 6px;
-  font-size: 11px;
 }
 
 /* 9. 按钮 */
@@ -1294,13 +1244,6 @@ input:checked + .toggle-label:before {
   font-size: 11px;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 0 0 12px 0;
-}
-
 .import-export-buttons {
   display: flex;
   gap: 8px;
@@ -1441,13 +1384,6 @@ input:checked + .toggle-label:before {
   font-weight: 600;
 }
 
-/* 测试控制按钮 */
-.test-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
 /* 规则详情显示 */
 .rule-details {
   margin-bottom: 12px;
@@ -1458,23 +1394,6 @@ input:checked + .toggle-label:before {
 .rule-details div {
   margin: 4px 0;
   color: #111827;
-}
-
-.data-source-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  font-size: 12px;
-  color: #0369a1;
-}
-
-.data-source-indicator .indicator-icon {
-  font-size: 14px;
 }
 
 /* 响应式调整 */
