@@ -78,6 +78,23 @@ const removeLoresByRegex = async (lores:any,regex:RegExp,isReversed:boolean)=>{
   console.log('removeLoresByRegex过滤完成: ',lores);
 }
 
+/**
+ * 通过数组批量排除世界书条目
+ */
+const removeLoresByArray = async (lores:any,array:string[],isReversed:boolean)=>{
+  console.info('removeLoresByArray: ', '开始过滤', array, isReversed)
+  const remove = (lore:any) => _.remove(lore, entry => {
+    return isReversed ?
+      !array.includes(entry.comment) :
+      array.includes(entry.comment);
+  })
+  remove(lores.globalLore);
+  remove(lores.characterLore);
+  remove(lores.chatLore);
+  remove(lores.personaLore);
+  console.log('removeLoresByArray过滤完成: ',lores);
+}
+
 
 export const WorldInfoUtil = {
   getCurrentCharWorldBookPrimary,
@@ -86,5 +103,6 @@ export const WorldInfoUtil = {
   filterWorldBookNamesRegex,
   enabledEntry,
   removeLoresByRegex,
+  removeLoresByArray
 };
 

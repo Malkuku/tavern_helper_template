@@ -74,10 +74,14 @@ $(() => {
   vueApp.mount(mountPoint[0]);
 
   // 获取 store 实例并暴露到 window，以便外部函数调用
+  eraLogger.debug('initialize', '正在初始化 store 实例');
   (window as any).UiStore = useUiStore(pinia);
   (window as any).AsyncAnalyzeStore = useAsyncAnalyzeStore(pinia);
   useAsyncAnalyzeStore().getModelSettings();
+  useAsyncAnalyzeStore().getWorldInfoFilterConfig();
+  useAsyncAnalyzeStore().getRegexConfig();
   (window as any).EraDataStore = useEraDataStore(pinia);
+  useEraDataStore().getEraDataRules();
   (window as any).EraEditStore = useEraEditStore(pinia);
 
 
