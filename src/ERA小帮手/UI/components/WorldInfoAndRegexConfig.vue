@@ -9,8 +9,11 @@
       <div v-show="isWorldInfoOpen" class="section-content">
         <div class="world-info-config">
           <div class="config-section">
-            <h5>AnalyzeList</h5>
-            <div class="entry-list">
+            <div class="subsection-header" @click="toggleAnalyzeList">
+              <h5>AnalyzeList</h5>
+              <span class="toggle-icon">{{ isAnalyzeListOpen ? '−' : '+' }}</span>
+            </div>
+            <div v-show="isAnalyzeListOpen" class="entry-list">
               <div v-for="(entry, index) in localAnalyzeEntries" :key="index" class="entry-item">
                 <select v-model="localAnalyzeEntries[index]" class="entry-select">
                   <option value="">请选择世界书条目</option>
@@ -23,8 +26,11 @@
           </div>
 
           <div class="config-section">
-            <h5>UpdateList</h5>
-            <div class="entry-list">
+            <div class="subsection-header" @click="toggleUpdateList">
+              <h5>UpdateList</h5>
+              <span class="toggle-icon">{{ isUpdateListOpen ? '−' : '+' }}</span>
+            </div>
+            <div v-show="isUpdateListOpen" class="entry-list">
               <div v-for="(entry, index) in localUpdateEntries" :key="index" class="entry-item">
                 <select v-model="localUpdateEntries[index]" class="entry-select">
                   <option value="">请选择世界书条目</option>
@@ -37,8 +43,11 @@
           </div>
 
           <div class="config-section">
-            <h5>IgnoreList</h5>
-            <div class="entry-list">
+            <div class="subsection-header" @click="toggleIgnoreList">
+              <h5>IgnoreList</h5>
+              <span class="toggle-icon">{{ isIgnoreListOpen ? '−' : '+' }}</span>
+            </div>
+            <div v-show="isIgnoreListOpen" class="entry-list">
               <div v-for="(entry, index) in localIgnoreEntries" :key="index" class="entry-item">
                 <select v-model="localIgnoreEntries[index]" class="entry-select">
                   <option value="">请选择世界书条目</option>
@@ -62,14 +71,18 @@
       <div v-show="isRegexOpen" class="section-content">
         <div class="regex-config">
           <div class="config-section">
-            <h5>正则表达式列表</h5>
-            <div class="entry-list">
+            <div class="subsection-header" @click="toggleRegexList">
+              <h5>正则表达式列表</h5>
+              <span class="toggle-icon">{{ isRegexListOpen ? '−' : '+' }}</span>
+            </div>
+            <div v-show="isRegexListOpen" class="entry-list">
               <div v-for="(regex, index) in localRegexList" :key="index" class="entry-item">
                 <input v-model="localRegexList[index]" type="text" class="regex-input" placeholder="请输入正则表达式" />
                 <button class="btn remove-btn" @click="removeRegex(index)">×</button>
               </div>
               <button class="btn add-btn" @click="addRegex">添加正则</button>
             </div>
+            <h6>（请不要修改导出后的正则，因为json的序列化，你看到的和实际导入的表达式是不同的）</h6>
           </div>
         </div>
       </div>
@@ -78,6 +91,14 @@
     <!-- 操作按钮 -->
     <div class="actions">
       <button class="btn danger" @click="handleClear">清空配置</button>
+      <FileImportExport
+        import-text="导入配置"
+        export-text="导出配置"
+        confirm-title="导入配置确认"
+        confirm-content="导入新配置将覆盖当前配置，确定要继续吗？"
+        @import-confirmed="handleImport"
+        @export-data="handleExport"
+      />
       <button class="btn primary" @click="handleSave">保存配置</button>
     </div>
   </div>
@@ -89,6 +110,7 @@ import * as toastr from 'toastr'
 import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore'
 import { storeToRefs } from 'pinia'
 import { WorldInfoUtil } from '../../../Utils/WorldInfoUtil'
+import FileImportExport from './FileImportExport.vue'
 
 const asyncAnalyzeStore = useAsyncAnalyzeStore()
 const { analyzeRores, updateRores, ignoreRores, regexList } = storeToRefs(asyncAnalyzeStore)
@@ -96,6 +118,10 @@ const { analyzeRores, updateRores, ignoreRores, regexList } = storeToRefs(asyncA
 // 可展开/收起状态
 const isWorldInfoOpen = ref(false)
 const isRegexOpen = ref(false)
+const isAnalyzeListOpen = ref(false)
+const isUpdateListOpen = ref(false)
+const isIgnoreListOpen = ref(false)
+const isRegexListOpen = ref(false)
 
 // 本地数据副本
 const localAnalyzeEntries = ref<string[]>([])
@@ -114,6 +140,23 @@ const toggleWorldInfoSection = () => {
 // 切换正则配置区域展开/收起
 const toggleRegexSection = () => {
   isRegexOpen.value = !isRegexOpen.value
+}
+
+// 切换子列表展开/收起
+const toggleAnalyzeList = () => {
+  isAnalyzeListOpen.value = !isAnalyzeListOpen.value
+}
+
+const toggleUpdateList = () => {
+  isUpdateListOpen.value = !isUpdateListOpen.value
+}
+
+const toggleIgnoreList = () => {
+  isIgnoreListOpen.value = !isIgnoreListOpen.value
+}
+
+const toggleRegexList = () => {
+  isRegexListOpen.value = !isRegexListOpen.value
 }
 
 // 获取世界书名称列表
@@ -154,7 +197,7 @@ const removeIgnoreEntry = (index: number) => {
 
 // 正则表达式操作
 const addRegex = () => {
-  localRegexList.value.push('')
+  localRegexList.value.push('<(variable(?:insert|edit|delete))>\\s*(?=[\\s\\S]*?\\S[\\s\\S]*?</\\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|</\\1>)[\\s\\S])*?)\\s*</\\1>')
 }
 
 const removeRegex = (index: number) => {
@@ -187,6 +230,79 @@ const handleClear = async () => {
     await asyncAnalyzeStore.clearRegexConfig()
 
     toastr.info('配置已清空')
+  }
+}
+
+// 导出配置
+const handleExport = () => {
+  try {
+    // 创建要导出的数据对象
+    const exportData = {
+      analyzeEntries: localAnalyzeEntries.value,
+      updateEntries: localUpdateEntries.value,
+      ignoreEntries: localIgnoreEntries.value,
+      regexList: localRegexList.value.map(regex => {
+        // 保持正则表达式原样，避免双重转义
+        return regex;
+      })
+    }
+
+    // 创建 Blob 对象
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+
+    // 创建下载链接
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `worldinfo-regex-config-${new Date().toISOString().slice(0, 10)}.json`
+
+    // 触发下载
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // 清理 URL 对象
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('导出配置失败:', error)
+    toastr.error('导出配置失败')
+  }
+}
+
+// 导入配置
+const handleImport = (content: string) => {
+  try {
+    const importedData = JSON.parse(content)
+
+    // 验证导入的数据结构
+    if (typeof importedData !== 'object' || importedData === null) {
+
+      toastr.error('无效的配置文件格式')
+      return;
+    }
+
+    // 更新本地数据
+    if (Array.isArray(importedData.analyzeEntries)) {
+      localAnalyzeEntries.value = [...importedData.analyzeEntries]
+    }
+
+    if (Array.isArray(importedData.updateEntries)) {
+      localUpdateEntries.value = [...importedData.updateEntries]
+    }
+
+    if (Array.isArray(importedData.ignoreEntries)) {
+      localIgnoreEntries.value = [...importedData.ignoreEntries]
+    }
+
+    if (Array.isArray(importedData.regexList)) {
+      // 导入时保持数据原样，不需要额外处理
+      localRegexList.value = [...importedData.regexList]
+    }
+
+    toastr.success('配置导入成功')
+  } catch (error) {
+    console.error('导入配置失败:', error)
+    toastr.error('导入配置失败: ' + (error instanceof Error ? error.message : '无效的配置文件'))
   }
 }
 
@@ -248,6 +364,17 @@ watch(
   color: #111827;
 }
 
+.subsection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  color: #4b5563;
+}
+
 .toggle-icon {
   font-size: 18px;
   font-weight: bold;
@@ -293,6 +420,10 @@ watch(
     background: white;
   }
 
+  .regex-input {
+    font-weight: 600; // 加深字体
+  }
+
   .btn {
     padding: 6px 12px;
     border: none;
@@ -330,19 +461,28 @@ watch(
   margin-top: 20px;
 
   .btn {
-    padding: 8px 16px;
+    padding: 5px 12px;
     border: none;
     border-radius: 6px;
+    font-size: 12px;
     cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    background: #f3f4f6;
+    color: #111827;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 
     &.primary {
-      background: #6366f1;
-      color: white;
+      background: #4f46e5;
+      color: #ffffff;
+      font-weight: 500;
 
-      &:hover {
-        background: #4f46e5;
+      &:hover:not(:disabled) {
+        background: #4338ca;
+        color: #ffffff;
       }
     }
 
@@ -350,9 +490,19 @@ watch(
       background: #ef4444;
       color: white;
 
-      &:hover {
+      &:hover:not(:disabled) {
         background: #dc2626;
       }
+    }
+
+    &:hover:not(.disabled) {
+      background: #e5e7eb;
+      color: #000000;
+    }
+
+    &.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   }
 }

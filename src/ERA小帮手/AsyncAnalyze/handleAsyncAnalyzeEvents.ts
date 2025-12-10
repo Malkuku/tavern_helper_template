@@ -14,12 +14,12 @@ const loreList = computed(() =>{
   if(!isAsync.value){
     return getAsyncAnalyzeStore()?.analyzeRores;
   }else if(isAsync.value && !isUpdateEra.value){
-    return getAsyncAnalyzeStore()?.updateRores;
+    return [...(getAsyncAnalyzeStore()?.updateRores || []), ...(getAsyncAnalyzeStore()?.analyzeRores || [])];
   }else{
     return getAsyncAnalyzeStore()?.ignoreRores;
   }
 });
-const regexList = computed(() =>{
+const regexStrList = computed(() =>{
   return getAsyncAnalyzeStore()?.regexList;
 })
 
@@ -100,14 +100,12 @@ async function handleMessageMerge(result: string) {
     toastr.error('接收的分析结果为空，哈！');
     throw new Error("接收的分析结果为空，哈！");
   }
-  //TODO 挪走这两条
-  const variableRegex = /<(variable(?:insert|edit|delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi
-  const optionsRegex = /<options>((?:(?!<options>)[\s\S])*?)<\/options>(?![\s\S]*<options>[\s\S]*<\/options>)/gi
   //先去除掉正文的旧记录
-  const filterList = [variableRegex, optionsRegex] as RegExp[];
-  regexList.value.forEach(regex => {
+  const filterList = [] as RegExp[];
+  regexStrList.value.forEach((regexStr: string) => {
+    const regex = new RegExp(regexStr, 'gi')
     if(result.match(regex)){
-      filterList.push(new RegExp(regex));
+      filterList.push(regex);
     }
   });
   await MessageUtil.removeContentByRegex(getLastMessageId(), filterList);
