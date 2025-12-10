@@ -214,16 +214,32 @@ const applyOneHandle = (
       return;
     }
 
-    // 设置结果值（支持通配符的路径需要特殊处理）
-    const pathSegments = targetFullPath.split('.');
-    setByPathArray(data, pathSegments, opResult.value);
+    // 处理操作表达式的结果
+    // 如果结果是数组（通配符路径的情况），需要分别处理每个路径
+    if (Array.isArray(opResult.value)) {
+      opResult.value.forEach(({ path, value }) => {
+        const pathSegments = path.split('.');
+        setByPathArray(data, pathSegments, value);
 
-    results.push({
-      path: targetFullPath,
-      value: opResult.value,
-      success: true,
-      log: `操作执行成功: ${targetFullPath} 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${opExpr}")`
-    });
+        results.push({
+          path,
+          value,
+          success: true,
+          log: `操作执行成功: ${path} 值从 ${getByPath(data, path)} 更新为 ${value} (表达式: "${opExpr}")`
+        });
+      });
+    } else {
+      // 单个值的情况
+      const pathSegments = targetFullPath.split('.');
+      setByPathArray(data, pathSegments, opResult.value);
+
+      results.push({
+        path: targetFullPath,
+        value: opResult.value,
+        success: true,
+        log: `操作执行成功: ${targetFullPath} 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${opExpr}")`
+      });
+    }
   });
 
   return results;
@@ -289,16 +305,32 @@ const applyHandles = (
         continue;
       }
 
-      // 设置结果值
-      const pathSegments = targetFullPath.split('.');
-      setByPathArray(data, pathSegments, opResult.value);
+      // 处理操作表达式的结果
+      // 如果结果是数组（通配符路径的情况），需要分别处理每个路径
+      if (Array.isArray(opResult.value)) {
+        opResult.value.forEach(({ path, value }) => {
+          const pathSegments = path.split('.');
+          setByPathArray(data, pathSegments, value);
 
-      results.push({
-        path: targetFullPath,
-        value: opResult.value,
-        success: true,
-        log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
-      });
+          results.push({
+            path,
+            value,
+            success: true,
+            log: `操作执行成功: ${path} handle "${handleKey}" 值更新为 ${value} (表达式: "${handleItem.op}")`
+          });
+        });
+      } else {
+        // 单个值的情况
+        const pathSegments = targetFullPath.split('.');
+        setByPathArray(data, pathSegments, opResult.value);
+
+        results.push({
+          path: targetFullPath,
+          value: opResult.value,
+          success: true,
+          log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
+        });
+      }
     }
   }
 
@@ -375,6 +407,7 @@ const applyRule = (
     .map(result => result.log);
 
   const logText = logs.length > 0 ? logs.join('\n') : '没有执行任何操作';
+  eraLogger.log("执行日志：",logText)
 
   return { data: clone, results: allResults, log: logText };
 };
