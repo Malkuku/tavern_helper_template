@@ -92,7 +92,7 @@
             ></textarea>
             <div class="editor-actions">
               <button class="btn small danger" @click="clearExpression">清空</button>
-              <button class="btn small" @click="$emit('validate')">验证</button>
+              <button class="btn small" @click="validateExpression">验证</button>
             </div>
           </div>
 
@@ -108,6 +108,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
+import { eraLogger } from '../../../utils/EraHelperLogger';
 
 interface Props {
   visible: boolean;
@@ -123,7 +125,6 @@ interface Emits {
   (e: 'apply', expression: string): void;
   (e: 'add-component', component: string): void;
   (e: 'select-path'): void;
-  (e: 'validate'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -155,12 +156,12 @@ const rawExpression = computed(() => {
   if (localExpression.value.trim()) {
     const tag = props.type === 'if' ? '<<if>' : '<<op>';
     const expression = localExpression.value.trim();
-    
+
     // 如果表达式已经包含标签，则不重复添加
     if (expression.startsWith('<<if>') || expression.startsWith('<<op>')) {
       return expression;
     }
-    
+
     return `${tag} ${expression} >`;
   }
   return localExpression.value;
@@ -214,6 +215,30 @@ function addCustomValue() {
 function clearExpression() {
   localExpression.value = '';
   emit('update:expression', '');
+}
+
+// 验证DSL表达式
+function validateExpression() {
+  if (!localExpression.value.trim()) {
+    toastr.error('表达式为空');
+    return;
+  }
+
+  try {
+    // 使用语法验证而不是实际执行
+    const expression = localExpression.value.trim();
+    const result = DSLHandler.validateDSL(expression, props.type);
+
+    if (result.success) {
+      toastr.success(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证通过`);
+    } else {
+      toastr.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`);
+      eraLogger.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`, expression, result);
+    }
+  } catch (error: any) {
+    toastr.error(`表达式验证出错`);
+    eraLogger.error('DSL表达式验证错误:', error);
+  }
 }
 
 // 监听visible变化，清空自定义值

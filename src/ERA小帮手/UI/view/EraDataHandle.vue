@@ -243,7 +243,6 @@
       @apply="applyDslExpression"
       @add-component="addDslComponent"
       @select-path="showDslPathSelector"
-      @validate="validateDslExpression"
       @close="closeDslBuilder"
     />
 
@@ -622,26 +621,6 @@ function clearDsl(type: 'if' | 'op', handleKey: string | number) {
   const handleItem = draft.value.handle[handleKey];
   if (handleItem) {
     handleItem[type] = '';
-  }
-}
-
-function validateDslExpression() {
-  if (!currentDslExpression.value) {
-    showMessage('表达式为空', 'error');
-    return;
-  }
-
-  try {
-    if (dslBuilderType.value === 'if') {
-      if (!currentDslExpression.value.includes('?[')) {
-        showMessage('条件表达式应包含比较运算符 ?[...]', 'warning');
-      }
-    } else if (!currentDslExpression.value.includes('#')) {
-      showMessage('操作表达式应包含操作符 #[...]', 'warning');
-    }
-    showMessage('表达式格式基本正确', 'success');
-  } catch (error) {
-    showMessage('表达式验证失败: ' + error, 'error');
   }
 }
 
@@ -1239,6 +1218,7 @@ input:checked + .toggle-label:before {
   padding: 4px 8px;
   width: auto;
   min-width: 120px;
+  color: #111827; /* 更深的颜色使文字更清晰 */
 }
 
 .handle-name-input:focus {
