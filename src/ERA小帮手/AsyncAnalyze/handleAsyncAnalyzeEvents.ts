@@ -10,15 +10,19 @@ const getAsyncAnalyzeStore = () => (window as any).ApiConfigStore as ReturnType<
 
 const isAsync = computed(() => !!getAsyncAnalyzeStore()?.isAsync);
 const isUpdateEra = computed(() => !!getAsyncAnalyzeStore()?.isUpdateEra);
-const loreRegex = computed(() =>{
+const loreList = computed(() =>{
   if(!isAsync.value){
-    return /<era_analyze>/i;
+    return getAsyncAnalyzeStore()?.analyzeRores;
   }else if(isAsync.value && !isUpdateEra.value){
-    return /<era_update>/i;
+    return getAsyncAnalyzeStore()?.updateRores;
   }else{
-    return /<era_ignore>/i;
+    return getAsyncAnalyzeStore()?.ignoreRores;
   }
 });
+const regexList = computed(() =>{
+  return getAsyncAnalyzeStore()?.regexList;
+})
+
 const isReversed = ref(false);
 const modelSource = computed(() => getAsyncAnalyzeStore()?.modelSource);
 const customModelSettings = computed(() => getAsyncAnalyzeStore()?.customModelSettings);
@@ -96,24 +100,24 @@ async function handleMessageMerge(result: string) {
     toastr.error('接收的分析结果为空，哈！');
     throw new Error("接收的分析结果为空，哈！");
   }
+  //TODO 挪走这两条
   const variableRegex = /<(variable(?:insert|edit|delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi
   const optionsRegex = /<options>((?:(?!<options>)[\s\S])*?)<\/options>(?![\s\S]*<options>[\s\S]*<\/options>)/gi
   //先去除掉正文的旧记录
-  if(result.match(variableRegex)){
-    await MessageUtil.removeContentByRegex(getLastMessageId(), [variableRegex]);
-  }
-  if(result.match(optionsRegex)){
-    await MessageUtil.removeContentByRegex(getLastMessageId(), [optionsRegex]);
-  }
+  const filterList = [variableRegex, optionsRegex] as RegExp[];
+  regexList.value.forEach(regex => {
+    if(result.match(regex)){
+      filterList.push(new RegExp(regex));
+    }
+  });
+  await MessageUtil.removeContentByRegex(getLastMessageId(), filterList);
 
   //提取并且合并消息到正文
    // 只保留标签及其内部内容
-  let content = result
-    .match(variableRegex)
-    ?.join('') ?? '';
-   content += result
-    .match(optionsRegex)
-    ?.join('') ?? '';
+  let content = "";
+  filterList.map(regex => {
+    content += result.match(regex)?.join('') ?? '';
+  })
   await MessageUtil.mergeContentToMessage(getLastMessageId(), content);
 }
 
@@ -172,6 +176,6 @@ export const handleKatEraUpdate = async () => {
  */
 export const handleLoresFilter = async (lores:any) =>{
   eraLogger.log("WORLDINFO_ENTRIES_LOADED: ",lores);
-  await WorldInfoUtil.removeLoresByRegex(lores, loreRegex.value, isReversed.value);
+  await WorldInfoUtil.removeLoresByArray(lores, loreList.value, isReversed.value);
 }
 
