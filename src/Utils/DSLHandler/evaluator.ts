@@ -76,23 +76,24 @@ export class DSLEvaluator {
 
       // 算术运算符
       case '+':
-        return left + right;
+        // 处理 undefined 或 null 值，将其当作 0 处理
+        return (left || 0) + (right || 0);
       case '-':
-        return left - right;
+        return (left || 0) - (right || 0);
       case '*':
-        return left * right;
+        return (left || 0) * (right || 0);
       case '/':
         if (right === 0) {
           throw new Error('Division by zero');
         }
-        return left / right;
+        return (left || 0) / (right || 0);
       case '%':
         if (right === 0) {
           throw new Error('Division by zero in modulo operation');
         }
-        return left % right;
+        return (left || 0) % (right || 0);
       case '**':
-        return Math.pow(left, right);
+        return Math.pow((left || 0), (right || 0));
 
       default:
         throw new Error(`Unknown binary operator: ${node.operator}`);
@@ -143,23 +144,24 @@ export class DSLEvaluator {
 
       // 算术运算符
       case '+':
-        return left + right;
+        // 处理 undefined 或 null 值，将其当作 0 处理
+        return (left || 0) + (right || 0);
       case '-':
-        return left - right;
+        return (left || 0) - (right || 0);
       case '*':
-        return left * right;
+        return (left || 0) * (right || 0);
       case '/':
         if (right === 0) {
           throw new Error('Division by zero');
         }
-        return left / right;
+        return (left || 0) / (right || 0);
       case '%':
         if (right === 0) {
           throw new Error('Division by zero in modulo operation');
         }
-        return left % right;
+        return (left || 0) % (right || 0);
       case '**':
-        return Math.pow(left, right);
+        return Math.pow((left || 0), (right || 0));
 
       default:
         throw new Error(`Unknown binary operator: ${operator}`);

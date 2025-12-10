@@ -46,53 +46,10 @@ const applyRange = (v: number, [min, max]: [number, number]): number =>
   Math.max(min, Math.min(v, max));
 
 /**
- * 应用range限制
+ * 检查值是否为有效数字（包括处理NaN的情况）
  */
-const applyRangeLimit = (
-  data: any,
-  ruleItem: EraDataRule[string]
-): OperationResult[] => {
-  const results: OperationResult[] = [];
-
-  if (!ruleItem.range) return results;
-
-  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
-  const [min, max] = ruleItem.range;
-
-  targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
-    if (typeof currentValue !== 'number') {
-      results.push({
-        path: targetFullPath,
-        value: currentValue,
-        success: false,
-        error: 'Value is not a number',
-        log: `Range检查: ${targetFullPath} 值不是数字`
-      });
-      return;
-    }
-
-    const finalValue = applyRange(currentValue, [min, max]);
-
-    if (finalValue !== currentValue) {
-      const pathSegments = targetFullPath.split('.');
-      setByPathArray(data, pathSegments, finalValue);
-      results.push({
-        path: targetFullPath,
-        value: finalValue,
-        success: true,
-        log: `Range限制: ${targetFullPath} 从 ${currentValue} 调整为 ${finalValue} (范围: [${min}, ${max}])`
-      });
-    } else {
-      results.push({
-        path: targetFullPath,
-        value: currentValue,
-        success: true,
-        log: `Range检查: ${targetFullPath} 值 ${currentValue} 在范围内 [${min}, ${max}]`
-      });
-    }
-  });
-
-  return results;
+const isValidNumber = (value: any): boolean => {
+  return typeof value === 'number' && !isNaN(value);
 };
 
 /**
@@ -111,7 +68,7 @@ const applyDeltaLimit = (
   const [neg, pos] = ruleItem.limit;
 
   targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
-    if (typeof currentValue !== 'number') {
+    if (!isValidNumber(currentValue)) {
       results.push({
         path: targetFullPath,
         value: currentValue,
@@ -124,7 +81,7 @@ const applyDeltaLimit = (
 
     // 获取快照中的原始值
     const snapValue = getByPath(snap, targetFullPath);
-    if (typeof snapValue !== 'number') {
+    if (!isValidNumber(snapValue)) {
       results.push({
         path: targetFullPath,
         value: currentValue,
@@ -153,6 +110,56 @@ const applyDeltaLimit = (
         value: currentValue,
         success: true,
         log: `Limit检查: ${targetFullPath} 值 ${currentValue} 相对于快照值 ${snapValue} 的变化 ${d} 在允许范围内 [${neg}, ${pos}]`
+      });
+    }
+  });
+
+  return results;
+};
+
+/**
+ * 应用range限制
+ */
+const applyRangeLimit = (
+  data: any,
+  ruleItem: EraDataRule[string]
+): OperationResult[] => {
+  const results: OperationResult[] = [];
+
+  if (!ruleItem.range) return results;
+
+  const targetMatches = DSLHandler.getValueByPath(data, ruleItem.path);
+  const [min, max] = ruleItem.range;
+
+  targetMatches.forEach(({ value: currentValue, path: targetFullPath }) => {
+    if (!isValidNumber(currentValue)) {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: false,
+        error: 'Value is not a number',
+        log: `Range检查: ${targetFullPath} 值不是数字`
+      });
+      return;
+    }
+
+    const finalValue = applyRange(currentValue, [min, max]);
+
+    if (finalValue !== currentValue) {
+      const pathSegments = targetFullPath.split('.');
+      setByPathArray(data, pathSegments, finalValue);
+      results.push({
+        path: targetFullPath,
+        value: finalValue,
+        success: true,
+        log: `Range限制: ${targetFullPath} 从 ${currentValue} 调整为 ${finalValue} (范围: [${min}, ${max}])`
+      });
+    } else {
+      results.push({
+        path: targetFullPath,
+        value: currentValue,
+        success: true,
+        log: `Range检查: ${targetFullPath} 值 ${currentValue} 在范围内 [${min}, ${max}]`
       });
     }
   });
@@ -228,7 +235,7 @@ const applyOneHandle = (
           path,
           value,
           success: true,
-          log: `操作执行成功: ${path} 值从 ${getByPath(data, path)} 更新为 ${value} (表达式: "${opExpr}")`
+          log: `操作执行成功: ${path} 值更新为 ${value} (表达式: "${opExpr}")`
         });
       });
     } else {
@@ -328,16 +335,34 @@ const applyHandles = (
             });
           });
         } else {
-          // 单个值的情况
-          const pathSegments = targetFullPath.split('.');
-          setByPathArray(data, pathSegments, opResult.value);
+          // 单个值的情况，但如果我们的目标路径包含通配符，我们需要特殊处理
+          const opPathResult = DSLHandler.getValueByPath(data, handleItem.op.match(/\$\[(.*?)\]/)?.[1] || targetFullPath);
+          
+          if (opPathResult.length > 1) {
+            // 如果操作路径也包含通配符并匹配多个路径
+            opPathResult.forEach(({ path, value }) => {
+              const pathSegments = path.split('.');
+              setByPathArray(data, pathSegments, opResult.value);
+              
+              results.push({
+                path,
+                value: opResult.value,
+                success: true,
+                log: `操作执行成功: ${path} handle "${handleKey}" 第${i + 1}次循环，值更新为 ${opResult.value} (表达式: "${handleItem.op}")`
+              });
+            });
+          } else {
+            // 单个值的情况
+            const pathSegments = targetFullPath.split('.');
+            setByPathArray(data, pathSegments, opResult.value);
 
-          results.push({
-            path: targetFullPath,
-            value: opResult.value,
-            success: true,
-            log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 第${i + 1}次循环，值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
-          });
+            results.push({
+              path: targetFullPath,
+              value: opResult.value,
+              success: true,
+              log: `操作执行成功: ${targetFullPath} handle "${handleKey}" 第${i + 1}次循环，值从 ${targetValue} 更新为 ${opResult.value} (表达式: "${handleItem.op}")`
+            });
+          }
         }
       }
     }
@@ -431,7 +456,16 @@ function setByPathArray(root: any, path: string[], value: any) {
   let cur = root;
   for (let i = 0; i < path.length - 1; i++) {
     const k = path[i];
-    if (!(k in cur) || typeof cur[k] !== 'object') cur[k] = {};
+    // 确保路径上的所有中间节点都存在
+    if (!(k in cur)) {
+      // 检查下一个键是否为数字，如果是，则创建数组，否则创建对象
+      const nextKey = path[i + 1];
+      cur[k] = isNaN(Number(nextKey)) ? {} : [];
+    } else if (typeof cur[k] !== 'object') {
+      // 如果当前键存在但不是对象，强制覆盖为适当的类型
+      const nextKey = path[i + 1];
+      cur[k] = isNaN(Number(nextKey)) ? {} : [];
+    }
     cur = cur[k];
   }
   cur[path[path.length - 1]] = value;

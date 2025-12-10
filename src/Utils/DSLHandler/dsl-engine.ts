@@ -139,6 +139,15 @@ export class DSLEngine {
           wildcardMapping
         );
       }
+      // 处理以 * 开头、中间或结尾的情况
+      else if (node && typeof node === 'object' && part === '*' && index === parts.length - 1) {
+        // 遍历所有属性
+        for (const key in node) {
+          if (Object.prototype.hasOwnProperty.call(node, key)) {
+            results.push([...currentPath, key].join('.'));
+          }
+        }
+      }
     }
   }
 }

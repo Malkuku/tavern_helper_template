@@ -11,7 +11,8 @@ import { EvalContext } from './types/dsl';
  */
 export function getValueByPath(data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): {path: string, value: any}[] {
   // 如果包含通配符，展开所有路径
-  if (path.includes('.*.')) {
+  // 修改判断条件，使其能够匹配以 .* 结尾的路径
+  if (path.includes('.*.') || path.endsWith('.*') || path.includes('*.')) {
     const paths = DSLEngine.expandWildcardPaths(data, path, wildcardMapping);
     return paths.map(p => {
       const value = getValueByPathDirect(data, p, snapshot);
@@ -47,7 +48,8 @@ export function createEvalContext(
     getValueByPath: (path: string, fromSnapshot = false, wildcardMapping?: Record<string, string>) => {
       const target = fromSnapshot ? snapshot : data;
       // 如果有通配符映射，则使用它
-      if (wildcardMapping && path.includes('.*.')) {
+      // 修改判断条件，使其能够匹配以 .* 结尾的路径
+      if (wildcardMapping && (path.includes('.*.') || path.endsWith('.*') || path.includes('*.'))) {
         const expandedPaths = DSLEngine.expandWildcardPaths(target, path, wildcardMapping);
         // 返回所有匹配的值
         if (expandedPaths.length > 0) {

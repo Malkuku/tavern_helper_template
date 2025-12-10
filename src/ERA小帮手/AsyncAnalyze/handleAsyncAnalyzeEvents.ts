@@ -101,8 +101,8 @@ export const handleMessageReceived = async (message_id:number) => {
  * 处理ERA变量更新
  */
 export const handleEraRulesOnMessageReceived = async (message_id:number) => {
-  if(!isAsync.value){
-    eraLogger.info('处于同步分析模式,跳过接收消息时的处理');
+  if(isAsync.value){
+    eraLogger.info('处于分步分析模式,跳过接收消息时的处理');
     return;
   }
   const chat_message = getChatMessages(message_id)[0];

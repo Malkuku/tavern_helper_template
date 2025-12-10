@@ -87,7 +87,7 @@ export const useAsyncAnalyzeStore = defineStore('KatAsyncAnalyze', () => {
       updateRores.value = era_world_info_filter_config.updateRores;
       ignoreRores.value = era_world_info_filter_config.ignoreRores;
     }
-    eraLogger.log('获取异步分析设置: ',era_world_info_filter_config);
+    eraLogger.log('获取世界书过滤设置: ',era_world_info_filter_config);
   }
 
   /**
