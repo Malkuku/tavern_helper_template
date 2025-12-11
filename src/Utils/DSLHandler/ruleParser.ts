@@ -1,136 +1,180 @@
-// ruleParser.ts
-import { parsePath, getKeysAtDepth } from './pathUtils';
-
-// 提取 $[...] 内容的正则
-const PATH_REGEX = /\$\[\s*([^\s\]]+)\s*\]/g;
-
-interface PathInfo {
-  original: string;    // 原始字符串 "$[角色.*.好感度]"
-  rawPath: string;     // 内部路径 "角色.*.好感度"
-  segments: string[];  // ["角色", "*", "好感度"]
-}
+import { getValueByPath } from './pathUtils';
 
 /**
- * 核心入口函数
- * @param expression 原始表达式，如 "<<if> $[角色.*.好感度] > 10>"
- * @param data 数据源快照
- * @returns 展开后的具体表达式数组
+ * 描述一个被解析出的路径信息
  */
-export function expandExpression(expression: string, data: any): string[] {
-  // 1. 提取表达式中所有的路径
-  const pathInfos: PathInfo[] = [];
-  let match;
-  // 重置正则索引
-  PATH_REGEX.lastIndex = 0;
+interface PathInfo {
+  /** 原始路径字符串，如 `$[角色.*.状态]` */
+  originalPath: string;
+  /** 按 . 分割后的路径片段 */
+  segments: string[];
+  /**
+   * 记录每个通配符在该路径中是第几个出现。
+   * Key: 路径深度(segments的索引)
+   * Value: 通配符的顺序号 (从1开始)
+   * 例如: 角色.*.经验.*  -> Map { 1 => 1, 3 => 2 }
+   */
+  wildcardOrdinalMap: Map<number, number>;
+}
 
-  while ((match = PATH_REGEX.exec(expression)) !== null) {
-    const rawPath = match[1];
-    pathInfos.push({
-      original: match[0],
-      rawPath: rawPath,
-      segments: parsePath(rawPath)
-    });
+export class RuleParser {
+  private readonly data: any;
+  private pathInfos: PathInfo[] = [];
+  // 将 results 的类型改为存储解析后的路径数组集合，更清晰
+  private results: string[][] = [];
+  private maxWildcardOrdinal = 0;
+
+  constructor(data: any) {
+    this.data = data;
   }
-
-  if (pathInfos.length === 0) {
-    // 如果没有变量，直接返回原表达式（或者根据需求返回空数组，这里假设无变量也是一条有效指令）
-    return [expression];
-  }
-
-  // 2. 计算最大深度
-  const maxDepth = Math.max(...pathInfos.map(p => p.segments.length));
-
-  // 3. 递归构建结果
-  const results: string[] = [];
 
   /**
-   * 深度优先遍历
-   * @param depth 当前处理的层级深度 (0, 1, 2...)
-   * @param context 记录每一层被替换成的具体 Key，Map<层级, KeyName>
+   * 展开包含通配符的表达式字符串。
+   * 这是该类的主要入口点。
+   * @param expression - 表达式字符串，例如 "$[角色.*.状态] == '良好' && $[装备.*.耐久] > 50"
+   * @returns 返回一个包含所有具体表达式的数组
    */
-  function traverse(depth: number, context: Map<number, string>) {
-    // --- 终止条件 ---
-    if (depth >= maxDepth) {
-      // 已经遍历完所有层级，开始实例化字符串
-      let finalExpr = expression;
+  public expand(expression: string): string[] {
+    this.results = [];
+    this.pathInfos = [];
+    this.maxWildcardOrdinal = 0;
 
-      // 对每一个原始路径进行替换
-      for (const info of pathInfos) {
-        // 构建具体的路径 segments
-        const concreteSegments = info.segments.map((seg, index) => {
-          if (seg === '*') {
-            // 如果是通配符，从上下文中取值
-            return context.get(index) || '*'; // 理论上一定能取到
-          }
-          return seg;
-        });
+    // 1. 解析表达式，提取所有路径信息
+    const pathRegex = /\$\[([^\]]+)\]/g;
+    expression.match(pathRegex)?.forEach(match => {
+      const path = match.slice(2, -1); // 移除 "$[" 和 "]"
+      const segments = path.split('.');
 
-        // 替换表达式中的 $[...]
-        // 注意：这里简单替换可能会有重复问题，建议按位置替换或确保唯一性
-        // 鉴于正则提取的顺序，这里使用全局替换该特定字符串即可
-        // 为了防止部分匹配错误，这里构造完整的 $[path] 进行替换
-        const concretePathStr = concreteSegments.join('.');
-        // 简单的字符串替换逻辑，实际生产中可能需要基于位置的替换
-        // 这里假设 original 是唯一的或者所有相同的 original 都替换成一样的值
-        finalExpr = finalExpr.split(info.original).join(`$[${concretePathStr}]`);
+      const wildcardOrdinalMap = new Map<number, number>();
+      let currentOrdinal = 0;
+      segments.forEach((segment, index) => {
+        if (segment === '*') {
+          currentOrdinal++;
+          wildcardOrdinalMap.set(index, currentOrdinal);
+        }
+      });
+
+      this.pathInfos.push({
+        originalPath: match,
+        segments,
+        wildcardOrdinalMap,
+      });
+
+      if (currentOrdinal > this.maxWildcardOrdinal) {
+        this.maxWildcardOrdinal = currentOrdinal;
       }
-      results.push(finalExpr);
+    });
+
+    // 如果没有通配符，直接返回原始表达式
+    if (this.maxWildcardOrdinal === 0) {
+      return [expression];
+    }
+
+    // 2. 从第一个通配符开始递归解析
+    this.resolveWildcards(1, new Map<number, string>());
+
+    // 3. 使用解析出的结果构建最终的表达式列表 (优化后的逻辑)
+    const finalExpressions = this.results.map(resolvedPathSet => {
+      let tempExpr = expression;
+      // 对于每个原始路径 (如 $[角色.*...])，用其解析后的具体路径 (如 $[角色.小明...]) 进行替换
+      this.pathInfos.forEach((info, index) => {
+        tempExpr = tempExpr.replace(info.originalPath, resolvedPathSet[index]);
+      });
+      return tempExpr;
+    });
+
+    return finalExpressions;
+  }
+
+  /**
+   * 递归解析通配符。
+   * 核心逻辑：按顺序（第1个*，第2个*...）解析，而不是按深度。
+   * @param ordinal - 当前正在解析的通配符顺序号 (从1开始)
+   * @param context - 已解析的通配符的值. Map<顺序号, 值>
+   */
+  private resolveWildcards(ordinal: number, context: Map<number, string>): void {
+    if (ordinal > this.maxWildcardOrdinal) {
+      const resolvedPaths = this.pathInfos.map(info => this.reconstructPath(info, context));
+      this.results.push(resolvedPaths); // 直接存入解析后的路径数组
       return;
     }
 
-    // --- 递归逻辑 ---
+    const bindingGroup = this.pathInfos.filter(info => info.wildcardOrdinalMap.size >= ordinal);
 
-    // 1. 检查当前层级是否有路径使用了通配符 '*'
-    const wildcardPaths = pathInfos.filter(p => p.segments[depth] === '*');
+    if (bindingGroup.length === 0) {
+      this.resolveWildcards(ordinal + 1, context);
+      return;
+    }
 
-    if (wildcardPaths.length > 0) {
-      // --- 情况 A: 当前层是通配符层 ---
-      // 我们需要找到所有涉及通配符的路径，在当前数据状态下的 Key 的交集
+    const leaderPath = bindingGroup[0];
+    // 获取前缀路径数组
+    const prefixSegmentsToLeader = this.getPathPrefixSegments(leaderPath, ordinal, context);
+    // 使用您提供的 getValueByPath 函数
+    const leaderObject = getValueByPath(this.data, prefixSegmentsToLeader);
 
-      let candidateKeys: string[] | null = null;
+    if (typeof leaderObject !== 'object' || leaderObject === null) {
+      return;
+    }
+    const candidateKeys = Object.keys(leaderObject);
 
-      for (const p of wildcardPaths) {
-        // 构建该路径在到达当前层之前的具体路径
-        const parentSegments: string[] = [];
-        for (let i = 0; i < depth; i++) {
-          const seg = p.segments[i];
-          // 如果之前是 *，取 context，否则取自身
-          parentSegments.push(seg === '*' ? context.get(i)! : seg);
-        }
+    const validKeys = candidateKeys.filter(key => {
+      return bindingGroup.every(memberPath => {
+        const prefixSegmentsToMember = this.getPathPrefixSegments(memberPath, ordinal, context);
+        // 使用您提供的 getValueByPath 函数
+        const memberObject = getValueByPath(this.data, prefixSegmentsToMember);
+        return typeof memberObject === 'object' && memberObject !== null && Object.prototype.hasOwnProperty.call(memberObject, key);
+      });
+    });
 
-        // 获取数据源中该层级的所有 Key
-        const keys = getKeysAtDepth(data, parentSegments);
-
-        if (candidateKeys === null) {
-          candidateKeys = keys;
-        } else {
-          // 取交集：必须在所有涉及的路径中都存在的 Key 才是合法的
-          // 例如：角色A有“好感度”，角色B没有，那么“好感度”相关的规则就不应该生成角色B的
-          candidateKeys = candidateKeys.filter(k => keys.includes(k));
-        }
-
-        // 如果交集为空，说明没有符合条件的组合，直接剪枝停止
-        if (candidateKeys.length === 0) break;
-      }
-
-      // 遍历所有候选 Key，继续递归
-      if (candidateKeys && candidateKeys.length > 0) {
-        for (const key of candidateKeys) {
-          context.set(depth, key);
-          traverse(depth + 1, context);
-          context.delete(depth); // 回溯
-        }
-      }
-    } else {
-      // --- 情况 B: 当前层没有通配符（全是具体 Key，如 "好感度" 或 "特殊状态"） ---
-      // 不需要做 Key 替换，直接进入下一层
-      // (可选：可以在这里做存在性校验，如果静态路径不存在直接剪枝)
-      traverse(depth + 1, context);
+    for (const key of validKeys) {
+      const newContext = new Map(context);
+      newContext.set(ordinal, key);
+      this.resolveWildcards(ordinal + 1, newContext);
     }
   }
 
-  // 启动递归
-  traverse(0, new Map());
+  /**
+   * 获取路径中，到达指定顺序通配符之前的前缀路径片段数组。
+   * @param pathInfo - 路径信息
+   * @param targetOrdinal - 目标通配符的顺序号
+   * @param context - 当前已解析的通配符上下文
+   * @returns 路径前缀的片段数组，例如 ['角色', '小明', '开发经验值']
+   */
+  private getPathPrefixSegments(pathInfo: PathInfo, targetOrdinal: number, context: Map<number, string>): string[] {
+    let targetDepth = -1;
+    for (const [depth, ordinal] of pathInfo.wildcardOrdinalMap.entries()) {
+      if (ordinal === targetOrdinal) {
+        targetDepth = depth;
+        break;
+      }
+    }
 
-  return results;
+    if (targetDepth === -1) return [];
+
+    const prefixSegments: string[] = [];
+    for (let i = 0; i < targetDepth; i++) {
+      const segment = pathInfo.segments[i];
+      if (segment === '*') {
+        const ordinal = pathInfo.wildcardOrdinalMap.get(i)!;
+        prefixSegments.push(context.get(ordinal)!);
+      } else {
+        prefixSegments.push(segment);
+      }
+    }
+    return prefixSegments;
+  }
+
+  /**
+   * 使用已解析的上下文，重建一个具体的路径字符串。
+   */
+  private reconstructPath(pathInfo: PathInfo, context: Map<number, string>): string {
+    const resolvedSegments = pathInfo.segments.map((segment, index) => {
+      if (segment === '*') {
+        const ordinal = pathInfo.wildcardOrdinalMap.get(index)!;
+        return context.get(ordinal)!;
+      }
+      return segment;
+    });
+    return `$[${resolvedSegments.join('.')}]`;
+  }
 }
