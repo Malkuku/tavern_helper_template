@@ -339,16 +339,16 @@ watch(
 
 <style scoped lang="scss">
 .config-container {
-  margin-top: 20px;
-  padding: 16px;
+  margin-top: 15px;
+  padding: 12px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .collapsible-section {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -356,12 +356,13 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: #ffffff;
   cursor: pointer;
   user-select: none;
   font-weight: 500;
   color: #111827;
+  font-size: 14px;
 }
 
 .subsection-header {
@@ -381,20 +382,20 @@ watch(
 }
 
 .section-content {
-  padding: 16px;
+  padding: 12px;
   background: #f9fafb;
 }
 
 .config-section {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 
   &:last-child {
     margin-bottom: 0;
   }
 
   h5 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
+    margin: 0 0 8px 0;
+    font-size: 13px;
     color: #4b5563;
   }
 }
@@ -402,21 +403,21 @@ watch(
 .entry-list {
   .entry-item {
     display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 6px;
 
     &:last-child {
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
   }
 
   .entry-select,
   .regex-input {
     flex: 1;
-    padding: 6px 10px;
+    padding: 4px 8px;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    font-size: 14px;
+    border-radius: 4px;
+    font-size: 12px;
     background: white;
   }
 
@@ -431,11 +432,11 @@ watch(
   }
 
   .btn {
-    padding: 6px 12px;
+    padding: 4px 8px;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     transition: background 0.2s;
 
     &.add-btn {
@@ -450,7 +451,7 @@ watch(
     &.remove-btn {
       background: #ef4444;
       color: white;
-      width: 32px;
+      width: 24px;
       padding: 0;
 
       &:hover {
@@ -463,14 +464,14 @@ watch(
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
+  gap: 6px;
+  margin-top: 15px;
 
   .btn {
-    padding: 5px 12px;
+    padding: 4px 10px;
     border: none;
-    border-radius: 6px;
-    font-size: 12px;
+    border-radius: 4px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.2s;
     background: #f3f4f6;
@@ -479,7 +480,7 @@ watch(
     font-weight: 500;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
 
     &.primary {
       background: #4f46e5;
