@@ -1,120 +1,80 @@
-import {
-  createEvalContext as dslCreatEvalContext,
-  getValueByPath as dslGetValueByPath,
-  getValueByPathDirect as dslGetValueByPathDirect,
-  setValueByPath as dslSetValueByPath
-} from './utils';
-import { EvalContext } from './types/dsl';
+// DSLHandler.ts
 import { DSLEngine, DSLResult } from './dsl-engine';
 import { DSLLexer } from './lexer';
 import { DSLParser } from './parser';
-import { eraLogger } from '../../ERA小帮手/utils/EraHelperLogger';
+import { getValueByPath, setValueByPath as utilsSetValue, parsePath } from './pathUtils';
 
 /**
- * 定义操作结果的接口
- */
-interface OperationResult {
-  path: string;
-  value: any;
-  success: boolean;
-  error?: string;
-}
-
-/**
- * 创建求值上下文
- * @param data 当前数据（会修改）
- * @param snapshot 快照（只读）
- * @param thisPath 处理为逗号路径的jsonPath
- */
-const createEvalContext = (
-  data: any,
-  snapshot: any,
-  thisPath: string
-): EvalContext => {
-  return dslCreatEvalContext(data, snapshot, thisPath);
-};
-
-/**
- * 执行条件表达式
- * @param ifExpr 如 "<<if> ($[path1] ?[<=] $[$this]) ?[&&] ($[$this] ?(==) &[{num}5])>"
- * @param context 求值上下文
- */
-const evaluateIf = (ifExpr: string, context: EvalContext): DSLResult => {
-  return DSLEngine.evaluateIf(ifExpr, context);
-};
-
-/**
- * 执行操作表达式
- * @param opExpr 如 "<<op> $[path] #[+] $[$this]>"
- * @param context 求值上下文
- */
-const evaluateOp = (opExpr: string, context: EvalContext): DSLResult => {
-  return DSLEngine.evaluateOp(opExpr, context);
-}
-
-/**
- * 通过路径获取值（支持通配符）
- * @param data 数据对象
- * @param path 路径
- * @param snapshot 快照对象
- * @param wildcardMapping 通配符映射
- */
-const getValueByPath = (data: any, path: string, snapshot?: any, wildcardMapping?: Record<string, string>): {path: string, value: any}[] => {
-  return dslGetValueByPath(data, path, snapshot, wildcardMapping);
-}
-
-/**
- * 通过路径获取值（不支持通配符）
- * @param data 数据对象
- * @param path 路径
- * @param snapshot 快照对象
- */
-const getValueByPathDirect = (data: any, path: string, snapshot?: any): {path: string, value: any}[] => {
-  return dslGetValueByPathDirect(data, path, snapshot);
-}
-
-/**
- * 通过路径设置值
- * @param data 数据对象
- * @param path 路径
- * @param value 值
- */
-const setValueByPath = (data: any, path: string, value: any): void => {
-  return dslSetValueByPath(data, path, value);
-};
-
-/**
- * 验证DSL表达式语法
- * @param expression DSL表达式
- * @param type 表达式类型 ('if' 或 'op')
- */
-const validateDSL = (expression: string, type: 'if' | 'op'): DSLResult => {
-  try {
-    // 移除标签
-    const cleaned = expression.replace(new RegExp(`<<${type}>\\s*(.*?)\\s*>`, 's'), '$1').trim();
-    
-    // 尝试词法分析和语法分析
-    const lexer = new DSLLexer(cleaned);
-    const tokens = lexer.tokenize();
-    
-    const parser = new DSLParser(lexer);
-    const ast = parser.parse();
-    
-    return { success: true, value: ast };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * 向外提供dsl的接口
+ * DSL 处理器
+ * 统一向外暴露 DSL 的执行、验证和工具方法
  */
 export const DSLHandler = {
-  createEvalContext,
-  evaluateIf,
-  evaluateOp,
-  validateDSL, // 添加语法验证方法
-  getValueByPath,
-  getValueByPathDirect,
-  setValueByPath
-}
+  /**
+   * 执行 DSL 表达式 (If 或 Op)
+   * @param expression 完整的 DSL 表达式，如 "<<op> $[角色.*.好感度] #[+] 10>"
+   * @param data 数据源快照 (JSON 对象)
+   * @returns 执行结果 { success: boolean, value: Array<{path?, value}>, error? }
+   */
+  execute(expression: string, data: any): DSLResult {
+    return DSLEngine.evaluate(expression, data);
+  },
+
+  /**
+   * 验证 DSL 表达式的语法是否正确
+   * 注意：此方法只检查语法结构，不检查路径是否存在于数据中
+   * @param expression DSL 表达式
+   */
+  validate(expression: string): { success: boolean; error?: string } {
+    try {
+      // 1. 词法分析 (Lexer 内部会处理 wrapper 头)
+      const lexer = new DSLLexer(expression);
+
+      // 2. 语法分析
+      const parser = new DSLParser(lexer);
+      parser.parse();
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * 工具：通过字符串路径获取值
+   * @param data 数据源
+   * @param pathStr 路径字符串，如 "角色.星宫诗羽.好感度"
+   */
+  getValue(data: any, pathStr: string): any {
+    const segments = parsePath(pathStr);
+    return getValueByPath(data, segments);
+  },
+
+  /**
+   * 工具：通过字符串路径设置值
+   * @param data 数据源 (会被修改)
+   * @param pathStr 路径字符串
+   * @param value 要设置的值
+   */
+  setValue(data: any, pathStr: string, value: any): void {
+    const segments = parsePath(pathStr);
+    // 这里我们需要一个简单的 setValue 实现，通常 pathUtils 里会有
+    // 如果 pathUtils 没有暴露，我们可以在这里简单实现一个，或者复用 evaluator 里的逻辑
+    utilsSetValue(data, segments, value);
+  },
+
+  // --- 兼容旧接口别名 (可选) ---
+
+  /**
+   * 执行条件表达式 (别名)
+   */
+  evaluateIf(expression: string, data: any): DSLResult {
+    return this.execute(expression, data);
+  },
+
+  /**
+   * 执行操作表达式 (别名)
+   */
+  evaluateOp(expression: string, data: any): DSLResult {
+    return this.execute(expression, data);
+  }
+};

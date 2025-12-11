@@ -2,152 +2,79 @@
 import { DSLLexer } from './lexer';
 import { DSLParser } from './parser';
 import { DSLEvaluator } from './evaluator';
-import { EvalContext } from './types/dsl';
+import { expandExpression } from './ruleParser';
+
+export interface DSLResultItem {
+  path?: string; // 如果是赋值操作，返回被修改的路径
+  value: any;    // 表达式的计算结果
+}
 
 export interface DSLResult {
   success: boolean;
-  value?: any;
+  value?: DSLResultItem[];
   error?: string;
 }
 
 export class DSLEngine {
   /**
-   * 执行条件表达式
-   * @param expression 如 "<<if> ($[path1] ?[<=] $[$this]) ?[&&] ($[$this] ?(==) &[{num}5])>"
-   * @param context 求值上下文
+   * 执行 DSL 表达式 (支持 <<if>> 和 <<op>>)
+   * @param expression 原始表达式，例如 "<<op> $[角色.*.好感度] #[=] 10>"
+   * @param data 数据源 (JSON 对象)
    */
-  static evaluateIf(expression: string, context: EvalContext): DSLResult {
+  static evaluate(expression: string, data: any): DSLResult {
     try {
-      // 移除 <<if> 和 > 标记
-      const cleaned = this.extractContent(expression, 'if');
-      const result = this.evaluateExpression(cleaned, context);
-      return { success: true, value: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  }
+      // 1. 通配符展开 (Context-Aware Expansion)
+      // 将包含 * 的表达式展开为针对具体路径的多个表达式
+      // 例如: "$[角色.*.A] + $[角色.*.B]" -> ["$[角色.P1.A] + $[角色.P1.B]", "$[角色.P2.A] + $[角色.P2.B]"]
+      const concreteExpressions = expandExpression(expression, data);
 
-  /**
-   * 执行操作表达式
-   * @param expression 如 "<<op> $[path] #[+] $[$this]>"
-   * @param context 求值上下文
-   */
-  static evaluateOp(expression: string, context: EvalContext): DSLResult {
-    try {
-      const cleaned = this.extractContent(expression, 'op');
-      const result = this.evaluateExpression(cleaned, context);
-      return { success: true, value: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  }
+      const results: DSLResultItem[] = [];
 
-  private static evaluateExpression(expression: string, context: EvalContext): any {
-    const lexer = new DSLLexer(expression);
-    const parser = new DSLParser(lexer);
-    const ast = parser.parse();
-    const evaluator = new DSLEvaluator(context);
-    return evaluator.evaluate(ast);
-  }
+      // 2. 遍历执行每一个具体表达式
+      for (const expr of concreteExpressions) {
+        // 2.1 词法分析
+        // Lexer 内部会自动处理/跳过 <<if> / <<op> 等 wrapper 头
+        const lexer = new DSLLexer(expr);
 
-  private static extractContent(expression: string, type: 'if' | 'op'): string {
-    // 匹配 <<if> content > 或 <<op> content >
-    const pattern = new RegExp(`<<${type}>\\s*(.*?)\\s*>`, 's');
-    const match = expression.match(pattern);
-    if (!match) {
-      throw new Error(`Invalid ${type} expression format: ${expression}`);
-    }
-    return match[1].trim();
-  }
+        // 2.2 语法分析
+        const parser = new DSLParser(lexer);
+        const ast = parser.parse();
 
-  /**
-   * 解析路径中的通配符并获取所有匹配的路径
-   * @param data 数据对象
-   * @param pathPattern 带通配符的路径，如 "角色.*.特殊状态.好感度"
-   * @param wildcardMapping 通配符映射，用于保持同一层级的一致性
-   * @returns 匹配的所有完整路径数组
-   */
-  static expandWildcardPaths(data: any, pathPattern: string, wildcardMapping: Record<string, string> = {}): string[] {
-    const parts = pathPattern.split('.');
-    const results: string[] = [];
+        // 2.3 求值
+        // Evaluator 会直接修改 data (如果是赋值操作) 并返回计算结果
+        const evaluator = new DSLEvaluator(data);
+        const resultValue = evaluator.evaluate(ast);
 
-    this._expandRecursive(data, parts, 0, [], results, wildcardMapping);
-    return results;
-  }
+        // 2.4 结果封装
+        // 我们需要判断这是否是一个赋值操作，以便在返回结果中带上 path
+        let modifiedPath: string | undefined = undefined;
 
-  private static _expandRecursive(
-    node: any,
-    parts: string[],
-    index: number,
-    currentPath: string[],
-    results: string[],
-    wildcardMapping: Record<string, string>
-  ) {
-    if (index >= parts.length) {
-      results.push(currentPath.join('.'));
-      return;
-    }
-
-    const part = parts[index];
-
-    if (part === '*') {
-      // 通配符：遍历所有属性
-      if (node && typeof node === 'object') {
-        // 检查是否已经有该层级的映射
-        const levelKey = `level_${index}`;
-        if (wildcardMapping[levelKey]) {
-          // 使用已有的映射
-          const mappedKey = wildcardMapping[levelKey];
-          if (mappedKey in node) {
-            this._expandRecursive(
-              node[mappedKey],
-              parts,
-              index + 1,
-              [...currentPath, mappedKey],
-              results,
-              wildcardMapping
-            );
-          }
-        } else {
-          // 第一次遇到该层级的通配符，遍历所有属性
-          for (const key in node) {
-            if (Object.prototype.hasOwnProperty.call(node, key)) {
-              // 创建新的映射
-              const newMapping = { ...wildcardMapping, [levelKey]: key };
-              this._expandRecursive(
-                node[key],
-                parts,
-                index + 1,
-                [...currentPath, key],
-                results,
-                newMapping
-              );
-            }
-          }
+        // 检查 AST 根节点是否为赋值操作 (BinaryOp with operator '=')
+        // 并且左侧必须是一个 Identifier
+        if (
+          ast.type === 'BinaryOp' &&
+          ast.operator === '=' &&
+          ast.left.type === 'Identifier'
+        ) {
+          modifiedPath = ast.left.path;
         }
+
+        results.push({
+          path: modifiedPath,
+          value: resultValue
+        });
       }
-    } else {
-      // 固定部分
-      // eslint-disable-next-line no-lonely-if
-      if (node && typeof node === 'object' && part in node) {
-        this._expandRecursive(
-          node[part],
-          parts,
-          index + 1,
-          [...currentPath, part],
-          results,
-          wildcardMapping
-        );
-      }
-      // 处理以 * 开头、中间或结尾的情况
-      else if (node && typeof node === 'object' && part === '*' && index === parts.length - 1) {
-        // 遍历所有属性
-        for (const key in node) {
-          if (Object.prototype.hasOwnProperty.call(node, key)) {
-            results.push([...currentPath, key].join('.'));
-          }
-        }
-      }
+
+      return {
+        success: true,
+        value: results
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Unknown error during DSL execution'
+      };
     }
   }
 }

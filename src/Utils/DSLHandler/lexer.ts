@@ -1,5 +1,27 @@
 // lexer.ts
-import { Token, TokenType, LiteralValue } from './types/dsl';
+
+export type TokenType =
+  | 'IDENTIFIER'    // $[path]
+  | 'LITERAL'       // &[{type}value]
+  | 'OP_LOGIC'      // ?[==], ?[&&]
+  | 'OP_MATH'       // #[+], #[=]
+  | 'FUNC_START'    // #[{ln}
+  | 'RBRACKET'      // ] (用于闭合函数调用)
+  | 'LPAREN'        // (
+  | 'RPAREN'        // )
+  | 'EOF';
+
+export interface Token {
+  type: TokenType;
+  value: string;
+  start: number;
+  end: number;
+}
+
+export interface LiteralValue {
+  type: 'number' | 'string' | 'boolean' | 'null' | 'array' | 'object';
+  value: any;
+}
 
 export class DSLLexer {
   private position = 0;
@@ -11,10 +33,22 @@ export class DSLLexer {
     this.position = 0;
     this.tokens = [];
 
+    // 预处理：简单的跳过外层 wrapper
+    // 实际生产中可能需要更严谨的校验，这里假设输入是合法的 <<if>...> 或 <<op>...>
+    this.skipWrapperHeader();
+
     while (this.position < this.input.length) {
       const char = this.input[this.position];
 
+      // 跳过空白
       if (this.isWhitespace(char)) {
+        this.position++;
+        continue;
+      }
+
+      // 结束符 > (Wrapper的结尾)
+      if (char === '>') {
+        // 只有当它出现在最外层时才忽略（虽然本DSL中 > 符号只存在于 ?[>] 中，raw > 只能是结尾）
         this.position++;
         continue;
       }
@@ -29,23 +63,35 @@ export class DSLLexer {
         continue;
       }
 
-      if (char === '?') {
-        this.tokenizeQuestion();
-        continue;
-      }
-
-      if (char === '#') {
-        this.tokenizeHash();
-        continue;
-      }
-
+      // 变量 $[...]
       if (char === '$') {
         this.tokenizeDollar();
         continue;
       }
 
+      // 字面量 &[{type}val]
       if (char === '&') {
         this.tokenizeAmpersand();
+        continue;
+      }
+
+      // 逻辑/比较运算符 ?[...]
+      if (char === '?') {
+        this.tokenizeQuestion();
+        continue;
+      }
+
+      // 算术运算符 或 函数调用 #[...]
+      if (char === '#') {
+        this.tokenizeHash();
+        continue;
+      }
+
+      // 函数闭合符 ]
+      // 注意：$[], &[], ?[], #[op] 内部的 ] 都会被各自的方法消费掉
+      // 只有 #[{func} ... ] 的末尾 ] 会暴露在这里
+      if (char === ']') {
+        this.addToken('RBRACKET', ']');
         continue;
       }
 
@@ -56,179 +102,107 @@ export class DSLLexer {
     return this.tokens;
   }
 
-  private tokenizeQuestion() {
-    const start = this.position;
-    this.position++; // 跳过 '?'
-
-    if (this.peek() === '[') {
-      this.position++; // 跳过 '['
-      const opStart = this.position;
-
-      // 读取到 ']'
-      while (this.position < this.input.length && this.peek() !== ']') {
-        this.position++;
-      }
-
-      const op = this.input.slice(opStart, this.position);
-      if (this.peek() === ']') {
-        this.position++; // 跳过 ']'
-      }
-
-      // 判断是逻辑运算符还是比较运算符
-      const tokenType = (op === '&&' || op === '||') ? 'LOGICAL_OP' : 'OPERATOR';
-      this.tokens.push({
-        type: tokenType,
-        value: op,
-        start,
-        end: this.position
-      });
-    } else {
-      throw new Error('Expected "[" after "?"');
-    }
-  }
-
-  private tokenizeHash() {
-    const start = this.position;
-    this.position++; // 跳过 '#'
-
-    if (this.peek() === '[') {
-      this.position++; // 跳过 '['
-      const opStart = this.position;
-
-      // 检查是否是函数调用
-      if (this.peek() === '{') {
-        this.position++; // 跳过 '{'
-        while (this.position < this.input.length && this.peek() !== '}') {
-          this.position++;
-        }
-        if (this.peek() === '}') {
-          this.position++; // 跳过 '}'
-        }
-      }
-
-      // 读取到 ']'
-      while (this.position < this.input.length && this.peek() !== ']') {
-        this.position++;
-      }
-
-      const op = this.input.slice(opStart, this.position);
-      if (this.peek() === ']') {
-        this.position++; // 跳过 ']'
-      }
-
-      this.tokens.push({
-        type: 'OPERATOR',
-        value: op,
-        start,
-        end: this.position
-      });
-    } else {
-      throw new Error('Expected "[" after "#"');
+  private skipWrapperHeader() {
+    // 跳过 <<if> 或 <<op>
+    const regex = /^<<(if|op)>\s*/;
+    const match = this.input.slice(this.position).match(regex);
+    if (match) {
+      this.position += match[0].length;
     }
   }
 
   private tokenizeDollar() {
+    // $[path]
     const start = this.position;
-    this.position++; // 跳过 '$'
+    this.position++; // $
+    if (this.peek() !== '[') throw new Error('Expected "[" after "$"');
+    this.position++; // [
 
-    if (this.peek() === '[') {
-      this.position++; // 跳过 '['
-      const pathStart = this.position;
-
-      // 读取到 ']'
-      while (this.position < this.input.length && this.peek() !== ']') {
-        this.position++;
-      }
-
-      const path = this.input.slice(pathStart, this.position);
-      if (this.peek() === ']') {
-        this.position++; // 跳过 ']'
-      }
-
-      this.tokens.push({
-        type: 'IDENTIFIER',
-        value: path,
-        start,
-        end: this.position
-      });
-    } else {
-      throw new Error('Expected "[" after "$"');
+    const contentStart = this.position;
+    while (this.position < this.input.length && this.peek() !== ']') {
+      this.position++;
     }
+
+    const path = this.input.slice(contentStart, this.position);
+    if (this.peek() !== ']') throw new Error('Unclosed identifier');
+    this.position++; // ]
+
+    this.tokens.push({ type: 'IDENTIFIER', value: path, start, end: this.position });
   }
 
   private tokenizeAmpersand() {
+    // &[{type}value]
     const start = this.position;
-    this.position++; // 跳过 '&'
+    this.position++; // &
+    if (this.peek() !== '[') throw new Error('Expected "[" after "&"');
+    this.position++; // [
 
-    if (this.peek() === '[') {
-      this.position++; // 跳过 '['
-      const valueStart = this.position;
+    const contentStart = this.position;
+    while (this.position < this.input.length && this.peek() !== ']') {
+      this.position++;
+    }
 
-      // 读取到 ']'
+    const raw = this.input.slice(contentStart, this.position);
+    if (this.peek() !== ']') throw new Error('Unclosed literal');
+    this.position++; // ]
+
+    this.tokens.push({ type: 'LITERAL', value: raw, start, end: this.position });
+  }
+
+  private tokenizeQuestion() {
+    // ?[==]
+    const start = this.position;
+    this.position++; // ?
+    if (this.peek() !== '[') throw new Error('Expected "[" after "?"');
+    this.position++; // [
+
+    const contentStart = this.position;
+    while (this.position < this.input.length && this.peek() !== ']') {
+      this.position++;
+    }
+
+    const op = this.input.slice(contentStart, this.position);
+    if (this.peek() !== ']') throw new Error('Unclosed operator');
+    this.position++; // ]
+
+    this.tokens.push({ type: 'OP_LOGIC', value: op, start, end: this.position });
+  }
+
+  private tokenizeHash() {
+    // #[+] OR #[{ln}
+    const start = this.position;
+    this.position++; // #
+    if (this.peek() !== '[') throw new Error('Expected "[" after "#"');
+    this.position++; // [
+
+    // 检查是否是函数调用：#[{
+    if (this.peek() === '{') {
+      this.position++; // {
+      const nameStart = this.position;
+      while (this.position < this.input.length && this.peek() !== '}') {
+        this.position++;
+      }
+      const funcName = this.input.slice(nameStart, this.position);
+      if (this.peek() !== '}') throw new Error('Unclosed function name');
+      this.position++; // }
+
+      // 注意：这里我们不消费闭合的 ]，因为函数后面跟着参数，参数后面才是 ]
+      // 例如: #[{max}$[a]$[b]]
+      // 当前位置在 } 后面，即 $ 之前
+
+      this.tokens.push({ type: 'FUNC_START', value: funcName, start, end: this.position });
+    } else {
+      // 普通算术运算符 #[+]
+      const contentStart = this.position;
       while (this.position < this.input.length && this.peek() !== ']') {
         this.position++;
       }
+      const op = this.input.slice(contentStart, this.position);
+      if (this.peek() !== ']') throw new Error('Unclosed operator');
+      this.position++; // ]
 
-      const literalStr = this.input.slice(valueStart, this.position);
-      if (this.peek() === ']') {
-        this.position++; // 跳过 ']'
-      }
-
-      this.tokens.push({
-        type: 'LITERAL',
-        value: this.parseLiteral(literalStr),
-        start,
-        end: this.position
-      });
-    } else {
-      throw new Error('Expected "[" after "&"');
+      this.tokens.push({ type: 'OP_MATH', value: op, start, end: this.position });
     }
-  }
-
-  private parseLiteral(str: string): LiteralValue {
-    // 解析 &[{num}1] 或 &[{str}hello] 等格式
-    if (str.startsWith('{') && str.includes('}')) {
-      const endBraceIndex = str.indexOf('}');
-      const type = str.slice(1, endBraceIndex);
-      const valueStr = str.slice(endBraceIndex + 1);
-
-      switch (type) {
-        case 'num':
-          { const numValue = parseFloat(valueStr);
-          if (isNaN(numValue)) {
-            throw new Error(`Invalid number literal: ${valueStr}`);
-          }
-          return { type: 'number', value: numValue }; }
-        case 'str':
-          return { type: 'string', value: valueStr };
-        case 'bool':
-          return { type: 'boolean', value: valueStr === 'true' };
-        case 'null':
-          return { type: 'null', value: null };
-        case 'arr':
-          try {
-            return { type: 'array', value: JSON.parse(valueStr) };
-          } catch {
-            throw new Error(`Invalid array literal: ${valueStr}`);
-          }
-        case 'obj':
-          try {
-            return { type: 'object', value: JSON.parse(valueStr) };
-          } catch {
-            throw new Error(`Invalid object literal: ${valueStr}`);
-          }
-        default:
-          throw new Error(`Unknown literal type: ${type}`);
-      }
-    }
-
-    // 简单数值（兼容老格式）
-    const num = parseFloat(str);
-    if (!isNaN(num)) {
-      return { type: 'number', value: num };
-    }
-
-    throw new Error(`Invalid literal: ${str}`);
   }
 
   private addToken(type: TokenType, value: string) {
@@ -246,6 +220,25 @@ export class DSLLexer {
   }
 
   private isWhitespace(char: string): boolean {
-    return char === ' ' || char === '\t' || char === '\n' || char === '\r';
+    return /\s/.test(char);
+  }
+}
+
+export function parseLiteralValue(raw: string): LiteralValue {
+  // 解析 {type}value 格式
+  const match = raw.match(/^\{(\w+)\}(.*)$/);
+  if (!match) {
+    // 兼容旧格式或纯数字
+    const num = parseFloat(raw);
+    return isNaN(num) ? { type: 'string', value: raw } : { type: 'number', value: num };
+  }
+
+  const [, type, valStr] = match;
+  switch (type) {
+    case 'num': return { type: 'number', value: parseFloat(valStr) };
+    case 'str': return { type: 'string', value: valStr };
+    case 'bool': return { type: 'boolean', value: valStr === 'true' };
+    case 'null': return { type: 'null', value: null };
+    default: return { type: 'string', value: valStr };
   }
 }
