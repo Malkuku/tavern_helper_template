@@ -114,7 +114,7 @@
         <h2>{{ editingKey ? '更新规则' : '新增规则' }}</h2>
         <div class="field">
           <label>规则名称:</label>
-          <input v-model="editingKey" :disabled="!!editKeyLocked" placeholder="唯一标识，如: 好感度rule1" />
+          <input v-model="editingKey" placeholder="唯一标识，如: 好感度rule1" />
         </div>
         <div class="field">
           <label>启用:</label>
@@ -410,6 +410,7 @@ function confirmSave() {
     return;
   }
 
+  // 检查规则名称是否重复（排除自身修改的情况）
   if (
     (!editKeyLocked.value || (editKeyLocked.value && editingKey.value !== deletingKey.value)) &&
     rules.value[editingKey.value]
@@ -418,6 +419,7 @@ function confirmSave() {
     return;
   }
 
+  // 检查 handle 名称是否有重复
   const handleKeys = Object.values(handleNames.value);
   const uniqueHandles = new Set(handleKeys);
   if (uniqueHandles.size !== handleKeys.length) {
@@ -441,13 +443,20 @@ function saveRule() {
     draft.value.limit = [];
   }
 
+  // 处理 handle 名称修改：删除旧的，添加新的
   const updatedHandle: Record<string, any> = {};
   Object.keys(draft.value.handle).forEach(oldKey => {
     const newKey = handleNames.value[oldKey] || oldKey;
     updatedHandle[newKey] = draft.value.handle[oldKey];
+    
+    // 如果名称发生变化，删除旧名称在folded中的记录
+    if (oldKey !== newKey) {
+      delete folded.value[oldKey];
+    }
   });
   draft.value.handle = updatedHandle;
 
+  // 对于规则名称修改：删除旧的，添加新的
   if (editKeyLocked.value && editingKey.value !== deletingKey.value) {
     delete rules.value[deletingKey.value];
     delete folded.value[deletingKey.value];
