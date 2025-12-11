@@ -11,8 +11,7 @@
         <div class="dsl-components">
           <div class="component-section">
             <h4>路径选择</h4>
-            <button class="btn small" @click="addComponent('$[$this]')">当前路径 ($[$this])</button>
-            <button class="btn small" @click="$emit('select-path')">选择其他路径...</button>
+            <button class="btn small" @click="$emit('select-path')">当前路径</button>
             <div v-if="selectedPath" class="selected-path">
               已选择: {{ selectedPath }}
             </div>
@@ -38,6 +37,7 @@
               <button class="btn small" @click="addComponent('#[/]')">除 (/)</button>
               <button class="btn small" @click="addComponent('#[%]')">取余 (%)</button>
               <button class="btn small" @click="addComponent('#[**]')">幂 (**)</button>
+              <button class="btn small" @click="addComponent('#[**]')">赋值 (=)</button>
             </div>
 
             <h4>函数运算符</h4>
@@ -48,6 +48,8 @@
               <button class="btn small" @click="addComponent('#[{abs}]')">绝对值 (abs)</button>
               <button class="btn small" @click="addComponent('#[{floor}]')">向下取整 (floor)</button>
               <button class="btn small" @click="addComponent('#[{ceil}]')">向上取整 (ceil)</button>
+              <button class="btn small" @click="addComponent('#[{max}]')">最大值 (max)</button>
+              <button class="btn small" @click="addComponent('#[{min}]')">最小值 (min)</button>
             </div>
           </div>
 
@@ -63,8 +65,8 @@
           <div class="component-section">
             <h4>值</h4>
             <div class="value-input">
-              <input v-model="customValue" placeholder="输入值" @keyup.enter="addCustomValue" />
-              <select v-model="valueType">
+              <input v-model="customValue" placeholder="输入值" @keyup.enter="addCustomValue" class="light-theme" />
+              <select v-model="valueType" class="light-theme">
                 <option value="num">数字</option>
                 <option value="str">字符串</option>
                 <option value="bool">布尔值</option>
@@ -76,9 +78,22 @@
 
         <!-- 右侧：表达式预览和编辑 -->
         <div class="dsl-preview-area">
+          <!-- 新增：可读预览 -->
+          <div class="expression-preview readable">
+            <div class="preview-header">
+              <strong>可读预览:</strong>
+              <span class="hint">（仅供参考，实际逻辑以原始表达式为准）</span>
+            </div>
+            <div class="expression-display readable-text">
+              {{ readableExpression || '暂无内容' }}
+            </div>
+          </div>
+
           <div class="expression-preview">
-            <div class="expression-raw">
+            <div class="preview-header">
               <strong>原始表达式:</strong>
+            </div>
+            <div class="expression-raw">
               <pre>{{ rawExpression }}</pre>
             </div>
           </div>
@@ -89,6 +104,7 @@
               v-model="localExpression"
               rows="4"
               placeholder="可以在此处手动编辑表达式..."
+              class="light-theme"
             ></textarea>
             <div class="editor-actions">
               <button class="btn small danger" @click="clearExpression">清空</button>
@@ -167,6 +183,41 @@ const rawExpression = computed(() => {
   return localExpression.value;
 });
 
+/**
+ * 将DSL表达式转换为人类可读的格式
+ * 去除 $[] ?[] #[] &[] 等标识符
+ */
+const readableExpression = computed(() => {
+  let expr = localExpression.value;
+  if (!expr) return '';
+  //去除<<op>和<<if>标签及末尾的>
+  expr = expr.replace(/<<(?:if|op)>\s*(.*?)\s*>$/g, '$1');
+
+  // 1. 处理值 &[{type}val] -> val
+  expr = expr.replace(/&\[\{str\}(.*?)\]/g, '"$1"'); // 字符串加引号
+  expr = expr.replace(/&\[\{(?:num|bool)\}(.*?)\]/g, '$1'); // 数字和布尔直接显示
+  expr = expr.replace(/&\[\{null\}\]/g, 'null');
+
+  // 2. 处理路径 $[path] -> path
+  expr = expr.replace(/\$\[(.*?)\]/g, (match, path) => {
+    return path;
+  });
+
+  // 3. 处理函数 #[{func}...] -> func ...
+  // 将 #[{max} 替换为 max
+  expr = expr.replace(/#\[\{(.*?)\}/g, ' $1 ');
+
+  // 4. 处理运算符 ?[op] 和 #[op] -> op
+  expr = expr.replace(/(\?|#)\[(.*?)\]/g, ' $2 ');
+
+  // 5. 清理残留的括号和多余空格
+  // 简单去噪：
+  expr = expr.replace(/\]/g, ' ');
+
+  // 6. 最终清理
+  return expr.replace(/\s+/g, ' ').trim();
+});
+
 function handleClose() {
   emit('update:visible', false);
   emit('close');
@@ -183,11 +234,15 @@ function handleApply() {
 }
 
 function addComponent(component: string) {
+  // 在添加组件前后加空格，避免粘连
+  const val = localExpression.value;
+  const separator = val && !val.endsWith(' ') ? ' ' : '';
+  localExpression.value += separator + component;
   emit('add-component', component);
 }
 
 function addParentheses() {
-  emit('add-component', '()');
+  addComponent('()');
 }
 
 function addCustomValue() {
@@ -208,7 +263,7 @@ function addCustomValue() {
       break;
   }
 
-  emit('add-component', valueString);
+  addComponent(valueString);
   customValue.value = '';
 }
 
@@ -226,17 +281,16 @@ function validateExpression() {
 
   try {
     // 使用语法验证而不是实际执行
-    const expression = localExpression.value.trim();
-    const result = DSLHandler.validateDSL(expression, props.type);
+    const result = DSLHandler.validate(localExpression.value);
 
     if (result.success) {
       toastr.success(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证通过`);
     } else {
-      toastr.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`);
-      eraLogger.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`, expression, result);
+      toastr.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败: ${result.error}`);
+      eraLogger.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`, localExpression.value, result);
     }
   } catch (error: any) {
-    toastr.error(`表达式验证出错`);
+    toastr.error(`表达式验证出错: ${error.message}`);
     eraLogger.error('DSL表达式验证错误:', error);
   }
 }
@@ -267,7 +321,7 @@ watch(() => props.visible, (newVal) => {
   background: white;
   width: 90%;
   max-width: 1000px;
-  height: 80vh;
+  height: 85vh; /* 稍微增加高度以容纳新区域 */
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -330,6 +384,8 @@ watch(() => props.visible, (newVal) => {
   border-radius: 4px;
   font-size: 12px;
   color: #111827;
+  background: white !important;
+  -webkit-text-fill-color: #111827 !important;
 }
 
 .selected-path {
@@ -360,37 +416,60 @@ watch(() => props.visible, (newVal) => {
   padding: 12px;
 }
 
+/* 新增：可读预览样式 */
+.expression-preview.readable {
+  background: #f0fdf4; /* 浅绿色背景 */
+  border-color: #bbf7d0;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.preview-header .hint {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: normal;
+}
+
 .expression-display {
-  margin: 8px 0;
   padding: 10px;
   background: #f8fafc;
   border-radius: 4px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 12px;
   overflow-x: auto;
-}
-
-.expression-text {
-  margin-top: 8px;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
+.readable-text {
+  background: transparent;
+  color: #15803d; /* 深绿色文字 */
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .expression-raw {
-  margin-top: 10px;
   font-size: 11px;
   color: #111827;
 }
 
 .expression-raw pre {
-  margin: 4px 0 0 0;
-  padding: 6px;
+  margin: 0;
+  padding: 8px;
   background: #f3f4f6;
   border-radius: 4px;
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  color: #000000;
+  color: #4b5563;
   font-weight: 500;
 }
 
@@ -402,6 +481,9 @@ watch(() => props.visible, (newVal) => {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 12px;
   resize: vertical;
+  background: white !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
 }
 
 .editor-actions {
@@ -485,4 +567,13 @@ watch(() => props.visible, (newVal) => {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+
+/* 强制浅色主题 */
+.light-theme {
+  background: white !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
 </style>
