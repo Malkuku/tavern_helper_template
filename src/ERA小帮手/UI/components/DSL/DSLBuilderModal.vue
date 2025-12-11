@@ -119,10 +119,13 @@
           <div class="expression-editor">
             <h4>手动编辑</h4>
             <textarea
+              ref="expressionTextarea"
               v-model="localExpression"
               rows="4"
               placeholder="可以在此处手动编辑表达式..."
               class="light-theme"
+              @mouseup="updateCursorPosition"
+              @keyup="updateCursorPosition"
             ></textarea>
             <div class="editor-actions">
               <button class="btn small danger" @click="clearExpression">清空</button>
@@ -171,6 +174,7 @@ const localExpression = ref(props.expression);
 const customValue = ref('');
 const valueType = ref<'num' | 'str' | 'bool'>('num');
 const selectedStoredPath = ref('');
+const expressionTextarea = ref<HTMLTextAreaElement | null>(null);
 
 const emit = defineEmits<Emits>();
 const uiStore = useUiStore();
@@ -257,10 +261,39 @@ function handleApply() {
 }
 
 function addComponent(component: string) {
-  // 在添加组件前后加空格，避免粘连
-  const val = localExpression.value;
-  const separator = val && !val.endsWith(' ') ? ' ' : '';
-  localExpression.value += separator + component;
+  const textarea = expressionTextarea.value as HTMLTextAreaElement | null;
+  
+  if (textarea && textarea === document.activeElement) {
+    // 获取光标位置
+    const startPos = textarea.selectionStart;
+    const endPos = textarea.selectionEnd;
+    const val = localExpression.value;
+    
+    // 在光标位置插入组件
+    const beforeCursor = val.substring(0, startPos);
+    const afterCursor = val.substring(endPos);
+    
+    // 在添加组件前后加空格，避免粘连
+    const separatorBefore = beforeCursor && !beforeCursor.endsWith(' ') ? ' ' : '';
+    const separatorAfter = afterCursor && !afterCursor.startsWith(' ') ? ' ' : '';
+    
+    localExpression.value = beforeCursor + separatorBefore + component + separatorAfter + afterCursor;
+    
+    // 更新光标位置到插入内容之后
+    const newCursorPos = startPos + separatorBefore.length + component.length + separatorAfter.length;
+    setTimeout(() => {
+      if (textarea) {
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+      }
+    }, 0);
+  } else {
+    // 如果没有焦点或者无法获取光标位置，则在末尾添加
+    const val = localExpression.value;
+    const separator = val && !val.endsWith(' ') ? ' ' : '';
+    localExpression.value += separator + component;
+  }
+  
   emit('add-component', component);
 }
 
@@ -334,6 +367,11 @@ watch(() => props.visible, (newVal) => {
     selectedStoredPath.value = '';
   }
 });
+
+function updateCursorPosition() {
+  // 这个函数不需要做任何事情，它的存在只是为了触发Vue的响应式更新
+  // 实际的光标位置信息已经在textarea元素的selectionStart属性中
+}
 </script>
 
 <style scoped lang="scss">
