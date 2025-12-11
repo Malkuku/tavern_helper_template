@@ -101,6 +101,7 @@
 
               <div class="rule-operations">
                 <button class="btn primary" @click="editRule(key)">编辑</button>
+                <button class="btn" @click="copyRule(key)">复制</button>
                 <button class="btn danger" @click="confirmDelete(key)">删除</button>
               </div>
             </div>
@@ -163,50 +164,55 @@
             <button class="btn small primary" @click="addHandle">+ 添加 handle</button>
           </div>
           <div v-for="(handleItem, handleKey) in draft.handle" :key="handleKey" class="handle-editor">
-            <div class="handle-header">
+            <div class="handle-header" @click="handleFolded[handleKey] = !handleFolded[handleKey]">
               <input v-model="handleNames[handleKey]" placeholder="handle名称" class="handle-name-input" />
-              <button class="btn small danger" @click="delHandle(handleKey)">删除</button>
+              <div class="handle-actions">
+                <span class="fold-indicator">{{ handleFolded[handleKey] ? '›' : '⌄' }}</span>
+                <button class="btn small danger" @click.stop="delHandle(handleKey)">删除</button>
+              </div>
             </div>
-            <div class="field">
-              <label>处理顺序:</label>
-              <input v-model.number="handleItem.order" type="number" min="0" placeholder="0" />
-            </div>
-            <div class="field">
-              <label>循环次数:</label>
-              <input v-model.number="handleItem.loop" type="number" min="1" max="1000" placeholder="1" />
-            </div>
-            <div class="dsl-builder">
-              <div class="dsl-header">
-                <label>条件表达式 (if):</label>
-                <div class="dsl-actions">
-                  <button class="btn small" @click="openDslBuilder('if', handleKey)">构建</button>
-                  <button v-if="handleItem.if" class="btn small danger" @click="clearDsl('if', handleKey)">清空</button>
+            <div v-show="!handleFolded[handleKey]">
+              <div class="field">
+                <label>处理顺序:</label>
+                <input v-model.number="handleItem.order" type="number" min="0" placeholder="0" />
+              </div>
+              <div class="field">
+                <label>循环次数:</label>
+                <input v-model.number="handleItem.loop" type="number" min="1" max="1000" placeholder="1" />
+              </div>
+              <div class="dsl-builder">
+                <div class="dsl-header">
+                  <label>条件表达式 (if):</label>
+                  <div class="dsl-actions">
+                    <button class="btn small" @click="openDslBuilder('if', handleKey)">构建</button>
+                    <button v-if="handleItem.if" class="btn small danger" @click="clearDsl('if', handleKey)">清空</button>
+                  </div>
+                </div>
+                <div class="dsl-preview">
+                  <input
+                    v-model="handleItem.if"
+                    readonly
+                    placeholder="点击'构建'按钮创建条件表达式"
+                    @click="openDslBuilder('if', handleKey)"
+                  />
                 </div>
               </div>
-              <div class="dsl-preview">
-                <input
-                  v-model="handleItem.if"
-                  readonly
-                  placeholder="点击'构建'按钮创建条件表达式"
-                  @click="openDslBuilder('if', handleKey)"
-                />
-              </div>
-            </div>
-            <div class="dsl-builder">
-              <div class="dsl-header">
-                <label>操作表达式 (op):</label>
-                <div class="dsl-actions">
-                  <button class="btn small" @click="openDslBuilder('op', handleKey)">构建</button>
-                  <button v-if="handleItem.op" class="btn small danger" @click="clearDsl('op', handleKey)">清空</button>
+              <div class="dsl-builder">
+                <div class="dsl-header">
+                  <label>操作表达式 (op):</label>
+                  <div class="dsl-actions">
+                    <button class="btn small" @click="openDslBuilder('op', handleKey)">构建</button>
+                    <button v-if="handleItem.op" class="btn small danger" @click="clearDsl('op', handleKey)">清空</button>
+                  </div>
                 </div>
-              </div>
-              <div class="dsl-preview">
-                <input
-                  v-model="handleItem.op"
-                  readonly
-                  placeholder="点击'构建'按钮创建操作表达式"
-                  @click="openDslBuilder('op', handleKey)"
-                />
+                <div class="dsl-preview">
+                  <input
+                    v-model="handleItem.op"
+                    readonly
+                    placeholder="点击'构建'按钮创建操作表达式"
+                    @click="openDslBuilder('op', handleKey)"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -298,6 +304,7 @@ import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDa
 const statData = ref<any>({});
 const rules = ref<Record<string, any>>({});
 const folded = ref<Record<string, boolean>>({});
+const handleFolded = ref<Record<string, boolean>>({});
 const editingKey = ref<string>('');
 const editKeyLocked = ref<boolean>(false);
 const draft = ref<any>({
@@ -368,6 +375,10 @@ function toggleFold(key: string) {
   folded.value[key] = !folded.value[key];
 }
 
+function toggleHandleFold(handleKey: string) {
+  handleFolded.value[handleKey] = !handleFolded.value[handleKey];
+}
+
 function editRule(key: string) {
   editingKey.value = key;
   editKeyLocked.value = true;
@@ -378,6 +389,8 @@ function editRule(key: string) {
   if (draft.value.handle) {
     Object.keys(draft.value.handle).forEach(handleKey => {
       handleNames.value[handleKey] = handleKey;
+      // 默认折叠所有 handle
+      handleFolded.value[handleKey] = true;
     });
   }
 
@@ -452,6 +465,10 @@ function saveRule() {
     // 如果名称发生变化，删除旧名称在folded中的记录
     if (oldKey !== newKey) {
       delete folded.value[oldKey];
+      // 同时处理 handleFolded
+      delete handleFolded.value[oldKey];
+      // 将折叠状态转移到新键上
+      handleFolded.value[newKey] = handleFolded.value[oldKey] ?? true;
     }
   });
   draft.value.handle = updatedHandle;
@@ -504,6 +521,7 @@ function cancelEdit() {
     limit: [],
   };
   handleNames.value = {};
+  handleFolded.value = {};
   draftRangeMin.value = null;
   draftRangeMax.value = null;
   draftLimitNeg.value = null;
@@ -527,11 +545,14 @@ function addHandle() {
     op: '',
   };
   handleNames.value[k] = k;
+  // 新增的 handle 默认折叠
+  handleFolded.value[k] = true;
 }
 
 function delHandle(k: string | number) {
   delete draft.value.handle[k];
   delete handleNames.value[k];
+  delete handleFolded.value[k];
 }
 
 function collectPath(path: string) {
@@ -645,6 +666,31 @@ async function executeDelete() {
   } finally {
     cancelDelete();
   }
+}
+
+function copyRule(key: string) {
+  // 创建规则副本
+  const originalRule = rules.value[key];
+  const copiedRule = JSON.parse(JSON.stringify(originalRule));
+  
+  // 生成新的规则名称（添加copy后缀）
+  let newKey = `${key}_copy`;
+  let counter = 1;
+  
+  // 确保新名称不重复
+  while (rules.value[newKey]) {
+    newKey = `${key}_copy${counter}`;
+    counter++;
+  }
+  
+  // 添加新规则
+  rules.value[newKey] = copiedRule;
+  folded.value[newKey] = true;
+  
+  // 保存规则
+  saveRules();
+  
+  showMessage(`规则 "${key}" 已复制为 "${newKey}"`, 'success');
 }
 
 /* ---------- 导入导出功能 ---------- */
@@ -1075,6 +1121,11 @@ hr {
   margin-top: 8px;
 }
 
+.rule-operations .btn {
+  flex: 1;
+  min-width: 60px;
+}
+
 /* 启用状态指示器 */
 .rule-status {
   margin-left: 8px;
@@ -1227,6 +1278,8 @@ input:checked + .toggle-label:before {
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid #e5e7eb;
+  cursor: pointer;
+  user-select: none;
 }
 
 .handle-name-input {
@@ -1237,12 +1290,27 @@ input:checked + .toggle-label:before {
   width: auto;
   min-width: 120px;
   color: #111827; /* 更深的颜色使文字更清晰 */
+  cursor: text;
 }
 
 .handle-name-input:focus {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.handle-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fold-indicator {
+  font-size: 16px;
+  font-weight: bold;
+  color: #6b7280;
+  transition: transform 0.2s;
+  cursor: pointer;
 }
 
 .dsl-builder {
