@@ -83,6 +83,7 @@
               <div class="rule-details">
                 <div><strong>路径:</strong> {{ rule.path }}</div>
                 <div><strong>顺序:</strong> {{ rule.order }}</div>
+                <div v-if="rule.loop"><strong>循环:</strong> {{ rule.loop }}</div>
                 <div v-if="rule.range"><strong>范围:</strong> [{{ rule.range[0] }}, {{ rule.range[1] }}]</div>
                 <div v-if="rule.limit"><strong>限制:</strong> [{{ rule.limit[0] }}, {{ rule.limit[1] }}]</div>
               </div>
@@ -129,6 +130,10 @@
         <div class="field">
           <label>排序:</label>
           <input v-model.number="draft.order" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label>规则循环:</label>
+          <input v-model.number="draft.loop" type="number" min="1" max="10000" placeholder="1" />
         </div>
         <div class="field">
           <label>范围限制:</label>
@@ -299,6 +304,7 @@ const draft = ref<any>({
   enable: true,
   path: '',
   order: 0,
+  loop: 1,
   handle: {},
   range: [],
   limit: [],
@@ -483,6 +489,7 @@ function cancelEdit() {
     enable: true,
     path: '',
     order: 0,
+    loop: 1,
     handle: {},
     range: [],
     limit: [],

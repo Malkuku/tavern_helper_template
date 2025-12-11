@@ -3,6 +3,7 @@ export interface EraDataRule{
       path: string //要修改的路径，支持.*匹配 角色.*.特殊状态.好感度
       enable: boolean //是否启用
       order: number //处理顺序，将所有规则按照顺序处理，值越小越先处理。默认为0
+      loop?: number //循环次数，默认为1且不能小于1，最大值为1000 //如果配置了if表达式，当结果为false时，直接终止循环
       range?: [number, number] //数据范围 [0,100]
       limit?: [number, number] //数据限制 [-5,10]
       handle?:{ //处理函数 //要求类型必须相同，否则操作将被跳过
