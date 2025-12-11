@@ -1,55 +1,93 @@
 <template>
   <div v-if="visible" class="dsl-tester-modal">
     <div class="dsl-tester-content">
+      <!-- 1. 顶部工具栏 (Header + Actions) -->
       <div class="tester-header">
-        <h3>{{ modalTitle }}</h3>
-        <button class="btn small" @click="handleClose">×</button>
-      </div>
-
-      <div class="tester-body">
-        <!-- 规则信息展示区域 -->
-        <div class="tester-inputs">
-          <label>当前加载的规则:</label>
-          <div v-if="hasRules" class="rules-list">
-            <div v-for="(rule, name) in localHandlesData" :key="name" class="rule-item">
-              <div class="rule-row">
-                <span class="label">名称:</span>
-                <span class="value">{{ name }}</span>
-              </div>
-              <div class="rule-row">
-                <span class="label">路径:</span>
-                <span class="value code">{{ rule.path }}</span>
-              </div>
-              <div class="rule-row">
-                <span class="label">启用:</span>
-                <span class="value">{{ rule.enable ? '是' : '否' }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-else class="no-rules">暂无规则数据</div>
+        <div class="header-left">
+          <h3>{{ modalTitle }}</h3>
+          <!-- 状态徽标 -->
+          <span v-if="isUsingImportedData" class="data-badge" title="当前使用的是导入的外部数据">
+            外部数据模式
+          </span>
         </div>
 
-        <div class="tester-actions">
-          <!-- 新增导入组件 -->
+        <div class="header-actions">
+          <!-- 导入组件 -->
           <FileImportExport
             ref="fileImportRef"
-            import-text="导入测试数据"
+            import-text="导入数据"
             :require-confirm="false"
+            class="action-item"
             @file-loaded="handleTestDataLoaded"
             @error="handleImportError"
           />
 
-          <button class="btn primary" :disabled="!hasRules" @click="handleRunTest">运行测试</button>
-          <button class="btn" @click="handleClose">关闭</button>
+          <!-- 运行按钮 -->
+          <button
+            class="btn primary"
+            :disabled="!hasRules"
+            title="运行 DSL 测试"
+            @click="handleRunTest"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            运行测试
+          </button>
 
-          <!-- 简单的状态提示，不展示具体数据 -->
-          <span v-if="isUsingImportedData" class="data-status"> (已加载外部数据) </span>
+          <div class="divider"></div>
+
+          <!-- 关闭按钮 (图标形式) -->
+          <button class="close-btn" title="关闭" @click="handleClose">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 主体内容区域 (左右分栏) -->
+      <div class="tester-body">
+        <!-- 左侧：规则列表 -->
+        <div class="panel-left">
+          <div class="panel-header">
+            <span>规则列表</span>
+            <span v-if="hasRules" class="count-badge">{{ Object.keys(localHandlesData).length }}</span>
+          </div>
+
+          <div class="rules-container">
+            <div v-if="hasRules" class="rules-list">
+              <div v-for="(rule, name) in localHandlesData" :key="name" class="rule-card">
+                <div class="rule-header">
+                  <span class="rule-name" :title="String(name)">{{ name }}</span>
+                  <span class="status-dot" :class="{ active: rule.enable }" title="启用状态"></span>
+                </div>
+                <div class="rule-detail">
+                  <code class="path-code" :title="rule.path">{{ rule.path }}</code>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-state">
+              暂无规则数据
+            </div>
+          </div>
         </div>
 
-        <div class="tester-output">
-          <h4>测试结果</h4>
-          <pre v-if="localResultText">{{ localResultText }}</pre>
-          <div v-else class="empty-result">测试结果将显示在这里</div>
+        <!-- 右侧：输出结果 -->
+        <div class="panel-right">
+          <div class="panel-header">
+            <span>执行结果</span>
+            <button v-if="localResultText" class="clear-btn" @click="localResultText = ''">清空</button>
+          </div>
+          <div class="output-container">
+            <pre v-if="localResultText" class="console-output">{{ localResultText }}</pre>
+            <div v-else class="empty-result">
+              <div class="icon-placeholder">⌨️</div>
+              <span>准备就绪</span>
+              <small>点击顶部 "运行测试" 查看结果</small>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -63,8 +101,6 @@ import { eraLogger } from '../../../utils/EraHelperLogger';
 import { EraDataRule } from '../../../EraDataHandler/types/EraDataRule';
 import FileImportExport from '../FileImportExport.vue';
 import { useEraEditStore } from '../../../stores/EraEditStore';
-
-// 引入文件导入组件
 
 interface Props {
   visible?: boolean;
@@ -80,7 +116,6 @@ interface Emits {
 
 const eraEditStore = useEraEditStore();
 
-// 修正：默认值改为空对象，因为 EraDataRule 是一个字典对象
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
   eraDataRule: () => ({}),
@@ -90,31 +125,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-// 创建本地响应式变量
 const localResultText = ref(props.resultText);
 const localHandlesData = ref<EraDataRule>(props.eraDataRule);
-
-// 新增：本地测试数据，默认为 props 传入的数据
 const localTestData = ref<any>(props.statData);
-// 新增：标记是否使用了导入的数据
 const isUsingImportedData = ref(false);
 const fileImportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
 
-// 计算属性：判断是否有规则
 const hasRules = computed(() => {
   return localHandlesData.value && Object.keys(localHandlesData.value).length > 0;
 });
 
-// 计算标题
-const modalTitle = computed(() => {
-  const keys = localHandlesData.value ? Object.keys(localHandlesData.value) : [];
-  if (keys.length > 1) {
-    return `DSL 表达式测试器 - ${keys.length} 个规则`;
-  } else if (keys.length === 1) {
-    return `DSL 表达式测试器 - ${keys[0]}`;
-  }
-  return 'DSL 表达式测试器';
-});
+const modalTitle = computed(() => 'DSL 测试器');
 
 watch(
   () => props.resultText,
@@ -126,13 +147,11 @@ watch(
 watch(
   () => props.eraDataRule,
   value => {
-    // 浅拷贝对象，避免直接引用
     localHandlesData.value = value ? { ...value } : {};
   },
   { deep: true },
 );
 
-// 监听 props.statData 变化，如果外部数据更新且没有手动导入过数据，则同步更新
 watch(
   () => props.statData,
   value => {
@@ -143,23 +162,18 @@ watch(
   { deep: true, immediate: true },
 );
 
-// 新增：处理测试数据加载
 function handleTestDataLoaded(content: string, file: File) {
   try {
     localTestData.value = JSON.parse(content);
     isUsingImportedData.value = true;
-
-    toastr.success(`成功导入测试数据: ${file.name}`, '');
-
-    // 清空之前的测试结果，提示用户重新运行
-    localResultText.value = `数据已导入 (${file.name})，请点击“运行测试”查看结果。`;
+    if (typeof toastr !== 'undefined') toastr.success(`成功导入: ${file.name}`, '');
+    localResultText.value = `// 数据已导入 (${file.name})\n// 请点击“运行测试”查看结果...`;
   } catch (error) {
     const errorMsg = `JSON解析失败: ${error}`;
-    toastr.error(errorMsg, '');
+    if (typeof toastr !== 'undefined') toastr.error(errorMsg, '');
   }
 }
 
-// 新增：处理导入错误
 function handleImportError(error: string) {
   if (typeof toastr !== 'undefined') {
     toastr.error(`导入失败: ${error}`, '');
@@ -169,60 +183,62 @@ function handleImportError(error: string) {
 }
 
 function handleClose() {
-  // 关闭时重置导入状态，下次打开恢复默认
   isUsingImportedData.value = false;
   localTestData.value = props.statData ? JSON.parse(JSON.stringify(props.statData)) : {};
-
   emit('update:visible', false);
   emit('close');
 }
 
 async function handleRunTest() {
   if (!hasRules.value) {
-    localResultText.value = '没有可测试的规则数据';
+    localResultText.value = '>> 错误: 没有可测试的规则数据';
     return;
   }
 
   eraLogger.log('开始运行 DSL 测试...');
+  localResultText.value = '正在执行...';
 
   try {
-    // 1. 准备测试数据 (深拷贝 localTestData)
     const statData = await eraEditStore.getStatData();
-
     const testData = JSON.parse(JSON.stringify(localTestData.value));
     const snapData = JSON.parse(JSON.stringify(statData));
 
-    // 2. 调用 EraDataHandler
-    // applyRule 签名: (data: any, snap: any, rules: EraDataRule)
     const result = await EraDataHandler.applyRule(testData, snapData, localHandlesData.value);
 
-    // 3. 格式化输出结果
     let output = `=== 执行日志 ===\n${result.log}\n\n`;
+    const changes = result.data;
 
-    // 如果有数据变更，显示变更详情
-    const changes = result.data; // diffObjects 的结果
     if (Object.keys(changes).length > 0) {
       output += `=== 数据变更 ===\n${JSON.stringify(changes, null, 2)}`;
     } else {
-      output += `=== 数据变更 ===\n无数据变化`;
+      output += `=== 数据变更 ===\n(无数据变化)`;
     }
 
     localResultText.value = output;
   } catch (error: any) {
     console.error(error);
-    localResultText.value = `测试运行失败:\n${error.message || error}`;
+    localResultText.value = `>> 执行异常:\n${error.message || error}`;
   }
 }
 </script>
 
 <style scoped lang="scss">
+/* 变量定义 */
+$border-color: #e2e8f0;
+$bg-color: #f8fafc;
+$primary-color: #6366f1;
+$text-main: #1e293b;
+$text-sub: #64748b;
+$header-height: 60px;
+
 .dsl-tester-modal {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -232,157 +248,308 @@ async function handleRunTest() {
 .dsl-tester-content {
   background: white;
   width: 90%;
-  max-width: 800px;
-  height: 70vh;
-  border-radius: 8px;
+  max-width: 1000px;
+  height: 85vh; /* 增加高度 */
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
+/* Header & Toolbar */
 .tester-header {
+  height: $header-height;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0 20px;
+  background: white;
+  border-bottom: 1px solid $border-color;
+  flex-shrink: 0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: $text-main;
+      letter-spacing: -0.02em;
+    }
+
+    .data-badge {
+      background: #ecfdf5;
+      color: #059669;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      border: 1px solid #a7f3d0;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: $border-color;
+      margin: 0 4px;
+    }
+  }
 }
 
+/* Body */
 .tester-body {
   flex: 1;
   display: flex;
   min-height: 0;
-  overflow: hidden;
+  background: $bg-color;
 }
 
-.tester-inputs {
-  flex: 0 0 40%;
-  padding: 16px;
-  overflow-y: auto;
-  border-right: 1px solid #e2e8f0;
-}
-
-.tester-inputs .field {
+/* Left Panel */
+.panel-left {
+  flex: 0 0 320px;
   display: flex;
   flex-direction: column;
-  margin-bottom: 12px;
+  border-right: 1px solid $border-color;
+  background: #fcfcfc;
 }
 
-.tester-inputs .field label {
-  width: auto;
-  margin-bottom: 4px;
-  font-size: 12px;
-  color: #1f2937;
-}
-
-.tester-inputs input {
+/* Right Panel */
+.panel-right {
   flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.tester-inputs input:disabled {
-  background-color: #f3f4f6;
-  color: #6b7280;
-}
-
-.tester-actions {
-  margin-top: 20px;
   display: flex;
-  gap: 8px;
-  align-items: center; /* 确保按钮垂直居中 */
-  flex-wrap: wrap;
+  flex-direction: column;
+  background: #1e1e1e; /* Dark theme for console */
+  min-width: 0;
 }
 
-.data-status {
-  font-size: 11px;
-  color: #059669;
-  margin-left: 4px;
-}
-
-.tester-output {
-  flex: 0 0 60%;
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.tester-output h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #111827;
-}
-
-.tester-output pre {
-  margin: 0;
-  padding: 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+.panel-header {
+  height: 40px;
+  padding: 0 16px;
   font-size: 12px;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  max-height: calc(100% - 30px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: $text-sub;
+  border-bottom: 1px solid $border-color;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  flex-shrink: 0;
+
+  .count-badge {
+    background: #f1f5f9;
+    color: $text-sub;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+  }
+
+  .clear-btn {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 11px;
+    cursor: pointer;
+    &:hover { color: #fff; }
+  }
+}
+
+.panel-right .panel-header {
+  background: #252526;
+  border-bottom: 1px solid #333;
+  color: #858585;
+}
+
+/* Rules List */
+.rules-container {
+  flex: 1;
   overflow-y: auto;
+  padding: 12px;
+}
+
+.rule-card {
+  background: white;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+  cursor: default;
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  }
+
+  .rule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+
+    .rule-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: $text-main;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      flex-shrink: 0;
+
+      &.active {
+        background: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+      }
+    }
+  }
+
+  .rule-detail {
+    .path-code {
+      display: block;
+      font-family: 'Menlo', monospace;
+      font-size: 10px;
+      background: #f1f5f9;
+      padding: 3px 6px;
+      border-radius: 3px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+/* Output Area */
+.output-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  position: relative;
+
+  /* 自定义滚动条 (Dark) */
+  &::-webkit-scrollbar { width: 10px; height: 10px; }
+  &::-webkit-scrollbar-track { background: #1e1e1e; }
+  &::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; border: 2px solid #1e1e1e; }
+  &::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+}
+
+.console-output {
+  margin: 0;
+  padding: 16px;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.empty-state, .empty-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: $text-sub;
+  font-size: 13px;
+  gap: 8px;
+  user-select: none;
 }
 
 .empty-result {
-  padding: 20px;
-  text-align: center;
-  color: #374151;
-  font-style: italic;
+  color: #52525b;
+  .icon-placeholder { font-size: 24px; opacity: 0.5; }
 }
 
+/* Buttons & Controls */
 .btn {
-  padding: 5px 12px;
-  border: none;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  background: #f3f4f6;
-  color: #111827;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+
+  &.primary {
+    background: $primary-color;
+    color: white;
+    &:hover { background: #5558e0; }
+    &:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+  }
 }
 
-.btn:hover {
-  background: #e5e7eb;
+.close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: $text-sub;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #ef4444; /* Red on hover for close */
+  }
 }
 
-.btn.small {
-  padding: 3px 8px;
-  font-size: 11px;
+/* 针对 FileImportExport 组件的样式覆盖 */
+:deep(.file-import-export) {
+  display: inline-block;
+}
+:deep(.file-import-export button) {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  border: 1px solid $border-color;
+  color: $text-main;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+:deep(.file-import-export button:hover) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
-.btn.primary {
-  background: #6366f1;
-  color: #fff;
-}
-
-.btn.primary:hover {
-  background: #4f46e5;
-}
-
+/* Responsive */
 @media (max-width: 768px) {
-  .tester-body {
-    flex-direction: column;
-  }
-
-  .tester-inputs,
-  .tester-output {
-    flex: none;
-    width: 100%;
-    height: auto;
-    max-height: 50%;
-    overflow-y: auto;
-  }
-
-  .tester-inputs {
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
+  .tester-body { flex-direction: column; }
+  .panel-left { flex: 0 0 40%; border-right: none; border-bottom: 1px solid $border-color; }
+  .panel-right { flex: 1; }
+  .tester-header { padding: 0 12px; }
+  .header-left h3 { font-size: 14px; }
+  .btn { padding: 0 10px; font-size: 12px; }
 }
 </style>
