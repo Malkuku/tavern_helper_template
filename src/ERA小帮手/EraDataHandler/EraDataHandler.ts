@@ -146,7 +146,6 @@ const extractWildcardValues = (pattern: string, concretePath: string): string[] 
 };
 
 // --- 核心逻辑 ---
-//TODO 日志处理似乎存在问题
 export const EraDataHandler = {
   /**
    * 主入口：应用规则
@@ -161,10 +160,10 @@ export const EraDataHandler = {
     const sortedRules = Object.entries(rules)
       .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
-    eraLogger.log(`[EraDataHandler] 获取到原始数据`,data);
-    eraLogger.log(`[EraDataHandler] 获取到快照`,snap);
-    eraLogger.log(`[EraDataHandler] 处理原始数据为全量`,workingData);
-    eraLogger.log(`[EraDataHandler] 正在处理规则`,sortedRules);
+    eraLogger.log(`[EraDataHandler] 获取到原始数据`, data);
+    eraLogger.log(`[EraDataHandler] 获取到快照`, snap);
+    eraLogger.log(`[EraDataHandler] 处理原始数据为全量`, workingData);
+    eraLogger.log(`[EraDataHandler] 正在处理规则`, sortedRules);
 
 
     // 3. 逐条执行
@@ -219,16 +218,31 @@ export const EraDataHandler = {
 
     // 规则级别的循环处理
     for (let ruleLoopIndex = 0; ruleLoopIndex < ruleLoopCount; ruleLoopIndex++) {
+
+      // --- Rule Level IF Check ---
+      if (rule.if) {
+        const ifResult = DSLHandler.execute(rule.if, data);
+        // 全局模式下，如果 if 返回 false (或者数组中所有项都为 false)，则中断循环
+        const isRuleTrue = ifResult.success && Array.isArray(ifResult.value)
+          ? ifResult.value.every(v => v.value === true)
+          : !!ifResult.value;
+
+        if (!isRuleTrue) {
+          // 全局规则没有 limit/range，所以如果条件不满足直接终止
+          break;
+        }
+      }
+
+      // --- Handle Execution ---
       for (const [handleKey, handleCfg] of sortedHandles) {
         const loopCount = Math.max(1, Math.min(handleCfg.loop ?? 1, MAX_LOOP_COUNT));
 
         for (let i = 0; i < loopCount; i++) {
-          // 1. Check If
+          // 1. Check Handle IF
           if (handleCfg.if) {
             const ifResult = DSLHandler.execute(handleCfg.if, data);
-            // 全局模式下，如果 if 返回 false (或者数组中所有项都为 false)，则中断循环
             const isTrue = ifResult.success && Array.isArray(ifResult.value)
-              ? ifResult.value.every(v => v.value === true) // 严格模式：所有展开结果都必须为真
+              ? ifResult.value.every(v => v.value === true)
               : !!ifResult.value;
 
             if (!isTrue) break;
@@ -244,7 +258,7 @@ export const EraDataHandler = {
                 path: res.path || 'Global',
                 action: 'handle',
                 success: true,
-                message: `[${handleKey}] Loop ${i+1}/${loopCount} (Rule loop ${ruleLoopIndex+1}/${ruleLoopCount})`,
+                message: `[${handleKey}] Loop ${i + 1}/${loopCount} (Rule loop ${ruleLoopIndex + 1}/${ruleLoopCount})`,
                 changes: { from: '?', to: res.value }
               });
             });
@@ -254,7 +268,7 @@ export const EraDataHandler = {
               path: 'Global',
               action: 'handle',
               success: false,
-              message: `[${handleKey}] Error: ${opResult.error} (Rule loop ${ruleLoopIndex+1}/${ruleLoopCount})`
+              message: `[${handleKey}] Error: ${opResult.error} (Rule loop ${ruleLoopIndex + 1}/${ruleLoopCount})`
             });
           }
         }
@@ -283,8 +297,22 @@ export const EraDataHandler = {
 
       // 规则级别的循环处理
       for (let loopIndex = 0; loopIndex < ruleLoopCount; loopIndex++) {
-        // --- A. Handle 处理 ---
-        if (rule.handle) {
+
+        // --- 1. Rule Level IF Check ---
+        let isRuleConditionMet = true;
+        if (rule.if) {
+          // 注入上下文：将 rule.if 表达式中的 * 替换为当前 Scope 的具体值
+          const concreteRuleIf = injectWildcards(rule.if, wildcardValues);
+          const ifRes = DSLHandler.execute(concreteRuleIf, data);
+
+          // 判断条件是否满足
+          isRuleConditionMet = ifRes.success && Array.isArray(ifRes.value) && ifRes.value.length > 0
+            ? ifRes.value[0].value
+            : false;
+        }
+
+        // --- 2. Handle 处理 (仅当 Rule IF 满足时执行) ---
+        if (isRuleConditionMet && rule.handle) {
           const sortedHandles = Object.entries(rule.handle)
             .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -292,20 +320,18 @@ export const EraDataHandler = {
             const loopCount = Math.max(1, Math.min(handleCfg.loop ?? 1, MAX_LOOP_COUNT));
 
             for (let i = 0; i < loopCount; i++) {
-              // 注入上下文：将 handle 表达式中的 * 替换为当前 Scope 的具体值
-              // 例如：rule="A.*", current="A.1", handle="$[B.*]" -> "$[B.1]"
+              // 注入上下文
               const concreteIf = handleCfg.if ? injectWildcards(handleCfg.if, wildcardValues) : null;
               const concreteOp = injectWildcards(handleCfg.op, wildcardValues);
 
-              // Check If
+              // Check Handle If
               if (concreteIf) {
                 const ifRes = DSLHandler.execute(concreteIf, data);
-                // 这里通常返回单个结果，因为通配符已被替换
                 const isTrue = ifRes.success && Array.isArray(ifRes.value) && ifRes.value.length > 0
                   ? ifRes.value[0].value
                   : false;
 
-                if (!isTrue) break; // 条件不满足，跳出循环
+                if (!isTrue) break; // 条件不满足，跳出 handle 循环
               }
 
               // Execute Op
@@ -317,7 +343,7 @@ export const EraDataHandler = {
                     path: v.path || currentPath,
                     action: 'handle',
                     success: true,
-                    message: `[${handleKey}] Loop ${i+1}/${loopCount} (Rule loop ${loopIndex+1}/${ruleLoopCount})`,
+                    message: `[${handleKey}] Loop ${i + 1}/${loopCount} (Rule loop ${loopIndex + 1}/${ruleLoopCount})`,
                     changes: { from: '?', to: v.value }
                   });
                 });
@@ -326,61 +352,72 @@ export const EraDataHandler = {
           }
         }
 
-        // --- B. Limit 处理 (基于 Snap 的 Delta 限制) ---
-        if (rule.limit && rule.limit.length === 2) {
-          // 重新获取当前值（因为 Handle 可能修改了它）
-          const newVal = DSLHandler.getValue(data, currentPath);
-          // 获取 Snap 值
-          const snapVal = DSLHandler.getValue(snap, currentPath);
+        // --- 3. Limit & Range 处理 ---
+        // 逻辑：如果 Rule IF 满足，则执行；
+        // 如果 Rule IF 不满足，但这是第一次循环（loopIndex === 0），也执行一次（确保 range/limit 至少生效一次）
+        if (isRuleConditionMet || loopIndex === 0) {
 
-          // 注意：DSLHandler.getValue 返回的是数组 [{path, value}]，这里我们知道路径是具体的
-          const currentV = (Array.isArray(newVal) && newVal.length > 0) ? newVal[0].value : undefined;
-          const snapV = (Array.isArray(snapVal) && snapVal.length > 0) ? snapVal[0].value : undefined;
+          // --- Limit 处理 (基于 Snap 的 Delta 限制) ---
+          if (rule.limit && rule.limit.length === 2) {
+            // 重新获取当前值（因为 Handle 可能修改了它）
+            const newVal = DSLHandler.getValue(data, currentPath);
+            // 获取 Snap 值
+            const snapVal = DSLHandler.getValue(snap, currentPath);
 
-          if (typeof currentV === 'number' && typeof snapV === 'number') {
-            const [minDelta, maxDelta] = rule.limit;
-            const delta = currentV - snapV;
-            let limitedDelta = delta;
+            const currentV = (Array.isArray(newVal) && newVal.length > 0) ? newVal[0].value : undefined;
+            const snapV = (Array.isArray(snapVal) && snapVal.length > 0) ? snapVal[0].value : undefined;
 
-            if (delta > maxDelta) limitedDelta = maxDelta;
-            if (delta < minDelta) limitedDelta = minDelta;
+            if (typeof currentV === 'number' && typeof snapV === 'number') {
+              const [minDelta, maxDelta] = rule.limit;
+              const delta = currentV - snapV;
+              let limitedDelta = delta;
 
-            if (limitedDelta !== delta) {
-              const finalVal = snapV + limitedDelta;
-              DSLHandler.setValue(data, currentPath, finalVal);
-              logger.add({
-                ruleName,
-                path: currentPath,
-                action: 'limit',
-                success: true,
-                message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}] (Rule loop ${loopIndex+1}/${ruleLoopCount})`,
-                changes: { from: currentV, to: finalVal }
-              });
+              if (delta > maxDelta) limitedDelta = maxDelta;
+              if (delta < minDelta) limitedDelta = minDelta;
+
+              if (limitedDelta !== delta) {
+                const finalVal = snapV + limitedDelta;
+                DSLHandler.setValue(data, currentPath, finalVal);
+                logger.add({
+                  ruleName,
+                  path: currentPath,
+                  action: 'limit',
+                  success: true,
+                  message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}] (Rule loop ${loopIndex + 1}/${ruleLoopCount})`,
+                  changes: { from: currentV, to: finalVal }
+                });
+              }
+            }
+          }
+
+          // --- Range 处理 (绝对值范围限制) ---
+          if (rule.range && rule.range.length === 2) {
+            const valRes = DSLHandler.getValue(data, currentPath);
+            const currentV = (Array.isArray(valRes) && valRes.length > 0) ? valRes[0].value : undefined;
+
+            if (typeof currentV === 'number') {
+              const [min, max] = rule.range;
+              const clamped = Math.max(min, Math.min(currentV, max));
+
+              if (clamped !== currentV) {
+                DSLHandler.setValue(data, currentPath, clamped);
+                logger.add({
+                  ruleName,
+                  path: currentPath,
+                  action: 'range',
+                  success: true,
+                  message: `Value clamped to [${min}, ${max}] (Rule loop ${loopIndex + 1}/${ruleLoopCount})`,
+                  changes: { from: currentV, to: clamped }
+                });
+              }
             }
           }
         }
 
-        // --- C. Range 处理 (绝对值范围限制) ---
-        if (rule.range && rule.range.length === 2) {
-          const valRes = DSLHandler.getValue(data, currentPath);
-          const currentV = (Array.isArray(valRes) && valRes.length > 0) ? valRes[0].value : undefined;
-
-          if (typeof currentV === 'number') {
-            const [min, max] = rule.range;
-            const clamped = Math.max(min, Math.min(currentV, max));
-
-            if (clamped !== currentV) {
-              DSLHandler.setValue(data, currentPath, clamped);
-              logger.add({
-                ruleName,
-                path: currentPath,
-                action: 'range',
-                success: true,
-                message: `Value clamped to [${min}, ${max}] (Rule loop ${loopIndex+1}/${ruleLoopCount})`,
-                changes: { from: currentV, to: clamped }
-              });
-            }
-          }
+        // --- 4. 终止循环 ---
+        // 如果 Rule IF 不满足，在执行完（可能的）一次 limit/range 后，终止循环
+        if (!isRuleConditionMet) {
+          break;
         }
       }
     }
