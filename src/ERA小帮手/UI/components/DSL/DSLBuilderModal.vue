@@ -148,6 +148,7 @@ import { computed, ref, watch } from 'vue';
 import { useUiStore } from '../../../stores/UIStore';
 import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
+import { exprToHumanView } from '../../../utils/exprToHumanView';
 
 interface Props {
   visible: boolean;
@@ -214,34 +215,7 @@ const rawExpression = computed(() => {
  * 去除 $[] ?[] #[] &[] 等标识符
  */
 const readableExpression = computed(() => {
-  let expr = localExpression.value;
-  if (!expr) return '';
-  //去除<<op>和<<if>标签及末尾的>
-  expr = expr.replace(/<<(?:if|op)>\s*(.*?)\s*>(?:\s|$)/g, '$1');
-
-  // 1. 处理值 &[{type}val] -> val
-  expr = expr.replace(/&\[\{str\}(.*?)\]/g, '"$1"'); // 字符串加引号
-  expr = expr.replace(/&\[\{(?:num|bool)\}(.*?)\]/g, '$1'); // 数字和布尔直接显示
-  expr = expr.replace(/&\[\{null\}\]/g, 'null');
-
-  // 2. 处理路径 $[path] -> path
-  expr = expr.replace(/\$\[(.*?)\]/g, (match, path) => {
-    return path;
-  });
-
-  // 3. 处理函数 #[{func}...] -> func ...
-  // 将 #[{max} 替换为 max
-  expr = expr.replace(/#\[\{(.*?)\}/g, ' $1 ');
-
-  // 4. 处理运算符 ?[op] 和 #[op] -> op
-  expr = expr.replace(/(\?|#)\[(.*?)\]/g, ' $2 ');
-
-  // 5. 清理残留的括号和多余空格
-  // 简单去噪：
-  expr = expr.replace(/\]/g, ' ');
-
-  // 6. 最终清理
-  return expr.replace(/\s+/g, ' ').trim();
+  return exprToHumanView(rawExpression.value)
 });
 
 function handleClose() {
@@ -262,23 +236,23 @@ function handleApply() {
 
 function addComponent(component: string) {
   const textarea = expressionTextarea.value as HTMLTextAreaElement | null;
-  
+
   if (textarea && textarea === document.activeElement) {
     // 获取光标位置
     const startPos = textarea.selectionStart;
     const endPos = textarea.selectionEnd;
     const val = localExpression.value;
-    
+
     // 在光标位置插入组件
     const beforeCursor = val.substring(0, startPos);
     const afterCursor = val.substring(endPos);
-    
+
     // 在添加组件前后加空格，避免粘连
     const separatorBefore = beforeCursor && !beforeCursor.endsWith(' ') ? ' ' : '';
     const separatorAfter = afterCursor && !afterCursor.startsWith(' ') ? ' ' : '';
-    
+
     localExpression.value = beforeCursor + separatorBefore + component + separatorAfter + afterCursor;
-    
+
     // 更新光标位置到插入内容之后
     const newCursorPos = startPos + separatorBefore.length + component.length + separatorAfter.length;
     setTimeout(() => {
@@ -293,7 +267,7 @@ function addComponent(component: string) {
     const separator = val && !val.endsWith(' ') ? ' ' : '';
     localExpression.value += separator + component;
   }
-  
+
   emit('add-component', component);
 }
 

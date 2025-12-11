@@ -82,7 +82,7 @@
             <div class="rule-content">
               <div class="rule-details">
                 <div><strong>路径:</strong> {{ rule.path }}</div>
-                <div v-if="rule.if"><strong>条件:</strong> {{ rule.if }}</div>
+                <div v-if="rule.if"><strong>条件:</strong> {{ exprToHumanView(rule.if) }}</div>
                 <div><strong>顺序:</strong> {{ rule.order }}</div>
                 <div v-if="rule.loop"><strong>循环:</strong> {{ rule.loop }}</div>
                 <div v-if="rule.range"><strong>范围:</strong> [{{ rule.range[0] }}, {{ rule.range[1] }}]</div>
@@ -95,8 +95,8 @@
                   <div class="handle-header">
                     <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }}, 循环: {{ handleItem.loop }})
                   </div>
-                  <div v-if="handleItem.if" class="handle-expression"><strong>条件:</strong> {{ handleItem.if }}</div>
-                  <div class="handle-expression"><strong>操作:</strong> {{ handleItem.op }}</div>
+                  <div v-if="handleItem.if" class="handle-expression"><strong>条件:</strong> {{ exprToHumanView(handleItem.if) }}</div>
+                  <div class="handle-expression"><strong>操作:</strong> {{ exprToHumanView(handleItem.op) }}</div>
                 </div>
               </div>
 
@@ -321,6 +321,7 @@ import FileImportExport from '../components/FileImportExport.vue';
 import PathCollection from '../components/PathCollection.vue';
 import SimulationTest from '../components/SimulationTest.vue';
 import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDataRule';
+import { exprToHumanView } from '../../utils/exprToHumanView';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -396,10 +397,6 @@ async function loadRules() {
 
 function toggleFold(key: string) {
   folded.value[key] = !folded.value[key];
-}
-
-function toggleHandleFold(handleKey: string) {
-  handleFolded.value[handleKey] = !handleFolded.value[handleKey];
 }
 
 function editRule(key: string) {
