@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ERAUtil } from '../../Utils/ERAUtil';
 import { ERAEvents } from '../../Constants/ERAEvent';
-import { EraDataHandler } from '../EraDataHandler/EraDataHandler';
 import { eraLogger } from '../utils/EraHelperLogger';
 
 export const useEraEditStore = defineStore('KatEraEdit', () => {
@@ -9,10 +8,26 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
    * 尝试从变量中获取stat_data
    */
   const getStatData = async () => {
-    const { stat_data } = getVariables({type: 'chat'});
-    eraLogger.log('获取stat_data内容: ',stat_data);
+    const { stat_data } = getVariables({ type: 'chat' });
+    eraLogger.log('获取stat_data内容: ', stat_data);
     return stat_data || {};
   }
+
+  /**
+   * 辅助函数：根据路径深度设置值
+   * @param root 目标根对象 (toDelete/toUpdate/toInsert)
+   * @param path 当前路径数组
+   * @param key 当前键
+   * @param value 要设置的值
+   */
+  const setDeepValue = (root: Record<string, any>, path: string[], key: string, value: any) => {
+    let target = root;
+    for (const p of path) {
+      if (!target[p]) target[p] = {};
+      target = target[p];
+    }
+    target[key] = value;
+  };
 
   /**
    * 保存ERA设置
@@ -34,9 +49,6 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
     const walk = (
       snapNode: any,
       objNode: any,
-      deleteNode: any,
-      updateNode: any,
-      insertNode: any,
       path: string[] = []
     ) => {
       /* 收集所有 key */
@@ -51,7 +63,7 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
           : []
       );
 
-      /* 处理删除逻辑 */
+      /* 处理删除逻辑：snap 有，object 没有 */
       snapKeys.forEach(k => {
         if (!objKeys.has(k)) {
           const val = snapNode[k];
@@ -61,29 +73,25 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
             !Array.isArray(val) &&
             Object.keys(val).length > 0;
 
-          if (hasChildren) {
-            // 如果有子节点，将父节点的值设置为空对象 {}
-            EraDataHandler.setByPathArray(deleteNode, [...path, k], {});
-          } else {
-            // 如果没有子节点或不是对象，直接删除
-            EraDataHandler.setByPathArray(deleteNode, [...path, k], val);
-          }
+          // 如果有子节点，通常后端协议可能需要 {} 来表示删除容器，否则用 null 删除值
+          setDeepValue(toDelete, path, k, hasChildren ? {} : null);
         }
       });
 
-      /* 插入：只在 object 里出现 */
+      /* 插入：object 有，snap 没有 */
       objKeys.forEach(k => {
         if (!snapKeys.has(k)) {
-          const val = objNode[k];
-          EraDataHandler.setByPathArray(insertNode, [...path, k], val);
+          // 直接将新对象/新值写入 insert 树
+          setDeepValue(toInsert, path, k, objNode[k]);
         }
       });
 
-      /* 更新：两边都有，值不同 */
+      /* 更新：两边都有 */
       objKeys.forEach(k => {
         if (snapKeys.has(k)) {
           const sVal = snapNode[k];
           const oVal = objNode[k];
+
           const bothObject =
             sVal &&
             oVal &&
@@ -94,20 +102,27 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
 
           if (bothObject) {
             /* 递归对比子树 */
-            walk(sVal, oVal, deleteNode, updateNode, insertNode, [...path, k]);
-          } else if (!EraDataHandler.deepEqual(sVal, oVal)) {
-            EraDataHandler.setByPathArray(updateNode, [...path, k], oVal);
+            walk(sVal, oVal, [...path, k]);
+          } else {
+            /* 值不同则更新 */
+            // 注意：这里对于数组或简单类型，只要引用或值不同就视为更新
+            // 如果需要更深层的数组对比，需要额外逻辑，目前逻辑是整个替换数组
+            // eslint-disable-next-line no-lonely-if
+            if (JSON.stringify(sVal) !== JSON.stringify(oVal)) {
+              setDeepValue(toUpdate, path, k, oVal);
+            }
           }
         }
       });
     };
 
-    walk(snap, object, toDelete, toUpdate, toInsert);
+    walk(snap, object, []);
 
     /* 3. 按顺序写回 */
-    if (Object.keys(toDelete).length)   await ERAUtil.DeleteByObject(toDelete);
-    if (Object.keys(toUpdate).length)   await ERAUtil.UpdateByObject(toUpdate);
-    if (Object.keys(toInsert).length)   await ERAUtil.InsertByObject(toInsert);
+    // 只有当对象不为空时才调用 API，避免发送空请求
+    if (Object.keys(toDelete).length > 0) await ERAUtil.DeleteByObject(toDelete);
+    if (Object.keys(toUpdate).length > 0) await ERAUtil.UpdateByObject(toUpdate);
+    if (Object.keys(toInsert).length > 0) await ERAUtil.InsertByObject(toInsert);
 
     /* 4. 强制同步 */
     await ERAUtil.ForceSync(ERAEvents.SYNC_MODE.LATEST);

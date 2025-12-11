@@ -1,5 +1,6 @@
 import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
+import { eraLogger } from '../utils/EraHelperLogger';
 
 // --- 类型定义 ---
 
@@ -143,7 +144,7 @@ const extractWildcardValues = (pattern: string, concretePath: string): string[] 
 };
 
 // --- 核心逻辑 ---
-
+//TODO 日志处理似乎存在问题
 export const EraDataHandler = {
   /**
    * 主入口：应用规则
@@ -157,6 +158,12 @@ export const EraDataHandler = {
     // 2. 排序规则
     const sortedRules = Object.entries(rules)
       .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+
+    eraLogger.log(`[EraDataHandler] 获取到原始数据`,data);
+    eraLogger.log(`[EraDataHandler] 获取到快照`,snap);
+    eraLogger.log(`[EraDataHandler] 处理原始数据为全量`,workingData);
+    eraLogger.log(`[EraDataHandler] 正在处理规则`,sortedRules);
+
 
     // 3. 逐条执行
     for (const [ruleName, rule] of sortedRules) {
@@ -368,7 +375,7 @@ export const EraDataHandler = {
   /**
    * 测试 DSL 语法 (辅助工具)
    */
-  testDsl(data: any, path: string, expr: string): string {
+  testDsl(data: any, expr: string): string {
     const res = DSLHandler.execute(expr, data);
     if (!res.success) return `Error: ${res.error}`;
     return JSON.stringify(res.value, null, 2);

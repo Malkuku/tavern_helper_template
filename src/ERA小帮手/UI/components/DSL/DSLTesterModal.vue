@@ -1,5 +1,5 @@
 <template>
-  <div v-if="visible" class="dsl-tester-modal" @click.self="handleClose">
+  <div v-if="visible" class="dsl-tester-modal">
     <div class="dsl-tester-content">
       <div class="tester-header">
         <h3>{{ modalTitle }}</h3>
@@ -7,46 +7,49 @@
       </div>
 
       <div class="tester-body">
+        <!-- 规则信息展示区域 -->
         <div class="tester-inputs">
-          <div v-if="testMode === 'single'" class="field">
-            <label>条件表达式 (if):</label>
-            <input v-model="localIfExpr" placeholder="<<if> $[路径] ?[>=] &[{num}40]>" />
+          <label>当前加载的规则:</label>
+          <div v-if="hasRules" class="rules-list">
+            <div v-for="(rule, name) in localHandlesData" :key="name" class="rule-item">
+              <div class="rule-row">
+                <span class="label">名称:</span>
+                <span class="value">{{ name }}</span>
+              </div>
+              <div class="rule-row">
+                <span class="label">路径:</span>
+                <span class="value code">{{ rule.path }}</span>
+              </div>
+              <div class="rule-row">
+                <span class="label">启用:</span>
+                <span class="value">{{ rule.enable ? '是' : '否' }}</span>
+              </div>
+            </div>
           </div>
-          <div v-if="testMode === 'single'" class="field">
-            <label>操作表达式 (op):</label>
-            <input v-model="localOpExpr" placeholder="<<op> $[路径] #[+] &[{num}10]>" />
-          </div>
-          <div v-if="testMode === 'single'" class="field">
-            <label>测试路径:</label>
-            <input v-model="localPath" placeholder="角色.角色A.特殊状态.好感度" />
-          </div>
+          <div v-else class="no-rules">暂无规则数据</div>
+        </div>
 
-          <div v-if="testMode === 'rule'" class="field">
-            <label>规则名称:</label>
-            <input v-model="localRuleName" disabled />
-          </div>
-          <div v-if="testMode === 'rule'" class="field">
-            <label>规则路径:</label>
-            <input v-model="localRulePath" disabled />
-          </div>
+        <div class="tester-actions">
+          <!-- 新增导入组件 -->
+          <FileImportExport
+            ref="fileImportRef"
+            import-text="导入测试数据"
+            :require-confirm="false"
+            @file-loaded="handleTestDataLoaded"
+            @error="handleImportError"
+          />
 
-          <div v-if="testMode === 'all'" class="field">
-            <label>测试类型:</label>
-            <input value="所有规则测试" disabled />
-          </div>
+          <button class="btn primary" :disabled="!hasRules" @click="handleRunTest">运行测试</button>
+          <button class="btn" @click="handleClose">关闭</button>
 
-          <div class="tester-actions">
-            <button class="btn primary" @click="handleRunTest">运行测试</button>
-            <button class="btn" @click="handleClose">关闭</button>
-          </div>
+          <!-- 简单的状态提示，不展示具体数据 -->
+          <span v-if="isUsingImportedData" class="data-status"> (已加载外部数据) </span>
         </div>
 
         <div class="tester-output">
           <h4>测试结果</h4>
           <pre v-if="localResultText">{{ localResultText }}</pre>
-          <div v-else class="empty-result">
-            测试结果将显示在这里
-          </div>
+          <div v-else class="empty-result">测试结果将显示在这里</div>
         </div>
       </div>
     </div>
@@ -54,30 +57,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { EraDataHandler } from '../../../EraDataHandler/EraDataHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
+import { EraDataRule } from '../../../EraDataHandler/types/EraDataRule';
+import FileImportExport from '../FileImportExport.vue';
+import { useEraEditStore } from '../../../stores/EraEditStore';
 
-interface RuleHandle {
-  key: string;
-  order: number;
-  ifExpr: string;
-  opExpr: string;
-  loop: number;
-}
-
-interface SingleRuleData {
-  name: string;
-  path: string;
-  handles: RuleHandle[];
-}
+// 引入文件导入组件
 
 interface Props {
-  visible: boolean;
-  ifExpr?: string;
-  opExpr?: string;
-  path?: string;
-  rulesData?: Array<{name: string, rule: any}> | null;
+  visible?: boolean;
+  eraDataRule?: EraDataRule;
   resultText?: string;
   statData?: any;
 }
@@ -85,210 +76,141 @@ interface Props {
 interface Emits {
   (e: 'update:visible', value: boolean): void;
   (e: 'close'): void;
-  (e: 'update:if-expr', value: string): void;
-  (e: 'update:op-expr', value: string): void;
-  (e: 'update:path', value: string): void;
 }
 
+const eraEditStore = useEraEditStore();
+
+// 修正：默认值改为空对象，因为 EraDataRule 是一个字典对象
 const props = withDefaults(defineProps<Props>(), {
-  ifExpr: '',
-  opExpr: '',
-  path: '',
-  rulesData: null,
+  visible: false,
+  eraDataRule: () => ({}),
   resultText: '',
-  statData: () => ({})
+  statData: () => ({}),
 });
 
 const emit = defineEmits<Emits>();
 
 // 创建本地响应式变量
-const localIfExpr = ref(props.ifExpr);
-const localOpExpr = ref(props.opExpr);
-const localPath = ref(props.path);
 const localResultText = ref(props.resultText);
-const localRuleName = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].name : '');
-const localRulePath = ref(props.rulesData && props.rulesData.length > 0 ? props.rulesData[0].rule.path : '');
+const localHandlesData = ref<EraDataRule>(props.eraDataRule);
 
-// 确定测试模式
-const testMode = computed(() => {
-  if (props.rulesData && props.rulesData.length > 1) return 'all';
-  if (props.rulesData && props.rulesData.length === 1) return 'rule';
-  return 'single';
+// 新增：本地测试数据，默认为 props 传入的数据
+const localTestData = ref<any>(props.statData);
+// 新增：标记是否使用了导入的数据
+const isUsingImportedData = ref(false);
+const fileImportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
+
+// 计算属性：判断是否有规则
+const hasRules = computed(() => {
+  return localHandlesData.value && Object.keys(localHandlesData.value).length > 0;
 });
 
 // 计算标题
 const modalTitle = computed(() => {
-  switch (testMode.value) {
-    case 'all': return 'DSL 表达式测试器 - 所有规则';
-    case 'rule': return 'DSL 表达式测试器 - 规则测试';
-    default: return 'DSL 表达式测试器';
+  const keys = localHandlesData.value ? Object.keys(localHandlesData.value) : [];
+  if (keys.length > 1) {
+    return `DSL 表达式测试器 - ${keys.length} 个规则`;
+  } else if (keys.length === 1) {
+    return `DSL 表达式测试器 - ${keys[0]}`;
   }
+  return 'DSL 表达式测试器';
 });
 
-// 监听props变化并更新本地变量
-watch(() => props.ifExpr, (value) => {
-  localIfExpr.value = value;
-});
+watch(
+  () => props.resultText,
+  value => {
+    localResultText.value = value;
+  },
+);
 
-watch(() => props.opExpr, (value) => {
-  localOpExpr.value = value;
-});
+watch(
+  () => props.eraDataRule,
+  value => {
+    // 浅拷贝对象，避免直接引用
+    localHandlesData.value = value ? { ...value } : {};
+  },
+  { deep: true },
+);
 
-watch(() => props.path, (value) => {
-  localPath.value = value;
-});
+// 监听 props.statData 变化，如果外部数据更新且没有手动导入过数据，则同步更新
+watch(
+  () => props.statData,
+  value => {
+    if (!isUsingImportedData.value) {
+      localTestData.value = value ? JSON.parse(JSON.stringify(value)) : {};
+    }
+  },
+  { deep: true, immediate: true },
+);
 
-watch(() => props.resultText, (value) => {
-  localResultText.value = value;
-});
+// 新增：处理测试数据加载
+function handleTestDataLoaded(content: string, file: File) {
+  try {
+    localTestData.value = JSON.parse(content);
+    isUsingImportedData.value = true;
 
-watch(() => props.rulesData, (value) => {
-  if (value && value.length > 0) {
-    localRuleName.value = value[0].name;
-    localRulePath.value = value[0].rule.path;
+    toastr.success(`成功导入测试数据: ${file.name}`, '');
+
+    // 清空之前的测试结果，提示用户重新运行
+    localResultText.value = `数据已导入 (${file.name})，请点击“运行测试”查看结果。`;
+  } catch (error) {
+    const errorMsg = `JSON解析失败: ${error}`;
+    toastr.error(errorMsg, '');
   }
-});
+}
 
-// 监听本地变量变化并更新父组件
-watch(localIfExpr, (value) => {
-  emit('update:if-expr', value);
-});
-
-watch(localOpExpr, (value) => {
-  emit('update:op-expr', value);
-});
-
-watch(localPath, (value) => {
-  emit('update:path', value);
-});
+// 新增：处理导入错误
+function handleImportError(error: string) {
+  if (typeof toastr !== 'undefined') {
+    toastr.error(`导入失败: ${error}`, '');
+  } else {
+    console.error(`导入失败: ${error}`);
+  }
+}
 
 function handleClose() {
+  // 关闭时重置导入状态，下次打开恢复默认
+  isUsingImportedData.value = false;
+  localTestData.value = props.statData ? JSON.parse(JSON.stringify(props.statData)) : {};
+
   emit('update:visible', false);
   emit('close');
 }
 
-function handleRunTest() {
-  // 在发出事件之前，先打印调试信息，适用于所有情况
-  eraLogger.log('测试模式:', testMode.value);
-  eraLogger.log('发送测试信息:', {
-    ifExpr: localIfExpr.value,
-    opExpr: localOpExpr.value,
-    path: localPath.value,
-    rulesData: props.rulesData
-  });
-
-  switch (testMode.value) {
-    case 'all':
-    case 'rule':
-      runRulesTest(props.rulesData || []);
-      break;
-    default:
-      runSingleTest({
-        ifExpr: localIfExpr.value,
-        opExpr: localOpExpr.value,
-        path: localPath.value
-      });
+async function handleRunTest() {
+  if (!hasRules.value) {
+    localResultText.value = '没有可测试的规则数据';
+    return;
   }
-}
 
-function runSingleTest(data: { ifExpr: string; opExpr: string; path: string }) {
+  eraLogger.log('开始运行 DSL 测试...');
+
   try {
-    // 打印传入的数据用于调试
-    eraLogger.log('Received test data:', data);
+    // 1. 准备测试数据 (深拷贝 localTestData)
+    const statData = await eraEditStore.getStatData();
 
-    const snap = JSON.parse(JSON.stringify(props.statData));
-    const testData = JSON.parse(JSON.stringify(props.statData));
+    const testData = JSON.parse(JSON.stringify(localTestData.value));
+    const snapData = JSON.parse(JSON.stringify(statData));
 
-    if (!data.path) {
-      localResultText.value = '请输入测试路径';
-      return;
-    }
+    // 2. 调用 EraDataHandler
+    // applyRule 签名: (data: any, snap: any, rules: EraDataRule)
+    const result = await EraDataHandler.applyRule(testData, snapData, localHandlesData.value);
 
-    const result = EraDataHandler.testDsl(
-      testData,
-      snap,
-      data.path,
-      data.ifExpr,
-      data.opExpr
-    );
+    // 3. 格式化输出结果
+    let output = `=== 执行日志 ===\n${result.log}\n\n`;
 
-    localResultText.value = result;
-  } catch (error) {
-    localResultText.value = `测试失败: ${error}`;
-  }
-}
-
-function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
-  try {
-    let output = '';
-
-    if (rulesData.length > 1) {
-      output = '所有规则 DSL 表达式测试\n';
-      output += '='.repeat(50) + '\n\n';
-    } else if (rulesData.length === 1) {
-      output = `规则: ${rulesData[0].name}\n`;
-      output += `路径: ${rulesData[0].rule.path}\n`;
-      output += '='.repeat(50) + '\n\n';
-    }
-
-    // 遍历所有规则
-    for (const {name, rule} of rulesData) {
-      if (!rule.handle || Object.keys(rule.handle).length === 0) {
-        output += `(跳过 - 无handle)\n`;
-        if (rulesData.length > 1) {
-          output += '-'.repeat(40) + '\n';
-        }
-        continue;
-      }
-
-      // 准备规则测试数据
-      const handles = Object.entries(rule.handle as Record<string, any>).map(([key, handleItem]) => ({
-        key,
-        order: handleItem.order || 0,
-        ifExpr: handleItem.if || '',
-        opExpr: handleItem.op || '',
-        loop: handleItem.loop || 1
-      }));
-
-      // 按顺序排序handles
-      const sortedHandles = [...handles].sort((a, b) => a.order - b.order);
-
-      // 初始化测试数据和快照
-      const testData = JSON.parse(JSON.stringify(props.statData || {}));
-      const snapshot = JSON.parse(JSON.stringify(props.statData || {}));
-
-      // 依次执行每个handle
-      for (let i = 0; i < sortedHandles.length; i++) {
-        const handle = sortedHandles[i];
-        output += `第 ${i+1} 步 - handle: ${handle.key} (顺序: ${handle.order}, 循环: ${handle.loop})\n`;
-
-        try {
-          // 使用当前testData作为输入进行测试
-          const result = EraDataHandler.testDsl(
-            testData,  // 直接传入testData，让testDsl内部修改它
-            snapshot,
-            rule.path,
-            handle.ifExpr || '',
-            handle.opExpr || '',
-            handle.loop || 1
-          );
-
-          output += result.split('\n').join('\n') + '\n';
-        } catch (error) {
-          output += `测试执行出错: ${error}\n`;
-        }
-
-        output += '-'.repeat(25) + '\n';
-      }
-
-      if (rulesData.length > 1) {
-        output += '-'.repeat(40) + '\n';
-      }
+    // 如果有数据变更，显示变更详情
+    const changes = result.data; // diffObjects 的结果
+    if (Object.keys(changes).length > 0) {
+      output += `=== 数据变更 ===\n${JSON.stringify(changes, null, 2)}`;
+    } else {
+      output += `=== 数据变更 ===\n无数据变化`;
     }
 
     localResultText.value = output;
-  } catch (error) {
-    localResultText.value = `测试运行失败: ${error}`;
+  } catch (error: any) {
+    console.error(error);
+    localResultText.value = `测试运行失败:\n${error.message || error}`;
   }
 }
 </script>
@@ -371,6 +293,14 @@ function runRulesTest(rulesData: Array<{name: string, rule: any}>) {
   margin-top: 20px;
   display: flex;
   gap: 8px;
+  align-items: center; /* 确保按钮垂直居中 */
+  flex-wrap: wrap;
+}
+
+.data-status {
+  font-size: 11px;
+  color: #059669;
+  margin-left: 4px;
 }
 
 .tester-output {

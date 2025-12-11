@@ -70,6 +70,7 @@
               </span>
             </div>
             <div class="rule-actions">
+              <!-- 恢复测试按钮 -->
               <button class="btn small" @click.stop="testDslExpressions(key)">测试 DSL</button>
               <span class="fold-indicator">{{ folded[key] ? '›' : '⌄' }}</span>
             </div>
@@ -108,17 +109,14 @@
         </div>
       </section>
 
-      <!-- 3. 编辑规则（只负责新增 or 更新） -->
+      <!-- 3. 编辑规则 -->
       <section v-show="activeTab === 'rule'">
+        <!-- (省略编辑规则部分代码，保持不变) -->
         <h2>{{ editingKey ? '更新规则' : '新增规则' }}</h2>
-
-        <!-- 规则名称 -->
         <div class="field">
           <label>规则名称:</label>
           <input v-model="editingKey" :disabled="!!editKeyLocked" placeholder="唯一标识，如: 好感度rule1" />
         </div>
-
-        <!-- 启用开关 -->
         <div class="field">
           <label>启用:</label>
           <div class="toggle-switch">
@@ -126,8 +124,6 @@
             <label for="enableToggle" class="toggle-label"></label>
           </div>
         </div>
-
-        <!-- 基本字段 -->
         <div class="field">
           <label>路径:</label>
           <input v-model="draft.path" placeholder="角色.*.特殊状态.好感度" />
@@ -158,31 +154,24 @@
             </div>
           </div>
         </div>
-
-        <!-- handle 区域 -->
         <div class="handle-area">
           <div class="handle-area-header">
             <span>handle 运算配置:</span>
             <button class="btn small primary" @click="addHandle">+ 添加 handle</button>
           </div>
-
           <div v-for="(handleItem, handleKey) in draft.handle" :key="handleKey" class="handle-editor">
             <div class="handle-header">
               <input v-model="handleNames[handleKey]" placeholder="handle名称" class="handle-name-input" />
               <button class="btn small danger" @click="delHandle(handleKey)">删除</button>
             </div>
-
             <div class="field">
               <label>处理顺序:</label>
               <input v-model.number="handleItem.order" type="number" min="0" placeholder="0" />
             </div>
-
             <div class="field">
               <label>循环次数:</label>
               <input v-model.number="handleItem.loop" type="number" min="1" max="1000" placeholder="1" />
             </div>
-
-            <!-- 条件表达式构建器 -->
             <div class="dsl-builder">
               <div class="dsl-header">
                 <label>条件表达式 (if):</label>
@@ -192,16 +181,9 @@
                 </div>
               </div>
               <div class="dsl-preview">
-                <input
-                  v-model="handleItem.if"
-                  readonly
-                  placeholder="点击'构建'按钮创建条件表达式"
-                  @click="openDslBuilder('if', handleKey)"
-                />
+                <input v-model="handleItem.if" readonly placeholder="点击'构建'按钮创建条件表达式" @click="openDslBuilder('if', handleKey)" />
               </div>
             </div>
-
-            <!-- 操作表达式构建器 -->
             <div class="dsl-builder">
               <div class="dsl-header">
                 <label>操作表达式 (op):</label>
@@ -211,17 +193,11 @@
                 </div>
               </div>
               <div class="dsl-preview">
-                <input
-                  v-model="handleItem.op"
-                  readonly
-                  placeholder="点击'构建'按钮创建操作表达式"
-                  @click="openDslBuilder('op', handleKey)"
-                />
+                <input v-model="handleItem.op" readonly placeholder="点击'构建'按钮创建操作表达式" @click="openDslBuilder('op', handleKey)" />
               </div>
             </div>
           </div>
         </div>
-
         <hr />
         <div class="button-group">
           <button class="btn primary" @click="confirmSave">保存</button>
@@ -231,7 +207,9 @@
 
       <!-- 4. 测试模拟 -->
       <section v-show="activeTab === 'test'">
+        <!-- 添加 ref 引用 -->
         <SimulationTest
+          ref="simulationTestRef"
           :rules="rules"
           :stat-data="statData"
           @update-stat-data="updateStatData"
@@ -251,18 +229,6 @@
       @close="closeDslBuilder"
     />
 
-    <!-- DSL 测试器模态框 -->
-    <DslTesterModal
-      v-model:visible="showDslTester"
-      v-model:if-expr="testIfExpr"
-      v-model:op-expr="testOpExpr"
-      v-model:path="testPath"
-      :rules-data="testRulesData"
-      :stat-data="statData"
-      :result-text="testResultText"
-      @close="closeDslTester"
-    />
-
     <!-- 自定义弹窗组件 -->
     <EraConfirmModal
       v-model:visible="showDeleteConfirm"
@@ -274,7 +240,6 @@
       @confirm="executeDelete"
       @cancel="cancelDelete"
     />
-
     <EraConfirmModal
       v-model:visible="showDuplicateRuleConfirm"
       title="规则名称重复"
@@ -285,12 +250,11 @@
       @confirm="saveRuleWithOverwrite"
       @cancel="cancelRuleSave"
     />
-
     <EraConfirmModal
       v-model:visible="showDuplicateHandleConfirm"
       title="Handle名称重复"
       content="已存在同名Handle，是否覆盖？"
-       type="confirm"
+      type="confirm"
       confirm-text="覆盖"
       cancel-text="取消"
       @confirm="saveRuleWithOverwrite"
@@ -305,16 +269,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, nextTick } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
 import JsonTree from '../components/JsonNode/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
 import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';
-import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
 import FileImportExport from '../components/FileImportExport.vue';
 import PathCollection from '../components/PathCollection.vue';
 import SimulationTest from '../components/SimulationTest.vue';
+import { EraDataRule } from '../../EraDataHandler/types/EraDataRule';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -352,15 +316,10 @@ const message = ref<{ text: string; type: 'success' | 'error' | 'warning' } | nu
 const showDslBuilder = ref(false);
 const dslBuilderType = ref<'if' | 'op'>('if');
 const currentDslHandleKey = ref<string>('');
-const currentDslExpression = ref<string>(''); // DSL构建器的表达式
+const currentDslExpression = ref<string>('');
 
-// DSL 测试器相关
-const showDslTester = ref(false);
-const testIfExpr = ref<string>('');
-const testOpExpr = ref<string>('');
-const testPath = ref<string>('');
-const testRulesData = ref<Array<{name: string, rule: any}> | null>(null);
-const testResultText = ref<string>('');
+// 引用子组件
+const simulationTestRef = ref<InstanceType<typeof SimulationTest> | null>(null);
 
 const tabs = [
   { key: 'data', label: '查看数据' },
@@ -397,10 +356,9 @@ function toggleFold(key: string) {
 function editRule(key: string) {
   editingKey.value = key;
   editKeyLocked.value = true;
-  deletingKey.value = key; // 记录原始键名
+  deletingKey.value = key;
   draft.value = JSON.parse(JSON.stringify(rules.value[key]));
 
-  // 初始化handleNames
   handleNames.value = {};
   if (draft.value.handle) {
     Object.keys(draft.value.handle).forEach(handleKey => {
@@ -437,15 +395,12 @@ function confirmSave() {
     return;
   }
 
-  // 检查规则是否重名
   if ((!editKeyLocked.value || (editKeyLocked.value && editingKey.value !== deletingKey.value))
-      && rules.value[editingKey.value]) {
-    // 新增规则或重命名规则时检查是否与现有规则重名
+    && rules.value[editingKey.value]) {
     showDuplicateRuleConfirm.value = true;
     return;
   }
 
-  // 检查handle是否重名
   const handleKeys = Object.values(handleNames.value);
   const uniqueHandles = new Set(handleKeys);
   if (uniqueHandles.size !== handleKeys.length) {
@@ -469,7 +424,6 @@ function saveRule() {
     draft.value.limit = [];
   }
 
-  // 处理handle重命名
   const updatedHandle: Record<string, any> = {};
   Object.keys(draft.value.handle).forEach(oldKey => {
     const newKey = handleNames.value[oldKey] || oldKey;
@@ -477,7 +431,6 @@ function saveRule() {
   });
   draft.value.handle = updatedHandle;
 
-  // 如果是重命名规则，删除旧规则
   if (editKeyLocked.value && editingKey.value !== deletingKey.value) {
     delete rules.value[deletingKey.value];
     delete folded.value[deletingKey.value];
@@ -533,7 +486,6 @@ function cancelEdit() {
 
 function addHandle() {
   let k = `handle_${Date.now()}`;
-  // 确保初始名称唯一
   while (handleNames.value[k]) {
     k = `handle_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
   }
@@ -547,7 +499,6 @@ function addHandle() {
     if: '',
     op: ''
   };
-  // 初始化handle名称
   handleNames.value[k] = k;
 }
 
@@ -557,7 +508,6 @@ function delHandle(k: string | number) {
 }
 
 function collectPath(path: string) {
-  // 添加路径到收集列表
   if (!collectedPaths.value.includes(path)) {
     collectedPaths.value.push(path);
     toastr.success('路径已复制到收集箱', '');
@@ -574,7 +524,6 @@ function clearAllPaths() {
   collectedPaths.value = [];
 }
 
-// 保留collectPath方法供JsonTree组件调用，其他方法已移到PathCollection组件中
 
 /* ---------- DSL 构建器 ---------- */
 function openDslBuilder(type: 'if' | 'op', handleKey: string | number) {
@@ -617,8 +566,6 @@ function addDslComponent(component: string) {
 }
 
 function showDslPathSelector() {
-  // 这里可以打开路径选择器，从 statData 中选择路径
-  // 暂时使用当前draft的path
   const path = draft.value.path || '$[$this]';
   addDslComponent(`$[${path}]`);
 }
@@ -630,40 +577,30 @@ function clearDsl(type: 'if' | 'op', handleKey: string | number) {
   }
 }
 
-function closeDslTester() {
-  showDslTester.value = false;
-}
-
-// 统一的DSL测试方法，可以测试单个规则或所有规则
-function testDslExpressions(ruleKey?: string) {
-  // 如果提供了ruleKey，则测试单个规则，否则测试所有规则
-  if (ruleKey) {
-    // 构造只包含一个规则的数组
-    const rule = rules.value[ruleKey];
-    if (!rule) {
-      showMessage('找不到指定的规则', 'warning');
-      return;
-    }
-    testRulesData.value = [{
-      name: ruleKey,
-      rule: {
-        path: rule.path,
-        handle: rule.handle
-      }
-    }];
-  } else {
-    // 测试所有规则
-    testRulesData.value = Object.entries(rules.value).map(([name, rule]) => ({
-      name,
-      rule: {
-        path: rule.path,
-        handle: rule.handle
-      }
-    }));
+// 修复：实现 testDslExpressions，跳转到 SimulationTest 并调用其方法
+function testDslExpressions(ruleKey: string) {
+  const rule = rules.value[ruleKey];
+  if (!rule) {
+    showMessage('找不到指定的规则', 'warning');
+    return;
   }
 
-  showDslTester.value = true;
-  testResultText.value = '';
+  // 1. 切换到测试 Tab
+  activeTab.value = 'test';
+
+  // 2. 构造单条规则对象
+  const singleRuleData: EraDataRule = {
+    [ruleKey]: rule
+  };
+
+  // 3. 等待 DOM 更新后调用子组件方法
+  nextTick(() => {
+    if (simulationTestRef.value) {
+      simulationTestRef.value.openDslTesterWithRules(singleRuleData);
+    } else {
+      showMessage('测试组件尚未加载', 'error');
+    }
+  });
 }
 
 /* ---------- 删除功能 ---------- */
@@ -711,7 +648,6 @@ function exportRules() {
   }
 }
 
-// 使用新的导入处理方法
 function handleImportConfirmed(content: string, _file: File) {
   try {
     const importedRules = importRulesFromJson(content);
@@ -748,6 +684,7 @@ const updateStatData = (newStatData: any) => {
 };
 
 </script>
+
 
 <style scoped lang="scss">
 .era-rule-panel {
