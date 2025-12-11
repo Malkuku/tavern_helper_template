@@ -8,15 +8,6 @@
       <button class="btn" @click="openDslTester">打开 DSL 测试器 (所有规则)</button>
     </div>
 
-    <!-- 路径收集框 -->
-    <PathCollection
-      :paths="collectedPaths"
-      :is-expanded="isPathCollectionExpanded"
-      @update:is-expanded="isPathCollectionExpanded = $event"
-      @remove-path="removePath"
-      @clear-all="clearAllPaths"
-    />
-
     <!-- 模拟测试模态框 -->
     <SimulationTestModal
       :visible="showSimulationModal"
@@ -41,10 +32,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, watch } from 'vue';
 import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
 import SimulationTestModal from '../components/SimulationTestModal.vue';
-import PathCollection from '../components/PathCollection.vue';
 import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
 import { EraDataRule } from '../../EraDataHandler/types/EraDataRule';
 
@@ -82,23 +72,6 @@ watch(() => props.rules, (newRules) => {
     currentTesterRules.value = newRules as EraDataRule;
   }
 }, { deep: true, immediate: true });
-
-
-// 路径收集相关
-const collectedPaths = ref<string[]>([]);
-const isPathCollectionExpanded = ref(true);
-
-const removePath = (index: number) => {
-  collectedPaths.value.splice(index, 1);
-};
-
-const clearAllPaths = () => {
-  collectedPaths.value = [];
-};
-
-onMounted(() => {
-  isPathCollectionExpanded.value = true;
-});
 
 // 处理运行测试事件
 const handleRunTest = async(testData: any) => {

@@ -12,11 +12,8 @@
     <!-- 路径收集框 -->
     <PathCollection
       v-if="activeTab === 'rule'"
-      :paths="collectedPaths"
       :is-expanded="isPathCollectionExpanded"
       @update:is-expanded="isPathCollectionExpanded = $event"
-      @remove-path="removePath"
-      @clear-all="clearAllPaths"
     />
 
     <div class="content-wrapper">
@@ -271,6 +268,7 @@
 <script setup lang="ts">
 import { onMounted, ref, nextTick } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
+import { useUiStore } from '../../stores/UIStore';
 import JsonTree from '../components/JsonNode/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
 import EraConfirmModal from '../components/EraConfirmModal.vue';
@@ -297,7 +295,7 @@ const draft = ref<any>({
 const handleNames = ref<Record<string, string>>({});
 
 // 路径收集相关
-const collectedPaths = ref<string[]>([]);
+const uiStore = useUiStore();
 const isPathCollectionExpanded = ref(false);
 
 const draftRangeMin = ref<number | null>(null);
@@ -508,22 +506,13 @@ function delHandle(k: string | number) {
 }
 
 function collectPath(path: string) {
-  if (!collectedPaths.value.includes(path)) {
-    collectedPaths.value.push(path);
+  if (!uiStore.collectedPaths.includes(path)) {
+    uiStore.collectedPaths.push(path);
     toastr.success('路径已复制到收集箱', '');
   } else {
     toastr.warning('路径已在收集箱中', '');
   }
 }
-
-function removePath(index: number) {
-  collectedPaths.value.splice(index, 1);
-}
-
-function clearAllPaths() {
-  collectedPaths.value = [];
-}
-
 
 /* ---------- DSL 构建器 ---------- */
 function openDslBuilder(type: 'if' | 'op', handleKey: string | number) {

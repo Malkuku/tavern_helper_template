@@ -1,11 +1,11 @@
 <template>
-  <div v-show="paths.length > 0" class="path-collection-box">
+  <div v-show="uiStore.collectedPaths.length > 0" class="path-collection-box">
     <div class="path-collection-header" @click="toggleCollection">
-      <span>已收集路径 ({{ paths.length }})</span>
+      <span>已收集路径 ({{ uiStore.collectedPaths.length }})</span>
       <span class="toggle-icon">{{ isExpanded ? '▲' : '▼' }}</span>
     </div>
     <div v-show="isExpanded" class="path-collection-content">
-      <div v-for="(path, index) in paths" :key="index" class="path-item">
+      <div v-for="(path, index) in uiStore.collectedPaths" :key="index" class="path-item">
         <span class="path-text" :title="path">{{ path }}</span>
         <button class="btn small danger remove-path-btn" @click="removePath(index)">×</button>
       </div>
@@ -17,15 +17,15 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+import { useUiStore } from '../../stores/UIStore';
+
 interface Props {
-  paths: string[];
   isExpanded?: boolean;
 }
 
 interface Emits {
   (e: 'update:isExpanded', value: boolean): void;
-  (e: 'remove-path', index: number): void;
-  (e: 'clear-all'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -33,17 +33,18 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
+const uiStore = useUiStore();
 
 const toggleCollection = () => {
   emit('update:isExpanded', !props.isExpanded);
 };
 
 const removePath = (index: number) => {
-  emit('remove-path', index);
+  uiStore.collectedPaths.splice(index, 1);
 };
 
 const clearAllPaths = () => {
-  emit('clear-all');
+  uiStore.collectedPaths = [];
 };
 </script>
 

@@ -11,7 +11,25 @@
         <div class="dsl-components">
           <div class="component-section">
             <h4>路径选择</h4>
-            <button class="btn small" @click="$emit('select-path')">当前路径</button>
+            <div class="path-selection-row">
+              <button class="btn small" @click="$emit('select-path')">当前路径</button>
+              <div class="path-dropdown-container" v-if="uiStore.collectedPaths.length > 0">
+                <select 
+                  v-model="selectedStoredPath" 
+                  class="path-dropdown light-theme"
+                  @change="handleStoredPathSelect"
+                >
+                  <option value="">选择已收集路径</option>
+                  <option 
+                    v-for="(path, index) in uiStore.collectedPaths" 
+                    :key="index" 
+                    :value="path"
+                  >
+                    {{ path }}
+                  </option>
+                </select>
+              </div>
+            </div>
             <div v-if="selectedPath" class="selected-path">
               已选择: {{ selectedPath }}
             </div>
@@ -124,6 +142,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useUiStore } from '../../../stores/UIStore';
 import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
 
@@ -147,11 +166,14 @@ const props = withDefaults(defineProps<Props>(), {
   selectedPath: ''
 });
 
-const emit = defineEmits<Emits>();
-
+// 提前声明变量以避免初始化顺序问题
+const localExpression = ref(props.expression);
 const customValue = ref('');
 const valueType = ref<'num' | 'str' | 'bool'>('num');
-const localExpression = ref(props.expression);
+const selectedStoredPath = ref('');
+
+const emit = defineEmits<Emits>();
+const uiStore = useUiStore();
 
 // 同步prop到本地ref
 watch(() => props.expression, (newVal) => {
@@ -191,7 +213,7 @@ const readableExpression = computed(() => {
   let expr = localExpression.value;
   if (!expr) return '';
   //去除<<op>和<<if>标签及末尾的>
-  expr = expr.replace(/<<(?:if|op)>\s*(.*?)\s*>$/g, '$1');
+  expr = expr.replace(/<<(?:if|op)>\s*(.*?)\s*>(?:\s|$)/g, '$1');
 
   // 1. 处理值 &[{type}val] -> val
   expr = expr.replace(/&\[\{str\}(.*?)\]/g, '"$1"'); // 字符串加引号
@@ -222,6 +244,7 @@ function handleClose() {
   emit('update:visible', false);
   emit('close');
   customValue.value = '';
+  selectedStoredPath.value = ''; // 重置选择的路径
 }
 
 function handleApply() {
@@ -239,6 +262,15 @@ function addComponent(component: string) {
   const separator = val && !val.endsWith(' ') ? ' ' : '';
   localExpression.value += separator + component;
   emit('add-component', component);
+}
+
+function handleStoredPathSelect() {
+  if (selectedStoredPath.value) {
+    // 将选中的路径添加到表达式中
+    addComponent(`$[${selectedStoredPath.value}]`);
+    // 重置选择
+    selectedStoredPath.value = '';
+  }
 }
 
 function addParentheses() {
@@ -299,6 +331,7 @@ function validateExpression() {
 watch(() => props.visible, (newVal) => {
   if (!newVal) {
     customValue.value = '';
+    selectedStoredPath.value = '';
   }
 });
 </script>
@@ -361,6 +394,28 @@ watch(() => props.visible, (newVal) => {
   font-size: 13px;
   color: #111827;
   font-weight: 600;
+}
+
+.path-selection-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.path-dropdown-container {
+  flex: 1;
+}
+
+.path-dropdown {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #111827;
+  background: white !important;
+  -webkit-text-fill-color: #111827 !important;
 }
 
 .operator-grid {
@@ -565,6 +620,11 @@ watch(() => props.visible, (newVal) => {
 
   .operator-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .path-selection-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
