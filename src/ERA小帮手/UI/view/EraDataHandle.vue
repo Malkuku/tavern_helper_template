@@ -28,16 +28,21 @@
       <!-- 2. 查看规则（默认折叠） -->
       <section v-show="activeTab === 'list'">
         <h2>规则列表</h2>
-        <div class="import-export-buttons">
-          <FileImportExport
-            import-text="导入规则"
-            export-text="导出规则"
-            confirm-title="导入规则"
-            confirm-content="导入新规则将覆盖当前所有规则，确定要继续吗？"
-            @export-data="exportRules"
-            @import-confirmed="handleImportConfirmed"
-            @error="handleImportError"
-          />
+        <div class="rule-list-controls">
+          <div class="import-export-buttons">
+            <FileImportExport
+              import-text="导入规则"
+              export-text="导出规则"
+              confirm-title="导入规则"
+              confirm-content="导入新规则将覆盖当前所有规则，确定要继续吗？"
+              @export-data="exportRules"
+              @import-confirmed="handleImportConfirmed"
+              @error="handleImportError"
+            />
+          </div>
+          <div class="sort-controls">
+            <button class="btn small" @click="sortRulesAndHandles">按优先级排序</button>
+          </div>
         </div>
 
         <!-- 空状态提示 -->
@@ -88,12 +93,8 @@
                   <div class="handle-header">
                     <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }}, 循环: {{ handleItem.loop }})
                   </div>
-                  <div v-if="handleItem.if" class="handle-expression">
-                    <strong>条件:</strong> {{ handleItem.if }}
-                  </div>
-                  <div class="handle-expression">
-                    <strong>操作:</strong> {{ handleItem.op }}
-                  </div>
+                  <div v-if="handleItem.if" class="handle-expression"><strong>条件:</strong> {{ handleItem.if }}</div>
+                  <div class="handle-expression"><strong>操作:</strong> {{ handleItem.op }}</div>
                 </div>
               </div>
 
@@ -178,7 +179,12 @@
                 </div>
               </div>
               <div class="dsl-preview">
-                <input v-model="handleItem.if" readonly placeholder="点击'构建'按钮创建条件表达式" @click="openDslBuilder('if', handleKey)" />
+                <input
+                  v-model="handleItem.if"
+                  readonly
+                  placeholder="点击'构建'按钮创建条件表达式"
+                  @click="openDslBuilder('if', handleKey)"
+                />
               </div>
             </div>
             <div class="dsl-builder">
@@ -190,7 +196,12 @@
                 </div>
               </div>
               <div class="dsl-preview">
-                <input v-model="handleItem.op" readonly placeholder="点击'构建'按钮创建操作表达式" @click="openDslBuilder('op', handleKey)" />
+                <input
+                  v-model="handleItem.op"
+                  readonly
+                  placeholder="点击'构建'按钮创建操作表达式"
+                  @click="openDslBuilder('op', handleKey)"
+                />
               </div>
             </div>
           </div>
@@ -276,7 +287,7 @@ import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';
 import FileImportExport from '../components/FileImportExport.vue';
 import PathCollection from '../components/PathCollection.vue';
 import SimulationTest from '../components/SimulationTest.vue';
-import { EraDataRule } from '../../EraDataHandler/types/EraDataRule';
+import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDataRule';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -393,8 +404,10 @@ function confirmSave() {
     return;
   }
 
-  if ((!editKeyLocked.value || (editKeyLocked.value && editingKey.value !== deletingKey.value))
-    && rules.value[editingKey.value]) {
+  if (
+    (!editKeyLocked.value || (editKeyLocked.value && editingKey.value !== deletingKey.value)) &&
+    rules.value[editingKey.value]
+  ) {
     showDuplicateRuleConfirm.value = true;
     return;
   }
@@ -495,7 +508,7 @@ function addHandle() {
     order: 0,
     loop: 1,
     if: '',
-    op: ''
+    op: '',
   };
   handleNames.value[k] = k;
 }
@@ -579,7 +592,7 @@ function testDslExpressions(ruleKey: string) {
 
   // 2. 构造单条规则对象
   const singleRuleData: EraDataRule = {
-    [ruleKey]: rule
+    [ruleKey]: rule,
   };
 
   // 3. 等待 DOM 更新后调用子组件方法
@@ -672,8 +685,53 @@ const updateStatData = (newStatData: any) => {
   statData.value = newStatData;
 };
 
-</script>
+/**
+ * 对规则和handle按order值进行排序
+ * order值越小优先级越高
+ */
+function sortRulesAndHandles() {
+  // 创建新的排序后的规则对象
+  const sortedRules: Record<string, any> = {};
 
+  // 获取所有规则键并按order排序
+  const ruleKeys = Object.keys(rules.value);
+  ruleKeys.sort((a, b) => {
+    const orderA = rules.value[a].order ?? Number.MAX_SAFE_INTEGER;
+    const orderB = rules.value[b].order ?? Number.MAX_SAFE_INTEGER;
+    return orderA - orderB;
+  });
+
+  // 重新排列规则并对其handle进行排序
+  ruleKeys.forEach(key => {
+    const rule = { ...rules.value[key] };
+
+    // 如果规则有handle，则对handle也进行排序
+    if (rule.handle && Object.keys(rule.handle).length > 0) {
+      const handleEntries = Object.entries(rule.handle as EraDataRuleHandle) ;
+
+      // 按handle的order排序
+      handleEntries.sort(([, handleA], [, handleB]) => {
+        const orderA = handleA.order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = handleB.order ?? Number.MAX_SAFE_INTEGER;
+        return orderA - orderB;
+      });
+
+      // 重建handle对象
+      rule.handle = {};
+      handleEntries.forEach(([handleKey, handleValue]) => {
+        rule.handle[handleKey] = handleValue;
+      });
+    }
+
+    sortedRules[key] = rule;
+  });
+
+  // 更新rules引用以触发视图更新
+  rules.value = sortedRules;
+
+  showMessage('规则和Handle已按Order排序', 'success');
+}
+</script>
 
 <style scoped lang="scss">
 .era-rule-panel {
@@ -1077,7 +1135,19 @@ input:checked + .toggle-label:before {
   font-size: 11px;
 }
 
+.rule-list-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .import-export-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.sort-controls {
   display: flex;
   gap: 8px;
 }

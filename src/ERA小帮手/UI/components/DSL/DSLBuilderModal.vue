@@ -14,15 +14,15 @@
             <div class="path-selection-row">
               <button class="btn small" @click="$emit('select-path')">当前路径</button>
               <div class="path-dropdown-container" v-if="uiStore.collectedPaths.length > 0">
-                <select 
-                  v-model="selectedStoredPath" 
+                <select
+                  v-model="selectedStoredPath"
                   class="path-dropdown light-theme"
                   @change="handleStoredPathSelect"
                 >
                   <option value="">选择已收集路径</option>
-                  <option 
-                    v-for="(path, index) in uiStore.collectedPaths" 
-                    :key="index" 
+                  <option
+                    v-for="(path, index) in uiStore.collectedPaths"
+                    :key="index"
                     :value="path"
                   >
                     {{ path }}
@@ -55,7 +55,7 @@
               <button class="btn small" @click="addComponent('#[/]')">除 (/)</button>
               <button class="btn small" @click="addComponent('#[%]')">取余 (%)</button>
               <button class="btn small" @click="addComponent('#[**]')">幂 (**)</button>
-              <button class="btn small" @click="addComponent('#[**]')">赋值 (=)</button>
+              <button class="btn small" @click="addComponent('#[=]')">赋值 (=)</button>
             </div>
 
             <h4>函数运算符</h4>
@@ -465,6 +465,7 @@ watch(() => props.visible, (newVal) => {
 
 .expression-preview,
 .expression-editor {
+  font-size: 15px;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -621,7 +622,7 @@ watch(() => props.visible, (newVal) => {
   .operator-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-  
+
   .path-selection-row {
     flex-direction: column;
     align-items: stretch;

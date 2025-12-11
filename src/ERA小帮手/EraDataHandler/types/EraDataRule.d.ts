@@ -46,3 +46,11 @@ export interface EraDataRule{
    * 相对独立于rule
    */
 }
+
+export interface EraDataRuleHandle{
+  [key: string]:{
+    order: number
+    if?:string
+    op:string
+  }
+}
