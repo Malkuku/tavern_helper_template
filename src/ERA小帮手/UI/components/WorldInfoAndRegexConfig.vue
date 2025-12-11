@@ -15,7 +15,7 @@
             </div>
             <div v-show="isAnalyzeListOpen" class="entry-list">
               <div v-for="(entry, index) in localAnalyzeEntries" :key="index" class="entry-item">
-                <select v-model="localAnalyzeEntries[index]" class="entry-select">
+                <select v-model="localAnalyzeEntries[index]" class="entry-select light-theme">
                   <option value="">请选择世界书条目</option>
                   <option v-for="name in worldBookNames" :key="name" :value="name">{{ name }}</option>
                 </select>
@@ -32,7 +32,7 @@
             </div>
             <div v-show="isUpdateListOpen" class="entry-list">
               <div v-for="(entry, index) in localUpdateEntries" :key="index" class="entry-item">
-                <select v-model="localUpdateEntries[index]" class="entry-select">
+                <select v-model="localUpdateEntries[index]" class="entry-select light-theme">
                   <option value="">请选择世界书条目</option>
                   <option v-for="name in worldBookNames" :key="name" :value="name">{{ name }}</option>
                 </select>
@@ -49,7 +49,7 @@
             </div>
             <div v-show="isIgnoreListOpen" class="entry-list">
               <div v-for="(entry, index) in localIgnoreEntries" :key="index" class="entry-item">
-                <select v-model="localIgnoreEntries[index]" class="entry-select">
+                <select v-model="localIgnoreEntries[index]" class="entry-select light-theme">
                   <option value="">请选择世界书条目</option>
                   <option v-for="name in worldBookNames" :key="name" :value="name">{{ name }}</option>
                 </select>
@@ -77,12 +77,12 @@
             </div>
             <div v-show="isRegexListOpen" class="entry-list">
               <div v-for="(regex, index) in localRegexList" :key="index" class="entry-item">
-                <input v-model="localRegexList[index]" type="text" class="regex-input" placeholder="请输入正则表达式" />
+                <input v-model="localRegexList[index]" type="text" class="regex-input light-theme" placeholder="请输入正则表达式" />
                 <button class="btn remove-btn" @click="removeRegex(index)">×</button>
               </div>
               <button class="btn add-btn" @click="addRegex">添加正则</button>
             </div>
-            <h6>（请不要修改导出后的正则，因为json的序列化，你看到的和实际导入的表达式是不同的）</h6>
+            <h6>（请不要导入来源未知的json，以避免遭到恶意攻击）</h6>
           </div>
         </div>
       </div>
@@ -418,6 +418,12 @@ watch(
     border-radius: 6px;
     font-size: 14px;
     background: white;
+  }
+
+  .entry-select.light-theme,
+  .regex-input.light-theme {
+    background: white !important;
+    color: black !important;
   }
 
   .regex-input {
