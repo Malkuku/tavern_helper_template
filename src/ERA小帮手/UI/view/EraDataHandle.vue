@@ -82,6 +82,7 @@
             <div class="rule-content">
               <div class="rule-details">
                 <div><strong>路径:</strong> {{ rule.path }}</div>
+                <div v-if="rule.if"><strong>条件:</strong> {{ rule.if }}</div>
                 <div><strong>顺序:</strong> {{ rule.order }}</div>
                 <div v-if="rule.loop"><strong>循环:</strong> {{ rule.loop }}</div>
                 <div v-if="rule.range"><strong>范围:</strong> [{{ rule.range[0] }}, {{ rule.range[1] }}]</div>
@@ -111,7 +112,6 @@
 
       <!-- 3. 编辑规则 -->
       <section v-show="activeTab === 'rule'">
-        <!-- (省略编辑规则部分代码，保持不变) -->
         <h2>{{ editingKey ? '更新规则' : '新增规则' }}</h2>
         <div class="field">
           <label>规则名称:</label>
@@ -163,6 +163,28 @@
             <span>handle 运算配置:</span>
             <button class="btn small primary" @click="addHandle">+ 添加 handle</button>
           </div>
+
+          <!-- 规则级别的 IF 配置 -->
+          <div class="rule-if-config" style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 4px; border: 1px dashed #ccc;">
+            <div class="dsl-builder">
+              <div class="dsl-header">
+                <label>规则执行条件 (if): <span style="font-size: 0.85em; color: #666; font-weight: normal;">(控制整个规则的执行，包括Handle/Limit/Range)</span></label>
+                <div class="dsl-actions">
+                  <button class="btn small" @click="openDslBuilder('if', '__RULE_IF__')">构建</button>
+                  <button v-if="draft.if" class="btn small danger" @click="draft.if = ''">清空</button>
+                </div>
+              </div>
+              <div class="dsl-preview">
+                <input
+                  v-model="draft.if"
+                  readonly
+                  placeholder="点击'构建'按钮创建规则条件表达式，为空则默认执行"
+                  @click="openDslBuilder('if', '__RULE_IF__')"
+                />
+              </div>
+            </div>
+          </div>
+
           <div v-for="(handleItem, handleKey) in draft.handle" :key="handleKey" class="handle-editor">
             <div class="handle-header" @click="handleFolded[handleKey] = !handleFolded[handleKey]">
               <input v-model="handleNames[handleKey]" placeholder="handle名称" class="handle-name-input" />
@@ -310,6 +332,7 @@ const editKeyLocked = ref<boolean>(false);
 const draft = ref<any>({
   enable: true,
   path: '',
+  if: '', // 初始化 if
   order: 0,
   loop: 1,
   handle: {},
@@ -384,6 +407,11 @@ function editRule(key: string) {
   editKeyLocked.value = true;
   deletingKey.value = key;
   draft.value = JSON.parse(JSON.stringify(rules.value[key]));
+
+  // 确保 if 字段存在
+  if (draft.value.if === undefined) {
+    draft.value.if = '';
+  }
 
   handleNames.value = {};
   if (draft.value.handle) {
@@ -461,7 +489,7 @@ function saveRule() {
   Object.keys(draft.value.handle).forEach(oldKey => {
     const newKey = handleNames.value[oldKey] || oldKey;
     updatedHandle[newKey] = draft.value.handle[oldKey];
-    
+
     // 如果名称发生变化，删除旧名称在folded中的记录
     if (oldKey !== newKey) {
       delete folded.value[oldKey];
@@ -514,6 +542,7 @@ function cancelEdit() {
   draft.value = {
     enable: true,
     path: '',
+    if: '', // 重置 if
     order: 0,
     loop: 1,
     handle: {},
@@ -569,11 +598,17 @@ function openDslBuilder(type: 'if' | 'op', handleKey: string | number) {
   dslBuilderType.value = type;
   currentDslHandleKey.value = handleKey as string;
 
-  const handleItem = draft.value.handle[handleKey];
-  if (handleItem && handleItem[type]) {
-    currentDslExpression.value = handleItem[type];
+  // 处理规则级别的 IF
+  if (handleKey === '__RULE_IF__') {
+    currentDslExpression.value = draft.value.if || '';
   } else {
-    currentDslExpression.value = '';
+    // 处理 Handle 级别的 IF/OP
+    const handleItem = draft.value.handle[handleKey];
+    if (handleItem && handleItem[type]) {
+      currentDslExpression.value = handleItem[type];
+    } else {
+      currentDslExpression.value = '';
+    }
   }
 
   showDslBuilder.value = true;
@@ -586,6 +621,14 @@ function closeDslBuilder() {
 }
 
 function applyDslExpression(expression: string) {
+  // 处理规则级别的 IF
+  if (currentDslHandleKey.value === '__RULE_IF__') {
+    draft.value.if = expression;
+    showMessage('规则条件已应用', 'success');
+    closeDslBuilder();
+    return;
+  }
+
   if (!currentDslHandleKey.value) {
     showMessage('未找到对应的handle', 'error');
     return;
@@ -672,24 +715,24 @@ function copyRule(key: string) {
   // 创建规则副本
   const originalRule = rules.value[key];
   const copiedRule = JSON.parse(JSON.stringify(originalRule));
-  
+
   // 生成新的规则名称（添加copy后缀）
   let newKey = `${key}_copy`;
   let counter = 1;
-  
+
   // 确保新名称不重复
   while (rules.value[newKey]) {
     newKey = `${key}_copy${counter}`;
     counter++;
   }
-  
+
   // 添加新规则
   rules.value[newKey] = copiedRule;
   folded.value[newKey] = true;
-  
+
   // 保存规则
   saveRules();
-  
+
   showMessage(`规则 "${key}" 已复制为 "${newKey}"`, 'success');
 }
 
