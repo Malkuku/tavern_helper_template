@@ -13,7 +13,7 @@
             <h4>路径选择</h4>
             <div class="path-selection-row">
               <button class="btn small" @click="$emit('select-path')">当前路径</button>
-              <div class="path-dropdown-container" v-if="uiStore.collectedPaths.length > 0">
+              <div v-if="uiStore.collectedPaths.length > 0" class="path-dropdown-container">
                 <select
                   v-model="selectedStoredPath"
                   class="path-dropdown light-theme"
@@ -46,7 +46,7 @@
             </div>
           </div>
 
-          <div v-if="type === 'op'" class="component-section">
+          <div class="component-section">
             <h4>算术运算符</h4>
             <div class="operator-grid">
               <button class="btn small" @click="addComponent('#[+]')">加 (+)</button>
@@ -83,7 +83,7 @@
           <div class="component-section">
             <h4>值</h4>
             <div class="value-input">
-              <input v-model="customValue" placeholder="输入值" @keyup.enter="addCustomValue" class="light-theme" />
+              <input v-model="customValue" placeholder="输入值" class="light-theme" @keyup.enter="addCustomValue" />
               <select v-model="valueType" class="light-theme">
                 <option value="num">数字</option>
                 <option value="str">字符串</option>
