@@ -82,7 +82,7 @@
             <div class="rule-content">
               <div class="rule-details">
                 <div><strong>路径:</strong> {{ rule.path }}</div>
-                <div v-if="rule.if"><strong>条件:</strong> {{ exprToHumanView(rule.if) }}</div>
+                <div v-if="rule.if"><strong>条件:</strong> {{ DSLHandler.exprToHumanView(rule.if) }}</div>
                 <div><strong>顺序:</strong> {{ rule.order }}</div>
                 <div v-if="rule.loop"><strong>循环:</strong> {{ rule.loop }}</div>
                 <div v-if="rule.range"><strong>范围:</strong> [{{ rule.range[0] }}, {{ rule.range[1] }}]</div>
@@ -95,8 +95,8 @@
                   <div class="handle-header">
                     <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }}, 循环: {{ handleItem.loop }})
                   </div>
-                  <div v-if="handleItem.if" class="handle-expression"><strong>条件:</strong> {{ exprToHumanView(handleItem.if) }}</div>
-                  <div class="handle-expression"><strong>操作:</strong> {{ exprToHumanView(handleItem.op) }}</div>
+                  <div v-if="handleItem.if" class="handle-expression"><strong>条件:</strong> {{  DSLHandler.exprToHumanView(handleItem.if) }}</div>
+                  <div class="handle-expression"><strong>操作:</strong> {{ DSLHandler.exprToHumanView(handleItem.op) }}</div>
                 </div>
               </div>
 
@@ -168,7 +168,7 @@
           <div class="rule-if-config" style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 4px; border: 1px dashed #ccc;">
             <div class="dsl-builder">
               <div class="dsl-header">
-                <label>规则执行条件 (if): <span style="font-size: 0.85em; color: #666; font-weight: normal;">(控制整个规则的执行，包括Handle/Limit/Range)</span></label>
+                <label>规则执行条件 (if): <span style="font-size: 0.85em; color: #666; font-weight: normal;">(控制所有Handle规则的执行)</span></label>
                 <div class="dsl-actions">
                   <button class="btn small" @click="openDslBuilder('if', '__RULE_IF__')">构建</button>
                   <button v-if="draft.if" class="btn small danger" @click="draft.if = ''">清空</button>
@@ -321,7 +321,7 @@ import FileImportExport from '../components/FileImportExport.vue';
 import PathCollection from '../components/PathCollection.vue';
 import SimulationTest from '../components/SimulationTest.vue';
 import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDataRule';
-import { exprToHumanView } from '../../utils/exprToHumanView';
+import { DSLHandler } from '../../../Utils/DSLHandler/DSLHandler';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -623,6 +623,11 @@ function applyDslExpression(expression: string) {
     draft.value.if = expression;
     showMessage('规则条件已应用', 'success');
     closeDslBuilder();
+
+    // 自动保存规则
+    if (editingKey.value) {
+      saveRule();
+    }
     return;
   }
 
@@ -635,6 +640,11 @@ function applyDslExpression(expression: string) {
   if (handleItem) {
     handleItem[dslBuilderType.value] = expression;
     showMessage('表达式已应用', 'success');
+
+    // 自动保存规则
+    if (editingKey.value) {
+      saveRule();
+    }
   }
 
   closeDslBuilder();

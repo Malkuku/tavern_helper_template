@@ -148,7 +148,6 @@ import { computed, ref, watch } from 'vue';
 import { useUiStore } from '../../../stores/UIStore';
 import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
-import { exprToHumanView } from '../../../utils/exprToHumanView';
 
 interface Props {
   visible: boolean;
@@ -176,6 +175,7 @@ const customValue = ref('');
 const valueType = ref<'num' | 'str' | 'bool'>('num');
 const selectedStoredPath = ref('');
 const expressionTextarea = ref<HTMLTextAreaElement | null>(null);
+const lastCursorPosition = ref<{start: number, end: number} | null>(null);
 
 const emit = defineEmits<Emits>();
 const uiStore = useUiStore();
@@ -215,7 +215,7 @@ const rawExpression = computed(() => {
  * 去除 $[] ?[] #[] &[] 等标识符
  */
 const readableExpression = computed(() => {
-  return exprToHumanView(rawExpression.value)
+  return DSLHandler.exprToHumanView(rawExpression.value)
 });
 
 function handleClose() {
@@ -237,10 +237,20 @@ function handleApply() {
 function addComponent(component: string) {
   const textarea = expressionTextarea.value as HTMLTextAreaElement | null;
 
-  if (textarea && textarea === document.activeElement) {
-    // 获取光标位置
-    const startPos = textarea.selectionStart;
-    const endPos = textarea.selectionEnd;
+  if (textarea) {
+    // 获取光标位置，优先使用保存的位置，其次尝试获取当前活动元素的位置
+    let startPos, endPos;
+    if (lastCursorPosition.value) {
+      startPos = lastCursorPosition.value.start;
+      endPos = lastCursorPosition.value.end;
+    } else if (textarea === document.activeElement) {
+      startPos = textarea.selectionStart;
+      endPos = textarea.selectionEnd;
+    } else {
+      // 如果无法获取光标位置，则在末尾添加
+      startPos = endPos = localExpression.value.length;
+    }
+
     const val = localExpression.value;
 
     // 在光标位置插入组件
@@ -253,8 +263,11 @@ function addComponent(component: string) {
 
     localExpression.value = beforeCursor + separatorBefore + component + separatorAfter + afterCursor;
 
-    // 更新光标位置到插入内容之后
+    // 计算新的光标位置并保存
     const newCursorPos = startPos + separatorBefore.length + component.length + separatorAfter.length;
+    lastCursorPosition.value = { start: newCursorPos, end: newCursorPos };
+
+    // 更新光标位置到插入内容之后
     setTimeout(() => {
       if (textarea) {
         textarea.setSelectionRange(newCursorPos, newCursorPos);
@@ -262,7 +275,7 @@ function addComponent(component: string) {
       }
     }, 0);
   } else {
-    // 如果没有焦点或者无法获取光标位置，则在末尾添加
+    // 如果没有textarea引用，则在末尾添加
     const val = localExpression.value;
     const separator = val && !val.endsWith(' ') ? ' ' : '';
     localExpression.value += separator + component;
@@ -334,18 +347,25 @@ function validateExpression() {
   }
 }
 
-// 监听visible变化，清空自定义值
+function updateCursorPosition() {
+  const textarea = expressionTextarea.value as HTMLTextAreaElement | null;
+  if (textarea && textarea === document.activeElement) {
+    // 保存光标位置
+    lastCursorPosition.value = {
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd
+    };
+  }
+}
+
+// 监听visible变化，清空自定义值和光标位置
 watch(() => props.visible, (newVal) => {
   if (!newVal) {
     customValue.value = '';
     selectedStoredPath.value = '';
+    lastCursorPosition.value = null;
   }
 });
-
-function updateCursorPosition() {
-  // 这个函数不需要做任何事情，它的存在只是为了触发Vue的响应式更新
-  // 实际的光标位置信息已经在textarea元素的selectionStart属性中
-}
 </script>
 
 <style scoped lang="scss">
@@ -648,5 +668,4 @@ function updateCursorPosition() {
   color: #111827 !important;
   -webkit-text-fill-color: #111827 !important;
 }
-
 </style>

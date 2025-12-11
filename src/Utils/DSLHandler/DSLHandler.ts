@@ -3,6 +3,7 @@ import { DSLEngine, DSLResult } from './dsl-engine';
 import { DSLLexer } from './lexer';
 import { DSLParser } from './parser';
 import { getValueByPath, setValueByPath as utilsSetValue, parsePath } from './pathUtils';
+import { exprToHumanView } from './exprToHumanView';
 
 /**
  * DSL 处理器
@@ -62,19 +63,12 @@ export const DSLHandler = {
     utilsSetValue(data, segments, value);
   },
 
-  // --- 兼容旧接口别名 (可选) ---
-
   /**
-   * 执行条件表达式 (别名)
+   * 工具：将DSL表达式转换为人类可读的格式
+   * @param localExpression DSL表达式字符串
+   * @returns 人类可读的格式字符串
    */
-  evaluateIf(expression: string, data: any): DSLResult {
-    return this.execute(expression, data);
-  },
-
-  /**
-   * 执行操作表达式 (别名)
-   */
-  evaluateOp(expression: string, data: any): DSLResult {
-    return this.execute(expression, data);
+  exprToHumanView(localExpression: string): string {
+    return exprToHumanView(localExpression);
   }
 };
