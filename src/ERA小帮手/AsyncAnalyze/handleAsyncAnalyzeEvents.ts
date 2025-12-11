@@ -125,8 +125,6 @@ async function handleEraRules(result: string) {
       // 解析VariableEdit中的JSON数据
       const editData = JSON.parse(editMatch[1]);
 
-      eraLogger.log("获取到的更新内容：", editData)
-
       // 获取快照数据
       const snapshotData = await getEraEditStore().getStatData();
       if (snapshotData == null) {
