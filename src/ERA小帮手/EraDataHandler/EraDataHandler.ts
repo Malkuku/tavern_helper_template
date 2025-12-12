@@ -91,31 +91,91 @@ const mergeDataToSnapshot = (data: any, snap: any): any => {
 };
 
 /**
- * 比较对象差异
+ * 深度比较两个对象，并返回一个仅包含值差异的对象。
+ *
+ * **严格结构模式**：
+ * 1. 假设 `current` 和 `original` 具有完全相同的键结构。
+ * 2. 只比较 `original` 中存在的键。
+ * 3. 忽略任何在 `current` 中新增或在 `original` 中不存在的键。
+ * 4. 如果值的类型发生变化，也忽略该差异。
+ * 5. 数组被视为一个整体进行比较。
+ *
+ * @param current 新对象
+ * @param original 原始对象
+ * @returns 包含合法值差异的对象，如果没有差异则返回一个空对象 {}
  */
-const diffObjects = (obj: any, base: any): any => {
-  const compare = (current: any, original: any): any => {
-    if (typeof current !== 'object' || current === null || original === null) {
-      return current !== original ? current : undefined;
+export function diffObjects(current: any, original: any): any {
+  // 如果两者全等，或都是 NaN，则无差异
+  if (current === original || (Number.isNaN(current) && Number.isNaN(original))) {
+    return {};
+  }
+
+  // 如果 original 不是对象（或为 null），我们无法遍历它的键。
+  // 按照严格结构模式，如果它们不相等，则返回 current 作为值的变化。
+  if (typeof original !== 'object' || original === null) {
+    // 但要先检查 current 是否是对象，如果是，说明类型变了，应忽略
+    if (typeof current === 'object' && current !== null) {
+      console.warn(`[diffObjects] Ignored structural change: original is not an object, but current is.`);
+      return {};
     }
-    if (Array.isArray(current)) {
-      if (!Array.isArray(original) || current.length !== original.length) return current;
-      const arrDiff = current.map((item, i) => compare(item, original[i])).filter(x => x !== undefined);
-      return arrDiff.length > 0 ? current : undefined; // 数组简化处理：有变动则返回全量
+    // 如果 original 和 current 都不是对象，且不相等，返回 current
+    return current;
+  }
+
+  // 如果 original 是对象，但 current 不是，这是非法的结构变化，忽略。
+  if (typeof current !== 'object' || current === null) {
+    console.warn(`[diffObjects] Ignored structural change: original is an object, but current is not.`);
+    return {};
+  }
+
+  // 数组作为特例处理，被视为一个原子值。
+  if (Array.isArray(original)) {
+    if (!Array.isArray(current) || JSON.stringify(current) !== JSON.stringify(original)) {
+      // 如果 current 不是数组，或内容不同，则返回整个新数组
+      return current;
     }
-    let hasChanges = false;
-    const objDiff: any = {};
-    for (const key in current) {
-      const valDiff = compare(current[key], original[key]);
-      if (valDiff !== undefined) {
-        objDiff[key] = valDiff;
-        hasChanges = true;
+    return {};
+  }
+
+  const diff: { [key: string]: any } = {};
+
+  // 只遍历 original 的键，这是我们信任的“结构蓝图”
+  for (const key in original) {
+    // 确保 current 中也存在这个 key，否则是结构差异，跳过
+    if (!Object.prototype.hasOwnProperty.call(current, key)) {
+      console.warn(`[diffObjects] Ignored structural change: key '${key}' was removed in current object.`);
+      continue;
+    }
+
+    const currentValue = current[key];
+    const originalValue = original[key];
+
+    // 如果值相同或都是 NaN，则跳过
+    if (currentValue === originalValue || (Number.isNaN(currentValue) && Number.isNaN(originalValue))) {
+      continue;
+    }
+
+    // 检查类型是否一致
+    const getType = (value: any) => value === null ? 'null' : typeof value;
+    if (getType(currentValue) !== getType(originalValue)) {
+      console.warn(`[diffObjects] Ignored type mismatch for key '${key}'. Original: ${getType(originalValue)}, Current: ${getType(currentValue)}.`);
+      continue;
+    }
+
+    // 递归比较子对象（确保两者都是对象）
+    if (typeof currentValue === 'object' && currentValue !== null && !Array.isArray(currentValue)) {
+      const nestedDiff = diffObjects(currentValue, originalValue);
+      if (nestedDiff && Object.keys(nestedDiff).length > 0) {
+        diff[key] = nestedDiff;
       }
     }
-    return hasChanges ? objDiff : undefined;
-  };
-  return compare(obj, base) || {};
-};
+    // 处理原始类型和数组的值变化
+    else {
+      diff[key] = currentValue;
+    }
+  }
+  return diff;
+}
 
 /**
  * 注入通配符上下文到表达式字符串中
@@ -195,14 +255,13 @@ export const EraDataHandler = {
           message: e.message || 'Unknown error'
         });
       }
-      await new Promise(resolve => setTimeout(resolve, 0));
     }
 
     eraLogger.log(`[EraDataHandler] 已完成数据的更新`, workingData);
-    const diff = diffObjects(workingData, snap);
-
-    eraLogger.log(`[EraDataHandler] 合并数据变化`, diff);
     eraLogger.log(`[EraDataHandler] 处理过程日志`, logger.getLogs())
+
+    const diff = diffObjects(workingData, snap);
+    eraLogger.log(`[EraDataHandler] 合并数据变化`, diff);
     return {
       data: diff,
       log: logger.toString(),
