@@ -39,12 +39,35 @@ export function importRulesFromJson(jsonString: string): Record<string, any> {
     // 支持两种格式：
     // 1. 直接是规则对象
     // 2. 包含元数据的导出格式
+    let rules: Record<string, any>;
     if (data.rules && typeof data.rules === 'object') {
-      return data.rules;
+      rules = data.rules;
     } else {
       // 直接返回整个对象（假设它就是规则对象）
-      return data;
+      rules = data;
     }
+
+    // 确保每个规则都有必需字段并设置默认值
+    for (const ruleKey of Object.keys(rules)) {
+      const rule = rules[ruleKey];
+      if (rule && typeof rule === 'object') {
+        // 确保必需字段存在
+        if (rule.enable === undefined) {
+          rule.enable = true;
+        }
+        if (rule.order === undefined) {
+          rule.order = 0;
+        }
+        if (rule.loop === undefined) {
+          rule.loop = 1;
+        }
+        if (rule.handle === undefined) {
+          rule.handle = {};
+        }
+      }
+    }
+
+    return rules;
   } catch (error) {
     eraLogger.error('导入规则失败:', error);
     throw new Error('解析规则文件失败');
