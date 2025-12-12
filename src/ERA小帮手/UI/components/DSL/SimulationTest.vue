@@ -4,20 +4,20 @@
       <h2>测试模拟</h2>
     </div>
     <div class="test-controls">
-      <button class="btn" @click="openSimulationTestModal">打开模拟测试</button>
-      <button class="btn" @click="openDslTester">打开 DSL 测试器 (所有规则)</button>
+<!--      <button class="btn" @click="openSimulationTestModal">打开模拟测试</button>-->
+      <button class="btn" @click="openDslTester">打开 Rule 测试器 (所有规则)</button>
     </div>
-
-    <!-- 模拟测试模态框 -->
-    <SimulationTestModal
-      :visible="showSimulationModal"
-      :imported-data="statData"
-      :result-data="testResultData"
-      :execution-log="executionLog"
-      @update:visible="showSimulationModal = $event"
-      @close="closeSimulationModal"
-      @run-test="handleRunTest"
-    />
+<!--TODO 目前功能上与DSL类似而且有bug,暂时弃用-->
+<!--    &lt;!&ndash; 模拟测试模态框 &ndash;&gt;-->
+<!--    <SimulationTestModal-->
+<!--      :visible="showSimulationModal"-->
+<!--      :imported-data="statData"-->
+<!--      :result-data="testResultData"-->
+<!--      :execution-log="executionLog"-->
+<!--      @update:visible="showSimulationModal = $event"-->
+<!--      @close="closeSimulationModal"-->
+<!--      @run-test="handleRunTest"-->
+<!--    />-->
 
     <!-- DSL 测试器模态框 -->
     <DslTesterModal

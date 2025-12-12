@@ -96,16 +96,16 @@ const goToRoute = (path: string) => {
   background: linear-gradient(135deg, #dcd8d8 0%, #f8fafc 100%);
   border-radius: 20px;
   width: 90%;
-  max-width: 600px;
+  max-width: 680px;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.1);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10000;
-  min-height: 600px;
+  min-height: 750px;
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  max-height: 90vh;
   overflow: hidden;
 }
 

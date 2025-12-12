@@ -6,11 +6,11 @@ import { reSendEraUpdate } from './AsyncAnalyze/handleAsyncAnalyzeEvents';
 
 $(() => {
   replaceScriptButtons([
-    { name: '分步分析设置', visible: true },
+    { name: 'ERA助手⚙️', visible: true },
     { name: '重新分析变量', visible: true }
   ]);
 
-  eventOn(getButtonEvent('分步分析设置'), () => {
+  eventOn(getButtonEvent('ERA助手⚙️'), () => {
     useUiStore().showUI = !useUiStore().showUI;
   });
 

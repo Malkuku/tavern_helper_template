@@ -937,8 +937,7 @@ const filteredStatData = computed(() => {
   margin: 8px 0 16px;
   display: flex;
   flex-direction: column;
-  height: 500px;
-  max-height: 80vh;
+  flex: 1;
   background: #f5f6fa;
   font-size: 12px;
   color: #111827;

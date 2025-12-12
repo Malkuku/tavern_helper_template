@@ -135,7 +135,7 @@ const hasRules = computed(() => {
   return localHandlesData.value && Object.keys(localHandlesData.value).length > 0;
 });
 
-const modalTitle = computed(() => 'DSL 测试器');
+const modalTitle = computed(() => 'EraDataRule 测试器');
 
 watch(
   () => props.resultText,
