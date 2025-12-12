@@ -110,7 +110,7 @@ import * as toastr from 'toastr'
 import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore'
 import { storeToRefs } from 'pinia'
 import { WorldInfoUtil } from '../../../Utils/WorldInfoUtil'
-import FileImportExport from './FileImportExport.vue'
+import FileImportExport from './File/FileImportExport.vue'
 
 const asyncAnalyzeStore = useAsyncAnalyzeStore()
 const { analyzeRores, updateRores, ignoreRores, regexList } = storeToRefs(asyncAnalyzeStore)

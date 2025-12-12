@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import EraConfirmModal from './EraConfirmModal.vue';
+import EraConfirmModal from '../Dialog/EraConfirmModal.vue';
 
 // Props 定义
 interface Props {

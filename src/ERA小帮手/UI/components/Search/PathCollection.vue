@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useUiStore } from '../../stores/UIStore';
+import { useUiStore } from '../../../stores/UIStore';
 
 interface Props {
   isExpanded?: boolean;

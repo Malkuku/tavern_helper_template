@@ -99,7 +99,7 @@ import { computed, ref, watch } from 'vue';
 import { EraDataHandler } from '../../../EraDataHandler/EraDataHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
 import { EraDataRule } from '../../../EraDataHandler/types/EraDataRule';
-import FileImportExport from '../FileImportExport.vue';
+import FileImportExport from '../File/FileImportExport.vue';
 import { useEraEditStore } from '../../../stores/EraEditStore';
 
 interface Props {

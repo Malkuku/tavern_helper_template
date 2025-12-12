@@ -33,10 +33,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import DslTesterModal from '../components/DSL/DSLTesterModal.vue';
-import SimulationTestModal from '../components/SimulationTestModal.vue';
-import { EraDataHandler } from '../../EraDataHandler/EraDataHandler';
-import { EraDataRule } from '../../EraDataHandler/types/EraDataRule';
+import DslTesterModal from './DSLTesterModal.vue';
+import SimulationTestModal from './SimulationTestModal.vue';
+import { EraDataHandler } from '../../../EraDataHandler/EraDataHandler';
+import { EraDataRule } from '../../../EraDataHandler/types/EraDataRule';
 
 const props = defineProps({
   rules: {

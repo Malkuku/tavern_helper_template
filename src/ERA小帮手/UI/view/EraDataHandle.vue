@@ -315,11 +315,11 @@ import { useEraDataStore } from '../../stores/EraDataStore';
 import { useUiStore } from '../../stores/UIStore';
 import JsonTree from '../components/JsonNode/JsonTree.vue';
 import { exportRulesToJson, importRulesFromJson } from '../../utils/ExportRulesUtil';
-import EraConfirmModal from '../components/EraConfirmModal.vue';
+import EraConfirmModal from '../components/Dialog/EraConfirmModal.vue';
 import DslBuilderModal from '../components/DSL/DSLBuilderModal.vue';
-import FileImportExport from '../components/FileImportExport.vue';
-import PathCollection from '../components/PathCollection.vue';
-import SimulationTest from '../components/SimulationTest.vue';
+import FileImportExport from '../components/File/FileImportExport.vue';
+import PathCollection from '../components/Search/PathCollection.vue';
+import SimulationTest from '../components/DSL/SimulationTest.vue';
 import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDataRule';
 import { DSLHandler } from '../../EraDataHandler/DSLHandler/DSLHandler';
 

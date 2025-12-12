@@ -64,8 +64,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import JsonTree from './JsonNode/JsonTree.vue';
-import FileImportExport from './FileImportExport.vue';
+import JsonTree from '../JsonNode/JsonTree.vue';
+import FileImportExport from '../File/FileImportExport.vue';
 
 interface Props {
   visible: boolean;

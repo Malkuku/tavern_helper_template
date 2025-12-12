@@ -318,8 +318,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useEraEditStore } from '../../stores/EraEditStore'
 import type { JsonNodeType } from '../types/JsonNode'
 import JsonNodeEdit from '../components/JsonNode/JsonNodeEdit.vue';
-import EraConfirmModal from '../components/EraConfirmModal.vue';
-import FileImportExport from '../components/FileImportExport.vue';
+import EraConfirmModal from '../components/Dialog/EraConfirmModal.vue';
+import FileImportExport from '../components/File/FileImportExport.vue';
 import { eraLogger } from '../../utils/EraHelperLogger';
 
 // Store
