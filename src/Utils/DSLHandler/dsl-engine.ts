@@ -3,6 +3,7 @@ import { DSLLexer } from './lexer';
 import { DSLParser } from './parser';
 import { DSLEvaluator } from './evaluator';
 import { RuleParser } from './ruleParser';
+import { DSLPreprocessor } from './preprocessor';
 
 export interface DSLResultItem {
   path?: string; // 如果是赋值操作，返回被修改的路径
@@ -23,13 +24,18 @@ export class DSLEngine {
    */
   static evaluate(expression: string, data: any): DSLResult {
     try {
+      // 0. 预处理
+      // 去除杂余的空格、换行，规范化表达式
+      const cleanExpression = DSLPreprocessor.process(expression);
+
+
       // 1. 通配符展开 (Context-Aware Expansion)
       // 将包含 * 的表达式展开为针对具体路径的多个表达式
       // 例如: "$[角色.*.A] + $[角色.*.B]" -> ["$[角色.P1.A] + $[角色.P1.B]", "$[角色.P2.A] + $[角色.P2.B]"]
 
       // 使用RuleParser 类进行表达式展开
       const parser = new RuleParser(data);
-      const concreteExpressions = parser.expand(expression);
+      const concreteExpressions = parser.expand(cleanExpression);
 
       const results: DSLResultItem[] = [];
 

@@ -1,6 +1,7 @@
 import { DSLLexer } from './lexer'; // 确保路径正确
 import { DSLParser, ASTNode } from './parser'; // 确保路径正确
-import { OPERATOR_PRECEDENCE } from './types/dsl'; // 确保路径正确
+import { OPERATOR_PRECEDENCE } from './types/dsl';
+import { DSLPreprocessor } from './preprocessor'; // 确保路径正确
 
 /**
  * 递归遍历 AST，将其转换为人类可读的字符串。
@@ -61,8 +62,11 @@ export const exprToHumanView = (localExpression: string): string => {
   if (!localExpression) return '';
 
   try {
+    // 0. 预处理过滤掉无用的空格
+    const cleanExpression = DSLPreprocessor.process(localExpression);
+
     // 1. 使用 DSLLexer 进行词法分析
-    const lexer = new DSLLexer(localExpression);
+    const lexer = new DSLLexer(cleanExpression);
 
     // 2. 使用 DSLParser 将 Token 流转换为 AST
     const parser = new DSLParser(lexer);

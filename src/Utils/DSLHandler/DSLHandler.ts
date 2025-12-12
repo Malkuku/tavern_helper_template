@@ -4,6 +4,7 @@ import { DSLLexer } from './lexer';
 import { DSLParser } from './parser';
 import { getValueByPath, setValueByPath as utilsSetValue, parsePath } from './pathUtils';
 import { exprToHumanView } from './exprToHumanView';
+import { DSLPreprocessor } from './preprocessor';
 
 /**
  * DSL 处理器
@@ -27,8 +28,11 @@ export const DSLHandler = {
    */
   validate(expression: string): { success: boolean; error?: string } {
     try {
+      // 0. 预处理
+      const cleanExpression = DSLPreprocessor.process(expression);
+
       // 1. 词法分析 (Lexer 内部会处理 wrapper 头)
-      const lexer = new DSLLexer(expression);
+      const lexer = new DSLLexer(cleanExpression);
 
       // 2. 语法分析
       const parser = new DSLParser(lexer);
