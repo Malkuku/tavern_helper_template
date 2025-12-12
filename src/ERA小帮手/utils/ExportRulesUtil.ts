@@ -3,7 +3,7 @@
 import { eraLogger } from './EraHelperLogger';
 
 /**
- * 导出规则为JSON字符串
+ * 将规则导出为JSON字符串
  * @param rules 规则对象
  * @param pretty 是否格式化输出
  * @returns JSON字符串
@@ -11,12 +11,8 @@ import { eraLogger } from './EraHelperLogger';
 export function exportRulesToJson(rules: Record<string, any>, pretty: boolean = true): string {
   try {
     const exportData = {
-      version: '1.0',
-      exportDate: new Date().toISOString(),
-      rulesCount: Object.keys(rules).length,
       rules: rules
     };
-
     return pretty
       ? JSON.stringify(exportData, null, 2)
       : JSON.stringify(exportData);
