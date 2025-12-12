@@ -6,15 +6,15 @@ import { reSendEraUpdate } from './AsyncAnalyze/handleAsyncAnalyzeEvents';
 
 $(() => {
   replaceScriptButtons([
-    { name: 'ERA助手⚙️', visible: true },
-    { name: '重新分析变量', visible: true }
+    { name: '🐱ERA助手', visible: true },
+    { name: '🍬重新分析变量', visible: true }
   ]);
 
-  eventOn(getButtonEvent('ERA助手⚙️'), () => {
+  eventOn(getButtonEvent('🐱ERA助手'), () => {
     useUiStore().showUI = !useUiStore().showUI;
   });
 
-  eventOn(getButtonEvent('重新分析变量'), async () => {
+  eventOn(getButtonEvent('🍬重新分析变量'), async () => {
     await reSendEraUpdate();
   });
 });
