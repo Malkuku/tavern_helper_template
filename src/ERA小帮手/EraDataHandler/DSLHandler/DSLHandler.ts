@@ -71,5 +71,12 @@ export const DSLHandler = {
    */
   exprToHumanView(localExpression: string): string {
     return exprToHumanView(localExpression);
+  },
+
+  /**
+   * 清理ast缓存
+   */
+  clearCache(): void {
+    DSLEngine.clearCache();
   }
 };

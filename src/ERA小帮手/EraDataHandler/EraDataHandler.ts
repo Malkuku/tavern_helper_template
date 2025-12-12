@@ -213,48 +213,52 @@ export const EraDataHandler = {
    * 主入口：应用规则
    */
   async applyRule(data: any, snap: any, rules: EraDataRule) {
-    const logger = new EraRuleLogger();
-    const workingData = mergeDataToSnapshot(data, snap);
+    try {
+      const logger = new EraRuleLogger();
+      const workingData = mergeDataToSnapshot(data, snap);
 
-    const sortedRules = Object.entries(rules)
-      .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+      const sortedRules = Object.entries(rules)
+        .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
-    // 创建全局变量池,生命周期为整个 applyRule 调用
-    const globalVars: VariableStore = new Map();
+      // 创建全局变量池,生命周期为整个 applyRule 调用
+      const globalVars: VariableStore = new Map();
 
-    eraLogger.log(`[EraDataHandler] 获取到原始数据`, data);
-    eraLogger.log(`[EraDataHandler] 获取到快照`, snap);
-    eraLogger.log(`[EraDataHandler] 处理原始数据为全量`, workingData);
-    eraLogger.log(`[EraDataHandler] 正在处理规则`, sortedRules);
+      eraLogger.log(`[EraDataHandler] 获取到原始数据`, data);
+      eraLogger.log(`[EraDataHandler] 获取到快照`, snap);
+      eraLogger.log(`[EraDataHandler] 处理原始数据为全量`, workingData);
+      eraLogger.log(`[EraDataHandler] 正在处理规则`, sortedRules);
 
-    for (const [ruleName, rule] of sortedRules) {
-      if (!rule.enable) continue;
+      for (const [ruleName, rule] of sortedRules) {
+        if (!rule.enable) continue;
 
-      try {
-        // 统一调用 _processRule
-        await this._processRule(workingData, snap, ruleName, rule, logger, globalVars);
-      } catch (e: any) {
-        eraLogger.error(`[EraDataHandler] 运行规则'${ruleName}'时出现错误 :`, e);
-        logger.add({
-          ruleName,
-          path: rule.path,
-          action: 'error',
-          success: false,
-          message: e.message || 'Unknown error'
-        });
+        try {
+          // 统一调用 _processRule
+          await this._processRule(workingData, snap, ruleName, rule, logger, globalVars);
+        } catch (e: any) {
+          eraLogger.error(`[EraDataHandler] 运行规则'${ruleName}'时出现错误 :`, e);
+          logger.add({
+            ruleName,
+            path: rule.path,
+            action: 'error',
+            success: false,
+            message: e.message || 'Unknown error'
+          });
+        }
       }
+
+      eraLogger.log(`[EraDataHandler] 已完成数据的更新`, workingData);
+      eraLogger.log(`[EraDataHandler] 处理过程日志`, logger.getLogs())
+
+      const diff = diffObjects(workingData, snap);
+      eraLogger.log(`[EraDataHandler] 合并数据变化`, diff);
+      return {
+        data: diff,
+        log: logger.toString(),
+        rawLogs: logger.getLogs()
+      };
+    }finally{
+      DSLHandler.clearCache();
     }
-
-    eraLogger.log(`[EraDataHandler] 已完成数据的更新`, workingData);
-    eraLogger.log(`[EraDataHandler] 处理过程日志`, logger.getLogs())
-
-    const diff = diffObjects(workingData, snap);
-    eraLogger.log(`[EraDataHandler] 合并数据变化`, diff);
-    return {
-      data: diff,
-      log: logger.toString(),
-      rawLogs: logger.getLogs()
-    };
   },
 
   /**
@@ -397,7 +401,7 @@ export const EraDataHandler = {
                 const isTrue = Array.isArray(res.value) ? res.value.every(v => v.value === true) : !!res.value;
                 if (!isTrue) break;
               }
-//TODO stat_data可能变化,全局性的cache是否安全?
+
               // 使用预计算的字符串
               const opRes = DSLHandler.execute(item.concreteOp, data, globalVars, localVars);
 

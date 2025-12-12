@@ -22,7 +22,7 @@ export class DSLEngine {
   // --- AST 缓存 ---
   // Key: 预处理后的表达式字符串, Value: 解析后的 AST 根节点
   private static astCache = new Map<string, ASTNode>();
-  private static MAX_CACHE_SIZE = 5000;
+  private static MAX_CACHE_SIZE = 10000;
 
   static evaluate(
     expression: string,
@@ -43,14 +43,9 @@ export class DSLEngine {
       for (const expr of concreteExpressions) {
         let ast: ASTNode;
 
-        // --- 优化后的缓存逻辑 (LRU) ---
+        // --- 缓存逻辑 ---
         if (this.astCache.has(expr)) {
           ast = this.astCache.get(expr)!;
-
-          // 【关键】：命中缓存后，先删除再重新 set。
-          // 这会将该条目移动到 Map 的末尾（表示最近刚被使用过）
-          this.astCache.delete(expr);
-          this.astCache.set(expr, ast);
         } else {
           // 缓存未命中：解析
           const lexer = new DSLLexer(expr);
@@ -59,8 +54,6 @@ export class DSLEngine {
 
           // 检查容量
           if (this.astCache.size >= this.MAX_CACHE_SIZE) {
-            // 【关键】：Map.keys().next().value 获取的是第一个插入的键（也就是最久没被使用的）
-            // 删除它，腾出空间
             const oldestKey = this.astCache.keys().next().value;
             if(oldestKey) this.astCache.delete(oldestKey);
           }
