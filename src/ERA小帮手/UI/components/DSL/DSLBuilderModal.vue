@@ -146,7 +146,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useUiStore } from '../../../stores/UIStore';
-import { DSLHandler } from '../../../../Utils/DSLHandler/DSLHandler';
+import { DSLHandler } from '../../../EraDataHandler/DSLHandler/DSLHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
 
 interface Props {

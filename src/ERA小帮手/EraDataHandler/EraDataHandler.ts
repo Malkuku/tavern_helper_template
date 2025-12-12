@@ -1,5 +1,5 @@
 import { EraDataRule } from './types/EraDataRule';
-import { DSLHandler } from '../../Utils/DSLHandler/DSLHandler';
+import { DSLHandler } from './DSLHandler/DSLHandler';
 import { eraLogger } from '../utils/EraHelperLogger';
 
 const MAX_LOOP_COUNT = 2000;

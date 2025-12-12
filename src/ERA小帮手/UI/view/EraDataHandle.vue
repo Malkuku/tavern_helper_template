@@ -321,7 +321,7 @@ import FileImportExport from '../components/FileImportExport.vue';
 import PathCollection from '../components/PathCollection.vue';
 import SimulationTest from '../components/SimulationTest.vue';
 import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDataRule';
-import { DSLHandler } from '../../../Utils/DSLHandler/DSLHandler';
+import { DSLHandler } from '../../EraDataHandler/DSLHandler/DSLHandler';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
