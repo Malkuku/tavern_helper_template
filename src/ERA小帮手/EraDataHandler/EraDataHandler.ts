@@ -388,8 +388,7 @@ export const EraDataHandler = {
                         changes: { from: oldValue, to: change.value }
                       });
                     }
-                  }
-                  if (shouldLogHandleLoop) {
+                  } else if (shouldLogHandleLoop) {
                       logger.add({
                         ruleName,
                         path: currentPath || 'Global',

@@ -35,7 +35,7 @@ export class DSLEngine {
 
       const parser = new RuleParser(data);
       const concreteExpressions = parser.expand(cleanExpression);
-      eraLogger.log(`[DSL] Concrete expressions:`,concreteExpressions);
+      //eraLogger.log(`[DSL] Concrete expressions:`,concreteExpressions);
 
       const results: DSLResultItem[] = [];
 
