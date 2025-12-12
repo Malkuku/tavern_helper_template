@@ -109,6 +109,7 @@ export class RuleParser {
       return;
     }
 
+    // 找到所有涉及到当前通配符序号的路径
     const bindingGroup = this.pathInfos.filter(info => info.wildcardOrdinalMap.size >= ordinal);
 
     if (bindingGroup.length === 0) {
@@ -116,6 +117,7 @@ export class RuleParser {
       return;
     }
 
+    // 以第一个路径为领头羊，获取当前层级的父对象
     const leaderPath = bindingGroup[0];
     const prefixSegmentsToLeader = this.getPathPrefixSegments(leaderPath, ordinal, context);
     const leaderObject = getValueByPath(this.data, prefixSegmentsToLeader);
@@ -125,14 +127,51 @@ export class RuleParser {
     }
     const candidateKeys = Object.keys(leaderObject);
 
+    // 核心修改：过滤 Key 时，增加“向后连通性”检查
     const validKeys = candidateKeys.filter(key => {
       return bindingGroup.every(memberPath => {
-        const prefixSegmentsToMember = this.getPathPrefixSegments(memberPath, ordinal, context);
-        const memberObject = getValueByPath(this.data, prefixSegmentsToMember);
-        return typeof memberObject === 'object' && memberObject !== null && Object.prototype.hasOwnProperty.call(memberObject, key);
+        // 1. 获取当前通配符之前的路径片段
+        const prefixSegments = this.getPathPrefixSegments(memberPath, ordinal, context);
+        const parentObj = getValueByPath(this.data, prefixSegments);
+
+        // 基础检查：Key 必须存在于父对象中
+        if (!parentObj || typeof parentObj !== 'object' || !Object.prototype.hasOwnProperty.call(parentObj, key)) {
+          return false;
+        }
+
+        // 2. 【新增逻辑】向后检查：验证路径的后续静态片段是否存在
+        // 如果路径是 $[A.*.B.C]，当前 * 匹配到了 key，我们需要检查 A.key.B.C 是否存在
+
+        // 找到当前通配符在 segments 中的索引
+        let currentWcIndex = -1;
+        for (const [idx, ord] of memberPath.wildcardOrdinalMap) {
+          if (ord === ordinal) {
+            currentWcIndex = idx;
+            break;
+          }
+        }
+
+        // 找到下一个通配符的索引（如果没有，就是路径末尾）
+        let nextWcIndex = memberPath.segments.length;
+        for (const [idx, ord] of memberPath.wildcardOrdinalMap) {
+          if (ord > ordinal && idx < nextWcIndex) {
+            nextWcIndex = idx;
+          }
+        }
+
+        // 构建用于验证的临时路径：[...前缀, 当前Key, ...中间的静态片段]
+        const checkSegments = [...prefixSegments, key];
+        for (let i = currentWcIndex + 1; i < nextWcIndex; i++) {
+          checkSegments.push(memberPath.segments[i]);
+        }
+
+        // 验证该路径是否存在
+        // 如果 checkSegments 指向的值是 undefined，说明这个 Key 不符合路径结构，应当排除
+        return getValueByPath(this.data, checkSegments) !== undefined;
       });
     });
 
+    // 递归处理下一个层级
     for (const key of validKeys) {
       const newContext = new Map(context);
       newContext.set(ordinal, key);
