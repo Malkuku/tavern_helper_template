@@ -38,24 +38,7 @@
     </div>
 
     <!-- 搜索框 -->
-    <div class="search-box">
-      <svg class="search-icon" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-      </svg>
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="搜索路径或值..."
-        class="search-input"
-      />
-      <button
-        v-if="searchQuery"
-        class="search-clear"
-        @click="searchQuery = ''"
-      >
-        &times;
-      </button>
-    </div>
+    <PathSearch v-model="searchQuery" />
 
     <!-- 数据展示区域 -->
     <div class="data-container">
@@ -320,6 +303,7 @@ import type { JsonNodeType } from '../types/JsonNode'
 import JsonNodeEdit from '../components/JsonNode/JsonNodeEdit.vue';
 import EraConfirmModal from '../components/Dialog/EraConfirmModal.vue';
 import FileImportExport from '../components/File/FileImportExport.vue';
+import PathSearch from '../components/Search/PathSearch.vue';
 import { eraLogger } from '../../utils/EraHelperLogger';
 
 // Store
@@ -1112,66 +1096,6 @@ textarea::placeholder {
 
   &.status-loading {
     color: #6366f1;
-  }
-}
-
-// 搜索框
-.search-box {
-  position: relative;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.search-icon {
-  position: absolute;
-  left: 28px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: #94a3b8;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 12px 10px 36px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  background: #f8fafc !important;
-  color: #1e293b !important;
-
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-  }
-
-  &::placeholder {
-    color: #94a3b8 !important;
-  }
-}
-
-.search-clear {
-  position: absolute;
-  right: 28px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    color: #64748b;
   }
 }
 

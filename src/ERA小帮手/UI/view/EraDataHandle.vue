@@ -20,8 +20,11 @@
       <!-- 1.查看数据 -->
       <section v-show="activeTab === 'data'">
         <h2>当前 stat_data（只读）</h2>
+        <!-- 添加搜索框 -->
+        <PathSearch v-model="searchQuery" />
         <div class="json-tree-box">
-          <json-tree :data="statData" @send-path="collectPath" />
+          <!-- 修改为使用过滤后的数据 -->
+          <json-tree :data="filteredStatData" @send-path="collectPath" />
         </div>
       </section>
 
@@ -310,7 +313,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from 'vue';
+import { onMounted, ref, nextTick, computed } from 'vue';
 import { useEraDataStore } from '../../stores/EraDataStore';
 import { useUiStore } from '../../stores/UIStore';
 import JsonTree from '../components/JsonNode/JsonTree.vue';
@@ -322,6 +325,7 @@ import PathCollection from '../components/Search/PathCollection.vue';
 import SimulationTest from '../components/DSL/SimulationTest.vue';
 import { EraDataRule, EraDataRuleHandle } from '../../EraDataHandler/types/EraDataRule';
 import { DSLHandler } from '../../EraDataHandler/DSLHandler/DSLHandler';
+import PathSearch from '../components/Search/PathSearch.vue';
 
 /* ---------- 数据 ---------- */
 const statData = ref<any>({});
@@ -843,6 +847,96 @@ function sortRulesAndHandles() {
 
   showMessage('规则和Handle已按Order排序', 'success');
 }
+
+// 添加搜索查询的响应式变量
+const searchQuery = ref('');
+
+// 添加过滤后的统计数据计算属性
+const filteredStatData = computed(() => {
+  if (!searchQuery.value) {
+    return statData.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase();
+  
+  function filterObject(obj: any, path = ''): any {
+    if (obj === null || obj === undefined) return obj;
+    
+    if (typeof obj === 'object' && !Array.isArray(obj)) {
+      const filtered: Record<string, any> = {};
+      let hasMatches = false;
+      
+      for (const [key, value] of Object.entries(obj)) {
+        const currentPath = path ? `${path}.${key}` : key;
+        
+        // 检查键名是否匹配
+        if (key.toLowerCase().includes(query)) {
+          filtered[key] = value;
+          hasMatches = true;
+          continue;
+        }
+        
+        // 递归处理对象和数组
+        if (typeof value === 'object' && value !== null) {
+          const filteredValue = filterObject(value, currentPath);
+          if (filteredValue !== undefined) {
+            filtered[key] = filteredValue;
+            hasMatches = true;
+          }
+        } 
+        // 检查基本类型的值是否匹配
+        else if (String(value).toLowerCase().includes(query)) {
+          filtered[key] = value;
+          hasMatches = true;
+        }
+      }
+      
+      return hasMatches ? filtered : undefined;
+    } 
+    else if (Array.isArray(obj)) {
+      const filtered: any[] = [];
+      let hasMatches = false;
+      
+      for (let i = 0; i < obj.length; i++) {
+        const currentPath = path ? `${path}[${i}]` : `[${i}]`;
+        const item = obj[i];
+        
+        // 检查索引是否匹配（虽然通常不会）
+        if (currentPath.toLowerCase().includes(query)) {
+          filtered.push(item);
+          hasMatches = true;
+          continue;
+        }
+        
+        // 递归处理数组元素
+        if (typeof item === 'object' && item !== null) {
+          const filteredItem = filterObject(item, currentPath);
+          if (filteredItem !== undefined) {
+            filtered.push(filteredItem);
+            hasMatches = true;
+          } else if (String(item).toLowerCase().includes(query)) {
+            filtered.push(item);
+            hasMatches = true;
+          }
+        } 
+        // 检查基本类型的值是否匹配
+        else if (String(item).toLowerCase().includes(query)) {
+          filtered.push(item);
+          hasMatches = true;
+        }
+      }
+      
+      return hasMatches ? filtered : (query === '' ? [] : undefined);
+    }
+    
+    // 基本类型值直接检查
+    return String(obj).toLowerCase().includes(query) ? obj : undefined;
+  }
+  
+  const result = filterObject(statData.value);
+  return result !== undefined ? result : {};
+});
+
 </script>
 
 <style scoped lang="scss">
