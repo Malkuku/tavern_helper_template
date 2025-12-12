@@ -470,7 +470,7 @@ function confirmSave() {
   saveRule();
 }
 
-function saveRule() {
+function saveRuleWithoutCancelEdit() {
   if (draftRangeMin.value !== null && draftRangeMax.value !== null) {
     draft.value.range = [draftRangeMin.value, draftRangeMax.value];
   } else {
@@ -511,6 +511,10 @@ function saveRule() {
 
   saveRules();
   showMessage(`规则 "${editingKey.value}" ${editKeyLocked.value ? '更新' : '添加'}成功`, 'success');
+}
+
+function saveRule() {
+  saveRuleWithoutCancelEdit();
   cancelEdit();
 }
 
@@ -626,9 +630,9 @@ function applyDslExpression(expression: string) {
     showMessage('规则条件已应用', 'success');
     closeDslBuilder();
 
-    // 自动保存规则
+    // 自动保存规则但不切换界面
     if (editingKey.value) {
-      saveRule();
+      saveRuleWithoutCancelEdit();
     }
     return;
   }
@@ -643,9 +647,9 @@ function applyDslExpression(expression: string) {
     handleItem[dslBuilderType.value] = expression;
     showMessage('表达式已应用', 'success');
 
-    // 自动保存规则
+    // 自动保存规则但不切换界面
     if (editingKey.value) {
-      saveRule();
+      saveRuleWithoutCancelEdit();
     }
   }
 
