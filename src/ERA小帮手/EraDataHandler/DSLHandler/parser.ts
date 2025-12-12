@@ -52,7 +52,15 @@ export class DSLParser {
     if (this.tokens.length === 0 || this.tokens[0].type === 'EOF') {
       throw new Error("Empty expression");
     }
-    return this.parseExpression();
+    const node = this.parseExpression();
+
+    //检查是否所有 Token 都被消费
+    if (!this.isAtEnd()) {
+      const token = this.peek();
+      throw new Error(`Unexpected token after expression: ${token.type} ('${token.value}') at position ${token.start}`);
+    }
+
+    return node;
   }
 
   // 优先级：Assignment (=) 最低
@@ -183,9 +191,12 @@ export class DSLParser {
       const funcName = this.previous().value;
       const args: ASTNode[] = [];
 
+      // 循环解析函数参数。每个参数应该是一个“元表达式”(Primary Expression)，
+      // 而不是一个完整的、可能包含二元操作的表达式 (Expression)。
+      // 这样就允许 #[{sum} $[A] $[B]] (解析出两个独立的参数)
+      // 但会阻止 #[{sum} $[A] + $[B]] (因为 '+' 不是一个 Primary，会在此处报错)
       while (!this.check('RBRACKET') && !this.isAtEnd()) {
-        // 函数参数可以是任何表达式，而不仅仅是 primary
-        args.push(this.parseExpression());
+        args.push(this.parsePrimary());
       }
 
       this.consume('RBRACKET', `Expected "]" after function arguments for ${funcName}`);

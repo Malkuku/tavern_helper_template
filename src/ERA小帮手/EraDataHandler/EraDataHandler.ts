@@ -151,6 +151,12 @@ export function diffObjects(current: any, original: any): any {
     const currentValue = current[key];
     const originalValue = original[key];
 
+    //拒绝 NaN
+    if (typeof currentValue === 'number' && Number.isNaN(currentValue)) {
+      console.warn(`[diffObjects] Ignored NaN value for key '${key}'.`);
+      continue;
+    }
+
     // 如果值相同或都是 NaN，则跳过
     if (currentValue === originalValue || (Number.isNaN(currentValue) && Number.isNaN(originalValue))) {
       continue;
@@ -330,10 +336,23 @@ export const EraDataHandler = {
         if (concreteIf) {
           // 直接使用预计算好的字符串，配合 DSLEngine 的 AST 缓存
           const ifRes = DSLHandler.execute(concreteIf, data, globalVars, localVars);
-
-          isRuleMet = ifRes.success && (Array.isArray(ifRes.value)
-            ? ifRes.value.every(v => v.value === true)
-            : !!ifRes.value);
+          // --- 修改开始 ---
+          if (!ifRes.success) {
+            isRuleMet = false;
+            if (shouldLogRuleLoop) { // 只有在需要记录日志的循环中才记录
+              logger.add({
+                ruleName,
+                path: currentPath || 'Global',
+                action: 'error', // 使用 'error' 或 'if-error'
+                success: false,
+                message: `Rule 'if' condition failed to execute: ${ifRes.error}`
+              });
+            }
+          } else {
+            isRuleMet = Array.isArray(ifRes.value)
+              ? ifRes.value.every(v => v.value === true)
+              : !!ifRes.value;
+          }
         }
         // 如果条件不满足
         if (!isRuleMet) {
@@ -363,10 +382,22 @@ export const EraDataHandler = {
               // 使用预计算的字符串
               if (item.concreteIf) {
                 const res = DSLHandler.execute(item.concreteIf, data, globalVars, localVars);
-                const isTrue = res.success && (Array.isArray(res.value) ? res.value.every(v => v.value === true) : !!res.value);
+                if (!res.success) { //  handle 内部的 if 添加日志
+                  if (shouldLogHandleLoop) {
+                    logger.add({
+                      ruleName,
+                      path: currentPath || 'Global',
+                      action: 'error',
+                      success: false,
+                      message: `Handle [${item.key}] 'if' condition failed to execute: ${res.error}`
+                    });
+                  }
+                  break; // 条件执行失败，跳出此 handle 的循环
+                }
+                const isTrue = Array.isArray(res.value) ? res.value.every(v => v.value === true) : !!res.value;
                 if (!isTrue) break;
               }
-
+//TODO stat_data可能变化,全局性的cache是否安全?
               // 使用预计算的字符串
               const opRes = DSLHandler.execute(item.concreteOp, data, globalVars, localVars);
 

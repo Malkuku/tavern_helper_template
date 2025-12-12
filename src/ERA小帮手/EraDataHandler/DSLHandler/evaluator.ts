@@ -69,8 +69,10 @@ export class DSLEvaluator {
   private evaluateTempVariable(node: TempVariableNode): any {
     // 根据 scope 决定从哪个变量池读取
     const store = node.scope === 'g' ? this.globalVars : this.localVars;
-    const value = store.get(node.name);
-    return value === undefined ? null : value;
+    if (!store.has(node.name)) {
+      throw new Error(`Temporary variable '@[${node.scope}]${node.name}' has not been defined.`);
+    }
+    return store.get(node.name);
   }
 
   // evaluateFunctionCall 和 evaluateIdentifier 保持不变
@@ -93,6 +95,13 @@ export class DSLEvaluator {
   }
 
   private evaluateIdentifier(node: IdentifierNode): any {
-    return getValueByPath(this.data, node.path.split('.'));
+    const pathSegments = node.path.split('.');
+    const value = getValueByPath(this.data, pathSegments);
+    // 当路径解析结果为 undefined 时，应立即抛出错误，而不是静默返回
+    if (value === undefined) {
+      // 这里的错误信息对于调试非常有用
+      throw new Error(`Path '${node.path}' does not exist or its value is undefined.`);
+    }
+    return value;
   }
 }
