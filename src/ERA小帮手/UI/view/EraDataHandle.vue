@@ -459,12 +459,14 @@ function confirmSave() {
     return;
   }
 
-  // 检查 handle 名称是否有重复
+  // 只有当存在 handle 时才检查 handle 名称是否有重复
   const handleKeys = Object.values(handleNames.value);
-  const uniqueHandles = new Set(handleKeys);
-  if (uniqueHandles.size !== handleKeys.length) {
-    showDuplicateHandleConfirm.value = true;
-    return;
+  if (handleKeys.length > 0) {
+    const uniqueHandles = new Set(handleKeys);
+    if (uniqueHandles.size !== handleKeys.length) {
+      showDuplicateHandleConfirm.value = true;
+      return;
+    }
   }
 
   saveRule();
