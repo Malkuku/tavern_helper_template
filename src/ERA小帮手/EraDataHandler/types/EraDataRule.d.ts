@@ -1,6 +1,6 @@
 export interface EraDataRule {
   [key: string]: {
-    path: string; //要修改的路径，支持.*匹配 角色.*.特殊状态.好感度
+    path: string; //要修改的路径，支持.*匹配 角色.*.特殊状态.好感度 //当path为*时，表示全局模式，只操作handle
     enable: boolean; //是否启用
     order: number; //处理顺序，将所有规则按照顺序处理，值越小越先处理。默认为0
     loop?: number; //循环次数，默认为1且不能小于1，最大值为1000 //如果配置了if表达式，当结果为false时，直接终止循环
@@ -17,13 +17,13 @@ export interface EraDataRule {
         // <<if> ($[path1] ?[<=] $[path2]) ?[&&] ($[path2] ?(==) &[{num}2])>
         // ?[] 写判断符号,支持== > < <= >= 符号 和 && || 逻辑运算符,()表示优先级
         // $[] 用path表示一个完整路径
-        // &[{}] 表示一个值，可以是number,string,boolean,null
+        // 用#[]表示操作符号,支持+ - * / % ** =运算符
+        // #[{}],表示一些特殊的符号,支持ln,log2,sqrt,abs,floor,ceil,max,min
         // 比如&[{num}1],符号为{num},{str},{bool},{null}
         if?: string;
         //操作表达式 <<op> >
         // <<op> $[path] #[+] $[path]>
-        // 用#[]表示操作符号,支持+ - * / % ** =运算符
-        // #[{}],表示一些特殊的符号,支持ln,log2,sqrt,abs,floor,ceil,max,min
+        // #[] 符号表示操作符号，同上
         // 比如#[{ln}$[path]] 表示ln(path)，#[{max}$[path1]$[path2]],将计算path1和path2的最大值，可以多个值，比如#[{max}$[path1]$[path2]$[path3]]
         // $[] 里面写路径，同上
         // &[] 表示一个值，同上
@@ -68,6 +68,8 @@ export interface EraDataRule {
    * 角色.小王.开发经验值.左手 + 身体开发等级.小王.左手，
    * 角色.小王.开发经验值.右手 + 身体开发等级.小王.右手
    * ]
+   *
+   * 对于一个rule来说，其中所有的path共享一个通配符绑定上下文（除了全局模式本身的*）
    */
 
   /**
@@ -103,7 +105,7 @@ export interface EraDataRule {
    * - dsl处理器不支持连续执行if/op，一条handle只能执行一个if/op，
    *  比如在写等级提升时，应该先写升级的handle，再写扣经验值的handle
    * - op执行后对data的修改会立刻生效，比如在写等级提升时，应该先升级再扣经验值
-   * - 语句是直接赋值的，比如 <<op>$[角色.*.好感度] #[+] &[{num}10] >就是让所有角色的好感度+=10 并不一定需要使用&[=]
+   * - 语句是直接赋值的，比如 <<op>$[角色.*.好感度] #[+] &[{num}10] > 会直接改变$[角色.*.好感度]的值
    */
 }
 

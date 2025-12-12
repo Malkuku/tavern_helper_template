@@ -1,6 +1,7 @@
 import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from './DSLHandler/DSLHandler';
 import { eraLogger } from '../utils/EraHelperLogger';
+import { RuleParser } from './DSLHandler/ruleParser';
 
 const MAX_LOOP_COUNT = 2000;
 
@@ -53,6 +54,18 @@ class EraRuleLogger {
 }
 
 // --- 工具函数 ---
+
+/**
+ * 将 Map 上下文转为数组
+ */
+const contextMapToArray = (map: Map<number, string>): string[] => {
+  const result: string[] = [];
+  // 假设通配符序号从 1 开始连续
+  for (let i = 1; i <= map.size; i++) {
+    result.push(map.get(i) || '');
+  }
+  return result;
+};
 
 /**
  * 将数据合并到快照中，仅合并类型匹配的字段
@@ -152,11 +165,8 @@ export const EraDataHandler = {
    */
   async applyRule(data: any, snap: any, rules: EraDataRule) {
     const logger = new EraRuleLogger();
-
-    // 1. 准备全量数据
     const workingData = mergeDataToSnapshot(data, snap);
 
-    // 2. 排序规则
     const sortedRules = Object.entries(rules)
       .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -165,21 +175,12 @@ export const EraDataHandler = {
     eraLogger.log(`[EraDataHandler] 处理原始数据为全量`, workingData);
     eraLogger.log(`[EraDataHandler] 正在处理规则`, sortedRules);
 
-
-    // 3. 逐条执行
     for (const [ruleName, rule] of sortedRules) {
       if (!rule.enable) continue;
 
       try {
-        // 区分两种模式：
-        // Mode A: Global Handle (path 为 "*") -> 直接执行 handle，不进行 limit/range
-        // Mode B: Scoped Rule (path 为具体路径) -> 展开路径，对每个匹配项执行 handle/limit/range
-
-        if (rule.path === '*') {
-          await this._processGlobalRule(workingData, ruleName, rule, logger);
-        } else {
-          await this._processScopedRule(workingData, snap, ruleName, rule, logger);
-        }
+        // 统一调用 _processRule
+        await this._processRule(workingData, snap, ruleName, rule, logger);
       } catch (e: any) {
         logger.add({
           ruleName,
@@ -189,246 +190,207 @@ export const EraDataHandler = {
           message: e.message || 'Unknown error'
         });
       }
-
-      // 避免阻塞 UI
       await new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    // 4. 生成结果
     const diff = diffObjects(workingData, snap);
     return {
       data: diff,
       log: logger.toString(),
-      rawLogs: logger.getLogs() // 提供原始 JSON 日志供前端使用
+      rawLogs: logger.getLogs()
     };
   },
 
   /**
-   * 处理全局规则 (Path = "*")
-   * 这种模式下只处理 handle，且 handle 中的表达式由 DSLHandler 自动处理通配符
+   * 统一规则处理器
+   * 核心逻辑：获取上下文列表 -> 遍历上下文 -> 执行规则
    */
-  async _processGlobalRule(data: any, ruleName: string, rule: EraDataRule[string], logger: EraRuleLogger) {
-    // 获取规则的循环次数，默认为1，最大值为1000
+  async _processRule(data: any, snap: any, ruleName: string, rule: EraDataRule[string], logger: EraRuleLogger) {
     const ruleLoopCount = Math.max(1, Math.min(rule.loop ?? 1, MAX_LOOP_COUNT));
 
-    if (!rule.handle) return;
+    // 1. 确定上下文来源 (Context Source)
+    let contexts: Map<number, string>[] = [];
 
-    const sortedHandles = Object.entries(rule.handle)
-      .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
-
-    // 规则级别的循环处理
-    for (let ruleLoopIndex = 0; ruleLoopIndex < ruleLoopCount; ruleLoopIndex++) {
-
-      // --- Rule Level IF Check ---
+    if (rule.path === '*') {
+      // --- Global Mode ---
       if (rule.if) {
-        const ifResult = DSLHandler.execute(rule.if, data);
-        // 全局模式下，如果 if 返回 false (或者数组中所有项都为 false)，则中断循环
-        const isRuleTrue = ifResult.success && Array.isArray(ifResult.value)
-          ? ifResult.value.every(v => v.value === true)
-          : !!ifResult.value;
-
-        if (!isRuleTrue) {
-          // 全局规则没有 limit/range，所以如果条件不满足直接终止
-          break;
-        }
+        // 尝试从 rule.if 解析通配符上下文
+        // 如果 rule.if 里没有通配符，getContexts 会返回 [new Map()] (即单次执行)
+        const parser = new RuleParser(data);
+        contexts = parser.getContexts(rule.if);
+      } else {
+        // 没有 if，也没有 path，默认为单次执行的空上下文
+        contexts = [new Map()];
       }
-
-      // --- Handle Execution ---
-      for (const [handleKey, handleCfg] of sortedHandles) {
-        const loopCount = Math.max(1, Math.min(handleCfg.loop ?? 1, MAX_LOOP_COUNT));
-
-        for (let i = 0; i < loopCount; i++) {
-          // 1. Check Handle IF
-          if (handleCfg.if) {
-            const ifResult = DSLHandler.execute(handleCfg.if, data);
-            const isTrue = ifResult.success && Array.isArray(ifResult.value)
-              ? ifResult.value.every(v => v.value === true)
-              : !!ifResult.value;
-
-            if (!isTrue) break;
-          }
-
-          // 2. Execute Op
-          const opResult = DSLHandler.execute(handleCfg.op, data);
-
-          if (opResult.success && Array.isArray(opResult.value)) {
-            opResult.value.forEach(res => {
-              logger.add({
-                ruleName,
-                path: res.path || 'Global',
-                action: 'handle',
-                success: true,
-                message: `[${handleKey}] Loop ${i + 1}/${loopCount} (Rule loop ${ruleLoopIndex + 1}/${ruleLoopCount})`,
-                changes: { from: '?', to: res.value }
-              });
-            });
-          } else if (!opResult.success) {
-            logger.add({
-              ruleName,
-              path: 'Global',
-              action: 'handle',
-              success: false,
-              message: `[${handleKey}] Error: ${opResult.error} (Rule loop ${ruleLoopIndex + 1}/${ruleLoopCount})`
-            });
-          }
-        }
+    } else {
+      // --- Scoped Mode ---
+      // 展开 rule.path 获取具体目标
+      const targets = DSLHandler.getValue(data, rule.path);
+      if (Array.isArray(targets)) {
+        contexts = targets.map(t => {
+          // 从具体路径反解出通配符值
+          const values = extractWildcardValues(rule.path, t.path);
+          const map = new Map<number, string>();
+          values.forEach((v, i) => map.set(i + 1, v));
+          return map;
+        });
       }
     }
-  },
 
-  /**
-   * 处理作用域规则 (Path = "角色.*.属性")
-   * 这种模式下，先展开 path，然后针对每个具体路径执行 handle/limit/range
-   */
-  async _processScopedRule(data: any, snap: any, ruleName: string, rule: EraDataRule[string], logger: EraRuleLogger) {
-    // 获取规则的循环次数，默认为1，最大值为1000
-    const ruleLoopCount = Math.max(1, Math.min(rule.loop ?? 1, MAX_LOOP_COUNT));
+    if (contexts.length === 0) return;
 
-    // 1. 展开 Scope (基于 rule.path)
-    // 使用 DSLHandler 的工具获取所有匹配的路径
-    const targets = DSLHandler.getValue(data, rule.path);
+    // 2. 遍历每一个上下文 (Context Loop)
+    for (const ctxMap of contexts) {
+      const wildcardValues = contextMapToArray(ctxMap);
 
-    if (!Array.isArray(targets) || targets.length === 0) return;
+      // 计算当前上下文对应的具体 Path (仅用于 Scoped 模式下的 limit/range 计算)
+      let currentPath = '';
+      if (rule.path !== '*') {
+        currentPath = injectWildcards(rule.path, wildcardValues);
+      }
 
-    // 2. 遍历每个具体目标 (Context)
-    for (const target of targets) {
-      const currentPath = target.path;
-      const wildcardValues = extractWildcardValues(rule.path, currentPath);
+      // --- 优化开始：预先计算具体的表达式字符串 ---
+      // 因为在同一个 Context 下，wildcardValues 是不变的，
+      // 所以 injectWildcards 的结果在整个 ruleLoopCount 循环中都是一样的。
+      const concreteIf = rule.if ? injectWildcards(rule.if, wildcardValues) : null;
+      const preparedHandles: { key: string, cfg: any, concreteIf: string | null, concreteOp: string }[] = [];
+      if (rule.handle) {
+        const sortedHandles = Object.entries(rule.handle)
+          .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
-      // 规则级别的循环处理
+        for (const [key, cfg] of sortedHandles) {
+          preparedHandles.push({
+            key,
+            cfg,
+            concreteIf: cfg.if ? injectWildcards(cfg.if, wildcardValues) : null,
+            concreteOp: injectWildcards(cfg.op, wildcardValues)
+          });
+        }
+      }
+
+      // 3. 规则级循环 (Rule Loop)
       for (let loopIndex = 0; loopIndex < ruleLoopCount; loopIndex++) {
 
-        // --- 1. Rule Level IF Check ---
-        let isRuleConditionMet = true;
-        if (rule.if) {
-          // 注入上下文：将 rule.if 表达式中的 * 替换为当前 Scope 的具体值
-          const concreteRuleIf = injectWildcards(rule.if, wildcardValues);
-          const ifRes = DSLHandler.execute(concreteRuleIf, data);
+        // --- A. Rule Level IF ---
+        let isRuleMet = true;
+        if (concreteIf) {
+          // 直接使用预计算好的字符串，配合 DSLEngine 的 AST 缓存
+          const ifRes = DSLHandler.execute(concreteIf, data);
 
-          // 判断条件是否满足
-          isRuleConditionMet = ifRes.success && Array.isArray(ifRes.value) && ifRes.value.length > 0
-            ? ifRes.value[0].value
-            : false;
+          isRuleMet = ifRes.success && (Array.isArray(ifRes.value)
+            ? ifRes.value.every(v => v.value === true)
+            : !!ifRes.value);
+        }
+        // 如果条件不满足
+        if (!isRuleMet) {
+          // 如果是 Global 模式，或者不是第一次循环，直接退出
+          // (Scoped 模式下，第一次循环即使条件不满足，也可能需要执行 limit/range)
+          if (rule.path === '*' || loopIndex > 0) break;
         }
 
-        // --- 2. Handle 处理 (仅当 Rule IF 满足时执行) ---
-        if (isRuleConditionMet && rule.handle) {
-          const sortedHandles = Object.entries(rule.handle)
-            .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+        // --- B. Handle Execution ---
+        if (isRuleMet && preparedHandles.length > 0) {
+          for (const item of preparedHandles) {
+            const hLoop = Math.max(1, Math.min(item.cfg.loop ?? 1, MAX_LOOP_COUNT));
 
-          for (const [handleKey, handleCfg] of sortedHandles) {
-            const loopCount = Math.max(1, Math.min(handleCfg.loop ?? 1, MAX_LOOP_COUNT));
-
-            for (let i = 0; i < loopCount; i++) {
-              // 注入上下文
-              const concreteIf = handleCfg.if ? injectWildcards(handleCfg.if, wildcardValues) : null;
-              const concreteOp = injectWildcards(handleCfg.op, wildcardValues);
-
-              // Check Handle If
-              if (concreteIf) {
-                const ifRes = DSLHandler.execute(concreteIf, data);
-                const isTrue = ifRes.success && Array.isArray(ifRes.value) && ifRes.value.length > 0
-                  ? ifRes.value[0].value
-                  : false;
-
-                if (!isTrue) break; // 条件不满足，跳出 handle 循环
+            for(let i=0; i<hLoop; i++) {
+              // 使用预计算的字符串
+              if (item.concreteIf) {
+                const res = DSLHandler.execute(item.concreteIf, data);
+                const isTrue = res.success && (Array.isArray(res.value) ? res.value.every(v => v.value === true) : !!res.value);
+                if (!isTrue) break;
               }
 
-              // Execute Op
-              const opRes = DSLHandler.execute(concreteOp, data);
+              // 使用预计算的字符串
+              const opRes = DSLHandler.execute(item.concreteOp, data);
+
+              // 日志记录
               if (opRes.success && Array.isArray(opRes.value)) {
                 opRes.value.forEach(v => {
                   logger.add({
                     ruleName,
-                    path: v.path || currentPath,
+                    path: v.path || currentPath || 'Global',
                     action: 'handle',
                     success: true,
-                    message: `[${handleKey}] Loop ${i + 1}/${loopCount} (Rule loop ${loopIndex + 1}/${ruleLoopCount})`,
+                    message: `[${item.key}] Loop ${i + 1}/${hLoop} (Ctx: ${wildcardValues.join('.')})`,
                     changes: { from: '?', to: v.value }
                   });
                 });
-              }
-            }
-          }
-        }
-
-        // --- 3. Limit & Range 处理 ---
-        // 逻辑：如果 Rule IF 满足，则执行；
-        // 如果 Rule IF 不满足，但这是第一次循环（loopIndex === 0），也执行一次（确保 range/limit 至少生效一次）
-        if (isRuleConditionMet || loopIndex === 0) {
-
-          // --- Limit 处理 (基于 Snap 的 Delta 限制) ---
-          if (rule.limit && rule.limit.length === 2) {
-            // 重新获取当前值（因为 Handle 可能修改了它）
-            const newVal = DSLHandler.getValue(data, currentPath);
-            // 获取 Snap 值
-            const snapVal = DSLHandler.getValue(snap, currentPath);
-
-            const currentV = (Array.isArray(newVal) && newVal.length > 0) ? newVal[0].value : undefined;
-            const snapV = (Array.isArray(snapVal) && snapVal.length > 0) ? snapVal[0].value : undefined;
-
-            if (typeof currentV === 'number' && typeof snapV === 'number') {
-              const [minDelta, maxDelta] = rule.limit;
-              const delta = currentV - snapV;
-              let limitedDelta = delta;
-
-              if (delta > maxDelta) limitedDelta = maxDelta;
-              if (delta < minDelta) limitedDelta = minDelta;
-
-              if (limitedDelta !== delta) {
-                const finalVal = snapV + limitedDelta;
-                DSLHandler.setValue(data, currentPath, finalVal);
+              } else if (!opRes.success) {
                 logger.add({
                   ruleName,
-                  path: currentPath,
-                  action: 'limit',
-                  success: true,
-                  message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}] (Rule loop ${loopIndex + 1}/${ruleLoopCount})`,
-                  changes: { from: currentV, to: finalVal }
-                });
-              }
-            }
-          }
-
-          // --- Range 处理 (绝对值范围限制) ---
-          if (rule.range && rule.range.length === 2) {
-            const valRes = DSLHandler.getValue(data, currentPath);
-            const currentV = (Array.isArray(valRes) && valRes.length > 0) ? valRes[0].value : undefined;
-
-            if (typeof currentV === 'number') {
-              const [min, max] = rule.range;
-              const clamped = Math.max(min, Math.min(currentV, max));
-
-              if (clamped !== currentV) {
-                DSLHandler.setValue(data, currentPath, clamped);
-                logger.add({
-                  ruleName,
-                  path: currentPath,
-                  action: 'range',
-                  success: true,
-                  message: `Value clamped to [${min}, ${max}] (Rule loop ${loopIndex + 1}/${ruleLoopCount})`,
-                  changes: { from: currentV, to: clamped }
+                  path: currentPath || 'Global',
+                  action: 'handle',
+                  success: false,
+                  message: `[${item.key}] Error: ${opRes.error}`
                 });
               }
             }
           }
         }
 
-        // --- 4. 终止循环 ---
-        // 如果 Rule IF 不满足，在执行完（可能的）一次 limit/range 后，终止循环
-        if (!isRuleConditionMet) {
-          break;
+        // --- C. Limit & Range (仅当有具体 Path 时生效) ---
+        // 逻辑：Scoped 模式下，即使 if 不满足，第一次循环也要检查 limit/range
+        if (currentPath && (isRuleMet || loopIndex === 0)) {
+          this._applyLimitAndRange(data, snap, rule, currentPath, loopIndex, ruleLoopCount, logger, ruleName);
         }
+
+        if (!isRuleMet) break;
       }
     }
   },
 
   /**
-   * 测试 DSL 语法 (辅助工具)
+   *  Limit 和 Range 逻辑
    */
-  testDsl(data: any, expr: string): string {
-    const res = DSLHandler.execute(expr, data);
-    if (!res.success) return `Error: ${res.error}`;
-    return JSON.stringify(res.value, null, 2);
-  }
+  _applyLimitAndRange(data: any, snap: any, rule: EraDataRule[string], currentPath: string, loopIndex: number, totalLoop: number, logger: EraRuleLogger, ruleName: string) {
+    if (rule.limit && rule.limit.length === 2) {
+      // limit 处理
+      const currentV = DSLHandler.getValue(data, currentPath);
+      const snapV = DSLHandler.getValue(snap, currentPath);
+
+      if (typeof currentV === 'number' && typeof snapV === 'number') {
+        const [minDelta, maxDelta] = rule.limit;
+        const delta = currentV - snapV;
+        let limitedDelta = delta;
+        if (delta > maxDelta) limitedDelta = maxDelta;
+        if (delta < minDelta) limitedDelta = minDelta;
+
+        if (limitedDelta !== delta) {
+          const finalVal = snapV + limitedDelta;
+          DSLHandler.setValue(data, currentPath, finalVal);
+          logger.add({
+            ruleName,
+            path: currentPath,
+            action: 'limit',
+            success: true,
+            message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}]`,
+            changes: { from: currentV, to: finalVal }
+          });
+        }
+      }
+    }
+
+    // Range 处理
+    if (rule.range && rule.range.length === 2) {
+      const currentV = DSLHandler.getValue(data, currentPath);
+
+      if (typeof currentV === 'number') {
+        const [min, max] = rule.range;
+        const clamped = Math.max(min, Math.min(currentV, max));
+
+        if (clamped !== currentV) {
+          DSLHandler.setValue(data, currentPath, clamped);
+          logger.add({
+            ruleName,
+            path: currentPath,
+            action: 'range',
+            success: true,
+            message: `Value clamped to [${min}, ${max}]`,
+            changes: { from: currentV, to: clamped }
+          });
+        }
+      }
+    }
+  },
 };
