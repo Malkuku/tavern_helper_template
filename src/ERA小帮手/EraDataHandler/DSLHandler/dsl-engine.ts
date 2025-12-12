@@ -4,6 +4,7 @@ import { ASTNode, DSLParser } from './parser';
 import { DSLEvaluator, VariableStore } from './evaluator';
 import { RuleParser } from './ruleParser';
 import { DSLPreprocessor } from './preprocessor';
+import { eraLogger } from '../../utils/EraHelperLogger';
 
 export interface DSLResultItem {
   path?: string; // 如果是赋值操作，返回被修改的路径
@@ -32,13 +33,9 @@ export class DSLEngine {
     try {
       const cleanExpression = DSLPreprocessor.process(expression);
 
-      let concreteExpressions: string[];
-      if (cleanExpression.includes('*')) {
-        const parser = new RuleParser(data);
-        concreteExpressions = parser.expand(cleanExpression);
-      } else {
-        concreteExpressions = [cleanExpression];
-      }
+      const parser = new RuleParser(data);
+      const concreteExpressions = parser.expand(cleanExpression);
+      eraLogger.log(`[DSL] Concrete expressions:`,concreteExpressions);
 
       const results: DSLResultItem[] = [];
 
