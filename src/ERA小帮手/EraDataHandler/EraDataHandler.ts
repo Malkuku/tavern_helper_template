@@ -4,7 +4,8 @@ import { eraLogger } from '../utils/EraHelperLogger';
 import { RuleParser } from './DSLHandler/ruleParser';
 import { VariableStore } from './DSLHandler/evaluator';
 
-const MAX_LOOP_COUNT = 2000;
+const MAX_LOOP_COUNT = 10000;
+const LOG_WINDOW = 10; // 定义日志记录的窗口大小
 
 // --- 类型定义 ---
 
@@ -200,25 +201,6 @@ const injectWildcards = (expression: string, wildcards: string[]): string => {
   });
 };
 
-// /**
-//  * 从具体路径中提取通配符对应的值
-//  * @param pattern 规则路径 "角色.*.状态.*"
-//  * @param concretePath 具体路径 "角色.A.状态.B"
-//  * @returns ["A", "B"]
-//  */
-// const extractWildcardValues = (pattern: string, concretePath: string): string[] => {
-//   const pParts = pattern.split('.');
-//   const cParts = concretePath.split('.');
-//   const values: string[] = [];
-//
-//   for (let i = 0; i < Math.min(pParts.length, cParts.length); i++) {
-//     if (pParts[i] === '*') {
-//       values.push(cParts[i]);
-//     }
-//   }
-//   return values;
-// };
-
 // --- 核心逻辑 ---
 export const EraDataHandler = {
   /**
@@ -330,6 +312,18 @@ export const EraDataHandler = {
 
       // 3. 规则级循环 (Rule Loop)
       for (let loopIndex = 0; loopIndex < ruleLoopCount; loopIndex++) {
+        const shouldLogRuleLoop = ruleLoopCount <= LOG_WINDOW * 2 || loopIndex < LOG_WINDOW || loopIndex >= ruleLoopCount - LOG_WINDOW;
+
+        // 如果循环次数过多，在适当位置插入一条省略日志
+        if (ruleLoopCount > LOG_WINDOW * 2 && loopIndex === LOG_WINDOW) {
+          logger.add({
+            ruleName,
+            path: currentPath || 'Global',
+            action: 'skip',
+            success: true,
+            message: `Skipping logs from loop ${LOG_WINDOW + 1} to ${ruleLoopCount - LOG_WINDOW}...`
+          });
+        }
 
         // --- A. Rule Level IF ---
         let isRuleMet = true;
@@ -354,6 +348,18 @@ export const EraDataHandler = {
             const hLoop = Math.max(1, Math.min(item.cfg.loop ?? 1, MAX_LOOP_COUNT));
 
             for(let i=0; i<hLoop; i++) {
+              const shouldLogHandleLoop = hLoop <= LOG_WINDOW * 2 || i < LOG_WINDOW || i >= hLoop - LOG_WINDOW;
+
+              if (hLoop > LOG_WINDOW * 2 && i === LOG_WINDOW) {
+                logger.add({
+                  ruleName,
+                  path: currentPath || 'Global',
+                  action: 'skip',
+                  success: true,
+                  message: `[${item.key}] Skipping logs from loop ${LOG_WINDOW + 1} to ${hLoop - LOG_WINDOW}...`
+                });
+              }
+
               // 使用预计算的字符串
               if (item.concreteIf) {
                 const res = DSLHandler.execute(item.concreteIf, data, globalVars, localVars);
@@ -372,34 +378,37 @@ export const EraDataHandler = {
                     const oldValue = DSLHandler.getValue(data, change.path);
                     DSLHandler.setValue(data, change.path, change.value);
 
-                    // 更新日志记录，使其更准确
-                    logger.add({
-                      ruleName,
-                      path: change.path,
-                      action: 'handle',
-                      success: true,
-                      message: `[${item.key}] Loop ${i + 1}/${hLoop} (Ctx: ${wildcardValues.join('.')})`,
-                      changes: { from: oldValue, to: change.value } // 现在可以记录准确的 from 和 to
-                    });
-                  } else {
-                    // 如果没有 path，可能是一个纯计算表达式，只记录其结果值
-                    logger.add({
-                      ruleName,
-                      path: currentPath || 'Global',
-                      action: 'handle',
-                      success: true,
-                      message: `[${item.key}] Evaluated value: ${JSON.stringify(change.value)} (No assignment)`,
-                    });
+                    if (shouldLogHandleLoop) {
+                      logger.add({
+                        ruleName,
+                        path: change.path,
+                        action: 'handle',
+                        success: true,
+                        message: `[${item.key}] Loop ${i + 1}/${hLoop} (Ctx: ${wildcardValues.join('.')})`,
+                        changes: { from: oldValue, to: change.value }
+                      });
+                    }
                   }
+                  if (shouldLogHandleLoop) {
+                      logger.add({
+                        ruleName,
+                        path: currentPath || 'Global',
+                        action: 'handle',
+                        success: true,
+                        message: `[${item.key}] Evaluated value: ${JSON.stringify(change.value)} (No assignment)`,
+                      });
+                    }
                 });
               } else if (!opRes.success) {
-                logger.add({
-                  ruleName,
-                  path: currentPath || 'Global',
-                  action: 'handle',
-                  success: false,
-                  message: `[${item.key}] Error: ${opRes.error}`
-                });
+                if (shouldLogHandleLoop) {
+                  logger.add({
+                    ruleName,
+                    path: currentPath || 'Global',
+                    action: 'handle',
+                    success: false,
+                    message: `[${item.key}] Error: ${opRes.error}`
+                  });
+                }
               }
             }
           }
@@ -408,7 +417,7 @@ export const EraDataHandler = {
         // --- C. Limit & Range (仅当有具体 Path 时生效) ---
         // 逻辑：Scoped 模式下，即使 if 不满足，第一次循环也要检查 limit/range
         if (currentPath && (isRuleMet || loopIndex === 0)) {
-          this._applyLimitAndRange(data, snap, rule, currentPath, loopIndex, ruleLoopCount, logger, ruleName);
+          this._applyLimitAndRange(data, snap, rule, currentPath, logger, ruleName, shouldLogRuleLoop);
         }
 
         if (!isRuleMet) break;
@@ -419,7 +428,7 @@ export const EraDataHandler = {
   /**
    *  Limit 和 Range 逻辑
    */
-  _applyLimitAndRange(data: any, snap: any, rule: EraDataRule[string], currentPath: string, loopIndex: number, totalLoop: number, logger: EraRuleLogger, ruleName: string) {
+  _applyLimitAndRange(data: any, snap: any, rule: EraDataRule[string], currentPath: string, logger: EraRuleLogger, ruleName: string, shouldLog: boolean) {
 
     // 1. 获取当前值 (Raw Value)
     const currentV = DSLHandler.getValue(data, currentPath);
@@ -439,14 +448,16 @@ export const EraDataHandler = {
         if (limitedDelta !== delta) {
           const finalVal = snapV + limitedDelta;
           DSLHandler.setValue(data, currentPath, finalVal);
-          logger.add({
-            ruleName,
-            path: currentPath,
-            action: 'limit',
-            success: true,
-            message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}]`,
-            changes: { from: currentV, to: finalVal }
-          });
+          if (shouldLog) {
+            logger.add({
+              ruleName,
+              path: currentPath,
+              action: 'limit',
+              success: true,
+              message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}]`,
+              changes: { from: currentV, to: finalVal }
+            });
+          }
         }
       }
     }
@@ -461,14 +472,16 @@ export const EraDataHandler = {
 
         if (clamped !== valAfterLimit) {
           DSLHandler.setValue(data, currentPath, clamped);
-          logger.add({
-            ruleName,
-            path: currentPath,
-            action: 'range',
-            success: true,
-            message: `Value clamped to [${min}, ${max}]`,
-            changes: { from: valAfterLimit, to: clamped }
-          });
+          if (shouldLog) {
+            logger.add({
+              ruleName,
+              path: currentPath,
+              action: 'range',
+              success: true,
+              message: `Value clamped to [${min}, ${max}]`,
+              changes: { from: valAfterLimit, to: clamped }
+            });
+          }
         }
       }
     }
