@@ -6,7 +6,8 @@ export type ASTNode =
   | BinaryOpNode
   | FunctionCallNode
   | IdentifierNode
-  | LiteralNode;
+  | LiteralNode
+  | TempVariableNode; // 新增
 
 export interface BinaryOpNode {
   type: 'BinaryOp';
@@ -30,6 +31,14 @@ export interface LiteralNode {
   type: 'Literal';
   value: LiteralValue;
 }
+
+// 新增
+export interface TempVariableNode {
+  type: 'TempVariable';
+  scope: 'g' | 's';
+  name: string;
+}
+
 
 export class DSLParser {
   private tokens: Token[];
@@ -57,7 +66,14 @@ export class DSLParser {
     // 支持 #[=]
     if (this.match('OP_MATH', '=')) {
       const operator = this.previous().value;
-      const right = this.parseAssignment(); // 右结合
+      // 赋值操作是右结合的
+      const right = this.parseAssignment();
+
+      // 赋值的左侧必须是标识符或临时变量
+      if (node.type !== 'Identifier' && node.type !== 'TempVariable') {
+        throw new Error(`Invalid assignment target: ${node.type}. Must be a path or a temporary variable.`);
+      }
+
       node = { type: 'BinaryOp', operator, left: node, right };
     }
 
@@ -91,7 +107,6 @@ export class DSLParser {
   private parseComparison(): ASTNode {
     let node = this.parseAdditive();
 
-    // 比较运算符在 OP_LOGIC 中
     while (this.matchOp(['==', '!=', '<', '>', '<=', '>='])) {
       const operator = this.previous().value;
       const right = this.parseAdditive();
@@ -148,18 +163,29 @@ export class DSLParser {
       return { type: 'Identifier', path: this.previous().value };
     }
 
+    // 新增
+    if (this.match('TEMP_VARIABLE')) {
+      const rawValue = this.previous().value; // e.g., "{g}myVar"
+      const match = rawValue.match(/^\{(g|s)\}(.+)$/);
+      if (!match) {
+        // This should not happen if lexer is correct
+        throw new Error(`Internal parser error: Invalid temp variable format ${rawValue}`);
+      }
+      const [, scope, name] = match;
+      return { type: 'TempVariable', scope: scope as 'g' | 's', name };
+    }
+
     if (this.match('LITERAL')) {
       return { type: 'Literal', value: parseLiteralValue(this.previous().value) };
     }
 
-    // 函数调用 #[{name}arg1arg2]
     if (this.match('FUNC_START')) {
       const funcName = this.previous().value;
       const args: ASTNode[] = [];
 
-      // 解析参数直到遇到 RBRACKET
       while (!this.check('RBRACKET') && !this.isAtEnd()) {
-        args.push(this.parsePrimary()); // 参数通常是 Primary (变量或字面量)，也可以是表达式
+        // 函数参数可以是任何表达式，而不仅仅是 primary
+        args.push(this.parseExpression());
       }
 
       this.consume('RBRACKET', `Expected "]" after function arguments for ${funcName}`);
@@ -179,16 +205,13 @@ export class DSLParser {
     return false;
   }
 
-  private matchOp(values: string[], type: TokenType = 'OP_LOGIC'): boolean {
+  private matchOp(values: string[], type?: TokenType): boolean {
     if (this.isAtEnd()) return false;
     const token = this.peek();
-    // 兼容 OP_LOGIC 和 OP_MATH，或者指定类型
-    if ((token.type === 'OP_LOGIC' || token.type === 'OP_MATH') && values.includes(token.value)) {
-      // 如果指定了 type，必须匹配
-      if (type && token.type !== type && type !== 'OP_LOGIC') {
-        // 这里逻辑稍微有点绕，简化一下：
-        // 比较运算符都在 OP_LOGIC 里，算术在 OP_MATH 里
-      }
+
+    const typeMatch = type ? token.type === type : (token.type === 'OP_LOGIC' || token.type === 'OP_MATH');
+
+    if (typeMatch && values.includes(token.value)) {
       this.advance();
       return true;
     }
@@ -197,7 +220,8 @@ export class DSLParser {
 
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    throw new Error(message);
+    const token = this.peek();
+    throw new Error(`${message} (at position ${token.start})`);
   }
 
   private check(type: TokenType, value?: string): boolean {

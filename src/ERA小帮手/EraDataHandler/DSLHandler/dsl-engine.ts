@@ -1,7 +1,7 @@
 // dsl-engine.ts
 import { DSLLexer } from './lexer';
 import { ASTNode, DSLParser } from './parser';
-import { DSLEvaluator } from './evaluator';
+import { DSLEvaluator, VariableStore } from './evaluator';
 import { RuleParser } from './ruleParser';
 import { DSLPreprocessor } from './preprocessor';
 
@@ -21,24 +21,17 @@ export class DSLEngine {
   // --- AST 缓存 ---
   // Key: 预处理后的表达式字符串, Value: 解析后的 AST 根节点
   private static astCache = new Map<string, ASTNode>();
-  // 设置一个最大缓存大小，防止内存溢出
-  private static MAX_CACHE_SIZE = 2000;
-  /**
-   * 执行 DSL 表达式 (支持 <<if>> 和 <<op>>)
-   * @param expression 原始表达式，例如 "<<op> $[角色.*.好感度] #[=] 10>"
-   * @param data 数据源 (JSON 对象)
-   */
-  static evaluate(expression: string, data: any): DSLResult {
+  private static MAX_CACHE_SIZE = 5000;
+
+  static evaluate(
+    expression: string,
+    data: any,
+    globalVars: VariableStore, // 接收全局变量
+    localVars: VariableStore   // 接收局部变量
+  ): DSLResult {
     try {
-      // 0. 预处理
-      // 去除杂余的空格、换行，规范化表达式
       const cleanExpression = DSLPreprocessor.process(expression);
 
-      // 1. 通配符展开 (Context-Aware Expansion)
-      // 将包含 * 的表达式展开为针对具体路径的多个表达式
-      // 例如: "$[角色.*.A] + $[角色.*.B]" -> ["$[角色.P1.A] + $[角色.P1.B]", "$[角色.P2.A] + $[角色.P2.B]"]
-
-      // 使用RuleParser 类进行表达式展开
       let concreteExpressions: string[];
       if (cleanExpression.includes('*')) {
         const parser = new RuleParser(data);
@@ -78,10 +71,8 @@ export class DSLEngine {
           this.astCache.set(expr, ast);
         }
 
-
-        // 3. 求值
-        // Evaluator 会直接修改 data (如果是赋值操作) 并返回计算结果
-        const evaluator = new DSLEvaluator(data);
+        // 将两种变量都传递给求值器
+        const evaluator = new DSLEvaluator(data, globalVars, localVars);
         const resultValue = evaluator.evaluate(ast);
 
         // 4. 结果封装
@@ -104,16 +95,9 @@ export class DSLEngine {
         });
       }
 
-      return {
-        success: true,
-        value: results
-      };
-
+      return { success: true, value: results };
     } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Unknown error during DSL execution'
-      };
+      return { success: false, error: error.message || 'Unknown error during DSL execution' };
     }
   }
 

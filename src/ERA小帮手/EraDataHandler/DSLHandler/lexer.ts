@@ -2,6 +2,7 @@
 
 export type TokenType =
   | 'IDENTIFIER'    // $[path]
+  | 'TEMP_VARIABLE' // @[{g|s}name]
   | 'LITERAL'       // &[{type}value]
   | 'OP_LOGIC'      // ?[==], ?[&&]
   | 'OP_MATH'       // #[+], #[=]
@@ -34,7 +35,6 @@ export class DSLLexer {
     this.tokens = [];
 
     // 预处理：简单的跳过外层 wrapper
-    // 实际生产中可能需要更严谨的校验，这里假设输入是合法的 <<if>...> 或 <<op>...>
     this.skipWrapperHeader();
 
     while (this.position < this.input.length) {
@@ -48,7 +48,6 @@ export class DSLLexer {
 
       // 结束符 > (Wrapper的结尾)
       if (char === '>') {
-        // 只有当它出现在最外层时才忽略（虽然本DSL中 > 符号只存在于 ?[>] 中，raw > 只能是结尾）
         this.position++;
         continue;
       }
@@ -66,6 +65,12 @@ export class DSLLexer {
       // 变量 $[...]
       if (char === '$') {
         this.tokenizeDollar();
+        continue;
+      }
+
+      // 新增：临时变量 @[...]
+      if (char === '@') {
+        this.tokenizeAt();
         continue;
       }
 
@@ -88,8 +93,6 @@ export class DSLLexer {
       }
 
       // 函数闭合符 ]
-      // 注意：$[], &[], ?[], #[op] 内部的 ] 都会被各自的方法消费掉
-      // 只有 #[{func} ... ] 的末尾 ] 会暴露在这里
       if (char === ']') {
         this.addToken('RBRACKET', ']');
         continue;
@@ -103,7 +106,6 @@ export class DSLLexer {
   }
 
   private skipWrapperHeader() {
-    // 跳过 <<if> 或 <<op>
     const regex = /^<<(if|op)>\s*/;
     const match = this.input.slice(this.position).match(regex);
     if (match) {
@@ -128,6 +130,31 @@ export class DSLLexer {
     this.position++; // ]
 
     this.tokens.push({ type: 'IDENTIFIER', value: path, start, end: this.position });
+  }
+
+  // 新增方法
+  private tokenizeAt() {
+    // @[{g|s}name]
+    const start = this.position;
+    this.position++; // @
+    if (this.peek() !== '[') throw new Error('Expected "[" after "@"');
+    this.position++; // [
+
+    const contentStart = this.position;
+    while (this.position < this.input.length && this.peek() !== ']') {
+      this.position++;
+    }
+
+    const content = this.input.slice(contentStart, this.position);
+    if (this.peek() !== ']') throw new Error('Unclosed temporary variable');
+    this.position++; // ]
+
+    // 验证内部格式 {g|s}name
+    if (!/^\{(g|s)\}\w+$/.test(content)) {
+      throw new Error(`Invalid temporary variable format: @[${content}]`);
+    }
+
+    this.tokens.push({ type: 'TEMP_VARIABLE', value: content, start, end: this.position });
   }
 
   private tokenizeAmpersand() {
@@ -186,10 +213,6 @@ export class DSLLexer {
       if (this.peek() !== '}') throw new Error('Unclosed function name');
       this.position++; // }
 
-      // 注意：这里我们不消费闭合的 ]，因为函数后面跟着参数，参数后面才是 ]
-      // 例如: #[{max}$[a]$[b]]
-      // 当前位置在 } 后面，即 $ 之前
-
       this.tokens.push({ type: 'FUNC_START', value: funcName, start, end: this.position });
     } else {
       // 普通算术运算符 #[+]
@@ -225,10 +248,8 @@ export class DSLLexer {
 }
 
 export function parseLiteralValue(raw: string): LiteralValue {
-  // 解析 {type}value 格式
-  const match = raw.match(/^\{(\w+)\}(.*)$/);
+  const match = raw.match(/^\{(\w+)\}(.*)$/s); // Use 's' flag for dot to match newlines
   if (!match) {
-    // 兼容旧格式或纯数字
     const num = parseFloat(raw);
     return isNaN(num) ? { type: 'string', value: raw } : { type: 'number', value: num };
   }

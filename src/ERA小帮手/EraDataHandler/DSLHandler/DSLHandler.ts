@@ -5,20 +5,23 @@ import { DSLParser } from './parser';
 import { getValueByPath, setValueByPath as utilsSetValue, parsePath } from './pathUtils';
 import { exprToHumanView } from './exprToHumanView';
 import { DSLPreprocessor } from './preprocessor';
+import { VariableStore } from './evaluator';
 
-/**
- * DSL 处理器
- * 统一向外暴露 DSL 的执行、验证和工具方法
- */
 export const DSLHandler = {
   /**
-   * 执行 DSL 表达式 (If 或 Op)
-   * @param expression 完整的 DSL 表达式，如 "<<op> $[角色.*.好感度] #[+] 10>"
-   * @param data 数据源快照 (JSON 对象)
-   * @returns 执行结果 { success: boolean, value: Array<{path?, value}>, error? }
+   * 执行 DSL 表达式。
+   * @param expression 表达式字符串
+   * @param data 数据源
+   * @param globalVars 全局变量存储 (在一次 applyRule 中共享)
+   * @param localVars 局部变量存储 (在单个 rule 中共享)
    */
-  execute(expression: string, data: any): DSLResult {
-    return DSLEngine.evaluate(expression, data);
+  execute(
+    expression: string,
+    data: any,
+    globalVars: VariableStore,
+    localVars: VariableStore
+  ): DSLResult {
+    return DSLEngine.evaluate(expression, data, globalVars, localVars);
   },
 
   /**
@@ -28,16 +31,10 @@ export const DSLHandler = {
    */
   validate(expression: string): { success: boolean; error?: string } {
     try {
-      // 0. 预处理
       const cleanExpression = DSLPreprocessor.process(expression);
-
-      // 1. 词法分析 (Lexer 内部会处理 wrapper 头)
       const lexer = new DSLLexer(cleanExpression);
-
-      // 2. 语法分析
       const parser = new DSLParser(lexer);
       parser.parse();
-
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };

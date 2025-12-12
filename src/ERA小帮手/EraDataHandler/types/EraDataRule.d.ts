@@ -22,7 +22,7 @@ export interface EraDataRule {
         // 比如&[{num}1],符号为{num},{str},{bool},{null}
         if?: string;
         //操作表达式 <<op> >
-        // <<op> $[path] #[+] $[path]>
+        // <<op> $[path1] = $[path1] #[+] &[{num}2]>
         // #[] 符号表示操作符号，同上
         // 比如#[{ln}$[path]] 表示ln(path)，#[{max}$[path1]$[path2]],将计算path1和path2的最大值，可以多个值，比如#[{max}$[path1]$[path2]$[path3]]
         // $[] 里面写路径，同上
@@ -79,7 +79,9 @@ export interface EraDataRule {
    * 判断符号 ?[==] ?[>] ?[<] ?[<=] ?[>=]
    * 值符号 &[{num}10] &[{str}hello] &[{bool}true] &[{null}]
    * 操作符号 #[+] #[-] #[*] #[/] #[%] #[**] #[=]
-   * 操作符号 #[{ln}$[path]] #[{log2}$[path]] #[{sqrt}$[path]] #[{abs}$[path]] #[{floor}$[path]] #[{ceil}$[path]] #[{max}$[path1]$[path2]] #[{min}$[path1]$[path2]]
+   * 操作符号 #[{ln}$[path]] #[{log2}$[path]] #[{sqrt}$[path]] #[{abs}$[path]] #[{floor}$[path]] #[{ceil}$[path]] #[{neg}$[path]]
+   * 操作符号 #[{max}$[path1]$[path2]...] #[{min}$[path1]$[path2]...]  #[{avg}$[path1]$[path2]...]  #[{sum}$[path1]$[path2]...]
+   * 临时变量符号 @[{g}name] @[{s}name] g表示全局变量，会在所有rule下生效；s表示临时变量，只在当前rule下生效
    */
 
   /**
@@ -105,7 +107,6 @@ export interface EraDataRule {
    * - dsl处理器不支持连续执行if/op，一条handle只能执行一个if/op，
    *  比如在写等级提升时，应该先写升级的handle，再写扣经验值的handle
    * - op执行后对data的修改会立刻生效，比如在写等级提升时，应该先升级再扣经验值
-   * - 语句是直接赋值的，比如 <<op>$[角色.*.好感度] #[+] &[{num}10] > 会直接改变$[角色.*.好感度]的值
    */
 }
 

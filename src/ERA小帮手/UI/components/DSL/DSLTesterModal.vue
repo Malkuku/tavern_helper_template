@@ -85,7 +85,7 @@
             <div v-else class="empty-result">
               <div class="icon-placeholder">⌨️</div>
               <span>准备就绪</span>
-              <small>点击顶部 "运行测试" 查看结果</small>
+              <small>点击顶部 "运行测试" 查看结果（更详细的日志请查看控制台）</small>
             </div>
           </div>
         </div>

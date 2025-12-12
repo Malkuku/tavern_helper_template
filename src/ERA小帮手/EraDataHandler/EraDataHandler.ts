@@ -2,6 +2,7 @@ import { EraDataRule } from './types/EraDataRule';
 import { DSLHandler } from './DSLHandler/DSLHandler';
 import { eraLogger } from '../utils/EraHelperLogger';
 import { RuleParser } from './DSLHandler/ruleParser';
+import { VariableStore } from './DSLHandler/evaluator';
 
 const MAX_LOOP_COUNT = 2000;
 
@@ -139,24 +140,24 @@ const injectWildcards = (expression: string, wildcards: string[]): string => {
   });
 };
 
-/**
- * 从具体路径中提取通配符对应的值
- * @param pattern 规则路径 "角色.*.状态.*"
- * @param concretePath 具体路径 "角色.A.状态.B"
- * @returns ["A", "B"]
- */
-const extractWildcardValues = (pattern: string, concretePath: string): string[] => {
-  const pParts = pattern.split('.');
-  const cParts = concretePath.split('.');
-  const values: string[] = [];
-
-  for (let i = 0; i < Math.min(pParts.length, cParts.length); i++) {
-    if (pParts[i] === '*') {
-      values.push(cParts[i]);
-    }
-  }
-  return values;
-};
+// /**
+//  * 从具体路径中提取通配符对应的值
+//  * @param pattern 规则路径 "角色.*.状态.*"
+//  * @param concretePath 具体路径 "角色.A.状态.B"
+//  * @returns ["A", "B"]
+//  */
+// const extractWildcardValues = (pattern: string, concretePath: string): string[] => {
+//   const pParts = pattern.split('.');
+//   const cParts = concretePath.split('.');
+//   const values: string[] = [];
+//
+//   for (let i = 0; i < Math.min(pParts.length, cParts.length); i++) {
+//     if (pParts[i] === '*') {
+//       values.push(cParts[i]);
+//     }
+//   }
+//   return values;
+// };
 
 // --- 核心逻辑 ---
 export const EraDataHandler = {
@@ -170,6 +171,9 @@ export const EraDataHandler = {
     const sortedRules = Object.entries(rules)
       .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
+    // 创建全局变量池,生命周期为整个 applyRule 调用
+    const globalVars: VariableStore = new Map();
+
     eraLogger.log(`[EraDataHandler] 获取到原始数据`, data);
     eraLogger.log(`[EraDataHandler] 获取到快照`, snap);
     eraLogger.log(`[EraDataHandler] 处理原始数据为全量`, workingData);
@@ -180,8 +184,9 @@ export const EraDataHandler = {
 
       try {
         // 统一调用 _processRule
-        await this._processRule(workingData, snap, ruleName, rule, logger);
+        await this._processRule(workingData, snap, ruleName, rule, logger, globalVars);
       } catch (e: any) {
+        eraLogger.error(`[EraDataHandler] 运行规则'${ruleName}'时出现错误 :`, e);
         logger.add({
           ruleName,
           path: rule.path,
@@ -193,7 +198,11 @@ export const EraDataHandler = {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
 
+    eraLogger.log(`[EraDataHandler] 已完成数据的更新`, workingData);
     const diff = diffObjects(workingData, snap);
+
+    eraLogger.log(`[EraDataHandler] 合并数据变化`, diff);
+    eraLogger.log(`[EraDataHandler] 处理过程日志`, logger.getLogs())
     return {
       data: diff,
       log: logger.toString(),
@@ -205,36 +214,28 @@ export const EraDataHandler = {
    * 统一规则处理器
    * 核心逻辑：获取上下文列表 -> 遍历上下文 -> 执行规则
    */
-  async _processRule(data: any, snap: any, ruleName: string, rule: EraDataRule[string], logger: EraRuleLogger) {
+  async _processRule(data: any, snap: any, ruleName: string, rule: EraDataRule[string], logger: EraRuleLogger, globalVars: VariableStore) {
+    // 创建局部变量池,生命周期为单个规则
+    const localVars: VariableStore = new Map();
+
     const ruleLoopCount = Math.max(1, Math.min(rule.loop ?? 1, MAX_LOOP_COUNT));
+    const parser = new RuleParser(data);
 
     // 1. 确定上下文来源 (Context Source)
     let contexts: Map<number, string>[] = [];
-
     if (rule.path === '*') {
       // --- Global Mode ---
       if (rule.if) {
         // 尝试从 rule.if 解析通配符上下文
         // 如果 rule.if 里没有通配符，getContexts 会返回 [new Map()] (即单次执行)
-        const parser = new RuleParser(data);
         contexts = parser.getContexts(rule.if);
       } else {
         // 没有 if，也没有 path，默认为单次执行的空上下文
         contexts = [new Map()];
       }
     } else {
-      // --- Scoped Mode ---
-      // 展开 rule.path 获取具体目标
-      const targets = DSLHandler.getValue(data, rule.path);
-      if (Array.isArray(targets)) {
-        contexts = targets.map(t => {
-          // 从具体路径反解出通配符值
-          const values = extractWildcardValues(rule.path, t.path);
-          const map = new Map<number, string>();
-          values.forEach((v, i) => map.set(i + 1, v));
-          return map;
-        });
-      }
+      const pathExpr = `$[${rule.path}]`;
+      contexts = parser.getContexts(pathExpr);
     }
 
     if (contexts.length === 0) return;
@@ -275,7 +276,7 @@ export const EraDataHandler = {
         let isRuleMet = true;
         if (concreteIf) {
           // 直接使用预计算好的字符串，配合 DSLEngine 的 AST 缓存
-          const ifRes = DSLHandler.execute(concreteIf, data);
+          const ifRes = DSLHandler.execute(concreteIf, data, globalVars, localVars);
 
           isRuleMet = ifRes.success && (Array.isArray(ifRes.value)
             ? ifRes.value.every(v => v.value === true)
@@ -296,25 +297,41 @@ export const EraDataHandler = {
             for(let i=0; i<hLoop; i++) {
               // 使用预计算的字符串
               if (item.concreteIf) {
-                const res = DSLHandler.execute(item.concreteIf, data);
+                const res = DSLHandler.execute(item.concreteIf, data, globalVars, localVars);
                 const isTrue = res.success && (Array.isArray(res.value) ? res.value.every(v => v.value === true) : !!res.value);
                 if (!isTrue) break;
               }
 
               // 使用预计算的字符串
-              const opRes = DSLHandler.execute(item.concreteOp, data);
+              const opRes = DSLHandler.execute(item.concreteOp, data, globalVars, localVars);
 
-              // 日志记录
+              // 应用 DSL 引擎返回的变更
               if (opRes.success && Array.isArray(opRes.value)) {
-                opRes.value.forEach(v => {
-                  logger.add({
-                    ruleName,
-                    path: v.path || currentPath || 'Global',
-                    action: 'handle',
-                    success: true,
-                    message: `[${item.key}] Loop ${i + 1}/${hLoop} (Ctx: ${wildcardValues.join('.')})`,
-                    changes: { from: '?', to: v.value }
-                  });
+                opRes.value.forEach(change => {
+                  // 只有当返回结果包含 path 时，才认为是一次有效的赋值操作
+                  if (change.path) {
+                    const oldValue = DSLHandler.getValue(data, change.path);
+                    DSLHandler.setValue(data, change.path, change.value);
+
+                    // 更新日志记录，使其更准确
+                    logger.add({
+                      ruleName,
+                      path: change.path,
+                      action: 'handle',
+                      success: true,
+                      message: `[${item.key}] Loop ${i + 1}/${hLoop} (Ctx: ${wildcardValues.join('.')})`,
+                      changes: { from: oldValue, to: change.value } // 现在可以记录准确的 from 和 to
+                    });
+                  } else {
+                    // 如果没有 path，可能是一个纯计算表达式，只记录其结果值
+                    logger.add({
+                      ruleName,
+                      path: currentPath || 'Global',
+                      action: 'handle',
+                      success: true,
+                      message: `[${item.key}] Evaluated value: ${JSON.stringify(change.value)} (No assignment)`,
+                    });
+                  }
                 });
               } else if (!opRes.success) {
                 logger.add({
@@ -344,15 +361,19 @@ export const EraDataHandler = {
    *  Limit 和 Range 逻辑
    */
   _applyLimitAndRange(data: any, snap: any, rule: EraDataRule[string], currentPath: string, loopIndex: number, totalLoop: number, logger: EraRuleLogger, ruleName: string) {
-    if (rule.limit && rule.limit.length === 2) {
-      // limit 处理
-      const currentV = DSLHandler.getValue(data, currentPath);
-      const snapV = DSLHandler.getValue(snap, currentPath);
 
+    // 1. 获取当前值 (Raw Value)
+    const currentV = DSLHandler.getValue(data, currentPath);
+    // 2. 获取快照值 (Raw Value)
+    const snapV = DSLHandler.getValue(snap, currentPath);
+
+    // Limit 处理
+    if (rule.limit && rule.limit.length === 2) {
       if (typeof currentV === 'number' && typeof snapV === 'number') {
         const [minDelta, maxDelta] = rule.limit;
         const delta = currentV - snapV;
         let limitedDelta = delta;
+
         if (delta > maxDelta) limitedDelta = maxDelta;
         if (delta < minDelta) limitedDelta = minDelta;
 
@@ -373,13 +394,13 @@ export const EraDataHandler = {
 
     // Range 处理
     if (rule.range && rule.range.length === 2) {
-      const currentV = DSLHandler.getValue(data, currentPath);
+      const valAfterLimit = DSLHandler.getValue(data, currentPath);
 
-      if (typeof currentV === 'number') {
+      if (typeof valAfterLimit === 'number') {
         const [min, max] = rule.range;
-        const clamped = Math.max(min, Math.min(currentV, max));
+        const clamped = Math.max(min, Math.min(valAfterLimit, max));
 
-        if (clamped !== currentV) {
+        if (clamped !== valAfterLimit) {
           DSLHandler.setValue(data, currentPath, clamped);
           logger.add({
             ruleName,
@@ -387,7 +408,7 @@ export const EraDataHandler = {
             action: 'range',
             success: true,
             message: `Value clamped to [${min}, ${max}]`,
-            changes: { from: currentV, to: clamped }
+            changes: { from: valAfterLimit, to: clamped }
           });
         }
       }

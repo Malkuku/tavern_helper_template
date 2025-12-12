@@ -59,7 +59,8 @@
             </div>
 
             <h4>函数运算符</h4>
-            <div class="operator-grid">
+            <!-- 修改：使用 three-columns 类 -->
+            <div class="operator-grid three-columns">
               <button class="btn small" @click="addComponent('#[{ln}]')">自然对数 (ln)</button>
               <button class="btn small" @click="addComponent('#[{log2}]')">对数 (log2)</button>
               <button class="btn small" @click="addComponent('#[{sqrt}]')">平方根 (sqrt)</button>
@@ -68,6 +69,9 @@
               <button class="btn small" @click="addComponent('#[{ceil}]')">向上取整 (ceil)</button>
               <button class="btn small" @click="addComponent('#[{max}]')">最大值 (max)</button>
               <button class="btn small" @click="addComponent('#[{min}]')">最小值 (min)</button>
+              <button class="btn small" @click="addComponent('#[{neg}]')">取反 (neg)</button>
+              <button class="btn small" @click="addComponent('#[{avg}]')">平均值 (avg)</button>
+              <button class="btn small" @click="addComponent('#[{sum}]')">求和 (sum)</button>
             </div>
           </div>
 
@@ -90,6 +94,19 @@
                 <option value="bool">布尔值</option>
               </select>
               <button class="btn small primary" @click="addCustomValue">添加值</button>
+            </div>
+          </div>
+
+          <!-- 新增：临时变量 -->
+          <div class="component-section">
+            <h4>临时变量</h4>
+            <div class="value-input">
+              <input v-model="tempVarName" placeholder="变量名" class="light-theme" @keyup.enter="addTempValue" />
+              <select v-model="tempVarScope" class="light-theme">
+                <option value="s">局部 (s)</option>
+                <option value="g">全局 (g)</option>
+              </select>
+              <button class="btn small primary" @click="addTempValue">添加变量</button>
             </div>
           </div>
         </div>
@@ -145,10 +162,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { useUiStore } from '../../../stores/UIStore';
 import { DSLHandler } from '../../../EraDataHandler/DSLHandler/DSLHandler';
 import { eraLogger } from '../../../utils/EraHelperLogger';
+import toastr from 'toastr';
 
 interface Props {
   visible: boolean;
@@ -176,6 +194,10 @@ const selectedStoredPath = ref('');
 const expressionTextarea = ref<HTMLTextAreaElement | null>(null);
 const lastCursorPosition = ref<{start: number, end: number} | null>(null);
 const isInserting = ref(false);
+
+// 新增：临时变量相关的 ref
+const tempVarName = ref('');
+const tempVarScope = ref<'g' | 's'>('s');
 
 const emit = defineEmits<Emits>();
 const uiStore = useUiStore();
@@ -319,6 +341,24 @@ function addCustomValue() {
   customValue.value = '';
 }
 
+// 新增：添加临时变量的方法
+function addTempValue() {
+  const name = tempVarName.value.trim();
+  if (!name) {
+    return;
+  }
+  // 简单的变量名验证
+  if (!/^\w+$/.test(name)) {
+    toastr.error('变量名只能包含字母、数字和下划线');
+    return;
+  }
+
+  const varString = `@[{${tempVarScope.value}}${name}]`;
+  addComponent(varString);
+  tempVarName.value = ''; // 清空输入框
+}
+
+
 function clearExpression() {
   localExpression.value = '';
   emit('update:expression', '');
@@ -372,6 +412,7 @@ watch(() => props.visible, (newVal) => {
     customValue.value = '';
     selectedStoredPath.value = '';
     lastCursorPosition.value = null;
+    tempVarName.value = ''; // 新增：关闭时清空临时变量名
   }
 });
 </script>
@@ -463,6 +504,11 @@ watch(() => props.visible, (newVal) => {
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   margin-bottom: 8px;
+}
+
+/* 新增：三列布局 */
+.operator-grid.three-columns {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .value-input {
