@@ -11,18 +11,18 @@ export class KatLogger {
   }
 
   debug(...args: any[]): void {
-    console.log(`%c⚙️ ${this.prefix}`, 'color: orange; font-weight: bold;', ...args);
+    console.debug(`%c⚙️ ${this.prefix}`, 'color: orange; font-weight: bold;', ...args);
   }
 
   info(...args: any[]): void {
-    console.log(`%cℹ️ ${this.prefix}`, 'color: blue; font-weight: bold;', ...args);
+    console.info(`%cℹ️ ${this.prefix}`, 'color: blue; font-weight: bold;', ...args);
   }
 
   warn(...args: any[]): void {
-    console.log(`%c⚠️ ${this.prefix}`, 'color: orange; font-weight: bold;', ...args);
+    console.warn(`%c⚠️ ${this.prefix}`, 'color: orange; font-weight: bold;', ...args);
   }
 
   error(...args: any[]): void {
-    console.log(`%c❌ ${this.prefix}`, 'color: red; font-weight: bold;', ...args);
+    console.error(`%c❌ ${this.prefix}`, 'color: red; font-weight: bold;', ...args);
   }
 }
