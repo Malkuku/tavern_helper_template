@@ -76,8 +76,6 @@ export const exprToHumanView = (localExpression: string): string => {
     return astToHumanView(ast);
 
   } catch (error: any) {
-    console.error("Failed to convert DSL to human view:", error);
-    // 如果解析失败，可以返回原始表达式或一个错误提示
     // 为了调试方便，这里返回错误信息
     return `[Invalid Expression: ${error.message}]`;
   }

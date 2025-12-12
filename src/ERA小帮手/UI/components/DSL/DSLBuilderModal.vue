@@ -12,7 +12,7 @@
           <div class="component-section">
             <h4>路径选择</h4>
             <div class="path-selection-row">
-              <button class="btn small" @click="$emit('select-path')">当前路径</button>
+              <button class="btn small" @click="addComponent(`$[${selectedPath}]`)">当前路径</button>
               <div v-if="uiStore.collectedPaths.length > 0" class="path-dropdown-container">
                 <select
                   v-model="selectedStoredPath"
@@ -124,8 +124,9 @@
               rows="4"
               placeholder="可以在此处手动编辑表达式..."
               class="light-theme"
-              @mouseup="updateCursorPosition"
               @keyup="updateCursorPosition"
+              @input="updateCursorPosition"
+              @click="updateCursorPosition"
             ></textarea>
             <div class="editor-actions">
               <button class="btn small danger" @click="clearExpression">清空</button>
@@ -161,8 +162,6 @@ interface Emits {
   (e: 'update:expression', value: string): void;
   (e: 'close'): void;
   (e: 'apply', expression: string): void;
-  (e: 'add-component', component: string): void;
-  (e: 'select-path'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -176,6 +175,7 @@ const valueType = ref<'num' | 'str' | 'bool'>('num');
 const selectedStoredPath = ref('');
 const expressionTextarea = ref<HTMLTextAreaElement | null>(null);
 const lastCursorPosition = ref<{start: number, end: number} | null>(null);
+const isInserting = ref(false);
 
 const emit = defineEmits<Emits>();
 const uiStore = useUiStore();
@@ -235,53 +235,53 @@ function handleApply() {
 }
 
 function addComponent(component: string) {
-  const textarea = expressionTextarea.value as HTMLTextAreaElement | null;
+  isInserting.value = true;
 
-  if (textarea) {
-    // 获取光标位置，优先使用保存的位置，其次尝试获取当前活动元素的位置
-    let startPos, endPos;
-    if (lastCursorPosition.value) {
-      startPos = lastCursorPosition.value.start;
-      endPos = lastCursorPosition.value.end;
-    } else if (textarea === document.activeElement) {
-      startPos = textarea.selectionStart;
-      endPos = textarea.selectionEnd;
-    } else {
-      // 如果无法获取光标位置，则在末尾添加
-      startPos = endPos = localExpression.value.length;
-    }
+  // 核心数据处理
+  const val = localExpression.value;
 
-    const val = localExpression.value;
+  let startPos = val.length;
+  let endPos = val.length;
 
-    // 在光标位置插入组件
-    const beforeCursor = val.substring(0, startPos);
-    const afterCursor = val.substring(endPos);
-
-    // 在添加组件前后加空格，避免粘连
-    const separatorBefore = beforeCursor && !beforeCursor.endsWith(' ') ? ' ' : '';
-    const separatorAfter = afterCursor && !afterCursor.startsWith(' ') ? ' ' : '';
-
-    localExpression.value = beforeCursor + separatorBefore + component + separatorAfter + afterCursor;
-
-    // 计算新的光标位置并保存
-    const newCursorPos = startPos + separatorBefore.length + component.length + separatorAfter.length;
-    lastCursorPosition.value = { start: newCursorPos, end: newCursorPos };
-
-    // 更新光标位置到插入内容之后
-    setTimeout(() => {
-      if (textarea) {
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-        textarea.focus();
-      }
-    }, 0);
-  } else {
-    // 如果没有textarea引用，则在末尾添加
-    const val = localExpression.value;
-    const separator = val && !val.endsWith(' ') ? ' ' : '';
-    localExpression.value += separator + component;
+  if (lastCursorPosition.value) {
+    startPos = lastCursorPosition.value.start;
+    endPos = lastCursorPosition.value.end;
   }
 
-  emit('add-component', component);
+  const beforeCursor = val.substring(0, startPos);
+  const afterCursor = val.substring(endPos);
+  const separatorBefore = beforeCursor && !beforeCursor.endsWith(' ') ? ' ' : '';
+  const separatorAfter = afterCursor && !afterCursor.startsWith(' ') ? ' ' : '';
+
+  // 3. 修改数据
+  localExpression.value = beforeCursor + separatorBefore + component + separatorAfter + afterCursor;
+
+  //eraLogger.log(localExpression.value);
+
+  // 4. 计算新的逻辑位置
+  const newCursorPos = startPos + separatorBefore.length + component.length + separatorAfter.length;
+
+  // 5. 手动更新正确的位置
+  lastCursorPosition.value = { start: newCursorPos, end: newCursorPos };
+
+  // 6. 视觉修正与解锁
+  nextTick(() => {
+    const textarea = expressionTextarea.value;
+    if (textarea) {
+      try {
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        //eraLogger.log(localExpression.value);
+      } catch (e) {
+        eraLogger.warn('Cursor restore failed', e);
+      }
+    }
+
+    // 使用 setTimeout 确保在所有 DOM 事件（包括可能的 input/change 事件）触发之后再解锁
+    setTimeout(() => {
+      isInserting.value = false;
+    }, 0);
+  });
 }
 
 function handleStoredPathSelect() {
@@ -339,24 +339,32 @@ function validateExpression() {
       toastr.success(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证通过`);
     } else {
       toastr.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败: ${result.error}`);
-      eraLogger.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`, localExpression.value, result);
+      //eraLogger.error(`${props.type === 'if' ? '条件' : '操作'}表达式语法验证失败`, localExpression.value, result);
     }
   } catch (error: any) {
     toastr.error(`表达式验证出错: ${error.message}`);
-    eraLogger.error('DSL表达式验证错误:', error);
+    //eraLogger.error('DSL表达式验证错误:', error);
   }
 }
 
-function updateCursorPosition() {
-  const textarea = expressionTextarea.value as HTMLTextAreaElement | null;
-  if (textarea && textarea === document.activeElement) {
-    // 保存光标位置
+const updateCursorPosition = () => {
+  // 【关键】如果正在执行插入组件的操作，直接忽略这次光标更新
+  // 这能防止 Vue 更新 DOM 导致光标跳到末尾时，错误地覆盖了我们的记录
+  if (isInserting.value) {
+    return;
+  }
+
+  const textarea = expressionTextarea.value;
+  if (textarea) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
     lastCursorPosition.value = {
-      start: textarea.selectionStart,
-      end: textarea.selectionEnd
+      start: start,
+      end: end
     };
   }
-}
+};
 
 // 监听visible变化，清空自定义值和光标位置
 watch(() => props.visible, (newVal) => {
