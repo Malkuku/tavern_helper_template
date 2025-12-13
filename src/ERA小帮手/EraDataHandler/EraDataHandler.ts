@@ -431,10 +431,10 @@ export const EraDataHandler = {
                   } else if (shouldLogHandleLoop) {
                       logger.add({
                         ruleName,
-                        path: currentPath || 'Global',
+                        path: currentPath || 'Global' ,
                         action: 'handle',
                         success: true,
-                        message: `[${item.key}] 计算值: ${JSON.stringify(change.value)} (无赋值操作)`,
+                        message: `[${item.key}] 计算值: ${JSON.stringify(change.value)} (非路径操作)`,
                       });
                     }
                 });
