@@ -34,22 +34,57 @@ export class DSLEvaluator {
     }
     const left = this.evaluate(node.left);
     const right = this.evaluate(node.right);
-    // ... (switch for operators remains the same)
+
+    // 为算术和比较运算符增加严格的类型检查
+    const isArithmetic = ['+', '-', '*', '/', '%', '**'].includes(node.operator);
+    const isComparison = ['<', '>', '<=', '>='].includes(node.operator);
+
+    // 1. 算术运算符：严格要求操作数必须为数字
+    if (isArithmetic) {
+      if (typeof left !== 'number' || typeof right !== 'number') {
+        const leftValStr = JSON.stringify(left);
+        const rightValStr = JSON.stringify(right);
+        throw new Error(
+          `Type mismatch for arithmetic operator '${node.operator}'. ` +
+          `Both operands must be numbers, but got ${typeof left} (${leftValStr}) and ${typeof right} (${rightValStr}).`
+        );
+      }
+    }
+
+    // 2. 比较运算符：要求操作数类型必须相同
+    if (isComparison) {
+      const leftType = typeof left;
+      const rightType = typeof right;
+
+      if (leftType !== rightType) {
+        const leftValStr = JSON.stringify(left);
+        const rightValStr = JSON.stringify(right);
+        throw new Error(
+          `Type mismatch for comparison operator '${node.operator}'. ` +
+          `Operands must be of the same type, but got ${leftType} (${leftValStr}) and ${rightType} (${rightValStr}).`
+        );
+      }
+      // 额外检查：禁止对 object 类型进行比较（除了 null）
+      if (leftType === 'object' && left !== null) {
+        throw new Error(`Cannot use operator '${node.operator}' on objects.`);
+      }
+    }
+
     switch (node.operator) {
       case '&&': return left && right;
       case '||': return left || right;
       case '==': return left == right;
       case '!=': return left != right;
-      case '<': return Number(left) < Number(right);
-      case '>': return Number(left) > Number(right);
-      case '<=': return Number(left) <= Number(right);
-      case '>=': return Number(left) >= Number(right);
-      case '+': return Number(left) + Number(right);
-      case '-': return Number(left) - Number(right);
-      case '*': return Number(left) * Number(right);
-      case '/': return Number(left) / Number(right);
-      case '%': return Number(left) % Number(right);
-      case '**': return Math.pow(Number(left), Number(right));
+      case '<': return left < right;
+      case '>': return left > right;
+      case '<=': return left <= right;
+      case '>=': return left >= right;
+      case '+': return left + right;
+      case '-': return left - right;
+      case '*': return left * right;
+      case '/': return left / right;
+      case '%': return left % right;
+      case '**': return Math.pow(left, right);
       default:
         throw new Error(`Unknown operator: ${node.operator}`);
     }
