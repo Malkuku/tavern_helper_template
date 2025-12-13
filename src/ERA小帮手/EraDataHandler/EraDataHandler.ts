@@ -298,7 +298,12 @@ export const EraDataHandler = {
       // 计算当前上下文对应的具体 Path (仅用于 Scoped 模式下的 limit/range 计算)
       let currentPath = '';
       if (rule.path !== '*') {
-        currentPath = injectWildcards(rule.path, wildcardValues);
+        // 1. 将裸路径包装成表达式格式
+        const pathAsExpr = `$[${rule.path}]`;
+        // 2. 使用 injectWildcards 进行替换，复用逻辑
+        const expandedExpr = injectWildcards(pathAsExpr, wildcardValues);
+        // 3. 去掉外层的 "$[...]"，得到纯净的、已展开的路径
+        currentPath = expandedExpr.slice(2, -1);
       }
 
       // --- 优化开始：预先计算具体的表达式字符串 ---
