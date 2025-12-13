@@ -26,13 +26,21 @@
         </button>
 
         <button
-          v-if="true"
           class="btn"
-          :class="{ active: currentRoute === '/tempTest' }"
-          @click="goToRoute('/tempTest')"
+          :class="{ active: currentRoute === '/Version' }"
+          @click="goToRoute('/Version')"
         >
-          <span class="btn-text">临时测试</span>
+          <span class="btn-text">🍎版本信息</span>
         </button>
+
+<!--        <button-->
+<!--          v-if="true"-->
+<!--          class="btn"-->
+<!--          :class="{ active: currentRoute === '/tempTest' }"-->
+<!--          @click="goToRoute('/tempTest')"-->
+<!--        >-->
+<!--          <span class="btn-text">临时测试</span>-->
+<!--        </button>-->
       </div>
 
       <!-- 关闭按钮 -->

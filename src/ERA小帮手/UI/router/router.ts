@@ -28,6 +28,11 @@ export const router = createRouter({
           path: '/tempTest',
           name: 'tempTest',
           component: () => import('../view/MyTempTest.vue'),
+        },
+        {
+          path: '/Version',
+          name: 'Version',
+          component: () => import('../view/VersionInformation.vue'),
         }
       ],
     },
