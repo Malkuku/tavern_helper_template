@@ -108,4 +108,6 @@ $(() => {
   eventOn(tavern_events.WORLDINFO_ENTRIES_LOADED,handleLoresFilter);
   eventOn(tavern_events.MESSAGE_RECEIVED,handleMessageReceived);
   eventOn(tavern_events.MESSAGE_RECEIVED, handleEraRulesOnMessageReceived);
+  // 监听 `GENERATE_AFTER_DATA` 事件，在提示词发送前处理 ERA 宏
+  //eventOn(tavern_events.GENERATE_AFTER_DATA, handleTestPrompt);
 });
