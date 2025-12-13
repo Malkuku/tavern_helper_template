@@ -1,0 +1,39 @@
+{
+  "rules": {
+    "初始化压力测试计数器": {
+      "enable": true,
+      "path": "*",
+      "order": 0,
+      "handle": {
+        "清零计数器": {
+          "order": 0,
+          "op": "<<op> @[{g}stress_counter] #[=] &[{num}0] >"
+        }
+      }
+    },
+    "执行百万次循环": {
+      "enable": true,
+      "path": "*",
+      "order": 1,
+      "loop": 1000,
+      "handle": {
+        "内循环递增": {
+          "order": 0,
+          "loop": 1000,
+          "op": "<<op> @[{g}stress_counter] #[=] @[{g}stress_counter] #[+] &[{num}1] >"
+        }
+      }
+    },
+    "验证并输出结果": {
+      "enable": true,
+      "path": "*",
+      "order": 2,
+      "handle": {
+        "将结果写入数据": {
+          "order": 0,
+          "op": "<<op> $[世界.时间] #[=] @[{g}stress_counter] >"
+        }
+      }
+    }
+  }
+}

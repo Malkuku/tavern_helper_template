@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "初始化累加器": {
+      "enable": true,
+      "path": "*",
+      "order": 0,
+      "handle": {
+        "清零计数器": {
+          "order": 0,
+          "op": "<<op> @[{g}counter] #[=] &[{num}0] >"
+        },
+        "清零累加器": {
+          "order": 1,
+          "op": "<<op> @[{g}accumulator] #[=] &[{num}0] >"
+        }
+      }
+    },
+    "循环累加": {
+      "enable": true,
+      "path": "*",
+      "order": 1,
+      "loop": 1000,
+      "handle": {
+        "计数器加一": {
+          "order": 0,
+          "op": "<<op> @[{g}counter] #[=] @[{g}counter] #[+] &[{num}1] >"
+        },
+        "执行累加": {
+          "order": 1,
+          "op": "<<op> @[{g}accumulator] #[=] @[{g}accumulator] #[+] @[{g}counter] >"
+        }
+      }
+    },
+    "输出结果": {
+      "enable": true,
+      "path": "*",
+      "order": 2,
+      "handle": {
+        "将结果写入数据": {
+          "order": 0,
+          "op": "<<op> $[世界.日期] #[=] @[{g}accumulator] >"
+        },
+        "将循环次数写入数据": {
+          "order": 1,
+          "op": "<<op> $[世界.时间] #[=] @[{g}counter] >"
+        }
+      }
+    }
+  }
+}

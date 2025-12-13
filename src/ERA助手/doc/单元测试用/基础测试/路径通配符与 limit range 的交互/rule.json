@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "通配符下的Limit和Range": {
+      "enable": true,
+      "path": "角色.*.特殊状态.好感度",
+      "order": 0,
+      "limit": [-10, 10],
+      "range": [0, 650]
+    }
+  }
+}
