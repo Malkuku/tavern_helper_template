@@ -29,7 +29,7 @@
         <input
           type="checkbox"
           :checked="asyncAnalyzeStore.isAsync"
-          @change="asyncAnalyzeStore.isAsync = !asyncAnalyzeStore.isAsync"
+          @change="()=>{asyncAnalyzeStore.isAsync = !asyncAnalyzeStore.isAsync}"
         />
         <span class="switch"></span>
       </label>
@@ -131,7 +131,7 @@
     <br>
 
     <!-- 底部按钮 -->
-    <div class="footer">
+    <div v-if="currentPage === 'model'" class="footer">
       <button class="btn" @click="close">取消</button>
       <button class="btn danger" @click="handleClear">清空</button>
       <button class="btn primary" @click="handleSave">保存</button>
@@ -146,7 +146,6 @@ import * as toastr from 'toastr'
 import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore';
 import { eraLogger } from '../../utils/EraHelperLogger';
 import WorldInfoAndRegexConfig from '../components/WorldInfoAndRegexConfig.vue';
-import { handleEraRulesOnMessageReceived } from '../../AsyncAnalyze/handleAsyncAnalyzeEvents';
 
 const uiStore = useUiStore();
 const asyncAnalyzeStore = useAsyncAnalyzeStore();

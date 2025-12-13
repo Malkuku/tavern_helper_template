@@ -4,7 +4,6 @@
     <div class="collapsible-section">
       <div class="section-header" @click="toggleWorldInfoSection">
         <h4>世界书配置</h4>
-        <span class="toggle-icon">{{ isWorldInfoOpen ? '−' : '+' }}</span>
       </div>
       <div v-show="isWorldInfoOpen" class="section-content">
         <div class="world-info-config">
@@ -90,6 +89,7 @@
 
     <!-- 操作按钮 -->
     <div class="actions">
+      <button class="btn primary" @click="refreshWorldBooks">刷新世界书列表</button>
       <button class="btn danger" @click="handleClear">清空配置</button>
       <FileImportExport
         import-text="导入配置"
@@ -167,6 +167,12 @@ const loadWorldBookNames = async () => {
     console.error('获取世界书名称失败:', error)
     toastr.error('获取世界书名称失败')
   }
+}
+
+// 刷新世界书列表
+const refreshWorldBooks = async () => {
+  await loadWorldBookNames()
+  toastr.info('世界书列表已刷新')
 }
 
 // 添加世界书条目
@@ -362,6 +368,30 @@ watch(
   user-select: none;
   font-weight: 500;
   color: #111827;
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background: #e5e7eb;
+  }
+}
+
+.refresh-icon {
   font-size: 14px;
 }
 
