@@ -8,6 +8,7 @@ import { eraLogger } from '../../utils/EraHelperLogger';
 
 export interface DSLResultItem {
   path?: string; // 如果是赋值操作，返回被修改的路径
+  targetType?: 'data' | 'temp'; // 赋值目标的类型
   value: any;    // 表达式的计算结果
 }
 
@@ -66,21 +67,26 @@ export class DSLEngine {
         const resultValue = evaluator.evaluate(ast);
 
         // 4. 结果封装
-        // 我们需要判断这是否是一个赋值操作，以便在返回结果中带上 path
+        // 我们需要判断这是否是一个赋值操作，并区分目标类型
         let modifiedPath: string | undefined = undefined;
+        let targetType: 'data' | 'temp' | undefined = undefined;
 
-        // 检查 AST 根节点是否为赋值操作 (BinaryOp with operator '=')
-        // 并且左侧必须是一个 Identifier
-        if (
-          ast.type === 'BinaryOp' &&
-          ast.operator === '=' &&
-          ast.left.type === 'Identifier'
-        ) {
-          modifiedPath = ast.left.path;
+        // 检查 AST 根节点是否为赋值操作
+        if (ast.type === 'BinaryOp' && ast.operator === '=') {
+          if (ast.left.type === 'Identifier') {
+            // 目标是数据路径
+            modifiedPath = ast.left.path;
+            targetType = 'data';
+          } else if (ast.left.type === 'TempVariable') {
+            // 目标是临时变量
+            modifiedPath = `@(${ast.left.scope})${ast.left.name}`; // 格式化变量名用于日志
+            targetType = 'temp';
+          }
         }
 
         results.push({
           path: modifiedPath,
+          targetType: targetType, // 传递目标类型
           value: resultValue
         });
       }

@@ -384,7 +384,7 @@ export const EraDataHandler = {
                   path: currentPath || 'Global',
                   action: 'skip',
                   success: true,
-                  message: `[${item.key}] 正在跳过循环 ${LOG_WINDOW + 1} 到 ${hLoop - LOG_WINDOW} 的日志...`
+                  message: `Loop ${i + 1}/${hLoop} [${item.key}] 正在跳过循环 ${LOG_WINDOW + 1} 到 ${hLoop - LOG_WINDOW} 的日志...`
                 });
               }
 
@@ -398,7 +398,7 @@ export const EraDataHandler = {
                       path: currentPath || 'Global',
                       action: 'error',
                       success: false,
-                      message: `处理 [${item.key}] 'if' 条件执行失败: ${res.error}`
+                      message: `Loop ${i + 1}/${hLoop} 处理 [${item.key}] 'if' 条件执行失败: ${res.error}`
                     });
                   }
                   break; // 条件执行失败，跳出此 handle 的循环
@@ -413,8 +413,8 @@ export const EraDataHandler = {
               // 应用 DSL 引擎返回的变更
               if (opRes.success && Array.isArray(opRes.value)) {
                 opRes.value.forEach(change => {
-                  // 只有当返回结果包含 path 时，才认为是一次有效的赋值操作
-                  if (change.path) {
+                  // 1. 处理对数据路径的赋值 (必须总是执行，无论是否记录日志)
+                  if (change.targetType === 'data' && change.path) {
                     const oldValue = DSLHandler.getValue(data, change.path);
                     DSLHandler.setValue(data, change.path, change.value);
 
@@ -424,19 +424,33 @@ export const EraDataHandler = {
                         path: change.path,
                         action: 'handle',
                         success: true,
-                        message: `[${item.key}] Loop ${i + 1}/${hLoop} (Ctx: ${wildcardValues.join('.')})`,
+                        message: `Loop ${i + 1}/${hLoop} [${item.key}] (Ctx: ${wildcardValues.join('.')})`,
                         changes: { from: oldValue, to: change.value }
                       });
                     }
-                  } else if (shouldLogHandleLoop) {
+                  }
+                  // 2. 如果需要记录日志，再处理其他情况
+                  else if (shouldLogHandleLoop) {
+                    if (change.targetType === 'temp' && change.path) {
+                      // 记录对临时变量的赋值
+                      logger.add({
+                        ruleName,
+                        path: change.path, // 将变量名作为 path 记录
+                        action: 'handle',
+                        success: true,
+                        message: `Loop ${i + 1}/${hLoop} [${item.key}] 赋值给临时变量, 值为: ${JSON.stringify(change.value)}`,
+                      });
+                    } else {
+                      // 记录无赋值的纯计算操作
                       logger.add({
                         ruleName,
                         path: currentPath || 'Global' ,
                         action: 'handle',
                         success: true,
-                        message: `[${item.key}] 计算值: ${JSON.stringify(change.value)} (非路径操作)`,
+                        message: `Loop ${i + 1}/${hLoop} [${item.key}] 计算值: ${JSON.stringify(change.value)} (无赋值操作)`,
                       });
                     }
+                  }
                 });
               } else if (!opRes.success) {
                 if (shouldLogHandleLoop) {
@@ -445,7 +459,7 @@ export const EraDataHandler = {
                     path: currentPath || 'Global',
                     action: 'handle',
                     success: false,
-                    message: `[${item.key}] 错误: ${opRes.error}`
+                    message: `Loop ${i + 1}/${hLoop} [${item.key}] 错误: ${opRes.error}`
                   });
                 }
               }
