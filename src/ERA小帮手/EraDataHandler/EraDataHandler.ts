@@ -116,7 +116,7 @@ export function diffObjects(current: any, original: any): any {
   if (typeof original !== 'object' || original === null) {
     // 但要先检查 current 是否是对象，如果是，说明类型变了，应忽略
     if (typeof current === 'object' && current !== null) {
-      console.warn(`[diffObjects] Ignored structural change: original is not an object, but current is.`);
+      eraLogger.warn(`[diffObjects] 已忽略结构变化: 原始值不是对象，但当前值是对象。`);
       return {};
     }
     // 如果 original 和 current 都不是对象，且不相等，返回 current
@@ -125,7 +125,7 @@ export function diffObjects(current: any, original: any): any {
 
   // 如果 original 是对象，但 current 不是，这是非法的结构变化，忽略。
   if (typeof current !== 'object' || current === null) {
-    console.warn(`[diffObjects] Ignored structural change: original is an object, but current is not.`);
+    eraLogger.warn(`[diffObjects] 已忽略结构变化: 原始值是对象，但当前值不是对象。`);
     return {};
   }
 
@@ -144,7 +144,7 @@ export function diffObjects(current: any, original: any): any {
   for (const key in original) {
     // 确保 current 中也存在这个 key，否则是结构差异，跳过
     if (!Object.prototype.hasOwnProperty.call(current, key)) {
-      console.warn(`[diffObjects] Ignored structural change: key '${key}' was removed in current object.`);
+      eraLogger.warn(`[diffObjects] 已忽略结构变化: 键 '${key}' 在当前对象中已被移除。`);
       continue;
     }
 
@@ -153,7 +153,7 @@ export function diffObjects(current: any, original: any): any {
 
     //拒绝 NaN
     if (typeof currentValue === 'number' && Number.isNaN(currentValue)) {
-      console.warn(`[diffObjects] Ignored NaN value for key '${key}'.`);
+      eraLogger.warn(`[diffObjects] 已忽略键 '${key}' 的 NaN 值。`);
       continue;
     }
 
@@ -165,7 +165,7 @@ export function diffObjects(current: any, original: any): any {
     // 检查类型是否一致
     const getType = (value: any) => value === null ? 'null' : typeof value;
     if (getType(currentValue) !== getType(originalValue)) {
-      console.warn(`[diffObjects] Ignored type mismatch for key '${key}'. Original: ${getType(originalValue)}, Current: ${getType(currentValue)}.`);
+      eraLogger.warn(`[diffObjects] 已忽略键 '${key}' 的类型不匹配。原始值: ${getType(originalValue)}, 当前值: ${getType(currentValue)}。`);
       continue;
     }
 
@@ -241,7 +241,7 @@ export const EraDataHandler = {
             path: rule.path,
             action: 'error',
             success: false,
-            message: e.message || 'Unknown error'
+            message: e.message || '未知错误'
           });
         }
       }
@@ -336,7 +336,7 @@ export const EraDataHandler = {
             path: currentPath || 'Global',
             action: 'skip',
             success: true,
-            message: `Skipping logs from loop ${LOG_WINDOW + 1} to ${ruleLoopCount - LOG_WINDOW}...`
+            message: `正在跳过循环 ${LOG_WINDOW + 1} 到 ${ruleLoopCount - LOG_WINDOW} 的日志...`
           });
         }
 
@@ -354,7 +354,7 @@ export const EraDataHandler = {
                 path: currentPath || 'Global',
                 action: 'error', // 使用 'error' 或 'if-error'
                 success: false,
-                message: `Rule 'if' condition failed to execute: ${ifRes.error}`
+                message: `规则 'if' 条件执行失败: ${ifRes.error}`
               });
             }
           } else {
@@ -384,7 +384,7 @@ export const EraDataHandler = {
                   path: currentPath || 'Global',
                   action: 'skip',
                   success: true,
-                  message: `[${item.key}] Skipping logs from loop ${LOG_WINDOW + 1} to ${hLoop - LOG_WINDOW}...`
+                  message: `[${item.key}] 正在跳过循环 ${LOG_WINDOW + 1} 到 ${hLoop - LOG_WINDOW} 的日志...`
                 });
               }
 
@@ -398,7 +398,7 @@ export const EraDataHandler = {
                       path: currentPath || 'Global',
                       action: 'error',
                       success: false,
-                      message: `Handle [${item.key}] 'if' condition failed to execute: ${res.error}`
+                      message: `处理 [${item.key}] 'if' 条件执行失败: ${res.error}`
                     });
                   }
                   break; // 条件执行失败，跳出此 handle 的循环
@@ -434,7 +434,7 @@ export const EraDataHandler = {
                         path: currentPath || 'Global',
                         action: 'handle',
                         success: true,
-                        message: `[${item.key}] Evaluated value: ${JSON.stringify(change.value)} (No assignment)`,
+                        message: `[${item.key}] 计算值: ${JSON.stringify(change.value)} (无赋值操作)`,
                       });
                     }
                 });
@@ -445,7 +445,7 @@ export const EraDataHandler = {
                     path: currentPath || 'Global',
                     action: 'handle',
                     success: false,
-                    message: `[${item.key}] Error: ${opRes.error}`
+                    message: `[${item.key}] 错误: ${opRes.error}`
                   });
                 }
               }
@@ -493,7 +493,7 @@ export const EraDataHandler = {
               path: currentPath,
               action: 'limit',
               success: true,
-              message: `Delta ${delta} limited to [${minDelta}, ${maxDelta}]`,
+              message: `增量 ${delta} 已限制在 [${minDelta}, ${maxDelta}] 范围内`,
               changes: { from: currentV, to: finalVal }
             });
           }
@@ -517,7 +517,7 @@ export const EraDataHandler = {
               path: currentPath,
               action: 'range',
               success: true,
-              message: `Value clamped to [${min}, ${max}]`,
+              message: `值已限制在 [${min}, ${max}] 范围内`,
               changes: { from: valAfterLimit, to: clamped }
             });
           }

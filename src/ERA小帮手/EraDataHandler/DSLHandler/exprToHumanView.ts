@@ -81,6 +81,6 @@ export const exprToHumanView = (localExpression: string): string => {
 
   } catch (error: any) {
     // 为了调试方便，这里返回错误信息
-    return `[Invalid Expression: ${error.message}]`;
+    return `[无效表达式: ${error.message}]`;
   }
 };

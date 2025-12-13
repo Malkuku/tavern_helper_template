@@ -50,14 +50,14 @@ export class DSLParser {
 
   parse(): ASTNode {
     if (this.tokens.length === 0 || this.tokens[0].type === 'EOF') {
-      throw new Error("Empty expression");
+      throw new Error("表达式为空");
     }
     const node = this.parseExpression();
 
     //检查是否所有 Token 都被消费
     if (!this.isAtEnd()) {
       const token = this.peek();
-      throw new Error(`Unexpected token after expression: ${token.type} ('${token.value}') at position ${token.start}`);
+      throw new Error(`表达式后面有意外的标记: ${token.type} ('${token.value}') 位于位置 ${token.start}`);
     }
 
     return node;
@@ -79,7 +79,7 @@ export class DSLParser {
 
       // 赋值的左侧必须是标识符或临时变量
       if (node.type !== 'Identifier' && node.type !== 'TempVariable') {
-        throw new Error(`Invalid assignment target: ${node.type}. Must be a path or a temporary variable.`);
+        throw new Error(`无效的赋值目标: ${node.type}。必须是一个路径或临时变量。`);
       }
 
       node = { type: 'BinaryOp', operator, left: node, right };
@@ -163,7 +163,7 @@ export class DSLParser {
   private parsePrimary(): ASTNode {
     if (this.match('LPAREN')) {
       const expr = this.parseExpression();
-      this.consume('RPAREN', 'Expected ")" after expression');
+      this.consume('RPAREN', '表达式后面需要 ")"');
       return expr;
     }
 
@@ -177,7 +177,7 @@ export class DSLParser {
       const match = rawValue.match(/^\{(g|s)\}(.+)$/);
       if (!match) {
         // This should not happen if lexer is correct
-        throw new Error(`Internal parser error: Invalid temp variable format ${rawValue}`);
+        throw new Error(`解析器内部错误: 无效的临时变量格式 ${rawValue}`);
       }
       const [, scope, name] = match;
       return { type: 'TempVariable', scope: scope as 'g' | 's', name };
@@ -199,11 +199,11 @@ export class DSLParser {
         args.push(this.parsePrimary());
       }
 
-      this.consume('RBRACKET', `Expected "]" after function arguments for ${funcName}`);
+      this.consume('RBRACKET', `函数参数 ${funcName} 后面需要 "]"`);
       return { type: 'FunctionCall', name: funcName, args };
     }
 
-    throw new Error(`Unexpected token: ${this.peek().type} (${this.peek().value}) at ${this.peek().start}`);
+    throw new Error(`意外的标记: ${this.peek().type} (${this.peek().value}) 位于 ${this.peek().start}`);
   }
 
   // --- Helpers ---
@@ -232,7 +232,7 @@ export class DSLParser {
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
     const token = this.peek();
-    throw new Error(`${message} (at position ${token.start})`);
+    throw new Error(`${message} (位于位置 ${token.start})`);
   }
 
   private check(type: TokenType, value?: string): boolean {

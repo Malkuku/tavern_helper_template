@@ -98,7 +98,7 @@ export class DSLLexer {
         continue;
       }
 
-      throw new Error(`Unexpected character: ${char} at position ${this.position}`);
+      throw new Error(`意外的字符: ${char} 位于位置 ${this.position}`);
     }
 
     this.addToken('EOF', '');
@@ -117,7 +117,7 @@ export class DSLLexer {
     // $[path]
     const start = this.position;
     this.position++; // $
-    if (this.peek() !== '[') throw new Error('Expected "[" after "$"');
+    if (this.peek() !== '[') throw new Error('在 "$" 后面需要 "["');
     this.position++; // [
 
     const contentStart = this.position;
@@ -126,7 +126,7 @@ export class DSLLexer {
     }
 
     const path = this.input.slice(contentStart, this.position);
-    if (this.peek() !== ']') throw new Error('Unclosed identifier');
+    if (this.peek() !== ']') throw new Error('未闭合的标识符');
     this.position++; // ]
 
     this.tokens.push({ type: 'IDENTIFIER', value: path, start, end: this.position });
@@ -137,7 +137,7 @@ export class DSLLexer {
     // @[{g|s}name]
     const start = this.position;
     this.position++; // @
-    if (this.peek() !== '[') throw new Error('Expected "[" after "@"');
+    if (this.peek() !== '[') throw new Error('在 "@" 后面需要 "["');
     this.position++; // [
 
     const contentStart = this.position;
@@ -146,12 +146,12 @@ export class DSLLexer {
     }
 
     const content = this.input.slice(contentStart, this.position);
-    if (this.peek() !== ']') throw new Error('Unclosed temporary variable');
+    if (this.peek() !== ']') throw new Error('未闭合的临时变量');
     this.position++; // ]
 
     // 验证内部格式 {g|s}name
     if (!/^\{(g|s)\}\w+$/.test(content)) {
-      throw new Error(`Invalid temporary variable format: @[${content}]`);
+      throw new Error(`无效的临时变量格式: @[${content}]`);
     }
 
     this.tokens.push({ type: 'TEMP_VARIABLE', value: content, start, end: this.position });
@@ -161,7 +161,7 @@ export class DSLLexer {
     // &[{type}value]
     const start = this.position;
     this.position++; // &
-    if (this.peek() !== '[') throw new Error('Expected "[" after "&"');
+    if (this.peek() !== '[') throw new Error('在 "&" 后面需要 "["');
     this.position++; // [
 
     const contentStart = this.position;
@@ -170,7 +170,7 @@ export class DSLLexer {
     }
 
     const raw = this.input.slice(contentStart, this.position);
-    if (this.peek() !== ']') throw new Error('Unclosed literal');
+    if (this.peek() !== ']') throw new Error('未闭合的字面量');
     this.position++; // ]
 
     this.tokens.push({ type: 'LITERAL', value: raw, start, end: this.position });
@@ -180,7 +180,7 @@ export class DSLLexer {
     // ?[==]
     const start = this.position;
     this.position++; // ?
-    if (this.peek() !== '[') throw new Error('Expected "[" after "?"');
+    if (this.peek() !== '[') throw new Error('在 "?" 后面需要 "["');
     this.position++; // [
 
     const contentStart = this.position;
@@ -199,7 +199,7 @@ export class DSLLexer {
     // #[+] OR #[{ln}
     const start = this.position;
     this.position++; // #
-    if (this.peek() !== '[') throw new Error('Expected "[" after "#"');
+    if (this.peek() !== '[') throw new Error('在 "#" 后面需要 "["');
     this.position++; // [
 
     // 检查是否是函数调用：#[{
@@ -210,7 +210,7 @@ export class DSLLexer {
         this.position++;
       }
       const funcName = this.input.slice(nameStart, this.position);
-      if (this.peek() !== '}') throw new Error('Unclosed function name');
+      if (this.peek() !== '}') throw new Error('未闭合的函数名');
       this.position++; // }
 
       this.tokens.push({ type: 'FUNC_START', value: funcName, start, end: this.position });
@@ -221,7 +221,7 @@ export class DSLLexer {
         this.position++;
       }
       const op = this.input.slice(contentStart, this.position);
-      if (this.peek() !== ']') throw new Error('Unclosed operator');
+      if (this.peek() !== ']') throw new Error('未闭合的操作符');
       this.position++; // ]
 
       this.tokens.push({ type: 'OP_MATH', value: op, start, end: this.position });

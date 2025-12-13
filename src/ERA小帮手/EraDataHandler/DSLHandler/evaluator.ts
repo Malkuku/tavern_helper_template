@@ -24,12 +24,12 @@ export class DSLEvaluator {
       case 'TempVariable':
         return this.evaluateTempVariable(node);
       default:
-        throw new Error(`Unknown node type: ${(node as any).type}`);
+        throw new Error(`未知的节点类型: ${(node as any).type}`);
     }
   }
 
   private evaluateBinaryOp(node: BinaryOpNode): any {
-    if (node.operator === '=') {
+    if (node.operator === '=') { // 赋值不会检查类型，这是为了将来可能的扩展预留的机制
       return this.performAssignment(node.left, node.right);
     }
     const left = this.evaluate(node.left);
@@ -45,8 +45,8 @@ export class DSLEvaluator {
         const leftValStr = JSON.stringify(left);
         const rightValStr = JSON.stringify(right);
         throw new Error(
-          `Type mismatch for arithmetic operator '${node.operator}'. ` +
-          `Both operands must be numbers, but got ${typeof left} (${leftValStr}) and ${typeof right} (${rightValStr}).`
+          `算术运算符 '${node.operator}' 类型不匹配。` +
+          `两个操作数都必须是数字，但得到了 ${typeof left} (${leftValStr}) 和 ${typeof right} (${rightValStr})。`
         );
       }
     }
@@ -60,13 +60,13 @@ export class DSLEvaluator {
         const leftValStr = JSON.stringify(left);
         const rightValStr = JSON.stringify(right);
         throw new Error(
-          `Type mismatch for comparison operator '${node.operator}'. ` +
-          `Operands must be of the same type, but got ${leftType} (${leftValStr}) and ${rightType} (${rightValStr}).`
+          `比较运算符 '${node.operator}' 类型不匹配。` +
+          `操作数必须是相同类型，但得到了 ${leftType} (${leftValStr}) 和 ${rightType} (${rightValStr})。`
         );
       }
       // 额外检查：禁止对 object 类型进行比较（除了 null）
       if (leftType === 'object' && left !== null) {
-        throw new Error(`Cannot use operator '${node.operator}' on objects.`);
+        throw new Error(`不能在对象上使用运算符 '${node.operator}'。`);
       }
     }
 
@@ -86,7 +86,7 @@ export class DSLEvaluator {
       case '%': return left % right;
       case '**': return Math.pow(left, right);
       default:
-        throw new Error(`Unknown operator: ${node.operator}`);
+        throw new Error(`未知的运算符: ${node.operator}`);
     }
   }
 
@@ -105,7 +105,7 @@ export class DSLEvaluator {
     // 根据 scope 决定从哪个变量池读取
     const store = node.scope === 'g' ? this.globalVars : this.localVars;
     if (!store.has(node.name)) {
-      throw new Error(`Temporary variable '@[${node.scope}]${node.name}' has not been defined.`);
+      throw new Error(`临时变量 '@[${node.scope}]${node.name}' 尚未定义。`);
     }
     return store.get(node.name);
   }
@@ -125,7 +125,7 @@ export class DSLEvaluator {
       case 'ceil': return Math.ceil(Number(args[0]));
       case 'max': return Math.max(...args.map(Number));
       case 'min': return Math.min(...args.map(Number));
-      default: throw new Error(`Unknown function: ${node.name}`);
+      default: throw new Error(`未知的函数: ${node.name}`);
     }
   }
 
@@ -135,7 +135,7 @@ export class DSLEvaluator {
     // 当路径解析结果为 undefined 时，应立即抛出错误，而不是静默返回
     if (value === undefined) {
       // 这里的错误信息对于调试非常有用
-      throw new Error(`Path '${node.path}' does not exist or its value is undefined.`);
+      throw new Error(`路径 '${node.path}' 不存在或其值未定义。`);
     }
     return value;
   }

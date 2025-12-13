@@ -87,7 +87,7 @@ export class DSLEngine {
 
       return { success: true, value: results };
     } catch (error: any) {
-      return { success: false, error: error.message || 'Unknown error during DSL execution' };
+      return { success: false, error: error.message || 'DSL执行过程中发生未知错误' };
     }
   }
 
