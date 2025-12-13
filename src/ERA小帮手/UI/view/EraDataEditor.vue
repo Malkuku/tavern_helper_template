@@ -5,13 +5,17 @@
       <div class="toolbar-left">
         <button class="toolbar-btn" :disabled="loading" @click="loadData">
           <svg class="icon" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M13.5 8C13.5 11.0376 11.0376 13.5 8 13.5C4.96243 13.5 2.5 11.0376 2.5 8C2.5 4.96243 4.96243 2.5 8 2.5C9.37676 2.5 10.6396 3.01285 11.596 3.85652L12.5 2.5H14V6H10.5V4.5H11.7906C11.0431 3.53528 9.8382 3 8.5 3C6.01472 3 4 5.01472 4 7.5C4 9.98528 6.01472 12 8.5 12C10.9853 12 13 9.98528 13 7.5H14.5C14.5 11.0376 11.0376 14.5 8 14.5C4.96243 14.5 2.5 12.0376 2.5 9C2.5 5.96243 4.96243 3.5 8 3.5C9.4619 3.5 10.7872 4.11611 11.7227 5.12644L12.5 6H14V2.5H12.5L11.596 3.85652Z"/>
+            <path
+              d="M13.5 8C13.5 11.0376 11.0376 13.5 8 13.5C4.96243 13.5 2.5 11.0376 2.5 8C2.5 4.96243 4.96243 2.5 8 2.5C9.37676 2.5 10.6396 3.01285 11.596 3.85652L12.5 2.5H14V6H10.5V4.5H11.7906C11.0431 3.53528 9.8382 3 8.5 3C6.01472 3 4 5.01472 4 7.5C4 9.98528 6.01472 12 8.5 12C10.9853 12 13 9.98528 13 7.5H14.5C14.5 11.0376 11.0376 14.5 8 14.5C4.96243 14.5 2.5 12.0376 2.5 9C2.5 5.96243 4.96243 3.5 8 3.5C9.4619 3.5 10.7872 4.11611 11.7227 5.12644L12.5 6H14V2.5H12.5L11.596 3.85652Z"
+            />
           </svg>
           刷新数据
         </button>
         <button class="toolbar-btn" :disabled="saving || !hasChanges" @click="saveData">
           <svg class="icon" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M13.3536 2.64645C13.5488 2.84171 13.5488 3.15829 13.3536 3.35355L6.35355 10.3536C6.15829 10.5488 5.84171 10.5488 5.64645 10.3536L3.64645 8.35355C3.45118 8.15829 3.45118 7.84171 3.64645 7.64645C3.84171 7.45118 4.15829 7.45118 4.35355 7.64645L6 9.29289L12.6464 2.64645C12.8417 2.45118 13.1583 2.45118 13.3536 2.64645Z"/>
+            <path
+              d="M13.3536 2.64645C13.5488 2.84171 13.5488 3.15829 13.3536 3.35355L6.35355 10.3536C6.15829 10.5488 5.84171 10.5488 5.64645 10.3536L3.64645 8.35355C3.45118 8.15829 3.45118 7.84171 3.64645 7.64645C3.84171 7.45118 4.15829 7.45118 4.35355 7.64645L6 9.29289L12.6464 2.64645C12.8417 2.45118 13.1583 2.45118 13.3536 2.64645Z"
+            />
           </svg>
           保存更改
         </button>
@@ -22,7 +26,7 @@
           import-text="导入JSON"
           export-text="导出草稿"
           :require-confirm="true"
-          @file-loaded="handleFileLoaded"
+          @import-confirmed="handleFileLoaded"
           @export-data="exportDraft"
         />
       </div>
@@ -49,80 +53,57 @@
 
       <div v-else-if="!currentData || Object.keys(currentData).length === 0" class="empty-container">
         <svg class="empty-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
-          <path d="M7 7h10v2H7zm0 4h10v2H7zm0 4h7v2H7z"/>
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" />
+          <path d="M7 7h10v2H7zm0 4h10v2H7zm0 4h7v2H7z" />
         </svg>
         <div class="empty-text">暂无数据</div>
-        <button class="empty-btn" @click="loadData">
-          点击加载数据
-        </button>
+        <button class="empty-btn" @click="loadData">点击加载数据</button>
       </div>
 
       <div v-else class="json-editor-wrapper">
         <!-- 工具按钮区 -->
         <div class="edit-tools">
           <div class="mode-buttons">
-            <button
-              class="mode-btn"
-              :class="{ active: editMode === 'tree' }"
-              @click="editMode = 'tree'"
-            >
+            <button class="mode-btn" :class="{ active: editMode === 'tree' }" @click="editMode = 'tree'">
               <svg class="mode-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M14 2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2zm0 5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7zm0 5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2z"/>
+                <path
+                  d="M14 2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2zm0 5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7zm0 5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2z"
+                />
               </svg>
               树形视图
             </button>
-            <button
-              class="tool-btn"
-              :disabled="editMode !== 'tree'"
-              @click="openAddFieldModal"
-            >
+            <button class="tool-btn" :disabled="editMode !== 'tree'" @click="openAddFieldModal">
               <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 0 1 0 2H9v6a1 1 0 0 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
+                <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 0 1 0 2H9v6a1 1 0 0 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z" />
               </svg>
               添加字段
             </button>
-            <button
-              class="mode-btn"
-              :class="{ active: editMode === 'raw' }"
-              @click="editMode = 'raw'"
-            >
+            <button class="mode-btn" :class="{ active: editMode === 'raw' }" @click="editMode = 'raw'">
               <svg class="mode-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M13.5 2h-11C1.67 2 1 2.67 1 3.5v9c0 .83.67 1.5 1.5 1.5h11c.83 0 1.5-.67 1.5-1.5v-9c0-.83-.67-1.5-1.5-1.5zM4 4h8v1H4V4zm0 3h8v1H4V7zm0 3h8v1H4v-1z"/>
+                <path
+                  d="M13.5 2h-11C1.67 2 1 2.67 1 3.5v9c0 .83.67 1.5 1.5 1.5h11c.83 0 1.5-.67 1.5-1.5v-9c0-.83-.67-1.5-1.5-1.5zM4 4h8v1H4V4zm0 3h8v1H4V7zm0 3h8v1H4v-1z"
+                />
               </svg>
               原始JSON
             </button>
-          <button
-            class="tool-btn"
-            :class="{ danger: editMode === 'raw' }"
-            :disabled="editMode !== 'raw'"
-            @click="formatJson"
-          >
-            <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z"/>
-            </svg>
-            格式化
-          </button>
+            <button
+              class="tool-btn"
+              :class="{ danger: editMode === 'raw' }"
+              :disabled="editMode !== 'raw'"
+              @click="formatJson"
+            >
+              <svg class="tool-icon" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z" />
+              </svg>
+              格式化
+            </button>
+          </div>
         </div>
-      </div>
 
         <!-- 树形编辑视图 -->
         <div v-if="editMode === 'tree'" class="tree-editor">
-          <div class="json-tree">
-            <JsonNodeEdit
-              v-for="node in filteredTreeData"
-              :key="node.path"
-              :node="node"
-              :edit-mode="true"
-              :editing-node="editingNode"
-              @toggle="toggleNode"
-              @edit-start="startEdit"
-              @edit-cancel="cancelEdit"
-              @edit-save="saveEdit"
-              @add-child="addChildToNode"
-              @remove="removeNode"
-            />
-          </div>
+          <!-- 使用重构后的 JsonTree 组件 -->
+          <JsonTreeEdit v-model:data="currentData" :search-query="searchQuery" />
         </div>
 
         <!-- 原始JSON编辑视图 -->
@@ -131,15 +112,10 @@
             <span class="editor-info">编辑原始JSON数据</span>
             <span class="editor-size">字符数：{{ rawJsonValue.length }}</span>
           </div>
-          <textarea
-            v-model="rawJsonValue"
-            class="json-editor"
-            placeholder="在此输入或编辑JSON数据..."
-            @input="onRawJsonChange"
-          ></textarea>
+          <textarea v-model="rawJsonValue" class="json-editor" placeholder="在此输入或编辑JSON数据..."></textarea>
           <div v-if="jsonParseError" class="json-error">
             <svg class="error-icon" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7 3h2v7H7V3zm0 9h2v2H7v-2z"/>
+              <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7 3h2v7H7V3zm0 9h2v2H7v-2z" />
             </svg>
             JSON语法错误：{{ jsonParseError }}
           </div>
@@ -164,15 +140,8 @@
         <div class="modal-body">
           <div class="form-group">
             <label>字段路径：</label>
-            <input
-              v-model="newField.path"
-              type="text"
-              placeholder="例如：user.info.name"
-              class="form-input"
-            >
-            <div class="form-hint">
-              支持多层路径，用点分隔。如果父路径不存在会自动创建对象。
-            </div>
+            <input v-model="newField.path" type="text" placeholder="例如：user.info.name" class="form-input" />
+            <div class="form-hint">支持多层路径，用点分隔。如果父路径不存在会自动创建对象。</div>
           </div>
 
           <div class="form-group">
@@ -183,19 +152,14 @@
               <option value="boolean">布尔值</option>
               <option value="null">空值 (null)</option>
               <option value="object">对象 (JSON)</option>
-              <option value="array">数组 (JSON)</option>
+              <option value="array">数组</option>
             </select>
           </div>
 
           <!-- 字符串输入 -->
           <div v-if="newField.type === 'string'" class="form-group">
             <label>字符串值：</label>
-            <input
-              v-model="newField.value"
-              type="text"
-              placeholder="输入字符串值"
-              class="form-input"
-            >
+            <input v-model="newField.value" type="text" placeholder="输入字符串值" class="form-input" />
           </div>
 
           <!-- 数字输入 -->
@@ -207,7 +171,7 @@
               placeholder="输入数字值"
               class="form-input"
               step="any"
-            >
+            />
           </div>
 
           <!-- 布尔值选择 -->
@@ -215,19 +179,11 @@
             <label>布尔值：</label>
             <div class="boolean-options">
               <label class="boolean-option">
-                <input
-                  v-model="newField.value"
-                  type="radio"
-                  :value="true"
-                >
+                <input v-model="newField.value" type="radio" :value="true" />
                 <span>true</span>
               </label>
               <label class="boolean-option">
-                <input
-                  v-model="newField.value"
-                  type="radio"
-                  :value="false"
-                >
+                <input v-model="newField.value" type="radio" :value="false" />
                 <span>false</span>
               </label>
             </div>
@@ -237,7 +193,7 @@
           <div v-else-if="newField.type === 'null'" class="form-group">
             <div class="null-info">
               <svg class="null-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0z"/>
+                <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0z" />
               </svg>
               <span>该字段将被设置为 null</span>
             </div>
@@ -245,18 +201,13 @@
 
           <!-- JSON对象/数组编辑器 -->
           <div v-else-if="newField.type === 'object' || newField.type === 'array'" class="form-group">
-            <label>{{ newField.type === 'object' ? '对象值 (JSON)' : '数组值 (JSON)' }}：</label>
+            <label>{{ newField.type === 'object' ? '对象值 (JSON)' : '数组值' }}：</label>
             <div class="json-editor-container">
               <div class="json-editor-header">
                 <span>JSON编辑器</span>
-                <button
-                  v-if="isValidJson"
-                  class="btn-small"
-                  title="格式化JSON"
-                  @click="formatJsonValue"
-                >
+                <button v-if="isValidJson" class="btn-small" title="格式化JSON" @click="formatJsonValue">
                   <svg class="format-icon" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z"/>
+                    <path d="M5 1h6v2H5V1zm0 12h6v2H5v-2zM1 5h2v6H1V5zm12 0h2v6h-2V5z" />
                   </svg>
                 </button>
               </div>
@@ -269,13 +220,15 @@
               ></textarea>
               <div v-if="jsonError" class="json-error">
                 <svg class="error-icon" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7 3h2v7H7V3zm0 9h2v2H7v-2z"/>
+                  <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7 3h2v7H7V3zm0 9h2v2H7v-2z" />
                 </svg>
                 <span>JSON错误：{{ jsonError }}</span>
               </div>
               <div v-else-if="newField.jsonValue.trim()" class="json-success">
                 <svg class="success-icon" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M13.3536 2.64645C13.5488 2.84171 13.5488 3.15829 13.3536 3.35355L6.35355 10.3536C6.15829 10.5488 5.84171 10.5488 5.64645 10.3536L3.64645 8.35355C3.45118 8.15829 3.45118 7.84171 3.64645 7.64645C3.84171 7.45118 4.15829 7.45118 4.35355 7.64645L6 9.29289L12.6464 2.64645C12.8417 2.45118 13.1583 2.45118 13.3536 2.64645Z"/>
+                  <path
+                    d="M13.3536 2.64645C13.5488 2.84171 13.5488 3.15829 13.3536 3.35355L6.35355 10.3536C6.15829 10.5488 5.84171 10.5488 5.64645 10.3536L3.64645 8.35355C3.45118 8.15829 3.45118 7.84171 3.64645 7.64645C3.84171 7.45118 4.15829 7.45118 4.35355 7.64645L6 9.29289L12.6464 2.64645C12.8417 2.45118 13.1583 2.45118 13.3536 2.64645Z"
+                  />
                 </svg>
                 <span>有效的JSON格式</span>
               </div>
@@ -284,12 +237,8 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn primary" :disabled="!isValidInput" @click="confirmAddField">
-            添加
-          </button>
-          <button class="btn" @click="cancelAddField">
-            取消
-          </button>
+          <button class="btn primary" :disabled="!isValidInput" @click="confirmAddField">添加</button>
+          <button class="btn" @click="cancelAddField">取消</button>
         </div>
       </div>
     </div>
@@ -297,669 +246,312 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useEraEditStore } from '../../stores/EraEditStore'
-import type { JsonNodeType } from '../types/JsonNode'
-import JsonNodeEdit from '../components/JsonNode/JsonNodeEdit.vue';
+import { computed, onMounted, ref } from 'vue';
+import { useEraEditStore } from '../../stores/EraEditStore';
+import { cloneDeep, set } from 'lodash';
 import EraConfirmModal from '../components/Dialog/EraConfirmModal.vue';
 import FileImportExport from '../components/File/FileImportExport.vue';
 import PathSearch from '../components/Search/PathSearch.vue';
 import { eraLogger } from '../../utils/EraHelperLogger';
+import JsonTreeEdit from '../components/JsonNode/JsonTreeEdit.vue';
 
 // Store
-const eraEditStore = useEraEditStore()
+const eraEditStore = useEraEditStore();
 
-// 响应式数据
-const loading = ref(false)
-const saving = ref(false)
-const currentData = ref<any>(null)
-const originalData = ref<any>(null)
-const searchQuery = ref('')
-const editMode = ref<'tree' | 'raw'>('tree')
-const editingNode = ref<string | null>(null)
+// --- 简化后的响应式数据 ---
+const loading = ref(false);
+const saving = ref(false);
+const currentData = ref<any>(null);
+const originalData = ref<any>(null);
+const searchQuery = ref(''); // 由 PathSearch 组件双向绑定
+const editMode = ref<'tree' | 'raw'>('tree');
+const jsonParseError = ref('');
 
 // 组件引用
-const fileImportExportRef = ref<InstanceType<typeof FileImportExport> | null>(null)
+const fileImportExportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
 
-// 原始JSON编辑
-const rawJsonValue = ref('')
-const jsonParseError = ref('')
+// --- 核心：rawJsonValue 变为 computed，实现与 currentData 的双向同步 ---
+const rawJsonValue = computed({
+  get() {
+    if (currentData.value === null || currentData.value === undefined) return '';
+    try {
+      return JSON.stringify(currentData.value, null, 2);
+    } catch (e) {
+      console.error("Error stringifying JSON data:", e);
+      return 'Error: Could not stringify JSON data.';
+    }
+  },
+  set(newValue: string) {
+    try {
+      // 只有在值不为空时才解析，避免将空字符串解析为 null
+      if (newValue.trim() === '') {
+        currentData.value = {};
+      } else {
+        currentData.value = JSON.parse(newValue);
+      }
+      jsonParseError.value = '';
+    } catch (e: any) {
+      jsonParseError.value = e.message;
+      // 注意：这里 currentData 不会更新，保持上一次有效的值
+    }
+  },
+});
 
-// 状态消息
-const statusMessage = ref('就绪')
+const statusMessage = ref('就绪');
 
-// 树形数据
-const treeData = ref<JsonNodeType[]>([])
+// --- 确认弹窗相关 (无变化) ---
+const showConfirmModal = ref(false);
+const confirmTitle = ref('');
+const confirmContent = ref('');
+const confirmType = ref<'confirm' | 'alert'>('confirm');
+const pendingAction = ref<() => void>(() => {});
 
-// 确认弹窗相关
-const showConfirmModal = ref(false)
-const confirmTitle = ref('')
-const confirmContent = ref('')
-const confirmType = ref<'confirm' | 'alert'>('confirm')
-const pendingAction = ref<() => void>(() => {})
-
-// 打开确认弹窗
 function openConfirmModal(
   title: string,
   content: string,
   type: 'confirm' | 'alert' = 'confirm',
-  onConfirm?: () => void,
-  onCancel?: () => void
+  onConfirm?: () => void
 ) {
-  confirmTitle.value = title
-  confirmContent.value = content
-  confirmType.value = type
-  showConfirmModal.value = true
-
-  if (onConfirm) {
-    pendingAction.value = onConfirm
-  }
+  confirmTitle.value = title;
+  confirmContent.value = content;
+  confirmType.value = type;
+  showConfirmModal.value = true;
+  pendingAction.value = onConfirm || (() => {});
 }
 
-// 处理确认
 function handleConfirmAction() {
-  if (pendingAction.value) {
-    pendingAction.value()
-  }
-  pendingAction.value = () => {}
+  pendingAction.value();
+  pendingAction.value = () => {};
 }
 
-// 处理取消
 function handleCancelAction() {
-  pendingAction.value = () => {}
+  pendingAction.value = () => {};
 }
 
-// 处理导入的文件
+// --- 文件处理 (简化) ---
 function handleFileLoaded(content: string) {
   try {
-    const jsonData = JSON.parse(content)
-
-    // 更新当前数据
-    currentData.value = jsonData
-    originalData.value = JSON.parse(JSON.stringify(jsonData))
-    rawJsonValue.value = JSON.stringify(jsonData, null, 2)
-
-    // 转换为树形结构
-    treeData.value = convertToTree(jsonData)
-
-    statusMessage.value = `成功导入数据，共 ${countNodes(treeData.value)} 个节点`
+    currentData.value = JSON.parse(content);
+    statusMessage.value = `成功导入数据`;
   } catch (error) {
-    eraLogger.error('导入数据失败:', error)
-    statusMessage.value = '导入失败，请检查文件格式'
-    alert(`导入失败：${error instanceof Error ? error.message : '未知错误'}`)
+    eraLogger.error('导入数据失败:', error);
+    statusMessage.value = '导入失败，请检查文件格式';
+    alert(`导入失败：${error instanceof Error ? error.message : '未知错误'}`);
   }
 }
 
-// 计算属性
+// --- 计算属性 (简化) ---
 const hasChanges = computed(() => {
-  if (!currentData.value || !originalData.value) return false
-
-  if (editMode.value === 'raw') {
-    try {
-      const parsed = JSON.parse(rawJsonValue.value)
-      return JSON.stringify(parsed) !== JSON.stringify(originalData.value)
-    } catch {
-      return true // 如果有语法错误，认为有更改
-    }
-  }
-
-  return JSON.stringify(currentData.value) !== JSON.stringify(originalData.value)
-})
-
-const filteredTreeData = computed(() => {
-  if (!searchQuery.value.trim()) return treeData.value
-
-  const query = searchQuery.value.toLowerCase()
-  return filterTreeNodes(treeData.value, query)
-})
-
-// 方法
-function filterTreeNodes(nodes: JsonNodeType[], query: string): JsonNodeType[] {
-  const result: JsonNodeType[] = []
-
-  for (const node of nodes) {
-    const matches = node.key.toLowerCase().includes(query) ||
-      (node.isLeaf && String(node.value).toLowerCase().includes(query))
-
-    if (matches) {
-      result.push(node)
-    } else if (node.children && node.children.length > 0) {
-      const filteredChildren = filterTreeNodes(node.children, query)
-      if (filteredChildren.length > 0) {
-        const clonedNode = { ...node, children: filteredChildren, expanded: true }
-        result.push(clonedNode)
-      }
-    }
-  }
-
-  return result
-}
-
-// 导出草稿数据
-function exportDraft() {
-  if (!currentData.value) return
-
+  if (editMode.value === 'raw' && jsonParseError.value) return true;
   try {
-    // 创建带时间戳的文件名
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, -5)
-    const filename = `era-stat-data-${timestamp}.json`
+    return JSON.stringify(currentData.value) !== JSON.stringify(originalData.value);
+  } catch {
+    return false;
+  }
+});
 
-    // 将当前数据转换为JSON字符串
-    const dataStr = JSON.stringify(currentData.value, null, 2)
-
-    // 创建并下载文件
-    const blob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
-    statusMessage.value = '草稿导出成功'
+// --- 数据操作 (简化) ---
+function exportDraft() {
+  if (!currentData.value) return;
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, -5);
+    const filename = `era-stat-data-${timestamp}.json`;
+    const dataStr = JSON.stringify(currentData.value, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    statusMessage.value = '草稿导出成功';
   } catch (error) {
-    eraLogger.error('导出草稿失败:', error)
-    statusMessage.value = '导出草稿失败'
-  } finally {
-    setTimeout(() => {
-      if (statusMessage.value === '草稿导出成功' || statusMessage.value === '导出草稿失败') {
-        statusMessage.value = '就绪'
-      }
-    }, 3000)
+    eraLogger.error('导出草稿失败:', error);
+    statusMessage.value = '导出草稿失败';
   }
 }
 
 async function loadData() {
   try {
-    loading.value = true
-    statusMessage.value = '正在加载数据...'
-
-    const data = await eraEditStore.getStatData()
-    currentData.value = data
-    originalData.value = JSON.parse(JSON.stringify(data))
-    rawJsonValue.value = JSON.stringify(data, null, 2)
-
-    // 转换为树形结构
-    treeData.value = convertToTree(data)
-
-    statusMessage.value = `已加载数据，共 ${countNodes(treeData.value)} 个节点`
+    loading.value = true;
+    statusMessage.value = '正在加载数据...';
+    const data = await eraEditStore.getStatData();
+    currentData.value = data;
+    originalData.value = cloneDeep(data);
+    statusMessage.value = `数据已加载`;
   } catch (error) {
-    eraLogger.error('加载数据失败:', error)
-    statusMessage.value = '加载失败'
-    currentData.value = null
-    treeData.value = []
-    rawJsonValue.value = ''
+    eraLogger.error('加载数据失败:', error);
+    statusMessage.value = '加载失败';
+    currentData.value = null;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
-
-function convertToTree(data: any, parentPath = '', depth = 0): JsonNodeType[] {
-  if (!data || typeof data !== 'object') return []
-
-  const nodes: JsonNodeType[] = []
-  const isArray = Array.isArray(data)
-  const entries = isArray ? data.entries() : Object.entries(data)
-
-  for (const [key, value] of entries) {
-    const path = (parentPath ? `${parentPath}.${key}` : key ) as string
-    const isLeaf = !value || typeof value !== 'object' || Array.isArray(value)
-
-    const node: JsonNodeType = {
-      key: isArray ? `[${key}]` : key as string,
-      value,
-      depth,
-      path,
-      isLeaf,
-      expanded: false,
-      children: isLeaf ? undefined : convertToTree(value, path, depth + 1)
-    }
-
-    nodes.push(node)
-  }
-
-  return nodes
-}
-
-function countNodes(nodes: JsonNodeType[]): number {
-  let count = 0
-  for (const node of nodes) {
-    count++
-    if (node.children) {
-      count += countNodes(node.children)
-    }
-  }
-  return count
-}
-
-function toggleNode(node: JsonNodeType) {
-  node.expanded = !node.expanded
 }
 
 async function saveData() {
-  // 如果有未保存的更改，可以添加确认提示
-  if (hasChanges.value) {
-    openConfirmModal(
-      '保存确认',
-      '是否保存所有更改？',
-      'confirm',
-      async () => {
-        try {
-          saving.value = true
-          statusMessage.value = '正在保存...'
-
-          // 如果是在原始JSON编辑模式，先解析
-          if (editMode.value === 'raw') {
-            try {
-              currentData.value = JSON.parse(rawJsonValue.value)
-            } catch (error) {
-              statusMessage.value = 'JSON格式错误，无法保存'
-              return
-            }
-          }
-
-          await eraEditStore.saveEraEdit(currentData.value)
-
-          // 更新原始数据副本和原始JSON
-          originalData.value = JSON.parse(JSON.stringify(currentData.value))
-          rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-          // 重新生成树数据
-          treeData.value = convertToTree(currentData.value)
-
-          statusMessage.value = '保存成功'
-
-          // 3秒后恢复状态
-          setTimeout(() => {
-            if (statusMessage.value === '保存成功') {
-              statusMessage.value = '就绪'
-            }
-          }, 3000)
-        } catch (error) {
-          eraLogger.error('保存失败:', error)
-          statusMessage.value = '保存失败'
-        } finally {
-          saving.value = false
-        }
-      }
-    )
-  } else {
-    // 如果没有更改，直接显示提示
-    openConfirmModal(
-      '提示',
-      '没有需要保存的更改',
-      'alert'
-    )
+  if (!hasChanges.value) {
+    openConfirmModal('提示', '没有需要保存的更改', 'alert');
+    return;
   }
-}
 
-// 内联编辑方法
-function startEdit(nodePath: string) {
-  editingNode.value = nodePath
-}
-
-function cancelEdit() {
-  editingNode.value = null
-}
-
-function saveEdit(payload: {path: string, value: any}) {
-  setValueByPath(currentData.value, payload.path, payload.value)
-
-  // 更新原始JSON视图
-  rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-  // 重新生成树数据
-  treeData.value = convertToTree(currentData.value)
-
-  editingNode.value = null
-  statusMessage.value = '已更新值'
-}
-
-function addChildToNode(nodePath: string) {
-  // 打开模态框，预填父路径
-  newField.value.path = nodePath ? `${nodePath}.newField` : 'newField'
-  showAddFieldModal.value = true
-}
-
-function removeNode(nodePath: string) {
-  if (!nodePath) return
-
-  openConfirmModal(
-    '删除确认',
-    '确定要删除此项吗？',
-    'confirm',
-    () => {
-      const pathParts = nodePath.split('.')
-      const lastKey = pathParts.pop()!
-
-      let parent = currentData.value
-      if (pathParts.length > 0) {
-        parent = getValueByPath(currentData.value, pathParts.join('.'))
-      }
-
-      if (parent && lastKey in parent) {
-        // 处理数组索引
-        if (Array.isArray(parent) && /^\d+$/.test(lastKey)) {
-          parent.splice(parseInt(lastKey), 1)
-        } else {
-          delete parent[lastKey]
-        }
-
-        // 更新原始JSON视图
-        rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-        // 重新生成树数据
-        treeData.value = convertToTree(currentData.value)
-
-        editingNode.value = null
-        statusMessage.value = '已删除项'
-      }
+  openConfirmModal('保存确认', '是否保存所有更改？', 'confirm', async () => {
+    if (editMode.value === 'raw' && jsonParseError.value) {
+      statusMessage.value = 'JSON格式错误，无法保存';
+      alert('JSON格式错误，请修正后再保存！');
+      return;
     }
-  )
-}
-
-function getValueByPath(obj: any, path: string): any {
-  const parts = path.split('.')
-  let current = obj
-
-  for (const part of parts) {
-    if (current === undefined || current === null) return undefined
-
-    // 处理数组索引
-    if (Array.isArray(current) && /^\d+$/.test(part)) {
-      current = current[parseInt(part)]
-    } else {
-      current = current[part]
+    try {
+      saving.value = true;
+      statusMessage.value = '正在保存...';
+      await eraEditStore.saveEraEdit(currentData.value);
+      originalData.value = cloneDeep(currentData.value);
+      statusMessage.value = '保存成功';
+      setTimeout(() => { statusMessage.value = '就绪'; }, 3000);
+    } catch (error) {
+      eraLogger.error('保存失败:', error);
+      statusMessage.value = '保存失败';
+    } finally {
+      saving.value = false;
     }
-  }
-
-  return current
-}
-
-function setValueByPath(obj: any, path: string, value: any) {
-  const parts = path.split('.')
-  const lastKey = parts.pop()!
-  let current = obj
-
-  for (const part of parts) {
-    if (current[part] === undefined || typeof current[part] !== 'object') {
-      current[part] = {}
-    }
-
-    // 处理数组索引
-    if (Array.isArray(current) && /^\d+$/.test(part)) {
-      current = current[parseInt(part)]
-    } else {
-      current = current[part]
-    }
-  }
-
-  // 处理数组索引赋值
-  if (Array.isArray(current) && /^\d+$/.test(lastKey)) {
-    current[parseInt(lastKey)] = value
-  } else {
-    current[lastKey] = value
-  }
-}
-
-// 原始JSON编辑方法
-function onRawJsonChange() {
-  try {
-    JSON.parse(rawJsonValue.value)
-    jsonParseError.value = ''
-  } catch (error) {
-    jsonParseError.value = error instanceof Error ? error.message : '未知错误'
-  }
+  });
 }
 
 function formatJson() {
+  if (jsonParseError.value) return;
   try {
-    const parsed = JSON.parse(rawJsonValue.value)
-    rawJsonValue.value = JSON.stringify(parsed, null, 2)
-    jsonParseError.value = ''
+    const parsed = JSON.parse(rawJsonValue.value);
+    // 触发 computed 的 setter
+    rawJsonValue.value = JSON.stringify(parsed, null, 2);
   } catch (error) {
-    // 保持原样
+    // 理论上不会进入这里，因为有 jsonParseError 保护
   }
 }
 
-// 监听搜索
-watch(searchQuery, (newValue) => {
-  if (newValue.trim()) {
-    // 展开所有匹配的节点
-    expandMatchingNodes(treeData.value)
-  }
-})
-
-function expandMatchingNodes(nodes: JsonNodeType[]) {
-  for (const node of nodes) {
-    const matches = node.key.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (node.isLeaf && String(node.value).toLowerCase().includes(searchQuery.value.toLowerCase()))
-
-    if (matches && !node.isLeaf) {
-      node.expanded = true
-    }
-
-    if (node.children) {
-      expandMatchingNodes(node.children)
-    }
-  }
-}
-
-// 添加字段模态框
-const showAddFieldModal = ref(false)
-const jsonError = ref('')
-const isValidJson = ref(false)
+// --- 添加字段模态框 (逻辑无大变化) ---
+const showAddFieldModal = ref(false);
+const jsonError = ref('');
+const isValidJson = ref(false);
 
 interface NewField {
-  path: string
-  type: 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array'
-  value: string | number | boolean | null
-  jsonValue: string
+  path: string;
+  type: 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array';
+  value: string | number | boolean | null;
+  jsonValue: string;
 }
 
-const newField = ref<NewField>({
-  path: '',
-  type: 'string',
-  value: '', // 初始化为字符串
-  jsonValue: ''
-})
+const newField = ref<NewField>({ path: '', type: 'string', value: '', jsonValue: '' });
 
-// 计算属性：检查输入是否有效
 const isValidInput = computed(() => {
-  const { path, type } = newField.value
-
-  if (!path.trim()) return false
-
+  const { path, type } = newField.value;
+  if (!path.trim()) return false;
   switch (type) {
-    case 'string':
-      // 对于字符串类型，确保值存在且非空
-      return typeof newField.value.value === 'string' && newField.value.value.trim() !== ''
-
-    case 'number':
-      // 对于数字类型，确保是数字且非空
-      return typeof newField.value.value === 'number' ||
-        (typeof newField.value.value === 'string' && newField.value.value.trim() !== '')
-
-    case 'boolean':
-      // 对于布尔类型，确保值存在（可能是 true/false）
-      return newField.value.value !== undefined && newField.value.value !== null
-
-    case 'null':
-      // null 类型总是有效的
-      return true
-
+    case 'string': return typeof newField.value.value === 'string';
+    case 'number': return typeof newField.value.value === 'number' || (String(newField.value.value).trim() !== '');
+    case 'boolean': return typeof newField.value.value === 'boolean';
+    case 'null': return true;
     case 'object':
-    case 'array':
-      // 对于对象/数组类型，检查 JSON 是否有效
-      return isValidJson.value && newField.value.jsonValue.trim() !== ''
-
-    default:
-      return false
+    case 'array': return isValidJson.value && newField.value.jsonValue.trim() !== '';
+    default: return false;
   }
-})
+});
 
-function cancelAddField() {
-  showAddFieldModal.value = false
-}
-
-// 方法
 function onTypeChange() {
-  const type = newField.value.type
-
-  // 根据类型设置默认值
+  const type = newField.value.type;
   switch (type) {
-    case 'string':
-      newField.value.value = ''
-      break
-    case 'number':
-      newField.value.value = 0
-      break
-    case 'boolean':
-      newField.value.value = true
-      break
-    case 'null':
-      newField.value.value = null
-      break
-    case 'object':
-      newField.value.jsonValue = '{}'
-      break
-    case 'array':
-      newField.value.jsonValue = '[]'
-      break
+    case 'string': newField.value.value = ''; break;
+    case 'number': newField.value.value = 0; break;
+    case 'boolean': newField.value.value = true; break;
+    case 'null': newField.value.value = null; break;
+    case 'object': newField.value.jsonValue = '{}'; validateJson(); break;
+    case 'array': newField.value.jsonValue = '[]'; validateJson(); break;
   }
 }
 
 function getJsonPlaceholder() {
-  if (newField.value.type === 'object') {
-    return '{\n  "key1": "value1",\n  "key2": 123\n}'
-  } else {
-    return '[\n  "item1",\n  "item2",\n  123\n]'
-  }
+  return newField.value.type === 'object'
+    ? '{\n  "key": "value"\n}'
+    : '[\n  "item1", 123\n]';
 }
 
 function validateJson() {
-  const jsonStr = newField.value.jsonValue.trim()
-
+  const jsonStr = newField.value.jsonValue.trim();
   if (!jsonStr) {
-    jsonError.value = ''
-    isValidJson.value = false
-    return
+    jsonError.value = '';
+    isValidJson.value = false;
+    return;
   }
-
   try {
-    const parsed = JSON.parse(jsonStr)
-
-    // 检查类型匹配
-    if (newField.value.type === 'object' && !(parsed && typeof parsed === 'object' && !Array.isArray(parsed))) {
-      jsonError.value = '必须是有效的JSON对象（不是数组）'
-      isValidJson.value = false
+    const parsed = JSON.parse(jsonStr);
+    if (newField.value.type === 'object' && ! (typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null)) {
+      jsonError.value = '必须是有效的JSON对象';
+      isValidJson.value = false;
     } else if (newField.value.type === 'array' && !Array.isArray(parsed)) {
-      jsonError.value = '必须是有效的JSON数组'
-      isValidJson.value = false
+      jsonError.value = '必须是有效的JSON数组';
+      isValidJson.value = false;
     } else {
-      jsonError.value = ''
-      isValidJson.value = true
+      jsonError.value = '';
+      isValidJson.value = true;
     }
   } catch (error) {
-    jsonError.value = error instanceof Error ? error.message : '无效的JSON格式'
-    isValidJson.value = false
+    jsonError.value = error instanceof Error ? error.message : '无效的JSON格式';
+    isValidJson.value = false;
   }
 }
 
 function formatJsonValue() {
-  if (!isValidJson.value) return
-
+  if (!isValidJson.value) return;
   try {
-    const parsed = JSON.parse(newField.value.jsonValue)
-    newField.value.jsonValue = JSON.stringify(parsed, null, 2)
+    const parsed = JSON.parse(newField.value.jsonValue);
+    newField.value.jsonValue = JSON.stringify(parsed, null, 2);
   } catch (error) {
-    // 忽略错误
+    jsonError.value = error instanceof Error ? error.message : '无效的JSON格式';
   }
 }
 
 function openAddFieldModal() {
-  newField.value = {
-    path: '',
-    type: 'string',
-    value: '',
-    jsonValue: ''
-  }
-  jsonError.value = ''
-  isValidJson.value = false
-  showAddFieldModal.value = true
+  newField.value = { path: '', type: 'string', value: '', jsonValue: '' };
+  jsonError.value = '';
+  isValidJson.value = false;
+  showAddFieldModal.value = true;
 }
+
+function cancelAddField() {
+  showAddFieldModal.value = false;
+}
+
 function confirmAddField() {
-  const { path, type } = newField.value
-
-  if (!path.trim()) {
-    alert('请输入字段路径')
-    return
-  }
-
   if (!isValidInput.value) {
-    alert('请输入有效的字段值')
-    return
+    alert('请输入有效的字段路径和值');
+    return;
   }
-
   try {
-    let finalValue: any
-
-    switch (type) {
-      case 'string':
-        finalValue = newField.value.value
-        break
-      case 'number':
-        finalValue = parseFloat(String(newField.value.value))
-        if (isNaN(finalValue)) {
-          alert('请输入有效的数字')
-          return
-        }
-        break
-      case 'boolean':
-        finalValue = newField.value.value
-        break
-      case 'null':
-        finalValue = null
-        break
+    let finalValue: any;
+    switch (newField.value.type) {
+      case 'string': finalValue = newField.value.value; break;
+      case 'number': finalValue = Number(newField.value.value); if (isNaN(finalValue)) { alert('请输入有效的数字'); return; } break;
+      case 'boolean': finalValue = newField.value.value; break;
+      case 'null': finalValue = null; break;
       case 'object':
-      case 'array':
-        if (!isValidJson.value || !newField.value.jsonValue.trim()) {
-          alert('请输入有效的JSON数据')
-          return
-        }
-        finalValue = JSON.parse(newField.value.jsonValue)
-        break
-      default:
-        finalValue = newField.value.value
+      case 'array': finalValue = JSON.parse(newField.value.jsonValue); break;
     }
-
-    setValueByPath(currentData.value, path, finalValue)
-
-    // 更新原始JSON视图
-    rawJsonValue.value = JSON.stringify(currentData.value, null, 2)
-
-    // 重新生成树数据
-    treeData.value = convertToTree(currentData.value)
-
-    // 开始编辑新字段
-    editingNode.value = path
-    statusMessage.value = '已添加新字段'
-
-    showAddFieldModal.value = false
-
+    // 直接修改 currentData，JsonTreeEdit 会自动响应
+    set(currentData.value, newField.value.path, finalValue);
+    statusMessage.value = '已添加新字段';
+    showAddFieldModal.value = false;
   } catch (error) {
-    eraLogger.error('添加字段失败:', error)
-    alert(`添加字段失败：${error instanceof Error ? error.message : '未知错误'}`)
+    eraLogger.error('添加字段失败:', error);
+    alert(`添加字段失败：${error instanceof Error ? error.message : '未知错误'}`);
   }
 }
 
-// 生命周期
+// --- 生命周期 ---
 onMounted(() => {
-  loadData()
-})
+  loadData();
+});
 </script>
+
 
 <style scoped lang="scss">
 .stat-data-editor {
@@ -1086,8 +678,13 @@ textarea::placeholder {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .status-text {
@@ -1131,7 +728,9 @@ textarea::placeholder {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-container .empty-icon {

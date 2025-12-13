@@ -1,794 +1,284 @@
 <template>
   <div class="json-node" :style="{ marginLeft: `${node.depth * 20}px` }">
-    <div class="line" :class="{ 'line-leaf': node.isLeaf, 'line-parent': !node.isLeaf }">
-      <!-- 折叠箭头 / 占位 -->
-      <span
-        v-if="!node.isLeaf"
-        class="arrow"
-        :class="{ expanded: node.expanded }"
-        @click="$emit('toggle', node)"
-      >
-        <svg v-if="node.expanded" class="arrow-icon" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M12 10L8 6L4 10H12Z"/>
-        </svg>
-        <svg v-else class="arrow-icon" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M6 4L10 8L6 12V4Z"/>
-        </svg>
+    <div class="line" :class="{ 'is-editing': isEditing }">
+      <!-- 折叠/展开箭头 -->
+      <span v-if="!node.isLeaf" class="arrow" :class="{ expanded: node.expanded }" @click="emit('toggleExpand', node)">
+        ▶
       </span>
       <span v-else class="space" />
 
-      <!-- 键值 -->
+      <!-- Key -->
       <span class="key" @dblclick="onDoubleClick">{{ node.key }}:</span>
 
-      <!-- 编辑模式 -->
-      <div v-if="isEditing && editModeEnabled" class="node-editor">
-        <select v-model="editType" class="edit-type-select">
-          <option value="string">字符串</option>
-          <option value="number">数字</option>
-          <option value="boolean">布尔值</option>
+      <!-- 编辑器 -->
+      <div v-if="isEditing" class="editor-container">
+        <select v-model="editType" class="edit-select">
+          <option value="string">String</option>
+          <option value="number">Number</option>
+          <option value="boolean">Boolean</option>
           <option value="null">Null</option>
         </select>
 
         <input
           v-if="editType === 'string'"
+          ref="inputRef"
           v-model="editValue"
           type="text"
           class="edit-input"
-          @keyup.enter="save"
-          @keyup.esc="cancel"
+          @keydown.enter="save"
+          @keydown.esc="cancel"
         />
-
         <input
           v-else-if="editType === 'number'"
+          ref="inputRef"
           v-model.number="editValue"
           type="number"
           class="edit-input"
-          @keyup.enter="save"
-          @keyup.esc="cancel"
+          @keydown.enter="save"
+          @keydown.esc="cancel"
         />
-
         <select
           v-else-if="editType === 'boolean'"
+          ref="inputRef"
           v-model="editValue"
           class="edit-input"
-          @keyup.enter="save"
-          @keyup.esc="cancel"
+          @keydown.enter="save"
+          @keydown.esc="cancel"
         >
           <option :value="true">true</option>
           <option :value="false">false</option>
         </select>
-
         <span v-else class="null-value">null</span>
 
-        <button class="edit-btn save" @click="save">✓</button>
-        <button class="edit-btn cancel" @click="cancel">✗</button>
+        <button class="btn-action save" title="保存" @click="save">✓</button>
+        <button class="btn-action cancel" title="取消" @click="cancel">✗</button>
       </div>
 
-      <!-- 显示模式 -->
+      <!-- 值 / 折叠预览 -->
       <template v-else>
-        <div v-if="node.isLeaf" class="value-area">
-          <span
-            class="val"
-            :class="getValueTypeClass(node.value)"
-            @dblclick="onDoubleClick"
-          >{{ formatValue(node.value) }}</span>
-        </div>
-
-        <div v-else-if="!node.expanded" class="collapse-preview">
-          <span class="ellipsis">{{ getCollapsePreview(node) }}</span>
-        </div>
+        <span v-if="node.isLeaf" class="value" :class="valueClass" @dblclick="onDoubleClick">
+          {{ formattedValue }}
+        </span>
+        <span v-else-if="!node.expanded" class="preview">
+          {{ Array.isArray(node.value) ? `[...]` : `{...}` }}
+        </span>
       </template>
 
-      <!-- 操作按钮（编辑模式启用时显示，且不在编辑状态） -->
-      <div
-        v-if="editModeEnabled && !isEditing"
-        class="node-actions"
-        :class="{ visible: showActions }"
-        @mouseenter="showActions = true"
-        @mouseleave="showActions = false"
-      >
-        <button
-          class="action-btn"
-          title="添加子节点"
-          @click="$emit('add-child', node.path)"
-        >
-          +
-        </button>
-        <button
-          class="action-btn danger"
-          title="删除节点"
-          @click="$emit('remove', node.path)"
-        >
-          ×
-        </button>
-        <button
-          class="action-btn edit"
-          title="编辑节点"
-          @click="startEdit"
-        >
-          编辑
-        </button>
+      <!-- 操作按钮 (Flexbox布局) -->
+      <div v-if="!isEditing" class="actions">
+        <button v-if="!node.isLeaf" class="btn-action" title="添加子节点" @click="emit('addChild', { path: node.path, isObject: !Array.isArray(node.value) })">+</button>
+        <button class="btn-action" title="编辑值" @click="startEdit">✎</button>
+        <button class="btn-action danger" title="删除节点" @click="emit('removeNode', node.path)">🗑</button>
       </div>
     </div>
 
     <!-- 子节点 -->
-    <div v-if="node.expanded && node.children" class="node-children">
+    <div v-if="node.expanded && node.children" class="children-container">
       <JsonNodeEdit
         v-for="child in node.children"
         :key="child.path"
         :node="child"
-        :editing-node="editingNode"
-        :edit-mode="editMode"
-        @toggle="$emit('toggle', $event)"
-        @edit-start="$emit('edit-start', $event)"
-        @edit-cancel="$emit('edit-cancel')"
-        @edit-save="handleEditSave($event)"
-        @add-child="$emit('add-child', $event)"
-        @remove="$emit('remove', $event)"
+        :editing-node-path="editingNodePath"
+        @toggle-expand="emit('toggleExpand', $event)"
+        @start-edit="emit('startEdit', $event)"
+        @cancel-edit="emit('cancelEdit')"
+        @save-edit="emit('saveEdit', $event)"
+        @add-child="emit('addChild', $event)"
+        @remove-node="emit('removeNode', $event)"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { JsonNodeType } from '../../types/JsonNode'
+import { ref, computed, watch, nextTick } from 'vue';
+import type { JsonNodeType } from '../../types/JsonNode';
 
 const props = defineProps<{
-  node: JsonNodeType
-  editingNode: string | null
-  editMode?: boolean
-}>()
+  node: JsonNodeType;
+  editingNodePath: string | null;
+}>();
 
 const emit = defineEmits<{
-  (e: 'toggle', node: JsonNodeType): void
-  (e: 'edit-start', path: string): void
-  (e: 'edit-cancel'): void
-  (e: 'edit-save', payload: { path: string; value: any }): void
-  (e: 'add-child', path: string): void
-  (e: 'remove', path: string): void
-}>()
+  (e: 'toggleExpand', node: JsonNodeType): void;
+  (e: 'startEdit', path: string): void;
+  (e: 'cancelEdit'): void;
+  (e: 'saveEdit', payload: { path: string; value: any }): void;
+  (e: 'addChild', payload: { path: string; isObject: boolean }): void;
+  (e: 'removeNode', path: string): void;
+}>();
 
-// 控制动作按钮显示状态
-const showActions = ref(false)
+const inputRef = ref<HTMLInputElement | null>(null);
+const isEditing = computed(() => props.node.path === props.editingNodePath);
 
-// 计算属性：是否启用编辑模式
-const editModeEnabled = computed(() => props.editMode !== false) // 默认启用
+const editType = ref('string');
+const editValue = ref<any>('');
 
-// 计算属性：是否正在编辑当前节点
-const isEditing = computed(() => props.editingNode === props.node.path)
+/* ---------- 值格式化与样式 ---------- */
+const formattedValue = computed(() => {
+  const val = props.node.value;
+  if (typeof val === 'string') return `"${val}"`;
+  return String(val);
+});
 
-const editType = ref('string')
-const editValue = ref<any>('')
+const valueClass = computed(() => {
+  const val = props.node.value;
+  if (val === null) return 'type-null';
+  return `type-${typeof val}`;
+});
 
-// 格式化显示值
-function formatValue(value: any): string {
-  if (value === null) return 'null'
-  if (value === undefined) return 'undefined'
-  if (typeof value === 'boolean') return value ? 'true' : 'false'
-  if (typeof value === 'string') return `"${value}"`
-  if (typeof value === 'number') return `${value}`
-  if (Array.isArray(value)) return `[${value.length} items]`
-  if (typeof value === 'object') return `{${Object.keys(value).length} keys}`
-  return String(value)
-}
-
-// 获取值的类型类名
-function getValueTypeClass(value: any): string {
-  const type = typeof value
-
-  switch (type) {
-    case 'string':
-      return 'type-string'
-    case 'number':
-      return 'type-number'
-    case 'boolean':
-      return 'type-boolean'
-    case 'object':
-      if (value === null) return 'type-null'
-      if (Array.isArray(value)) return 'type-array'
-      return 'type-object'
-    default:
-      return 'type-other'
+/* ---------- 编辑逻辑 ---------- */
+function getValueType(value: any): string {
+  if (value === null) return 'null';
+  const type = typeof value;
+  if (['string', 'number', 'boolean'].includes(type)) {
+    return type;
   }
-}
-
-// 获取折叠预览文本
-function getCollapsePreview(node: JsonNodeType): string {
-  if (node.children) {
-    const childCount = node.children.length
-    const sampleKeys = node.children.slice(0, 2).map(c => c.key).join(', ')
-    return `{ ${sampleKeys}${childCount > 2 ? `, ... +${childCount - 2}` : ''} }`
-  }
-  return '{ ... }'
-}
-
-function onDoubleClick() {
-  if (editModeEnabled.value && !isEditing.value) {
-    startEdit()
-  }
+  return 'string'; // 默认为字符串
 }
 
 function startEdit() {
-  if (!editModeEnabled.value) return
-
-  editType.value = getValueType(props.node.value)
-  editValue.value = props.node.value
-  emit('edit-start', props.node.path)
+  if (!props.node.isLeaf) return; // 只允许编辑叶子节点
+  editType.value = getValueType(props.node.value);
+  editValue.value = props.node.value;
+  emit('startEdit', props.node.path);
 }
 
-function getValueType(value: any): string {
-  if (value === null) return 'null'
-  if (typeof value === 'boolean') return 'boolean'
-  if (typeof value === 'number') return 'number'
-  if (Array.isArray(value)) return 'array'
-  if (typeof value === 'object') return 'object'
-  return 'string'
-}
-
-function save() {
-  let finalValue = editValue.value
-
-  // 类型转换
-  if (editType.value === 'number') {
-    finalValue = Number(editValue.value)
-    if (isNaN(finalValue)) {
-      alert('请输入有效的数字')
-      return
-    }
-  } else if (editType.value === 'boolean') {
-    finalValue = editValue.value === 'true' || editValue.value === true
-  } else if (editType.value === 'null') {
-    finalValue = null
-  }
-
-  emit('edit-save', {
-    path: props.node.path,
-    value: finalValue
-  })
+function onDoubleClick() {
+  startEdit();
 }
 
 function cancel() {
-  emit('edit-cancel')
+  emit('cancelEdit');
 }
 
-function handleEditSave(payload: { path: string; value: any }) {
-  emit('edit-save', payload)
-}
-
-// 监听编辑状态变化
-watch(isEditing, (editing) => {
-  if (editing) {
-    // 编辑开始时设置值
-    editType.value = getValueType(props.node.value)
-    editValue.value = props.node.value
+function save() {
+  let finalValue = editValue.value;
+  if (editType.value === 'boolean') {
+    finalValue = Boolean(editValue.value);
+  } else if (editType.value === 'null') {
+    finalValue = null;
   }
-})
+  // number 类型由 v-model.number 自动转换
+
+  emit('saveEdit', { path: props.node.path, value: finalValue });
+}
+
+watch(isEditing, (isNowEditing) => {
+  if (isNowEditing) {
+    nextTick(() => {
+      inputRef.value?.focus();
+      inputRef.value?.select();
+    });
+  }
+});
 </script>
 
-
 <style scoped lang="scss">
-//TODO 目前移动端的按钮悬浮定位仍然有非常大的问题，暂时不知道怎么修
 .json-node {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'JetBrains Mono', monospace;
-  font-size: 11px;
-  line-height: 1.5;
   position: relative;
-  // 为节点设置最大宽度，超出则换行
-  max-width: unset;
+}
 
-  // 添加连接线
-  &::before {
-    content: '';
-    position: absolute;
-    left: 12px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: linear-gradient(to bottom,
-      transparent 0%,
-      #e5e7eb 10%,
-      #e5e7eb 90%,
-      transparent 100%
-    );
-    z-index: 0;
-  }
+.line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 
-  .line {
-    display: flex;
-    align-items: flex-start;
-    min-height: 28px;
-    padding: 4px 8px;
-    position: relative;
-    z-index: 1;
-    transition: background-color 0.15s ease;
-    gap: 4px;
-    // 允许换行显示
-    flex-wrap: wrap;
-    // 确保内容可以正确换行
-    min-width: min-content;
-
-    // 当悬停或编辑时，为按钮留出空间
-    &:hover,
-    &.editing {
-      padding-top: 35px;
-    }
-
-    &:hover {
-      background-color: rgba(99, 102, 241, 0.05);
-      border-radius: 4px;
-
-      .arrow {
-        opacity: 1;
-      }
-
-      .node-actions {
-        opacity: 1;
-      }
-    }
-
-    &.line-leaf {
-      .key {
-        color: #111827;
-      }
-    }
-
-    &.line-parent {
-      .key {
-        font-weight: 600;
-        color: #111827;
-      }
-    }
-  }
-
-  .arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    opacity: 0.6;
-    transition: all 0.2s ease;
-    border-radius: 3px;
-    flex-shrink: 0;
-    margin-top: 6px;
-
-    &:hover {
-      opacity: 1;
-      background-color: rgba(99, 102, 241, 0.1);
-      transform: scale(1.1);
-    }
-
-    .arrow-icon {
-      width: 15px;
-      height: 15px;
-      color: #6b7280;
-      transition: transform 0.2s ease;
-    }
-
-    &.expanded {
-      .arrow-icon {
-        color: #6366f1;
-      }
-    }
-  }
-
-  .space {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-
-  .key {
-    color: #4b5563;
-    margin-right: 8px;
-    font-weight: 500;
-    user-select: none;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-
-  .value-area {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .val {
-    color: #111827;
-    font-weight: 400;
-    padding: 2px 6px;
-    background-color: #f9fafb;
-    border-radius: 4px;
-    border: 1px solid #f3f4f6;
-    line-height: 1.3;
-    min-width: 0;
-    white-space: normal;
-    word-break: break-all;
-    word-wrap: break-word;
-    cursor: pointer;
-    max-width: 400px;
-
-    // 不同类型值的颜色
-    &.type-string {
-      color: #059669;
-      background-color: #f0fdf4;
-      border-color: #bbf7d0;
-    }
-
-    &.type-number {
-      color: #dc2626;
-      background-color: #fef2f2;
-      border-color: #fecaca;
-    }
-
-    &.type-boolean {
-      color: #7c3aed;
-      background-color: #f5f3ff;
-      border-color: #ddd6fe;
-    }
-
-    &.type-null {
-      color: #6b7280;
-      background-color: #f9fafb;
-      border-color: #e5e7eb;
-      font-style: italic;
-    }
-
-    &.type-object {
-      color: #0ea5e9;
-      background-color: #f0f9ff;
-      border-color: #bae6fd;
-    }
-
-    &.type-array {
-      color: #f59e0b;
-      background-color: #fffbeb;
-      border-color: #fde68a;
-    }
-
-    &:hover {
-      opacity: 0.9;
-    }
-  }
-
-  .collapse-preview {
-    color: #6b7280;
-    font-size: 11px;
-    font-style: italic;
-    padding: 2px 6px;
-    background-color: #f9fafb;
-    border-radius: 4px;
-    border: 1px dashed #e5e7eb;
-    line-height: 1.3;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    .ellipsis {
-      display: inline-block;
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  }
-
-  // 编辑相关样式
-  .node-editor {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-  }
-
-  // 重要：强制选择框在浅色模式下显示
-  .edit-type-select,
-  .edit-input {
-    padding: 4px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    font-size: 12px;
-
-    // 强制浅色主题
-    background-color: #f8fafc !important;
-    color: #1e293b !important;
-  }
-
-  .edit-input {
-    min-width: 150px;
-    flex: 1;
-  }
-
-  .edit-type-select option {
-    background-color: #f8fafc !important;
-    color: #1e293b !important;
-  }
-
-  .null-value {
-    color: #94a3b8;
-    font-style: italic;
-    padding: 4px 8px;
-  }
-
-  .edit-btn {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    flex-shrink: 0;
-
-    &.save {
-      background: #10b981;
-      color: white;
-
-      &:hover {
-        background: #059669;
-      }
-    }
-
-    &.cancel {
-      background: #ef4444;
-      color: white;
-
-      &:hover {
-        background: #dc2626;
-      }
-    }
-  }
-
-  .node-actions {
-    display: flex;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    position: absolute;
-    top: 5px;
-    left: 50px;
-    background: white;
-    border-radius: 4px;
-    padding: 2px 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 10;
-    white-space: nowrap;
-
-    // 显示状态
-    &.visible,
-    .line:hover & {
+  &:hover {
+    background-color: #f1f5f9;
+    .actions {
       opacity: 1;
     }
-
-    // 移动端适配，增加按钮尺寸
-    @media (max-width: 768px) {
-      gap: 6px;
-      padding: 4px 6px;
-
-      .action-btn {
-        padding: 4px 10px;
-        font-size: 12px;
-        min-width: 40px;
-        min-height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-    }
-  }
-
-  // 当节点处于编辑状态时，确保有足够的空间显示按钮
-  &.editing .line {
-    margin-top: 30px;
-  }
-
-  .action-btn {
-    padding: 2px 8px;
-    border: 1px solid #cbd5e1;
-    background: white;
-    border-radius: 4px;
-    font-size: 11px;
-    color: #64748b;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    min-width: 30px;
-    min-height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-    }
-
-    &.danger {
-      color: #ef4444;
-      border-color: #fecaca;
-
-      &:hover {
-        background: #fef2f2;
-      }
-    }
-
-    &.edit {
-      color: #3b82f6;
-      border-color: #bfdbfe;
-
-      &:hover {
-        background: #eff6ff;
-      }
-    }
-  }
-
-  .node-children {
-    border-left: 1px dashed #e2e8f0;
-    margin-left: 10px;
-    padding-left: 10px;
-    min-width: fit-content;
-  }
-
-  // 最后一个节点的连接线调整
-  &:last-child::before {
-    bottom: 50%;
-  }
-
-  // 第一个节点的连接线调整
-  &:first-child::before {
-    top: 50%;
   }
 }
 
-// 深色模式支持
-@media (prefers-color-scheme: dark) {
-  .json-node {
-    &::before {
-      background: linear-gradient(to bottom,
-        transparent 0%,
-        #374151 10%,
-        #374151 90%,
-        transparent 100%
-      );
-    }
-
-    .line {
-      &:hover {
-        background-color: rgba(99, 102, 241, 0.1);
-      }
-    }
-
-    .key {
-      color: #9ca3af;
-    }
-
-    .val {
-      color: #f3f4f6;
-      background-color: #1f2937;
-      border-color: #374151;
-
-      &.type-string {
-        color: #34d399;
-        background-color: #064e3b;
-        border-color: #047857;
-      }
-
-      &.type-number {
-        color: #f87171;
-        background-color: #7f1d1d;
-        border-color: #991b1b;
-      }
-
-      &.type-boolean {
-        color: #a78bfa;
-        background-color: #4c1d95;
-        border-color: #5b21b6;
-      }
-
-      &.type-null {
-        color: #9ca3af;
-        background-color: #374151;
-        border-color: #4b5563;
-      }
-
-      &.type-object {
-        color: #38bdf8;
-        background-color: #0c4a6e;
-        border-color: #0369a1;
-      }
-
-      &.type-array {
-        color: #fbbf24;
-        background-color: #78350f;
-        border-color: #d97706;
-      }
-    }
-
-    .collapse-preview {
-      color: #9ca3af;
-      background-color: #1f2937;
-      border-color: #374151;
-    }
-
-    .arrow {
-      .arrow-icon {
-        color: #9ca3af;
-      }
-
-      &:hover {
-        background-color: rgba(99, 102, 241, 0.2);
-      }
-    }
-
-    // 重要：强制编辑相关的输入控件保持浅色
-    .node-editor {
-      .edit-type-select,
-      .edit-input {
-        // 强制使用浅色主题
-        background-color: #f8fafc !important;
-        color: #1e293b !important;
-        border-color: #cbd5e1;
-
-        // 禁用浏览器的默认深色样式
-        color-scheme: light;
-      }
-
-      .edit-type-select option {
-        background-color: #f8fafc !important;
-        color: #1e293b !important;
-      }
-    }
-
-    .null-value {
-      color: #9ca3af;
-    }
-
-    .action-btn {
-      background: #374151;
-      border-color: #4b5563;
-      color: #d1d5db;
-
-      &:hover {
-        background: #4b5563;
-      }
-
-      &.danger {
-        color: #f87171;
-        border-color: #7f1d1d;
-
-        &:hover {
-          background: #7f1d1d;
-        }
-      }
-
-      &.edit {
-        color: #60a5fa;
-        border-color: #1e3a8a;
-
-        &:hover {
-          background: #1e3a8a;
-        }
-      }
-    }
+.arrow {
+  cursor: pointer;
+  width: 16px;
+  text-align: center;
+  font-size: 10px;
+  color: #94a3b8;
+  transition: transform 0.2s;
+  &.expanded {
+    transform: rotate(90deg);
   }
 }
 
-/* 全局覆盖选择框样式以确保在任何模式下都显示为浅色 */
-.edit-type-select,
-.edit-type-select option {
-  background-color: #f8fafc !important;
-  color: #1e293b !important;
+.space {
+  width: 16px;
 }
 
-/* 强制输入框在深色模式下显示浅色 */
-.edit-input {
-  background-color: #f8fafc !important;
-  color: #1e293b !important;
+.key {
+  color: #475569;
+  font-weight: 500;
+}
+
+.value {
+  cursor: pointer;
+  &.type-string { color: #059669; }
+  &.type-number { color: #dc2626; }
+  &.type-boolean { color: #7c3aed; }
+  &.type-null { color: #64748b; font-style: italic; }
+}
+
+.preview {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.editor-container {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.edit-select, .edit-input {
+  padding: 2px 6px;
+  font-size: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background-color: #fff;
+  font-family: monospace;
+}
+
+// 操作按钮区域 (Flexbox 布局)
+.actions {
+  margin-left: auto; // 关键：将按钮推到最右边
+  display: flex;
+  gap: 4px;
+  opacity: 0; // 默认隐藏
+  transition: opacity 0.2s;
+}
+
+.btn-action {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    background-color: #e2e8f0;
+    color: #1e293b;
+  }
+  &.danger:hover {
+    background-color: #fee2e2;
+    color: #ef4444;
+  }
+  &.save { color: #10b981; }
+  &.cancel { color: #ef4444; }
+}
+
+.children-container {
+  padding-left: 10px;
+  border-left: 1px dashed #e2e8f0;
 }
 </style>
