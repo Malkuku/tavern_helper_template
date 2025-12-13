@@ -19,8 +19,6 @@
             {{ item.label }}
           </a>
         </nav>
-
-
       </div>
     </header>
 
@@ -50,7 +48,6 @@ const toggleTheme = async () => {
   statStore.stat_data.theme = currentTheme === 'light' ? 'dark' : 'light';
   await updateVariablesWith(variables => _.update(variables, 'stat_data.theme', () => statStore.stat_data?.theme));
 };
-
 
 // 导航菜单
 const activeKey = ref('');

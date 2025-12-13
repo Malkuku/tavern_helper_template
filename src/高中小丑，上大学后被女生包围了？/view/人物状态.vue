@@ -22,10 +22,7 @@
           <span class="stat-value">{{ characterFavor }}/1000</span>
         </div>
         <div class="hand-drawn-bar">
-          <div
-            class="bar-fill"
-            :style="{ width: favorPercentage/10 + '%' }"
-          ></div>
+          <div class="bar-fill" :style="{ width: favorPercentage / 10 + '%' }"></div>
           <div class="bar-ticks">
             <span v-for="tick in 5" :key="tick" class="tick"></span>
           </div>
@@ -42,10 +39,7 @@
           <span class="stat-value">{{ characterIntimacy }}/1000</span>
         </div>
         <div class="hand-drawn-bar intimacy-bar">
-          <div
-            class="bar-fill"
-            :style="{ width: intimacyPercentage/10 + '%' }"
-          ></div>
+          <div class="bar-fill" :style="{ width: intimacyPercentage / 10 + '%' }"></div>
           <div class="bar-ticks">
             <span v-for="tick in 5" :key="tick" class="tick"></span>
           </div>
@@ -67,11 +61,7 @@
       <transition name="slide-down">
         <div v-if="isOutfitExpanded" class="outfit-content">
           <div class="outfit-grid">
-            <div
-              v-for="(item, part) in characterOutfit"
-              :key="part"
-              class="outfit-item"
-            >
+            <div v-for="(item, part) in characterOutfit" :key="part" class="outfit-item">
               <div class="outfit-part">{{ getPartName(part) }}</div>
               <div class="outfit-name">{{ item }}</div>
             </div>
@@ -114,7 +104,7 @@ const props = withDefaults(defineProps<Props>(), {
   characterAvatar: '👤',
   characterIdentity: '角色',
   showFavor: true,
-  showIntimacy: true
+  showIntimacy: true,
 });
 
 // 展开状态
@@ -196,12 +186,12 @@ const toggleOutfit = () => {
 // 获取服装部位名称
 const getPartName = (part: string) => {
   const partNames: Record<string, string> = {
-    '上半身': '上半身',
-    '下半身': '下半身',
-    '内衣': '内衣',
-    '袜子': '袜子',
-    '鞋子': '鞋子',
-    '配饰': '配饰'
+    上半身: '上半身',
+    下半身: '下半身',
+    内衣: '内衣',
+    袜子: '袜子',
+    鞋子: '鞋子',
+    配饰: '配饰',
   };
   return partNames[part] || part;
 };
@@ -318,10 +308,7 @@ const getPartName = (part: string) => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255,255,255,0.3) 50%,
-      transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
     animation: shimmer 2s infinite;
   }
 }
@@ -556,8 +543,12 @@ const getPartName = (part: string) => {
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 // 响应式设计

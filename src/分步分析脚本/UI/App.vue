@@ -4,18 +4,11 @@
     <div class="card">
       <button class="close-x" title="关闭" @click="close">&times;</button>
 
-      <h3 class="title">
-        ERA 分步分析设置
-      </h3>
+      <h3 class="title">ERA 分步分析设置</h3>
       <!-- 分步分析开关 -->
       <label class="switch-row">
-
         <span>分步分析模式</span>
-        <input
-          type="checkbox"
-          :checked="uiStore.isAsync"
-          @change="uiStore.isAsync = !uiStore.isAsync"
-        />
+        <input type="checkbox" :checked="uiStore.isAsync" @change="uiStore.isAsync = !uiStore.isAsync" />
         <span class="switch"></span>
       </label>
 
@@ -35,23 +28,20 @@
         因为ERA和提示词模板的替换问题，目前不可用😑
       </div>
 
-
       <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
-<!--      <div v-if="modelSource === 'profile'" class="row">-->
-<!--        <span>预设模型</span>-->
-<!--        <select v-model="profileSetting">-->
-<!--          <option-->
-<!--            v-for="p in profileList"-->
-<!--            :key="p"-->
-<!--            :value="p"-->
-<!--            :title="p"-->
-<!--          >-->
-<!--            {{ shortName(p) }}-->
-<!--          </option>-->
-<!--        </select>-->
-<!--      </div>-->
-
-
+      <!--      <div v-if="modelSource === 'profile'" class="row">-->
+      <!--        <span>预设模型</span>-->
+      <!--        <select v-model="profileSetting">-->
+      <!--          <option-->
+      <!--            v-for="p in profileList"-->
+      <!--            :key="p"-->
+      <!--            :value="p"-->
+      <!--            :title="p"-->
+      <!--          >-->
+      <!--            {{ shortName(p) }}-->
+      <!--          </option>-->
+      <!--        </select>-->
+      <!--      </div>-->
 
       <!-- 额外模型参数（仅 external 时显示） -->
       <div v-if="modelSource === 'external'" class="form">
@@ -67,10 +57,15 @@
           <!-- 模型名称 -->
           <div class="row">
             <span>模型名称</span>
-            <select v-model="settings.modelName" style="flex:1">
+            <select v-model="settings.modelName" style="flex: 1">
               <option v-for="m in modelOptions" :key="m" :value="m" :title="m">{{ shortName(m) }}</option>
               <!-- 允许手动输入，兜底 -->
-              <option v-if="settings.modelName && !modelOptions.includes(settings.modelName)" :value="settings.modelName">{{ settings.modelName }}</option>
+              <option
+                v-if="settings.modelName && !modelOptions.includes(settings.modelName)"
+                :value="settings.modelName"
+              >
+                {{ settings.modelName }}
+              </option>
             </select>
           </div>
         </div>
@@ -92,18 +87,11 @@
         </div>
       </div>
 
-
-      <div class="row" style="justify-content: flex-start; gap: 12px;">
+      <div class="row" style="justify-content: flex-start; gap: 12px">
         <button class="btn small" @click="testConnect">测试连接</button>
-        <button
-          v-if="modelSource === 'external'"
-          class="btn small"
-          @click="getRemoteModels"
-        >
-          获取模型列表
-        </button>
+        <button v-if="modelSource === 'external'" class="btn small" @click="getRemoteModels">获取模型列表</button>
       </div>
-      <br>
+      <br />
 
       <!-- 底部按钮 -->
       <div class="footer">
@@ -111,27 +99,26 @@
         <button class="btn danger" @click="handleClear">清空</button>
         <button class="btn primary" @click="handleSave">保存</button>
       </div>
-<!--      <button @click="testGetPreset">获取预设名称</button>-->
+      <!--      <button @click="testGetPreset">获取预设名称</button>-->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
-import { useUiStore } from './store'
-import * as toastr from 'toastr'
+import { computed, reactive, watch } from 'vue';
+import { useUiStore } from './store';
+import * as toastr from 'toastr';
 
-const uiStore = useUiStore()
-const visible = computed(() => uiStore.showUI)
+const uiStore = useUiStore();
+const visible = computed(() => uiStore.showUI);
 
 /* 预设名称缩略 */
-const shortName = (full: string, max = 36) =>
-  full.length > max ? full.slice(0, max - 1) + '…' : full;
+const shortName = (full: string, max = 36) => (full.length > max ? full.slice(0, max - 1) + '…' : full);
 
 /* 本地草稿 */
-const modelSource = ref<'sample' | 'external' | 'profile'>('sample')
-const profileSetting = ref('')          // 当前选中的预设
-const profileList  = ref<string[]>([])  // 预设名称列表
+const modelSource = ref<'sample' | 'external' | 'profile'>('sample');
+const profileSetting = ref(''); // 当前选中的预设
+const profileList = ref<string[]>([]); // 预设名称列表
 const settings = reactive({
   baseURL: '',
   apiKey: '',
@@ -139,21 +126,21 @@ const settings = reactive({
   temperature: 0.7,
   frequencyPenalty: 0,
   presencePenalty: 0,
-  maxTokens: 20000
-})
+  maxTokens: 20000,
+});
 
 /* 打开弹窗时同步 store 数据 */
 watch(
   () => uiStore.showUI,
   async v => {
-    if (!v) return
-    modelSource.value  = uiStore.modelSource as any
-    profileSetting.value = uiStore.profileSetting || ''
-    Object.assign(settings, uiStore.customModelSettings)
-    await refreshProfileList()
+    if (!v) return;
+    modelSource.value = uiStore.modelSource as any;
+    profileSetting.value = uiStore.profileSetting || '';
+    Object.assign(settings, uiStore.customModelSettings);
+    await refreshProfileList();
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 /* 刷新预设列表 */
 const refreshProfileList = async () => {
@@ -161,35 +148,35 @@ const refreshProfileList = async () => {
     const result = await (window as any).SillyTavern.executeSlashCommands('/profile-list');
     profileList.value = JSON.parse(result.pipe);
     console.log('预设名称列表:', profileList.value);
-    profileSetting.value = profileList.value[0] // 默认选中第一个
+    profileSetting.value = profileList.value[0]; // 默认选中第一个
   } catch (e) {
     toastr.error('获取预设列表失败');
-    console.error('刷新预设列表失败', e)
-    profileList.value = []
+    console.error('刷新预设列表失败', e);
+    profileList.value = [];
   }
-}
+};
 
 /* 保存 */
 const handleSave = async () => {
-  uiStore.modelSource      = modelSource.value
-  uiStore.profileSetting   = profileSetting.value
-  uiStore.customModelSettings = { ...settings } as any
-  await uiStore.saveModelSettings()
-  toastr.success('设置已保存')
-}
+  uiStore.modelSource = modelSource.value;
+  uiStore.profileSetting = profileSetting.value;
+  uiStore.customModelSettings = { ...settings } as any;
+  await uiStore.saveModelSettings();
+  toastr.success('设置已保存');
+};
 
 /* 清空（恢复默认） */
 const handleClear = async () => {
-  await uiStore.clearModelSettings()
-  modelSource.value      = uiStore.modelSource as any
-  profileSetting.value   = uiStore.profileSetting || ''
-  Object.assign(settings, uiStore.customModelSettings)
-  toastr.info('已清空设置')
-}
+  await uiStore.clearModelSettings();
+  modelSource.value = uiStore.modelSource as any;
+  profileSetting.value = uiStore.profileSetting || '';
+  Object.assign(settings, uiStore.customModelSettings);
+  toastr.info('已清空设置');
+};
 
 const close = () => {
-  uiStore.showUI = false
-}
+  uiStore.showUI = false;
+};
 
 /*测试连接：发一条最轻量的请求 */
 const testConnect = async () => {
@@ -200,8 +187,8 @@ const testConnect = async () => {
   if (modelSource.value === 'sample' || modelSource.value === 'profile') {
     try {
       let tempProfileSetting;
-      if(modelSource.value === 'profile'){
-        tempProfileSetting = (await (window as any).SillyTavern.executeSlashCommands('/profile') as any).pipe;
+      if (modelSource.value === 'profile') {
+        tempProfileSetting = ((await (window as any).SillyTavern.executeSlashCommands('/profile')) as any).pipe;
         console.log('当前预设名称:', tempProfileSetting);
         await (window as any).SillyTavern.executeSlashCommands(`/profile ${profileSetting.value}`);
       }
@@ -209,7 +196,7 @@ const testConnect = async () => {
       const res = await (window as any).SillyTavern.executeSlashCommands('/model');
       if (!res.error) {
         toastr.success('模型连接正常 ✓');
-        if(modelSource.value === 'profile'){
+        if (modelSource.value === 'profile') {
           await (window as any).SillyTavern.executeSlashCommands(`/profile ${tempProfileSetting}`);
         }
       } else {
@@ -222,64 +209,63 @@ const testConnect = async () => {
   }
 
   //2. 外部模型（external）
-  if ((!settings.baseURL || !settings.apiKey)) {
-    toastr.warning('请先填写接口地址与 API 密钥')
-    return
+  if (!settings.baseURL || !settings.apiKey) {
+    toastr.warning('请先填写接口地址与 API 密钥');
+    return;
   }
 
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 8000) // 8 秒超时
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000); // 8 秒超时
 
   try {
     const res = await fetch(`${settings.baseURL.replace(/\/$/, '')}/models`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${settings.apiKey.trim()}`
+        Authorization: `Bearer ${settings.apiKey.trim()}`,
       },
-      signal: ctrl.signal
-    })
-    clearTimeout(timer)
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
 
     if (res.ok) {
-      toastr.success('连接成功，密钥可用 ✓')
+      toastr.success('连接成功，密钥可用 ✓');
     } else {
-      const text = await res.text().catch(() => res.statusText)
-      toastr.error(`连接失败：${res.status} ${text}`)
+      const text = await res.text().catch(() => res.statusText);
+      toastr.error(`连接失败：${res.status} ${text}`);
     }
   } catch (e: any) {
-    clearTimeout(timer)
-    toastr.error(`网络错误：${e.message || '无法到达服务器'}`)
+    clearTimeout(timer);
+    toastr.error(`网络错误：${e.message || '无法到达服务器'}`);
   }
-}
+};
 
 /* 远端模型列表 */
-const modelOptions = ref<string[]>([])
+const modelOptions = ref<string[]>([]);
 
 /* 获取远端模型列表 */
 const getRemoteModels = async () => {
   if (!settings.baseURL || !settings.apiKey) {
-    toastr.warning('请先填写接口地址与 API 密钥')
-    return
+    toastr.warning('请先填写接口地址与 API 密钥');
+    return;
   }
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 8000)
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
     const res = await fetch(`${settings.baseURL.replace(/\/$/, '')}/models`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${settings.apiKey.trim()}` },
-      signal: ctrl.signal
-    })
-    clearTimeout(timer)
-    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText))
-    const body = await res.json()
-    modelOptions.value = (body.data || []).map((m: any) => m.id).sort()
-    toastr.success(`共拉取 ${modelOptions.value.length} 个模型`)
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+    const body = await res.json();
+    modelOptions.value = (body.data || []).map((m: any) => m.id).sort();
+    toastr.success(`共拉取 ${modelOptions.value.length} 个模型`);
   } catch (e: any) {
-    clearTimeout(timer)
-    toastr.error(`获取失败：${e.message || '网络错误'}`)
+    clearTimeout(timer);
+    toastr.error(`获取失败：${e.message || '网络错误'}`);
   }
-}
-
+};
 </script>
 
 <style scoped>
@@ -354,7 +340,9 @@ const getRemoteModels = async () => {
   color: #666;
   cursor: pointer;
   border-radius: 4px;
-  transition: color 0.2s, background 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s;
 }
 .close-x:hover {
   color: #000;
@@ -425,7 +413,7 @@ const getRemoteModels = async () => {
   font-size: 14px;
   color: #444;
 }
-.row input{
+.row input {
   flex: 1;
   padding: 6px 8px;
   border: 1px solid #d1d5db;
@@ -437,7 +425,7 @@ const getRemoteModels = async () => {
 .row select {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid #d1d5db;          /* 浅灰边框 */
+  border: 1px solid #d1d5db; /* 浅灰边框 */
   border-radius: 4px;
   font-size: 14px;
   color: #252424;
@@ -445,7 +433,7 @@ const getRemoteModels = async () => {
   appearance: none;
   -webkit-appearance: none;
   color-scheme: light;
-  transition: border-color .2s;
+  transition: border-color 0.2s;
 }
 /* 聚焦时稍微加深一点，保持浅色风格 */
 .row select:focus {

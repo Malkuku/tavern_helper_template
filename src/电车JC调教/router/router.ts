@@ -40,10 +40,10 @@ export const router = createRouter({
           component: () => import('../view/选项.vue'),
         },
         {
-          path:'/设置',
-          name:'设置',
+          path: '/设置',
+          name: '设置',
           component: () => import('../view/设置.vue'),
-        }
+        },
       ],
     },
   ],

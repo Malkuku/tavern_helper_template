@@ -19,17 +19,16 @@ const devLevel = computed(() => statStore.stat_data?.身体开发等级?.星宫�
 const sexData = computed(() => statStore.stat_data?.数据总览?.星宫诗羽.性交次数 || {});
 const trainingData = computed(() => statStore.stat_data?.数据总览?.星宫诗羽.调教回忆 || {});
 const stageMap = computed(() => {
-  const stages = statStore.stat_data?.好感度阶段 || {}
-  const events = statStore.stat_data?.好感度事件 || {}
+  const stages = statStore.stat_data?.好感度阶段 || {};
+  const events = statStore.stat_data?.好感度事件 || {};
   return [
     {
       阶段数值: stages['星宫诗羽']?.阶段三 ?? 0,
-      事件: events['诗羽生病'] ??
-      {
-        "事件描述": "未知",
-        "已解决": false
-      }
-    }
-  ]
-})
+      事件: events['诗羽生病'] ?? {
+        事件描述: '未知',
+        已解决: false,
+      },
+    },
+  ];
+});
 </script>

@@ -19,17 +19,16 @@ const devLevel = computed(() => statStore.stat_data?.身体开发等级?.白石�
 const sexData = computed(() => statStore.stat_data?.数据总览?.白石䌷.性交次数 || {});
 const trainingData = computed(() => statStore.stat_data?.数据总览?.白石䌷.调教回忆 || {});
 const stageMap = computed(() => {
-  const stages = statStore.stat_data?.好感度阶段 || {}
-  const events = statStore.stat_data?.好感度事件 || {}
+  const stages = statStore.stat_data?.好感度阶段 || {};
+  const events = statStore.stat_data?.好感度事件 || {};
   return [
     {
       阶段数值: stages['白石䌷']?.阶段三 ?? 0,
-      事件: events['䌷受伤'] ??
-        {
-          "事件描述": "未知",
-          "已解决": false
-        }
-    }
-  ]
-})
+      事件: events['䌷受伤'] ?? {
+        事件描述: '未知',
+        已解决: false,
+      },
+    },
+  ];
+});
 </script>

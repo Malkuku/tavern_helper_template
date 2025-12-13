@@ -6,8 +6,7 @@ export const getCurrentMessage = () => {
     return '';
   }
   return String(chat_messages[0].message);
-}
-
+};
 
 export const getOldStatData = async () => {
   const message = getCurrentMessage();
@@ -19,4 +18,4 @@ export const getOldStatData = async () => {
   }
   console.error(`未找到位于第${getCurrentMessageId()}楼层的旧数据`);
   return null;
-}
+};

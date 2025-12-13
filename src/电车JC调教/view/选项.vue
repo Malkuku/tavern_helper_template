@@ -15,12 +15,7 @@
       <div v-else class="content-wrapper">
         <section class="section">
           <div class="options-list">
-            <button
-              v-for="(opt, idx) in optionsList"
-              :key="idx"
-              class="option-btn"
-              @click="selectOption(opt)"
-            >
+            <button v-for="(opt, idx) in optionsList" :key="idx" class="option-btn" @click="selectOption(opt)">
               {{ opt }}
             </button>
           </div>
@@ -31,85 +26,85 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useStatStore } from '../store/StatStore'
+import { ref, computed, watch } from 'vue';
+import { useStatStore } from '../store/StatStore';
 import { useMessageStore } from '../store/MessageStore';
 
 /* 状态 */
-const showOptions = ref(false)
-const optionsList = ref<string[]>([])
+const showOptions = ref(false);
+const optionsList = ref<string[]>([]);
 
 /* 主题 */
-const statStore = useStatStore()
-const messageStore = useMessageStore()
-const theme = computed(() => statStore.stat_data?.theme === 'dark' ? 'dark' : 'light')
+const statStore = useStatStore();
+const messageStore = useMessageStore();
+const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'));
 
 /* 解析选项 */
 function parseOptions(msg: string): string[] {
   try {
-    const block = msg.match(/<options>([\s\S]*?)<\/options>/)
-    if (!block?.[1]) return []
-    const ops = Array.from(block[1].matchAll(/<op>(.*?)<\/op>/g), m => m[1].trim())
-    return ops.length ? ops : []
+    const block = msg.match(/<options>([\s\S]*?)<\/options>/);
+    if (!block?.[1]) return [];
+    const ops = Array.from(block[1].matchAll(/<op>(.*?)<\/op>/g), m => m[1].trim());
+    return ops.length ? ops : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 /* 监听 messageStore */
 watch(
   () => messageStore.message,
-  (msg) => {
-    const ops = parseOptions(msg)
-    optionsList.value = ops
-    showOptions.value = ops.length > 0
+  msg => {
+    const ops = parseOptions(msg);
+    optionsList.value = ops;
+    showOptions.value = ops.length > 0;
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 /* 点击选项：追加到 SillyTavern 输入框 */
 function selectOption(option: string) {
-  const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement
+  const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
   if (!input) {
-    console.warn('未找到 SillyTavern 输入框 #send_textarea')
-    return
+    console.warn('未找到 SillyTavern 输入框 #send_textarea');
+    return;
   }
-  const cur = input.value.trim()
-  input.value = cur ? `${cur} ${option}` : option
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  input.focus()
+  const cur = input.value.trim();
+  input.value = cur ? `${cur} ${option}` : option;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
 }
 </script>
 <style lang="scss" scoped>
 /* ========== 粉色 & 深紫色主题变量 ========== */
 .options-panel {
   /* 浅色模式 */
-  --bg-primary: #fff0f5;        /* 主背景：极浅粉 */
-  --bg-secondary: #ffe4e6;      /* 次背景：浅粉 */
-  --bg-tertiary: #ffdce0;       /* 卡片背景：柔粉 */
-  --text-primary: #3e1f47;      /* 主文字：深紫 */
-  --text-secondary: #6d4b7d;    /* 次文字：紫灰 */
-  --text-tertiary: #9a7aa0;     /* 第三文字：淡紫灰 */
-  --border-color: #d8bfd8;      /* 边框：柔紫 */
+  --bg-primary: #fff0f5; /* 主背景：极浅粉 */
+  --bg-secondary: #ffe4e6; /* 次背景：浅粉 */
+  --bg-tertiary: #ffdce0; /* 卡片背景：柔粉 */
+  --text-primary: #3e1f47; /* 主文字：深紫 */
+  --text-secondary: #6d4b7d; /* 次文字：紫灰 */
+  --text-tertiary: #9a7aa0; /* 第三文字：淡紫灰 */
+  --border-color: #d8bfd8; /* 边框：柔紫 */
   --shadow: 0 2px 12px rgba(142, 92, 184, 0.08);
-  --accent: #ff66b3;            /* 强调色：亮粉 */
-  --accent-hover: #ff4da6;      /* 强调悬浮：更亮粉 */
+  --accent: #ff66b3; /* 强调色：亮粉 */
+  --accent-hover: #ff4da6; /* 强调悬浮：更亮粉 */
   --radius: 12px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .options-panel.dark {
   /* 深色模式 */
-  --bg-primary: #2c1b3d;        /* 主背景：深紫 */
-  --bg-secondary: #24162f;      /* 次背景：更深紫 */
-  --bg-tertiary: #1a1025;       /* 卡片背景：紫黑 */
-  --text-primary: #ffd1e8;      /* 主文字：淡粉 */
-  --text-secondary: #d9a7c1;    /* 次文字：粉灰 */
-  --text-tertiary: #a87e9e;     /* 第三文字：暗粉灰 */
-  --border-color: #4a3a5b;      /* 边框：深紫灰 */
+  --bg-primary: #2c1b3d; /* 主背景：深紫 */
+  --bg-secondary: #24162f; /* 次背景：更深紫 */
+  --bg-tertiary: #1a1025; /* 卡片背景：紫黑 */
+  --text-primary: #ffd1e8; /* 主文字：淡粉 */
+  --text-secondary: #d9a7c1; /* 次文字：粉灰 */
+  --text-tertiary: #a87e9e; /* 第三文字：暗粉灰 */
+  --border-color: #4a3a5b; /* 边框：深紫灰 */
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  --accent: #ff66b3;            /* 强调色：亮粉 */
-  --accent-hover: #ff4da6;      /* 强调悬浮：更亮粉 */
+  --accent: #ff66b3; /* 强调色：亮粉 */
+  --accent-hover: #ff4da6; /* 强调悬浮：更亮粉 */
 }
 
 /* ========== 以下结构与原始文件完全一致 ========== */

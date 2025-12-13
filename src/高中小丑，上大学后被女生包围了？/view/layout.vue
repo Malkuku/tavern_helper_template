@@ -74,38 +74,37 @@ const theme = computed(() => (statStore.stat_data?.theme ? statStore.stat_data.t
 
 const username = computed(() => substitudeMacros('{{user}}'));
 
-const showCharacters = ref(false)
+const showCharacters = ref(false);
 
 // 切换函数
 function toggleGroup() {
-  showCharacters.value = !showCharacters.value
+  showCharacters.value = !showCharacters.value;
 }
 
-const dummyName = computed(() => showCharacters.value ? '返回' : '角色信息');
+const dummyName = computed(() => (showCharacters.value ? '返回' : '角色信息'));
 
 // 全部 7 条真实路由
 const allRoutes = [
-  { path: '/user',     name: username,  group: 'char' },
-  { path: '/林安安',   name: '林安安',   group: 'char' },
-  { path: '/李沐',     name: '李沐',     group: 'char' },
-  { path: '/张小花',   name: '张小花',   group: 'char' },
-  { path: '/苏浅浅',   name: '苏浅浅',   group: 'char' },
-  { path: '/世界信息',  name: '活动档案',  group: 'todo' },
+  { path: '/user', name: username, group: 'char' },
+  { path: '/林安安', name: '林安安', group: 'char' },
+  { path: '/李沐', name: '李沐', group: 'char' },
+  { path: '/张小花', name: '张小花', group: 'char' },
+  { path: '/苏浅浅', name: '苏浅浅', group: 'char' },
+  { path: '/世界信息', name: '活动档案', group: 'todo' },
   { path: '/TODOLIST', name: 'TODOLIST', group: 'todo' },
-  { path: '/选项',     name: '展望未来',     group: 'todo' },
-  { path: '/more',     name: dummyName,  group: 'dummy' }
-]
+  { path: '/选项', name: '展望未来', group: 'todo' },
+  { path: '/more', name: dummyName, group: 'dummy' },
+];
 
 const tabs = computed(() => {
-  const flag = showCharacters.value
+  const flag = showCharacters.value;
   return allRoutes.filter(t => {
-    if (t.group === 'dummy') return true          // 假路由永远显示
-    return flag ? t.group === 'char'              // 人物模式
-      : t.group === 'todo'              // 常驻模式
-  })
-})
-
-
+    if (t.group === 'dummy') return true; // 假路由永远显示
+    return flag
+      ? t.group === 'char' // 人物模式
+      : t.group === 'todo'; // 常驻模式
+  });
+});
 
 // 改进的路由激活判断
 const isActive = (path: string) => {
@@ -116,19 +115,19 @@ const isActive = (path: string) => {
 };
 
 // 切换主题
-const toggleTheme = async() => {
+const toggleTheme = async () => {
   if (!statStore.stat_data) return;
   const currentTheme = statStore.stat_data?.theme ?? 'autumn';
   statStore.stat_data.theme = currentTheme === 'autumn' ? 'starry' : 'autumn';
-  await updateVariablesWith(variables => _.update(variables, "stat_data.theme", () => statStore.stat_data?.theme));
+  await updateVariablesWith(variables => _.update(variables, 'stat_data.theme', () => statStore.stat_data?.theme));
 };
 
 // 导航到指定路由
-function handleTabClick(tab: typeof allRoutes[0]) {
+function handleTabClick(tab: (typeof allRoutes)[0]) {
   if (tab.group === 'dummy') {
-    toggleGroup()   // 假路由：只切换分组
+    toggleGroup(); // 假路由：只切换分组
   } else {
-    router.push(tab.path)     // 真路由：正常跳转
+    router.push(tab.path); // 真路由：正常跳转
   }
 }
 </script>

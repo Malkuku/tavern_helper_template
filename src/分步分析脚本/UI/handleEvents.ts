@@ -8,12 +8,12 @@ const getUiStore = () => (window as any).eraUiStore as ReturnType<typeof useUiSt
 
 const isAsync = computed(() => !!getUiStore()?.isAsync);
 const isUpdateEra = computed(() => !!getUiStore()?.isUpdateEra);
-const loreRegex = computed(() =>{
-  if(!isAsync.value){
+const loreRegex = computed(() => {
+  if (!isAsync.value) {
     return /<era_analyze>/i;
-  }else if(isAsync.value && !isUpdateEra.value){
+  } else if (isAsync.value && !isUpdateEra.value) {
     return /<era_update>/i;
-  }else{
+  } else {
     return /<era_ignore>/i;
   }
 });
@@ -28,50 +28,52 @@ const waitTime = 8000;
  * 重发变量更新
  */
 export const reSendEraUpdate = async () => {
-  if(getLastMessageId() == 0){ //不处理0层
-    toastr.warning('请不要重算0层变量','你在干嘛😡');
+  if (getLastMessageId() == 0) {
+    //不处理0层
+    toastr.warning('请不要重算0层变量', '你在干嘛😡');
     return;
   }
   toastr.info('开始变量重算，等待era事件完成');
   const isAsyncTemp = getUiStore().isAsync;
-  try{
+  try {
     //先将era回滚到上次更新
     toastr.info('正在将era回滚到上次更新');
     await eventEmit('era:forceSync', { mode: 'rollbackTo', message_id: getLastMessageId() - 1 });
 
     getUiStore().isUpdateEra = true;
-    if(!isAsync.value){
+    if (!isAsync.value) {
       toastr.info('临时开启分步分析模式');
       getUiStore().isAsync = true;
     }
     await handleKatEraUpdate();
-  }catch (e) {
+  } catch (e) {
     toastr.error('分步分析处理失败');
-    console.error('分步分析处理失败: ',e);
+    console.error('分步分析处理失败: ', e);
     await eventEmit('era:forceSync');
-  }finally {
+  } finally {
     getUiStore().isAsync = isAsyncTemp;
     getUiStore().isUpdateEra = false;
   }
-}
+};
 
 /**
  * 处理接收到的massage_received事件
  */
-export const handleMessageReceived = async (message_id:number) => {
-  if(getLastMessageId() == 0 || message_id == 0){ //不处理0层
+export const handleMessageReceived = async (message_id: number) => {
+  if (getLastMessageId() == 0 || message_id == 0) {
+    //不处理0层
     return;
   }
-  if(!isAsync.value){
+  if (!isAsync.value) {
     return;
   }
-  if(isUpdateEra.value){
+  if (isUpdateEra.value) {
     toastr.warning('已有正在处理的分步分析');
     return;
   }
-  if(MessageUtil.getMessageById(message_id).length < 200){
+  if (MessageUtil.getMessageById(message_id).length < 200) {
     toastr.error('空回了喵~请重roll喵~');
-    throw new Error("空回了喵~请重roll喵~");
+    throw new Error('空回了喵~请重roll喵~');
   }
   toastr.info('开始分步分析，等待era事件完成');
   getUiStore().isUpdateEra = true;
@@ -84,34 +86,31 @@ export const handleMessageReceived = async (message_id:number) => {
    *  流式：全寄 ejs有问题
    *  预设：全寄
    */
-}
+};
 
 /**
  * 合并消息内容
  */
 async function handleMessageMerge(result: string) {
-  if(result.length < 200){
+  if (result.length < 200) {
     toastr.error('接收的分析结果为空，哈！');
-    throw new Error("接收的分析结果为空，哈！");
+    throw new Error('接收的分析结果为空，哈！');
   }
-  const variableRegex = /<(variable(?:insert|edit|delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi
-  const optionsRegex = /<options>((?:(?!<options>)[\s\S])*?)<\/options>(?![\s\S]*<options>[\s\S]*<\/options>)/gi
+  const variableRegex =
+    /<(variable(?:insert|edit|delete))>\s*(?=[\s\S]*?\S[\s\S]*?<\/\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|<\/\1>)[\s\S])*?)\s*<\/\1>/gi;
+  const optionsRegex = /<options>((?:(?!<options>)[\s\S])*?)<\/options>(?![\s\S]*<options>[\s\S]*<\/options>)/gi;
   //先去除掉正文的旧记录
-  if(result.match(variableRegex)){
+  if (result.match(variableRegex)) {
     await MessageUtil.removeContentByRegex(getLastMessageId(), [variableRegex]);
   }
-  if(result.match(optionsRegex)){
+  if (result.match(optionsRegex)) {
     await MessageUtil.removeContentByRegex(getLastMessageId(), [optionsRegex]);
   }
 
   //提取并且合并消息到正文
-   // 只保留标签及其内部内容
-  let content = result
-    .match(variableRegex)
-    ?.join('') ?? '';
-   content += result
-    .match(optionsRegex)
-    ?.join('') ?? '';
+  // 只保留标签及其内部内容
+  let content = result.match(variableRegex)?.join('') ?? '';
+  content += result.match(optionsRegex)?.join('') ?? '';
   await MessageUtil.mergeContentToMessage(getLastMessageId(), content);
 }
 
@@ -119,7 +118,7 @@ async function handleMessageMerge(result: string) {
  * 准备开始分析
  */
 export const handleKatEraUpdate = async () => {
-  if(!isUpdateEra.value){
+  if (!isUpdateEra.value) {
     toastr.warning('[isUpdateEra]标识异常');
     return;
   }
@@ -128,9 +127,9 @@ export const handleKatEraUpdate = async () => {
   /**
    * 构建提示词并请求AI分析
    */
-  try{
-    toastr.info("正在构建提示词并请求AI分析");
-    const user_input = `本次不生成故事，处理Era变量`
+  try {
+    toastr.info('正在构建提示词并请求AI分析');
+    const user_input = `本次不生成故事，处理Era变量`;
     const max_chat_history = 2;
     const is_should_stream = false;
     const promptInjects = [
@@ -143,33 +142,46 @@ export const handleKatEraUpdate = async () => {
         content: user_input,
       },
     ];
-    console.log("modelSource: ", modelSource.value)
-    const result = modelSource.value == 'sample' ?
-      await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,null) :
-      modelSource.value == 'profile' ?
-        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,profileSetting.value) :
-        await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value,null);
+    console.log('modelSource: ', modelSource.value);
+    const result =
+      modelSource.value == 'sample'
+        ? await PromptUtil.sendPrompt(user_input, promptInjects, max_chat_history, is_should_stream, null, null)
+        : modelSource.value == 'profile'
+          ? await PromptUtil.sendPrompt(
+              user_input,
+              promptInjects,
+              max_chat_history,
+              is_should_stream,
+              null,
+              profileSetting.value,
+            )
+          : await PromptUtil.sendPrompt(
+              user_input,
+              promptInjects,
+              max_chat_history,
+              is_should_stream,
+              customModelSettings.value,
+              null,
+            );
 
-    console.log("result: ",result);
+    console.log('result: ', result);
 
     await handleMessageMerge(result);
 
-    toastr.success("分步分析处理完成");
-
-  }catch (e){
-    toastr.error("分步分析处理失败");
-    console.error("分步分析处理失败: ",e);
-  }finally {
+    toastr.success('分步分析处理完成');
+  } catch (e) {
+    toastr.error('分步分析处理失败');
+    console.error('分步分析处理失败: ', e);
+  } finally {
     await eventEmit('era:forceSync');
     getUiStore().isUpdateEra = false;
   }
-}
+};
 
 /**
  * 处理世界书内容的排除
  */
-export const handleLoresFilter = async (lores:any) =>{
-  console.log("WORLDINFO_ENTRIES_LOADED: ",lores);
+export const handleLoresFilter = async (lores: any) => {
+  console.log('WORLDINFO_ENTRIES_LOADED: ', lores);
   await WorldInfoUtil.removeLoresByRegex(lores, loreRegex.value, isReversed.value);
-}
-
+};

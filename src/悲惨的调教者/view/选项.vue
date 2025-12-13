@@ -15,12 +15,7 @@
       <div v-else class="content-wrapper">
         <section class="section">
           <div class="options-list">
-            <button
-              v-for="(opt, idx) in optionsList"
-              :key="idx"
-              class="option-btn"
-              @click="selectOption(opt)"
-            >
+            <button v-for="(opt, idx) in optionsList" :key="idx" class="option-btn" @click="selectOption(opt)">
               {{ opt }}
             </button>
           </div>
@@ -31,53 +26,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useStatStore } from '../store/StatStore'
+import { ref, computed, watch } from 'vue';
+import { useStatStore } from '../store/StatStore';
 import { useMessageStore } from '../store/MessageStore';
 
 /* 状态 */
-const showOptions = ref(false)
-const optionsList = ref<string[]>([])
+const showOptions = ref(false);
+const optionsList = ref<string[]>([]);
 
 /* 主题 */
-const statStore = useStatStore()
-const messageStore = useMessageStore()
-const theme = computed(() => statStore.stat_data?.theme === 'dark' ? 'dark' : 'light')
+const statStore = useStatStore();
+const messageStore = useMessageStore();
+const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'));
 
 /* 解析选项 */
 function parseOptions(msg: string): string[] {
   try {
-    const block = msg.match(/<options>([\s\S]*?)<\/options>/)
-    if (!block?.[1]) return []
-    const ops = Array.from(block[1].matchAll(/<op>(.*?)<\/op>/g), m => m[1].trim())
-    return ops.length ? ops : []
+    const block = msg.match(/<options>([\s\S]*?)<\/options>/);
+    if (!block?.[1]) return [];
+    const ops = Array.from(block[1].matchAll(/<op>(.*?)<\/op>/g), m => m[1].trim());
+    return ops.length ? ops : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 /* 监听 messageStore */
 watch(
   () => messageStore.message,
-  (msg) => {
-    const ops = parseOptions(msg)
-    optionsList.value = ops
-    showOptions.value = ops.length > 0
+  msg => {
+    const ops = parseOptions(msg);
+    optionsList.value = ops;
+    showOptions.value = ops.length > 0;
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 /* 点击选项：追加到 SillyTavern 输入框 */
 function selectOption(option: string) {
-  const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement
+  const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
   if (!input) {
-    console.warn('未找到 SillyTavern 输入框 #send_textarea')
-    return
+    console.warn('未找到 SillyTavern 输入框 #send_textarea');
+    return;
   }
-  const cur = input.value.trim()
-  input.value = cur ? `${cur} ${option}` : option
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  input.focus()
+  const cur = input.value.trim();
+  input.value = cur ? `${cur} ${option}` : option;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
 }
 </script>
 

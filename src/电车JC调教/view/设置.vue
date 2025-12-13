@@ -11,24 +11,12 @@
       <section class="section">
         <h3 class="section-title">好感度池</h3>
         <div class="pool-grid">
-          <div
-            v-for="(val, name) in pool"
-            :key="name"
-            class="pool-item"
-          >
+          <div v-for="(val, name) in pool" :key="name" class="pool-item">
             <label>{{ name }}</label>
-            <input
-              type="number"
-              v-model.number="pool[name]"
-              :min="0"
-              :max="9999"
-              class="pool-input"
-            />
+            <input type="number" v-model.number="pool[name]" :min="0" :max="9999" class="pool-input" />
           </div>
         </div>
-        <p class="tips">
-          实际增加 = min(变化值, 池剩余值)，池不足时只扣池不溢出。
-        </p>
+        <p class="tips">实际增加 = min(变化值, 池剩余值)，池不足时只扣池不溢出。</p>
       </section>
 
       <!-- 增长限制 -->
@@ -39,42 +27,22 @@
             <h4>好感度</h4>
             <label>
               最大增值
-              <input
-                type="number"
-                v-model.number="limits.好感度.最大增值"
-                :min="1"
-                :max="1000"
-              />
+              <input type="number" v-model.number="limits.好感度.最大增值" :min="1" :max="1000" />
             </label>
             <label>
               最大减值
-              <input
-                type="number"
-                v-model.number="limits.好感度.最大减值"
-                :min="-1000"
-                :max="0"
-              />
+              <input type="number" v-model.number="limits.好感度.最大减值" :min="-1000" :max="0" />
             </label>
           </div>
           <div class="limit-group">
             <h4>经验值</h4>
             <label>
               最大增值
-              <input
-                type="number"
-                v-model.number="limits.经验值.最大增值"
-                :min="1"
-                :max="1000"
-              />
+              <input type="number" v-model.number="limits.经验值.最大增值" :min="1" :max="1000" />
             </label>
             <label>
               最大减值
-              <input
-                type="number"
-                v-model.number="limits.经验值.最大减值"
-                :min="0"
-                :max="0"
-              />
+              <input type="number" v-model.number="limits.经验值.最大减值" :min="0" :max="0" />
             </label>
           </div>
         </div>
@@ -84,19 +52,10 @@
       <section class="section">
         <h3 class="section-title">好感度事件</h3>
         <div class="event-list">
-          <div
-            v-for="(evt, key) in events"
-            :key="key"
-            class="event-card"
-            :class="{ resolved: evt.已解决 }"
-          >
+          <div v-for="(evt, key) in events" :key="key" class="event-card" :class="{ resolved: evt.已解决 }">
             <div class="event-desc">{{ evt.事件描述 }}</div>
             <div class="event-actions">
-              <button
-                class="btn-resolve"
-                :disabled="evt.已解决"
-                @click="resolveEvent(key)"
-              >
+              <button class="btn-resolve" :disabled="evt.已解决" @click="resolveEvent(key)">
                 {{ evt.已解决 ? '已解决' : '标记解决' }}
               </button>
             </div>
@@ -114,75 +73,75 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watchEffect } from 'vue'
-import { useStatStore } from '../store/StatStore'
+import { computed, reactive, watchEffect } from 'vue';
+import { useStatStore } from '../store/StatStore';
 
-const statStore = useStatStore()
-const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'))
+const statStore = useStatStore();
+const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'));
 
 /* ---------------- 本地副本 ---------------- */
-const pool = reactive<Record<string, number>>({})
+const pool = reactive<Record<string, number>>({});
 const limits = reactive({
   好感度: { 最大增值: 20, 最大减值: 20 },
-  经验值: { 最大增值: 15, 最大减值: 15 }
-})
-const events = reactive<Record<string, { 事件描述: string; 已解决: boolean }>>({})
+  经验值: { 最大增值: 15, 最大减值: 15 },
+});
+const events = reactive<Record<string, { 事件描述: string; 已解决: boolean }>>({});
 
 /* ---------------- 同步初始数据 ---------------- */
 watchEffect(() => {
-  const src = statStore.stat_data
-  if (!src) return
+  const src = statStore.stat_data;
+  if (!src) return;
 
   // 池
-  Object.assign(pool, src.好感度池 ?? {})
+  Object.assign(pool, src.好感度池 ?? {});
 
   // 限制
-  const lim = src.数值变化限制 ?? src.增值限制
+  const lim = src.数值变化限制 ?? src.增值限制;
   if (lim) {
-    limits.好感度.最大增值 = lim.好感度?.最大增值 ?? 20
-    limits.好感度.最大减值 = lim.好感度?.最大减值 ?? 20
-    limits.经验值.最大增值 = lim.经验值?.最大增值 ?? 15
-    limits.经验值.最大减值 = lim.经验值?.最大减值 ?? 15
+    limits.好感度.最大增值 = lim.好感度?.最大增值 ?? 20;
+    limits.好感度.最大减值 = lim.好感度?.最大减值 ?? 20;
+    limits.经验值.最大增值 = lim.经验值?.最大增值 ?? 15;
+    limits.经验值.最大减值 = lim.经验值?.最大减值 ?? 15;
   }
 
   // 事件
-  Object.keys(events).forEach(k => delete events[k])
-  Object.assign(events, src.好感度事件 ?? {})
-})
+  Object.keys(events).forEach(k => delete events[k]);
+  Object.assign(events, src.好感度事件 ?? {});
+});
 
 /* ---------------- 保存 ---------------- */
 const save = async () => {
-  if (!statStore.stat_data) return
+  if (!statStore.stat_data) return;
 
   /* 1. 把 reactive 数据转成普通对象（脱 Proxy） */
-  const rawPool      = JSON.parse(JSON.stringify(pool))      // 纯 JSON
-  const rawLimits    = JSON.parse(JSON.stringify(limits))    // 纯 JSON
-  const rawEvents    = JSON.parse(JSON.stringify(events))    // 纯 JSON
+  const rawPool = JSON.parse(JSON.stringify(pool)); // 纯 JSON
+  const rawLimits = JSON.parse(JSON.stringify(limits)); // 纯 JSON
+  const rawEvents = JSON.parse(JSON.stringify(events)); // 纯 JSON
 
   /* 2. 只深克隆即将被覆盖的三枝（防止把 Proxy 带进去） */
-  const poolClone   = JSON.parse(JSON.stringify(statStore.stat_data.好感度池   ?? {}))
-  const limitClone  = JSON.parse(JSON.stringify(statStore.stat_data.数值变化限制 ?? {}))
-  const eventClone  = JSON.parse(JSON.stringify(statStore.stat_data.好感度事件   ?? {}))
+  const poolClone = JSON.parse(JSON.stringify(statStore.stat_data.好感度池 ?? {}));
+  const limitClone = JSON.parse(JSON.stringify(statStore.stat_data.数值变化限制 ?? {}));
+  const eventClone = JSON.parse(JSON.stringify(statStore.stat_data.好感度事件 ?? {}));
 
   /* 3. 用脱敏后的数据改副本 */
-  Object.assign(poolClone,   rawPool)
-  Object.assign(limitClone, rawLimits)
-  Object.assign(eventClone, rawEvents)
+  Object.assign(poolClone, rawPool);
+  Object.assign(limitClone, rawLimits);
+  Object.assign(eventClone, rawEvents);
 
   await eventEmit('era:updateByObject', {
-      好感度池:      poolClone,
-      数值变化限制:  limitClone,
-      好感度事件:    eventClone
+    好感度池: poolClone,
+    数值变化限制: limitClone,
+    好感度事件: eventClone,
   });
 
-  toastr.success('保存配置成功')
-}
+  toastr.success('保存配置成功');
+};
 
 /* ---------------- 标记事件解决 ---------------- */
 const resolveEvent = async (key: string) => {
-  if (!statStore.stat_data) return
-  events[key].已解决 = true
-}
+  if (!statStore.stat_data) return;
+  events[key].已解决 = true;
+};
 </script>
 
 <style lang="scss" scoped>

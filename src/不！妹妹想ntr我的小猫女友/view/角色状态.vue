@@ -92,7 +92,7 @@ const currentCharacter = ref('user');
 const expandedSections = ref<Record<string, boolean>>({
   user: false,
   多多: false,
-  何茉茉: false
+  何茉茉: false,
 });
 
 // 角色数据
@@ -104,16 +104,16 @@ const characters = ref({
       内衣: '',
       袜子: '',
       鞋子: '',
-      配饰: ''
+      配饰: '',
     },
     bodyStatus: {
-      阴茎: '正常下垂'
+      阴茎: '正常下垂',
     },
-    thoughts: '无'
+    thoughts: '无',
   },
   多多: {
     specialStatus: {
-      当前形态: '猫'
+      当前形态: '猫',
     },
     clothing: {
       上半身: '',
@@ -121,14 +121,14 @@ const characters = ref({
       内衣: '',
       袜子: '',
       鞋子: '',
-      配饰: ''
+      配饰: '',
     },
     bodyStatus: {
       小穴: '干燥紧闭',
       菊穴: '未开发',
-      口穴: '未开发'
+      口穴: '未开发',
     },
-    thoughts: '无'
+    thoughts: '无',
   },
   何茉茉: {
     clothing: {
@@ -137,19 +137,19 @@ const characters = ref({
       内衣: '',
       袜子: '',
       鞋子: '',
-      配饰: ''
+      配饰: '',
     },
     bodyStatus: {
       小穴: '干燥紧闭',
       菊穴: '未开发',
-      口穴: '未开发'
+      口穴: '未开发',
     },
-    thoughts: '无'
-  }
+    thoughts: '无',
+  },
 });
 
 // 星星特效
-const stars = ref<Array<{id: number, style: any}>>([]);
+const stars = ref<Array<{ id: number; style: any }>>([]);
 let starInterval: number | null = null;
 
 // 切换角色
@@ -172,8 +172,8 @@ const initStars = () => {
         left: `${Math.random() * 100}%`,
         top: `${Math.random() * 100}%`,
         animationDelay: `${Math.random() * 5}s`,
-        animationDuration: `${3 + Math.random() * 4}s`
-      }
+        animationDuration: `${3 + Math.random() * 4}s`,
+      },
     });
   }
 };
@@ -181,12 +181,12 @@ const initStars = () => {
 // 获取服装类型的中文名称
 const getClothingTypeName = (type: string) => {
   const typeMap: Record<string, string> = {
-    '上半身': '上衣',
-    '下半身': '下装',
-    '内衣': '内衣',
-    '袜子': '袜子',
-    '鞋子': '鞋子',
-    '配饰': '配饰'
+    上半身: '上衣',
+    下半身: '下装',
+    内衣: '内衣',
+    袜子: '袜子',
+    鞋子: '鞋子',
+    配饰: '配饰',
   };
   return typeMap[type] || type;
 };
@@ -194,10 +194,10 @@ const getClothingTypeName = (type: string) => {
 // 获取身体部位的中文名称
 const getBodyPartName = (part: string) => {
   const partMap: Record<string, string> = {
-    '小穴': '小穴',
-    '阴茎': '阴茎',
-    '菊穴': '菊穴',
-    '口穴': '口穴'
+    小穴: '小穴',
+    阴茎: '阴茎',
+    菊穴: '菊穴',
+    口穴: '口穴',
   };
   return partMap[part] || part;
 };
@@ -232,9 +232,13 @@ const updateData = () => {
   }
 };
 
-watch(() => statStore.stat_data,()=>{
-  updateData();
-} , { deep: true,immediate: true },)
+watch(
+  () => statStore.stat_data,
+  () => {
+    updateData();
+  },
+  { deep: true, immediate: true },
+);
 
 onMounted(() => {
   initStars();
@@ -262,7 +266,7 @@ onUnmounted(() => {
   overflow: hidden;
   font-family: 'Microsoft YaHei', Arial, sans-serif;
   box-sizing: border-box;
-  width: 90%
+  width: 90%;
 }
 
 /* 星星背景特效 */
@@ -287,7 +291,8 @@ onUnmounted(() => {
 }
 
 @keyframes twinkle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(0.8);
   }
@@ -457,7 +462,6 @@ onUnmounted(() => {
     }
   }
 
-
   .expand-icon {
     transition: transform 0.3s ease;
     color: rgba(147, 197, 253, 0.8);
@@ -486,7 +490,6 @@ onUnmounted(() => {
   }
 }
 
-
 .section-title {
   margin: 0;
   font-size: 16px;
@@ -504,7 +507,8 @@ onUnmounted(() => {
   }
 }
 
-.clothing-item, .body-status-item {
+.clothing-item,
+.body-status-item {
   display: flex;
   justify-content: space-between;
   padding: 10px 14px;
@@ -520,13 +524,15 @@ onUnmounted(() => {
   }
 }
 
-.clothing-type, .body-part {
+.clothing-type,
+.body-part {
   font-size: 14px;
   color: #cbd5e1;
   font-weight: 500;
 }
 
-.clothing-value, .body-value {
+.clothing-value,
+.body-value {
   font-size: 14px;
   color: #ffffff;
   font-weight: 500;
@@ -668,11 +674,15 @@ onUnmounted(() => {
     }
   }
 
-  .clothing-item, .body-status-item {
+  .clothing-item,
+  .body-status-item {
     padding: 8px 12px;
   }
 
-  .clothing-type, .body-part, .clothing-value, .body-value {
+  .clothing-type,
+  .body-part,
+  .clothing-value,
+  .body-value {
     font-size: 13px;
   }
 

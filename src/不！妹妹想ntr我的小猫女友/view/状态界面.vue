@@ -3,7 +3,8 @@
     <h2 class="page-title">人物状态</h2>
     <div class="status-content">
       <div class="status-item progress-item">
-        <div class="status-label">压抑值
+        <div class="status-label">
+          压抑值
           <span v-if="depressionReason" class="reason-text">({{ depressionReason }})</span>
         </div>
         <div class="progress-container">
@@ -11,7 +12,7 @@
             <div
               class="progress-fill depression"
               :class="getDepressionStage(depressionValue).className"
-              :style="{ width: depressionValue/2 + '%' }"
+              :style="{ width: depressionValue / 2 + '%' }"
             ></div>
           </div>
           <div class="progress-text">
@@ -21,7 +22,8 @@
         <div class="stage-indicator">{{ getDepressionStage(depressionValue).name }}</div>
       </div>
       <div class="status-item progress-item">
-        <div class="status-label">恶堕值
+        <div class="status-label">
+          恶堕值
           <span v-if="corruptionReason" class="reason-text">({{ corruptionReason }})</span>
         </div>
         <div class="progress-container">
@@ -29,12 +31,11 @@
             <div
               class="progress-fill corruption"
               :class="getCorruptionStage(corruptionValue).className"
-              :style="{ width: corruptionValue/3 + '%' }"
+              :style="{ width: corruptionValue / 3 + '%' }"
             ></div>
           </div>
           <div class="progress-text">
             {{ corruptionValue }}
-
           </div>
         </div>
         <div class="stage-indicator">{{ getCorruptionStage(corruptionValue).name }}</div>
@@ -44,10 +45,10 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref } from 'vue'
-import { useStatStore } from '../store/StatStore'
+import { watch, ref } from 'vue';
+import { useStatStore } from '../store/StatStore';
 
-const statStore = useStatStore()
+const statStore = useStatStore();
 
 const depressionValue = ref(0);
 const corruptionValue = ref(0);
@@ -60,7 +61,7 @@ const depressionStages = [
   { min: 51, max: 100, name: '焦躁不安', className: 'stage-anxious' },
   { min: 101, max: 160, name: '欲火焚身', className: 'stage-craving' },
   { min: 161, max: 199, name: '煎熬难忍', className: 'stage-critical' },
-  { min: 200, max: 200, name: '崩溃决堤', className: 'stage-breakdown' }
+  { min: 200, max: 200, name: '崩溃决堤', className: 'stage-breakdown' },
 ];
 
 // 恶堕值阶段定义
@@ -69,7 +70,7 @@ const corruptionStages = [
   { min: 1, max: 60, name: '挣扎与罪恶', className: 'stage-guilt' },
   { min: 61, max: 180, name: '沉沦与合理化', className: 'stage-rationalization' },
   { min: 181, max: 280, name: '背叛与重塑', className: 'stage-betrayal' },
-  { min: 281, max: 300, name: '新的平衡', className: 'stage-new-balance' }
+  { min: 281, max: 300, name: '新的平衡', className: 'stage-new-balance' },
 ];
 
 // 获取压抑值阶段
@@ -86,17 +87,15 @@ const getCorruptionStage = (value: number) => {
 
 // 监听 statStore 中的值变化
 watch(
-  [
-    () => statStore.stat_data
-  ],
+  [() => statStore.stat_data],
   () => {
-    depressionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值!
-    corruptionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值!
-    depressionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值变化原因!
-    corruptionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值变化原因!
+    depressionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值!;
+    corruptionValue.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值!;
+    depressionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.性压抑值变化原因!;
+    corruptionReason.value = statStore.stat_data?.角色?.user?.特殊状态?.恶堕值变化原因!;
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 </script>
 
 <style lang="scss" scoped>
@@ -296,7 +295,6 @@ watch(
   word-break: break-word;
 }
 
-
 .stage-indicator {
   font-size: 11px;
   font-weight: 600;
@@ -321,7 +319,8 @@ watch(
 }
 
 @keyframes pulse-danger {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 12px rgba(220, 38, 38, 0.4);
   }
   50% {
@@ -330,7 +329,8 @@ watch(
 }
 
 @keyframes pulse-corruption {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 12px rgba(192, 38, 211, 0.4);
   }
   50% {
@@ -374,7 +374,6 @@ watch(
     flex-direction: column;
     gap: 1px;
   }
-
 
   .reason-text {
     max-width: 50px;

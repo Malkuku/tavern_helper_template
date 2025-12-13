@@ -5,12 +5,9 @@
       <div class="card-header">
         <h2 class="card-title">{{ name }}</h2>
         <div class="page-tabs">
-          <button
-            v-for="p in [1,2,3,4,5]"
-            :key="p"
-            :class="['tab-btn', {active: page===p}]"
-            @click="page=p"
-          >{{ tabTitle(p) }}</button>
+          <button v-for="p in [1, 2, 3, 4, 5]" :key="p" :class="['tab-btn', { active: page === p }]" @click="page = p">
+            {{ tabTitle(p) }}
+          </button>
         </div>
       </div>
 
@@ -23,24 +20,22 @@
       <!-- 内容区 -->
       <div v-else class="content-wrapper">
         <!-- ===== 第1页：好感度 + 想法 ===== -->
-        <div v-show="page===1">
+        <div v-show="page === 1">
           <section class="section">
             <h3 class="section-title">特殊状态</h3>
             <!-- 好感度 -->
             <div class="status-card">
-              <div class="status-label">
-                <span class="icon">💕</span><span>好感度</span>
-              </div>
+              <div class="status-label"><span class="icon">💕</span><span>好感度</span></div>
               <div class="status-value">{{ affection }}</div>
               <!-- 原有进度条 -->
               <div class="progress-bar">
-                <div class="progress-fill" :style="{width:affectionPercent}"></div>
+                <div class="progress-fill" :style="{ width: affectionPercent }"></div>
 
                 <!-- 阶段指示线：用百分比 left，宽度 2 px -->
                 <div
                   class="stage-tick"
-                  :class="{finished:stageInfo.finished}"
-                  :style="{left: `${stageInfo.nextVal/1000*100}%`}"
+                  :class="{ finished: stageInfo.finished }"
+                  :style="{ left: `${(stageInfo.nextVal / 1000) * 100}%` }"
                   :title="stageTip"
                 ></div>
               </div>
@@ -52,44 +47,44 @@
           <section class="section">
             <h3 class="section-title">当前想法</h3>
             <div class="thought-box">
-              <p class="thought-content">{{ currentThought||'...' }}</p>
+              <p class="thought-content">{{ currentThought || '...' }}</p>
             </div>
           </section>
         </div>
 
         <!-- ===== 第2页：服装 ===== -->
-        <div v-show="page===2">
+        <div v-show="page === 2">
           <section class="section">
             <h3 class="section-title">当前服装</h3>
             <div class="single-col">
-              <div v-for="(item,key) in clothing" :key="key" class="info-row">
+              <div v-for="(item, key) in clothing" :key="key" class="info-row">
                 <span class="info-key">{{ key }}</span>
-                <span class="info-val">{{ item||'无' }}</span>
+                <span class="info-val">{{ item || '无' }}</span>
               </div>
             </div>
           </section>
         </div>
 
         <!-- ===== 第3页：身体状态（含开发等级 + 描述） ===== -->
-        <div v-show="page===3">
+        <div v-show="page === 3">
           <section class="section">
             <h3 class="section-title">身体状态</h3>
 
             <!-- 大圆环网格 -->
             <div class="level-big-grid">
-              <div
-                v-for="(lv, part) in devLevel"
-                :key="part"
-                class="level-big-item"
-              >
+              <div v-for="(lv, part) in devLevel" :key="part" class="level-big-item">
                 <!-- 圆环 -->
                 <div class="level-circle-big">
                   <svg viewBox="0 0 36 36" class="level-svg-big">
-                    <path class="level-bg-big"
-                          d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"/>
-                    <path class="level-fg-big"
-                          :stroke-dasharray="devCircleDash(part)"
-                          d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"/>
+                    <path
+                      class="level-bg-big"
+                      d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"
+                    />
+                    <path
+                      class="level-fg-big"
+                      :stroke-dasharray="devCircleDash(part)"
+                      d="M18 2.084 a 15.916 15.916 0 0 1 0 31.832 a 15.916 15.916 0 0 1 0 -31.832"
+                    />
                   </svg>
                   <div class="level-text-big">
                     <span class="level-num-big">{{ lv }}</span>
@@ -100,10 +95,8 @@
                 <!-- 部位名 + 经验 + 描述 -->
                 <div class="level-info">
                   <div class="level-part">{{ part }}</div>
-                  <div class="level-exp">
-                    {{ devExp[part]||0 }} / {{ expNeed(lv) }}
-                  </div>
-                  <div class="level-desc">{{ devDesc[part]||'暂无描述' }}</div>
+                  <div class="level-exp">{{ devExp[part] || 0 }} / {{ expNeed(lv) }}</div>
+                  <div class="level-desc">{{ devDesc[part] || '暂无描述' }}</div>
                 </div>
               </div>
             </div>
@@ -111,21 +104,15 @@
         </div>
 
         <!-- ===== 第4页：性交次数 ===== -->
-        <div v-show="page===4">
+        <div v-show="page === 4">
           <section class="section">
             <h3 class="section-title">性交次数</h3>
-            <DataTable
-              :data="sexData"
-              :role-name="name"
-              table-mode="性交次数"
-              :page-size="10"
-              empty-text="暂无记录"
-            />
+            <DataTable :data="sexData" :role-name="name" table-mode="性交次数" :page-size="10" empty-text="暂无记录" />
           </section>
         </div>
 
         <!-- ===== 第5页：调教回忆 ===== -->
-        <div v-show="page===5">
+        <div v-show="page === 5">
           <section class="section">
             <h3 class="section-title">调教回忆</h3>
             <DataTable
@@ -147,88 +134,91 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref } from 'vue';
 import DataTable from './DataTable.vue';
 
 /* ===== props ===== */
 const props = defineProps<{
-  name: string                    // 角色名
-  theme: 'light'|'dark'
+  name: string; // 角色名
+  theme: 'light' | 'dark';
   character?: {
-    已出场?: boolean
+    已出场?: boolean;
     特殊状态: {
-      好感度: number
-      好感度变化原因?: string
-      开发经验值?: Record<string, number>
+      好感度: number;
+      好感度变化原因?: string;
+      开发经验值?: Record<string, number>;
+    };
+    服装: Record<string, string>;
+    身体开发描述?: Record<string, string>;
+    当前想法?: string;
+  };
+  devLevel: Record<string, number>; // 身体开发等级
+  sexData: Record<string, any>; // 性交次数
+  trainingData: Record<string, any>; // 调教回忆
+  affectionStages: Record<
+    string,
+    {
+      阶段数值: number;
+      事件?: { 事件描述: string; 已解决: boolean };
     }
-    服装: Record<string, string>
-    身体开发描述?: Record<string, string>
-    当前想法?: string
-  }
-  devLevel: Record<string, number>   // 身体开发等级
-  sexData: Record<string, any>   // 性交次数
-  trainingData: Record<string, any> // 调教回忆
-  affectionStages: Record<string, {
-    阶段数值: number
-    事件?: { 事件描述: string; 已解决: boolean }
-  }>
-}>()
+  >;
+}>();
 
 /* ===== 基础 ===== */
-const page = ref(1)
-const visible = computed(()=> props.character?.已出场)
+const page = ref(1);
+const visible = computed(() => props.character?.已出场);
 function tabTitle(p: number) {
-  const titles = ['特殊状态', '服装', '身体状态', '性交次数', '调教回忆']
-  return titles[p - 1]
+  const titles = ['特殊状态', '服装', '身体状态', '性交次数', '调教回忆'];
+  return titles[p - 1];
 }
 
 /* ===== 计算 ===== */
-const affection = computed(()=> props.character?.特殊状态.好感度 ?? 0)
-const affectionReason = computed(()=> props.character?.特殊状态.好感度变化原因)
-const currentThought = computed(()=> props.character?.当前想法)
-const clothing = computed(()=> props.character?.服装 || {})
-const devExp = computed(()=> props.character?.特殊状态.开发经验值 || {})
-const devDesc = computed(()=> props.character?.身体开发描述 || {})
+const affection = computed(() => props.character?.特殊状态.好感度 ?? 0);
+const affectionReason = computed(() => props.character?.特殊状态.好感度变化原因);
+const currentThought = computed(() => props.character?.当前想法);
+const clothing = computed(() => props.character?.服装 || {});
+const devExp = computed(() => props.character?.特殊状态.开发经验值 || {});
+const devDesc = computed(() => props.character?.身体开发描述 || {});
 
 /* 好感度百分比（按最高阶段算） */
-const affectionPercent = computed(()=>{
+const affectionPercent = computed(() => {
   // 这里仅示例：取 1000 为满值，可在外部传入阶段表再精确计算
-  return `${Math.min(100, Math.round((affection.value / 1000) * 100))}%`
-})
+  return `${Math.min(100, Math.round((affection.value / 1000) * 100))}%`;
+});
 
 /* 计算「下一阶段」信息（替换掉前面的 stageInfo） */
 const stageInfo = computed(() => {
-  const stages = props.affectionStages || {}
-  const list = Object.entries(stages)                      // [['阶段一',{阶段数值,事件}], ...]
-    .sort((a, b) => a[1].阶段数值 - b[1].阶段数值)
-  const cur = affection.value
-  let next = list.find(([, item]) => item.阶段数值 > cur)
-  if (!next) next = list[list.length - 1]                 // 已满级
-  const [nextKey, nextItem] = next
+  const stages = props.affectionStages || {};
+  const list = Object.entries(stages) // [['阶段一',{阶段数值,事件}], ...]
+    .sort((a, b) => a[1].阶段数值 - b[1].阶段数值);
+  const cur = affection.value;
+  let next = list.find(([, item]) => item.阶段数值 > cur);
+  if (!next) next = list[list.length - 1]; // 已满级
+  const [nextKey, nextItem] = next;
   return {
     nextKey,
     nextVal: nextItem.阶段数值,
-    finished: nextItem.事件?.已解决 ?? true               // 无事件视为已完成
-  }
-})
+    finished: nextItem.事件?.已解决 ?? true, // 无事件视为已完成
+  };
+});
 
 const stageTip = computed(() => {
-  const { finished } = stageInfo.value
-  return `${finished ? `好感度事件已完成` : `好感度事件未达成`}`
-})
+  const { finished } = stageInfo.value;
+  return `${finished ? `好感度事件已完成` : `好感度事件未达成`}`;
+});
 
 /* 经验值需求 */
-function expNeed(lv:number){
-  return Math.floor(7 * Math.log(lv + 1) + 5)
+function expNeed(lv: number) {
+  return Math.floor(7 * Math.log(lv + 1) + 5);
 }
 
 /* 圆环进度 */
-function devCircleDash(part:string){
-  const lv = props.devLevel[part] || 0
-  const exp = devExp.value[part] || 0
-  const need = expNeed(lv)
-  const percent = Math.min(100, (exp / need) * 100)
-  return `${percent}, 100`
+function devCircleDash(part: string) {
+  const lv = props.devLevel[part] || 0;
+  const exp = devExp.value[part] || 0;
+  const need = expNeed(lv);
+  const percent = Math.min(100, (exp / need) * 100);
+  return `${percent}, 100`;
 }
 </script>
 
@@ -392,11 +382,11 @@ function devCircleDash(part:string){
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 3px;              /* 竖线 */
-  background: #faf214;     /* 未完成 */
-  transition: opacity .2s;
-  cursor: help;            /* 告诉用户可悬停 */
-  pointer-events: auto;    /* 必须，否则抓不到鼠标 */
+  width: 3px; /* 竖线 */
+  background: #faf214; /* 未完成 */
+  transition: opacity 0.2s;
+  cursor: help; /* 告诉用户可悬停 */
+  pointer-events: auto; /* 必须，否则抓不到鼠标 */
 }
 .stage-tick.finished {
   background: #14fa78;
@@ -582,7 +572,9 @@ function devCircleDash(part:string){
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-icon {
@@ -607,13 +599,13 @@ function devCircleDash(part:string){
 
   .tab-btn {
     flex: 1 1 auto;
-    min-width: 64px;          /* 保证最小可点击区域 */
-    white-space: normal;      /* 允许文字换行 */
+    min-width: 64px; /* 保证最小可点击区域 */
+    white-space: normal; /* 允许文字换行 */
     line-height: 1.2;
     padding: 6px 10px;
     font-size: 13px;
     text-align: center;
-    word-break: keep-all;     /* 优先在空格处断行 */
+    word-break: keep-all; /* 优先在空格处断行 */
   }
 }
 

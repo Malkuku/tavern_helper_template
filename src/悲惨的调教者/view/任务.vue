@@ -30,7 +30,7 @@
               class="task-card"
               :class="{
                 completed: task.已完成,
-                failed: task.已失败
+                failed: task.已失败,
               }"
             >
               <div class="task-header">
@@ -59,39 +59,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from 'vue';
 import { useStatStore } from '../store/StatStore';
 
 interface Task {
-  目标: string
-  截止时间: string
-  已完成: boolean
-  已失败: boolean
+  目标: string;
+  截止时间: string;
+  已完成: boolean;
+  已失败: boolean;
 }
 
-const statStore = useStatStore()
+const statStore = useStatStore();
 
 /* 主题 */
-const theme = computed(() => statStore.stat_data?.theme === 'dark' ? 'dark' : 'light')
+const theme = computed(() => (statStore.stat_data?.theme === 'dark' ? 'dark' : 'light'));
 
 /* 原始数据 */
-const statData = computed(() => statStore.stat_data)
+const statData = computed(() => statStore.stat_data);
 
 /* 任务列表 */
 const taskList = computed<Task[]>(() => {
-  const raw = statData.value?.任务 || {}
-  const arr: Task[] = []
+  const raw = statData.value?.任务 || {};
+  const arr: Task[] = [];
   for (const key in raw) {
-    if (key === '$template' || key === '$meta') continue
-    arr.push(raw[key] as Task)
+    if (key === '$template' || key === '$meta') continue;
+    arr.push(raw[key] as Task);
   }
-  return arr
-})
-
+  return arr;
+});
 
 /* 格式化截止时间 */
 function formatDeadline(dl: string): string {
-  return dl === '未知' || !dl ? '暂无截止时间' : dl
+  return dl === '未知' || !dl ? '暂无截止时间' : dl;
 }
 </script>
 
@@ -321,7 +320,9 @@ function formatDeadline(dl: string): string {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-icon {

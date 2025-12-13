@@ -6,26 +6,25 @@ export const getCurrentMessage = () => {
     return '';
   }
   return String(chat_messages[0].message);
-}
+};
 
-
-export const getOldStatData = ()=>{
-  const variables = getVariables({ type: 'chat' })
+export const getOldStatData = () => {
+  const variables = getVariables({ type: 'chat' });
   const editLogs = variables.ERAMetaData.EditLogs;
   const message = getCurrentMessage();
   const match = message.match(/"era-message-key"="([^"]+)"/);
   if (match) {
     const key = match[1];
-    if(key && editLogs[key]){
+    if (key && editLogs[key]) {
       console.log(`正在加载位于第${getCurrentMessageId()}楼层的旧数据`);
       const res = editLogsToJson(JSON.parse(editLogs[key]) as EditLog[]);
-      console.log(`旧数据`,res);
+      console.log(`旧数据`, res);
       return res;
     }
   }
   console.error(`未找到位于第${getCurrentMessageId()}楼层的旧数据`);
   return null;
-}
+};
 type EditLog = {
   op: 'update';
   path: string;

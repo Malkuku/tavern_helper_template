@@ -19,11 +19,7 @@
         <span class="mood-value">{{ moodValue }}</span>
       </div>
       <div class="mood-bar">
-        <div
-          class="mood-fill"
-          :style="{ width: moodPercentage + '%' }"
-          :class="moodClass"
-        ></div>
+        <div class="mood-fill" :style="{ width: moodPercentage + '%' }" :class="moodClass"></div>
       </div>
       <div class="mood-info">
         <span class="mood-reason">{{ moodReason || '暂无心情变化记录' }}</span>
@@ -74,7 +70,7 @@ const isLocked = ref(false);
 
 // 计算心情百分比和样式类
 const moodPercentage = computed(() => {
-  return Math.max(0, Math.min(300, (moodValue.value * 100 / 300)));
+  return Math.max(0, Math.min(300, (moodValue.value * 100) / 300));
 });
 
 const moodClass = computed(() => {
@@ -149,8 +145,8 @@ watch(
 );
 
 // 监听锁定状态变化
-watch(isLocked, (newVal) => {
-  try{
+watch(isLocked, newVal => {
+  try {
     if (newVal) {
       // 锁定当前形态
       eventEmit('era:updateByObject', {
@@ -167,7 +163,7 @@ watch(isLocked, (newVal) => {
       });
       toastr.info('正在解锁形态,建议你等上一小会');
     }
-  }catch (error){
+  } catch (error) {
     toastr.error('切换锁定状态失败', 'error');
     console.error('切换锁定状态失败:', error);
   }
@@ -248,7 +244,6 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-
 /* 锁定开关样式 */
 .lock-switch {
   position: relative;
@@ -280,7 +275,7 @@ onUnmounted(() => {
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 26px;
   width: 26px;
   left: 4px;

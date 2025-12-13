@@ -9,14 +9,14 @@ export const useUiStore = defineStore('ui', () => {
   const isUpdateEra = ref(false);
   const modelSource = ref('sample'); //sample | external | profile
   const customModelSettings = ref({
-    baseURL :  '',
-    apiKey : '',
-    modelName :  '',
+    baseURL: '',
+    apiKey: '',
+    modelName: '',
     temperature: 0.7,
     frequencyPenalty: 0,
     presencePenalty: 0,
-    maxTokens: 20000
-  })
+    maxTokens: 20000,
+  });
   //预设模型设置
   const profileSetting = ref('');
 
@@ -24,7 +24,7 @@ export const useUiStore = defineStore('ui', () => {
    * 尝试从变量中获取模型设置
    */
   const getModelSettings = async () => {
-    const variables = getVariables({type: 'script', script_id: getScriptId()});
+    const variables = getVariables({ type: 'script', script_id: getScriptId() });
     const era_data = variables.era_data;
     if (era_data) {
       modelSource.value = era_data.modelSource;
@@ -32,28 +32,28 @@ export const useUiStore = defineStore('ui', () => {
       isAsync.value = era_data.isAsync;
       profileSetting.value = era_data.profileSetting;
     }
-    console.log('获取模型设置: ',era_data);
-  }
+    console.log('获取模型设置: ', era_data);
+  };
 
   /**
    * 保存模型设置
    */
   const saveModelSettings = async () => {
     const saveVariables = {
-        isAsync : isAsync.value,
-        modelSource: modelSource.value,
-        customModelSettings: customModelSettings.value,
-        profileSetting: profileSetting.value
+      isAsync: isAsync.value,
+      modelSource: modelSource.value,
+      customModelSettings: customModelSettings.value,
+      profileSetting: profileSetting.value,
     };
     const cleaned = JSON.parse(JSON.stringify(saveVariables));
     await updateVariablesWith(
       vars => ({
         ...vars,
-        era_data: cleaned
+        era_data: cleaned,
       }),
-      {type: 'script', script_id: getScriptId()}
-    )
-  }
+      { type: 'script', script_id: getScriptId() },
+    );
+  };
 
   /**
    * 清空模型设置
@@ -61,18 +61,17 @@ export const useUiStore = defineStore('ui', () => {
   const clearModelSettings = async () => {
     modelSource.value = 'sample';
     customModelSettings.value = {
-      baseURL :  '',
-      apiKey : '',
-      modelName :  '',
+      baseURL: '',
+      apiKey: '',
+      modelName: '',
       temperature: 0.7,
       frequencyPenalty: 0,
       presencePenalty: 0,
-      maxTokens: 20000
-    }
+      maxTokens: 20000,
+    };
     profileSetting.value = '';
     await saveModelSettings();
-  }
-
+  };
 
   return {
     showUI,
@@ -83,6 +82,6 @@ export const useUiStore = defineStore('ui', () => {
     profileSetting,
     getModelSettings,
     saveModelSettings,
-    clearModelSettings
+    clearModelSettings,
   };
 });
