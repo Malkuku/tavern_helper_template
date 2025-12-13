@@ -64,7 +64,7 @@
         <!-- 工具按钮区 -->
         <div class="edit-tools">
           <div class="mode-buttons">
-            <button class="mode-btn" :class="{ active: editMode === 'tree' }" @click="editMode = 'tree'">
+            <button class="mode-btn" :class="{ active: editMode === 'tree' }" @click="switchToTreeMode">
               <svg class="mode-icon" viewBox="0 0 16 16" fill="currentColor">
                 <path
                   d="M14 2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2zm0 5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7zm0 5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2z"
@@ -110,9 +110,17 @@
         <div v-else class="raw-editor">
           <div class="editor-header">
             <span class="editor-info">编辑原始JSON数据</span>
-            <span class="editor-size">字符数：{{ rawJsonValue.length }}</span>
+            <!-- v-model 改为 rawJsonString -->
+            <span class="editor-size">字符数：{{ rawJsonString.length }}</span>
           </div>
-          <textarea v-model="rawJsonValue" class="json-editor" placeholder="在此输入或编辑JSON数据..."></textarea>
+          <!-- v-model 改为 rawJsonString，并添加 @input 事件 -->
+          <textarea
+            v-model="rawJsonString"
+            class="json-editor"
+            placeholder="在此输入或编辑JSON数据..."
+            @input="validateRawJson"
+          ></textarea>
+          <!-- jsonParseError 的来源也变了 -->
           <div v-if="jsonParseError" class="json-error">
             <svg class="error-icon" viewBox="0 0 16 16" fill="currentColor">
               <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7 3h2v7H7V3zm0 9h2v2H7v-2z" />
@@ -246,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue'; // 引入 watch
 import { useEraEditStore } from '../../stores/EraEditStore';
 import { cloneDeep, set } from 'lodash';
 import EraConfirmModal from '../components/Dialog/EraConfirmModal.vue';
@@ -258,44 +266,63 @@ import JsonTreeEdit from '../components/JsonNode/JsonTreeEdit.vue';
 // Store
 const eraEditStore = useEraEditStore();
 
-// --- 简化后的响应式数据 ---
+// --- 响应式数据 ---
 const loading = ref(false);
 const saving = ref(false);
 const currentData = ref<any>(null);
 const originalData = ref<any>(null);
-const searchQuery = ref(''); // 由 PathSearch 组件双向绑定
+const searchQuery = ref('');
 const editMode = ref<'tree' | 'raw'>('tree');
-const jsonParseError = ref('');
+
+// --- 核心改动：解耦 Raw 模式的状态 ---
+const rawJsonString = ref(''); // 用于绑定 textarea
+const jsonParseError = ref(''); // 用于显示 raw editor 的实时语法错误
 
 // 组件引用
 const fileImportExportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
 
-// --- 核心：rawJsonValue 变为 computed，实现与 currentData 的双向同步 ---
-const rawJsonValue = computed({
-  get() {
-    if (currentData.value === null || currentData.value === undefined) return '';
+// --- 监听 editMode 变化，处理状态同步 ---
+watch(editMode, (newMode, oldMode) => {
+  // 从其他模式切换到 raw 模式
+  if (newMode === 'raw') {
     try {
-      return JSON.stringify(currentData.value, null, 2);
+      rawJsonString.value = JSON.stringify(currentData.value, null, 2);
+      jsonParseError.value = ''; // 清除旧的错误
     } catch (e) {
-      console.error("Error stringifying JSON data:", e);
-      return 'Error: Could not stringify JSON data.';
+      rawJsonString.value = '无法序列化当前数据。';
+      jsonParseError.value = e instanceof Error ? e.message : String(e);
     }
-  },
-  set(newValue: string) {
-    try {
-      // 只有在值不为空时才解析，避免将空字符串解析为 null
-      if (newValue.trim() === '') {
-        currentData.value = {};
-      } else {
-        currentData.value = JSON.parse(newValue);
-      }
-      jsonParseError.value = '';
-    } catch (e: any) {
-      jsonParseError.value = e.message;
-      // 注意：这里 currentData 不会更新，保持上一次有效的值
-    }
-  },
+  }
+
+  // 从 raw 模式切换回 tree 模式（这个逻辑移到按钮点击事件中，以便可以阻止切换）
 });
+
+// 新的切换到树形视图的方法
+function switchToTreeMode() {
+  if (jsonParseError.value) {
+    alert('JSON格式无效，无法切换到树形视图。请先修正错误。');
+    return;
+  }
+  try {
+    // 在切换前，用 raw 编辑器的内容更新 currentData
+    currentData.value = JSON.parse(rawJsonString.value || '{}');
+    editMode.value = 'tree';
+  } catch (e: any) {
+    // 理论上不会进入这里，因为有 jsonParseError 保护，但作为保险
+    jsonParseError.value = e.message;
+    alert('JSON格式无效，无法切换到树形视图。请先修正错误。');
+  }
+}
+
+// 在 raw 模式下输入时实时验证，但不更新 currentData
+function validateRawJson() {
+  try {
+    JSON.parse(rawJsonString.value);
+    jsonParseError.value = '';
+  } catch (e: any) {
+    jsonParseError.value = e.message;
+  }
+}
 
 const statusMessage = ref('就绪');
 
@@ -342,7 +369,18 @@ function handleFileLoaded(content: string) {
 
 // --- 计算属性 (简化) ---
 const hasChanges = computed(() => {
-  if (editMode.value === 'raw' && jsonParseError.value) return true;
+  // 在 raw 模式下，只要字符串与原始数据不同，就认为有更改
+  if (editMode.value === 'raw') {
+    // 如果有语法错误，也算作有更改，允许用户保存（如果他们修复了）
+    if (jsonParseError.value) return true;
+    try {
+      // 比较格式化后的字符串
+      return rawJsonString.value !== JSON.stringify(originalData.value, null, 2);
+    } catch {
+      return true; // 序列化失败也算有更改
+    }
+  }
+  // 在 tree 模式下，比较对象
   try {
     return JSON.stringify(currentData.value) !== JSON.stringify(originalData.value);
   } catch {
@@ -396,17 +434,29 @@ async function saveData() {
     return;
   }
 
+  // 如果在 raw 模式下且有语法错误，直接阻止保存
+  if (editMode.value === 'raw' && jsonParseError.value) {
+    statusMessage.value = 'JSON格式错误，无法保存';
+    alert('JSON格式错误，请修正后再保存！');
+    return;
+  }
+
   openConfirmModal('保存确认', '是否保存所有更改？', 'confirm', async () => {
-    if (editMode.value === 'raw' && jsonParseError.value) {
-      statusMessage.value = 'JSON格式错误，无法保存';
-      alert('JSON格式错误，请修正后再保存！');
-      return;
-    }
     try {
       saving.value = true;
       statusMessage.value = '正在保存...';
-      await eraEditStore.saveEraEdit(currentData.value);
-      originalData.value = cloneDeep(currentData.value);
+
+      // 如果当前是 raw 模式，需要从 rawJsonString 解析数据来保存
+      const dataToSave = editMode.value === 'raw'
+        ? JSON.parse(rawJsonString.value)
+        : currentData.value;
+
+      await eraEditStore.saveEraEdit(dataToSave);
+
+      // 保存成功后，更新 originalData 和 currentData
+      originalData.value = cloneDeep(dataToSave);
+      currentData.value = dataToSave; // 确保 currentData 与保存后的一致
+
       statusMessage.value = '保存成功';
       setTimeout(() => { statusMessage.value = '就绪'; }, 3000);
     } catch (error) {
@@ -418,14 +468,15 @@ async function saveData() {
   });
 }
 
+
 function formatJson() {
-  if (jsonParseError.value) return;
+  if (editMode.value !== 'raw' || jsonParseError.value) return;
   try {
-    const parsed = JSON.parse(rawJsonValue.value);
-    // 触发 computed 的 setter
-    rawJsonValue.value = JSON.stringify(parsed, null, 2);
+    const parsed = JSON.parse(rawJsonString.value);
+    rawJsonString.value = JSON.stringify(parsed, null, 2);
   } catch (error) {
-    // 理论上不会进入这里，因为有 jsonParseError 保护
+    eraLogger.error('格式化JSON失败:', error);
+    // 理论上不会进入这里
   }
 }
 
@@ -1190,6 +1241,8 @@ textarea::placeholder {
   background: white !important;
   color: #1e293b !important;
   min-height: 120px;
+  background: white !important;
+  color: #1e293b !important;
 
   &:focus {
     outline: none;
@@ -1307,6 +1360,12 @@ textarea::placeholder {
   /* 强制模态框使用浅色 */
   .modal {
     background: white !important;
+    color: #1e293b !important;
+  }
+
+  /* 强制下拉框选项颜色 */
+  :deep(select option) {
+    background: #f8fafc !important;
     color: #1e293b !important;
   }
 

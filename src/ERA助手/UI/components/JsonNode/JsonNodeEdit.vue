@@ -212,8 +212,8 @@ watch(isEditing, (isNowEditing) => {
 }
 
 .key {
-  color: #475569;
-  font-weight: 500;
+  color: #1e293b;
+  font-weight: 600;
 }
 
 .value {
@@ -240,8 +240,15 @@ watch(isEditing, (isNowEditing) => {
   font-size: 12px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  background-color: #fff;
+  background-color: #fff !important;
+  color: #1e293b !important;
   font-family: monospace;
+}
+
+/* 强制下拉框选项的颜色 */
+.edit-select option {
+  background: #fff !important;
+  color: #1e293b !important;
 }
 
 // 操作按钮区域 (Flexbox 布局)

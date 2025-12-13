@@ -20,7 +20,6 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, reactive } from 'vue'
-// 优化：使用 lodash-es 以获得更好的 tree-shaking
 import { get, set, unset, cloneDeep } from 'lodash';
 import { JsonNodeType } from '../../types/JsonNode';
 import JsonNodeEdit from './JsonNodeEdit.vue';
@@ -39,6 +38,43 @@ const emit = defineEmits<{
 const roots = ref<JsonNodeType[]>([]);
 const editingNodePath = ref<string | null>(null);
 
+// --- 新增：用于保存和恢复展开状态的辅助函数 ---
+
+/**
+ * 递归获取所有已展开节点的路径
+ * @param nodes - 当前要遍历的节点数组
+ * @returns 一个包含所有展开节点路径的 Set
+ */
+function getExpandedPaths(nodes: JsonNodeType[]): Set<string> {
+  const paths = new Set<string>();
+  for (const node of nodes) {
+    if (node.expanded) {
+      paths.add(node.path);
+      if (node.children) {
+        // 递归地从子节点中获取
+        getExpandedPaths(node.children).forEach(p => paths.add(p));
+      }
+    }
+  }
+  return paths;
+}
+
+/**
+ * 递归地根据路径集合恢复节点的展开状态
+ * @param nodes - 当前要遍历的节点数组
+ * @param expandedPaths - 包含所有应展开节点路径的 Set
+ */
+function restoreExpandedState(nodes: JsonNodeType[], expandedPaths: Set<string>) {
+  for (const node of nodes) {
+    if (expandedPaths.has(node.path)) {
+      node.expanded = true;
+    }
+    if (node.children) {
+      restoreExpandedState(node.children, expandedPaths);
+    }
+  }
+}
+
 /* ---------- 核心：响应式树构建 ---------- */
 function buildReactiveTree(obj: any, depth = 0, path = ''): JsonNodeType[] {
   if (obj === null || typeof obj !== 'object') return [];
@@ -54,17 +90,26 @@ function buildReactiveTree(obj: any, depth = 0, path = ''): JsonNodeType[] {
       depth,
       path: currentPath,
       isLeaf,
-      expanded: false,
+      expanded: false, // 默认折叠
       children: isLeaf ? undefined : buildReactiveTree(value, depth + 1, currentPath),
     });
     return node;
   });
 }
 
-// 监听外部 data 变化，仅在外部数据源完全替换时才重建树
-watch(() => props.data, (newData) => {
+// --- 修改：监听外部 data 变化，重建树并恢复状态 ---
+watch(() => props.data, (newData, oldData) => {
+  // 1. 在重建树之前，保存当前已展开节点的路径
+  const expandedPaths = getExpandedPaths(roots.value);
+
+  // 2. 重建树
   roots.value = buildReactiveTree(newData);
-}, { immediate: true, deep: true });
+
+  // 3. 恢复展开状态
+  restoreExpandedState(roots.value, expandedPaths);
+
+}, { immediate: true }); // 注意：这里的 deep: true 可以移除了，因为我们是在替换整个 data 对象，浅层监听引用变化即可。
+
 
 /* ---------- 搜索与过滤 (已集成) ---------- */
 const filteredRoots = computed(() => {
@@ -73,7 +118,6 @@ const filteredRoots = computed(() => {
     return roots.value;
   }
 
-  // 在过滤前，先对原始树进行深拷贝，以避免搜索操作（如展开/折叠）污染原始状态
   const searchableRoots = cloneDeep(roots.value);
 
   function filter(nodes: JsonNodeType[]): JsonNodeType[] {
@@ -85,8 +129,9 @@ const filteredRoots = computed(() => {
       const children = node.children ? filter(node.children) : [];
 
       if (keyMatch || valueMatch || children.length > 0) {
-        node.expanded = children.length > 0; // 如果子节点有匹配，则展开父节点
-        node.children = children; // 更新子节点为过滤后的结果
+        // 如果子节点有匹配，则强制展开父节点以显示结果
+        node.expanded = children.length > 0;
+        node.children = children;
         result.push(node);
       }
     }
