@@ -33,7 +33,7 @@ const modelSource = computed(() => getAsyncAnalyzeStore()?.modelSource);
 const customModelSettings = computed(() => getAsyncAnalyzeStore()?.customModelSettings);
 const profileSetting = computed(() => getAsyncAnalyzeStore()?.profileSetting);
 
-const waitTime = 8000;
+const waitTime = 1000;
 
 /**
  * 重发变量更新
@@ -85,7 +85,10 @@ export const handleMessageReceived = async (message_id:number) => {
     throw new Error("空回了喵~请重roll喵~");
   }
   toastr.info('开始分步分析，等待era事件完成');
+  eraLogger.info("开始分步分析，等待era事件完成");
+
   getAsyncAnalyzeStore().isUpdateEra = true;
+  (window as any).EjsTemplate.refreshWorldInfo();
 
   await handleKatEraUpdate();
   /**
@@ -136,7 +139,7 @@ async function handleEraRules(result: string) {
       const rules = getEraDataStore().eraDataRule;
 
       // 应用规则处理数据
-      const { data: updatedData, log } = await EraDataHandler.applyRule(
+      const { data: updatedData } = await EraDataHandler.applyRule(
         editData,
         snapshotData,
         rules,
@@ -149,7 +152,7 @@ async function handleEraRules(result: string) {
       );
 
       // 记录处理日志
-      eraLogger.log("变量更新日志：", log);
+      //eraLogger.log("变量更新日志：", log); //不需要特别处理因为EraDataHandler已经处理了
     } catch (e) {
       eraLogger.error("变量更新失败：", e);
       toastr.error("变量更新失败");
@@ -193,6 +196,7 @@ async function handleMessageMerge(result: string) {
 export const handleKatEraUpdate = async () => {
   if(!isUpdateEra.value){
     toastr.warning('[isUpdateEra]标识异常');
+    eraLogger.error('[isUpdateEra]标识异常');
     return;
   }
   // 给ERA事件让行，错开可能存在的ERA变量更新
@@ -202,6 +206,7 @@ export const handleKatEraUpdate = async () => {
    */
   try{
     toastr.info("正在构建提示词并请求AI分析");
+    eraLogger.info("正在构建提示词并请求AI分析");
     const user_input = `本次不生成故事，处理Era变量`
     const max_chat_history = 2;
     const is_should_stream = false;
@@ -215,14 +220,14 @@ export const handleKatEraUpdate = async () => {
         content: user_input,
       },
     ];
-    eraLogger.log("modelSource: ", modelSource.value)
+    eraLogger.log("模型来源: ", modelSource.value)
     const result = modelSource.value == 'sample' ?
       await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,null) :
       modelSource.value == 'profile' ?
         await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,null,profileSetting.value) :
         await PromptUtil.sendPrompt(user_input, promptInjects,max_chat_history, is_should_stream,customModelSettings.value,null);
 
-    eraLogger.log("result: ",result);
+    eraLogger.log("接收到的分析结果原文: ", result);
 
     await handleMessageMerge(result);
 

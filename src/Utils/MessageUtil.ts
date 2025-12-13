@@ -36,7 +36,7 @@ const getMessagesByRange = (messageId: number, index: number) => {
  * 将内容合并到message中
  */
 const mergeContentToMessage = async (message_id: number, content: string) => {
-  console.log("正在合并消息到正文: ",message_id, content);
+  console.log(`正在合并消息{message_id}到正文: `, content);
   const chat_message = getChatMessages(message_id)[0];
   let msg = chat_message.message;
   msg = msg.replace(/$/, content);
@@ -47,7 +47,7 @@ const mergeContentToMessage = async (message_id: number, content: string) => {
  * 根据正则清除正文中的内容
  */
 const removeContentByRegex = async (message_id: number, regexes: RegExp[]) => {
-  console.log("正在清除正文中的内容: ",message_id, regexes);
+  console.log("正在清除正文中的内容: ", regexes);
   const chat_message = getChatMessages(message_id)[0];
   let msg = chat_message.message;
   for(const regex of regexes){

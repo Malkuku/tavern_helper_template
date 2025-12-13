@@ -41,32 +41,32 @@
       <!-- 模型来源 -->
       <div class="row">
         <span>模型来源</span>
-        <select v-model="modelSource">
+        <select v-model="modelSource"  @change="onModelSourceChange">
           <option value="sample">当前模型</option>
-          <option value="profile" @click="refreshProfileList">预设模型</option>
+          <option value="profile" >预设模型</option>
           <option value="external">额外模型</option>
       </select>
       </div>
-      <div v-if="modelSource === 'profile'" class="row">
-        <span>预设模型</span>
-        因为ERA和提示词模板的替换问题，目前不可用😑
-      </div>
+<!--      <div v-if="modelSource === 'profile'" class="row">-->
+<!--        <span>预设模型</span>-->
+<!--        因为ERA和提示词模板的替换问题，目前不可用😑-->
+<!--      </div>-->
 
 
-      <!-- TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
-  <!--      <div v-if="modelSource === 'profile'" class="row">-->
-  <!--        <span>预设模型</span>-->
-  <!--        <select v-model="profileSetting">-->
-  <!--          <option-->
-  <!--            v-for="p in profileList"-->
-  <!--            :key="p"-->
-  <!--            :value="p"-->
-  <!--            :title="p"-->
-  <!--          >-->
-  <!--            {{ shortName(p) }}-->
-  <!--          </option>-->
-  <!--        </select>-->
-  <!--      </div>-->
+<!--       TODO 因为ERA的替换问题，目前不可用  预设模型选择（仅 profile 时显示） -->
+        <div v-if="modelSource === 'profile'" class="row">
+          <span>预设模型</span>
+          <select v-model="profileSetting">
+            <option
+              v-for="p in profileList"
+              :key="p"
+              :value="p"
+              :title="p"
+            >
+              {{ shortName(p) }}
+            </option>
+          </select>
+        </div>
 
 
 
@@ -171,6 +171,26 @@ const settings = reactive({
   maxTokens: 20000
 })
 
+
+const onModelSourceChange = async () => {
+  if (modelSource.value === 'profile') {
+    await refreshProfileList();
+  }
+};
+
+/* 刷新预设列表 */
+const refreshProfileList = async () => {
+  try {
+    const result = await (window as any).SillyTavern.executeSlashCommands('/profile-list');
+    profileList.value = JSON.parse(result.pipe);
+    eraLogger.log('预设名称列表:', profileList.value);
+  } catch (e) {
+    toastr.error('获取预设列表失败');
+    eraLogger.error('刷新预设列表失败', e)
+    profileList.value = []
+  }
+}
+
 /* 打开弹窗时同步 store 数据 */
 watch(
   () => uiStore.showUI,
@@ -179,23 +199,11 @@ watch(
     modelSource.value  = asyncAnalyzeStore.modelSource as any
     profileSetting.value = asyncAnalyzeStore.profileSetting || ''
     Object.assign(settings, asyncAnalyzeStore.customModelSettings)
+    await refreshProfileList();
   },
   { immediate: true }
 )
 
-/* 刷新预设列表 */
-const refreshProfileList = async () => {
-  try {
-    const result = await (window as any).SillyTavern.executeSlashCommands('/profile-list');
-    profileList.value = JSON.parse(result.pipe);
-    eraLogger.log('预设名称列表:', profileList.value);
-    profileSetting.value = profileList.value[0] // 默认选中第一个
-  } catch (e) {
-    toastr.error('获取预设列表失败');
-    eraLogger.error('刷新预设列表失败', e)
-    profileList.value = []
-  }
-}
 
 /* 保存 */
 const handleSave = async () => {
