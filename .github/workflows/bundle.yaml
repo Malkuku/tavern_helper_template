@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - main
+      - 'master-**'
     paths-ignore:
       - dist/**
   workflow_dispatch:
