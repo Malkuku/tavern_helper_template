@@ -1,4 +1,4 @@
-export const ERAEvents ={
+export const ERAEvents = {
   /**
    * 非破坏性地插入一个或多个变量。
    */
@@ -14,19 +14,19 @@ export const ERAEvents ={
   /**
    * 获取快照消息
    */
-  GET_SNAPSHOT_AT_MK : 'era:getSnapshotAtMk',
+  GET_SNAPSHOT_AT_MK: 'era:getSnapshotAtMk',
   /**
    * 发送一次差异同步
    */
-  FORCE_SYNC :'era:forceSync',
+  FORCE_SYNC: 'era:forceSync',
 
   /**
    * 强制同步模式
    */
-  SYNC_MODE:{
+  SYNC_MODE: {
     AUTO: 'auto', //智能重算
     FULL: 'full', //完全重算
     LATEST: 'latest', //最新消息
-    ROLLBACK_TO: 'rollbackTo' //回滚到指定 message_id 处理完毕后的状态
-  }
-}
+    ROLLBACK_TO: 'rollbackTo', //回滚到指定 message_id 处理完毕后的状态
+  },
+};

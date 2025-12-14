@@ -6,9 +6,7 @@
         <div class="header-left">
           <h3>{{ modalTitle }}</h3>
           <!-- 状态徽标 -->
-          <span v-if="isUsingImportedData" class="data-badge" title="当前使用的是导入的外部数据">
-            外部数据模式
-          </span>
+          <span v-if="isUsingImportedData" class="data-badge" title="当前使用的是导入的外部数据"> 外部数据模式 </span>
         </div>
 
         <div class="header-actions">
@@ -23,14 +21,9 @@
           />
 
           <!-- 运行按钮 -->
-          <button
-            class="btn primary"
-            :disabled="!hasRules"
-            title="运行 DSL 测试"
-            @click="handleRunTest"
-          >
+          <button class="btn primary" :disabled="!hasRules" title="运行 DSL 测试" @click="handleRunTest">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z"/>
+              <path d="M8 5v14l11-7z" />
             </svg>
             运行测试
           </button>
@@ -68,9 +61,7 @@
                 </div>
               </div>
             </div>
-            <div v-else class="empty-state">
-              暂无规则数据
-            </div>
+            <div v-else class="empty-state">暂无规则数据</div>
           </div>
         </div>
 
@@ -255,7 +246,7 @@ $header-height: 60px;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Header & Toolbar */
@@ -362,7 +353,9 @@ $header-height: 60px;
     color: #666;
     font-size: 11px;
     cursor: pointer;
-    &:hover { color: #fff; }
+    &:hover {
+      color: #fff;
+    }
   }
 }
 
@@ -390,7 +383,7 @@ $header-height: 60px;
 
   &:hover {
     border-color: #cbd5e1;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
   }
 
   .rule-header {
@@ -447,10 +440,21 @@ $header-height: 60px;
   position: relative;
 
   /* 自定义滚动条 (Dark) */
-  &::-webkit-scrollbar { width: 10px; height: 10px; }
-  &::-webkit-scrollbar-track { background: #1e1e1e; }
-  &::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; border: 2px solid #1e1e1e; }
-  &::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  &::-webkit-scrollbar-track {
+    background: #1e1e1e;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #424242;
+    border-radius: 5px;
+    border: 2px solid #1e1e1e;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #4f4f4f;
+  }
 }
 
 .console-output {
@@ -464,7 +468,8 @@ $header-height: 60px;
   word-wrap: break-word;
 }
 
-.empty-state, .empty-result {
+.empty-state,
+.empty-result {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -478,7 +483,10 @@ $header-height: 60px;
 
 .empty-result {
   color: #52525b;
-  .icon-placeholder { font-size: 24px; opacity: 0.5; }
+  .icon-placeholder {
+    font-size: 24px;
+    opacity: 0.5;
+  }
 }
 
 /* Buttons & Controls */
@@ -499,8 +507,14 @@ $header-height: 60px;
   &.primary {
     background: $primary-color;
     color: white;
-    &:hover { background: #5558e0; }
-    &:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+    &:hover {
+      background: #5558e0;
+    }
+    &:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
   }
 }
 
@@ -545,11 +559,26 @@ $header-height: 60px;
 
 /* Responsive */
 @media (max-width: 768px) {
-  .tester-body { flex-direction: column; }
-  .panel-left { flex: 0 0 40%; border-right: none; border-bottom: 1px solid $border-color; }
-  .panel-right { flex: 1; }
-  .tester-header { padding: 0 12px; }
-  .header-left h3 { font-size: 14px; }
-  .btn { padding: 0 10px; font-size: 12px; }
+  .tester-body {
+    flex-direction: column;
+  }
+  .panel-left {
+    flex: 0 0 40%;
+    border-right: none;
+    border-bottom: 1px solid $border-color;
+  }
+  .panel-right {
+    flex: 1;
+  }
+  .tester-header {
+    padding: 0 12px;
+  }
+  .header-left h3 {
+    font-size: 14px;
+  }
+  .btn {
+    padding: 0 10px;
+    font-size: 12px;
+  }
 }
 </style>

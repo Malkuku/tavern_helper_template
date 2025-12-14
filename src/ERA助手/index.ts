@@ -1,3 +1,3 @@
-import './UI/index'
+import './UI/index';
 //import './text'
-import './button'
+import './button';

@@ -6,17 +6,12 @@
       :class="{ 'line-leaf': node.isLeaf, 'line-parent': !node.isLeaf }"
     >
       <!-- 折叠箭头 / 占位 -->
-      <span
-        v-if="!node.isLeaf"
-        class="arrow"
-        :class="{ expanded: node.expanded }"
-        @click="$emit('toggle', node)"
-      >
+      <span v-if="!node.isLeaf" class="arrow" :class="{ expanded: node.expanded }" @click="$emit('toggle', node)">
         <svg v-if="node.expanded" class="arrow-icon" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M12 10L8 6L4 10H12Z"/>
+          <path d="M12 10L8 6L4 10H12Z" />
         </svg>
         <svg v-else class="arrow-icon" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M6 4L10 8L6 12V4Z"/>
+          <path d="M6 4L10 8L6 12V4Z" />
         </svg>
       </span>
       <span v-else class="space" />
@@ -26,16 +21,9 @@
 
       <!-- 值显示区域 -->
       <div v-if="node.isLeaf" class="value-area">
-        <span
-          class="val"
-          :class="getValueTypeClass(node.value)"
-        >{{ formatValue(node.value) }}</span>
+        <span class="val" :class="getValueTypeClass(node.value)">{{ formatValue(node.value) }}</span>
         <!-- 只有叶子节点出现添加规则按钮 -->
-        <button
-          class="add-btn"
-          title="将此路径添加到规则"
-          @click="$emit('sendPath', node.path)"
-        >+</button>
+        <button class="add-btn" title="将此路径添加到规则" @click="$emit('sendPath', node.path)">+</button>
       </div>
       <div v-else-if="!node.expanded" class="collapse-preview">
         <span class="ellipsis">{{ getCollapsePreview(node) }}</span>
@@ -58,60 +46,63 @@
 <script setup lang="ts">
 import { JsonNodeType } from '../../types/JsonNode';
 
-defineProps<{ node: JsonNodeType }>()
+defineProps<{ node: JsonNodeType }>();
 defineEmits<{
-  toggle: [node: JsonNodeType]
-  sendPath: [path: string]
-}>()
+  toggle: [node: JsonNodeType];
+  sendPath: [path: string];
+}>();
 
 // 格式化显示值
 function formatValue(value: any): string {
-  const type = typeof value
+  const type = typeof value;
 
   switch (type) {
     case 'string':
-      return `"${value}"`
+      return `"${value}"`;
     case 'number':
-      return `${value}`
+      return `${value}`;
     case 'boolean':
-      return `${value}`
+      return `${value}`;
     case 'object':
-      if (value === null) return 'null'
-      if (Array.isArray(value)) return `[${value.length} items]`
-      return `{${Object.keys(value).length} keys}`
+      if (value === null) return 'null';
+      if (Array.isArray(value)) return `[${value.length} items]`;
+      return `{${Object.keys(value).length} keys}`;
     default:
-      return String(value)
+      return String(value);
   }
 }
 
 // 获取值的类型类名
 function getValueTypeClass(value: any): string {
-  const type = typeof value
+  const type = typeof value;
 
   switch (type) {
     case 'string':
-      return 'type-string'
+      return 'type-string';
     case 'number':
-      return 'type-number'
+      return 'type-number';
     case 'boolean':
-      return 'type-boolean'
+      return 'type-boolean';
     case 'object':
-      if (value === null) return 'type-null'
-      if (Array.isArray(value)) return 'type-array'
-      return 'type-object'
+      if (value === null) return 'type-null';
+      if (Array.isArray(value)) return 'type-array';
+      return 'type-object';
     default:
-      return 'type-other'
+      return 'type-other';
   }
 }
 
 // 获取折叠预览文本
 function getCollapsePreview(node: JsonNodeType): string {
   if (node.children) {
-    const childCount = node.children.length
-    const sampleKeys = node.children.slice(0, 2).map(c => c.key).join(', ')
-    return `{ ${sampleKeys}${childCount > 2 ? `, ... +${childCount - 2}` : ''} }`
+    const childCount = node.children.length;
+    const sampleKeys = node.children
+      .slice(0, 2)
+      .map(c => c.key)
+      .join(', ');
+    return `{ ${sampleKeys}${childCount > 2 ? `, ... +${childCount - 2}` : ''} }`;
   }
-  return '{ ... }'
+  return '{ ... }';
 }
 </script>
 
@@ -130,12 +121,7 @@ function getCollapsePreview(node: JsonNodeType): string {
     top: 0;
     bottom: 0;
     width: 1px;
-    background: linear-gradient(to bottom,
-      transparent 0%,
-      #e5e7eb 10%,
-      #e5e7eb 90%,
-      transparent 100%
-    );
+    background: linear-gradient(to bottom, transparent 0%, #e5e7eb 10%, #e5e7eb 90%, transparent 100%);
     z-index: 0;
   }
 
@@ -365,12 +351,7 @@ function getCollapsePreview(node: JsonNodeType): string {
 @media (prefers-color-scheme: dark) {
   .json-node {
     &::before {
-      background: linear-gradient(to bottom,
-        transparent 0%,
-        #374151 10%,
-        #374151 90%,
-        transparent 100%
-      );
+      background: linear-gradient(to bottom, transparent 0%, #374151 10%, #374151 90%, transparent 100%);
     }
 
     .line {

@@ -74,7 +74,7 @@ $(() => {
   vueApp = createApp(App);
   const pinia = createPinia();
   vueApp.use(pinia);
-  vueApp.use(router)
+  vueApp.use(router);
   vueApp.mount(mountPoint[0]);
 
   // 获取 store 实例并暴露到 window，以便外部函数调用
@@ -87,7 +87,6 @@ $(() => {
   (window as any).EraDataStore = useEraDataStore(pinia);
   useEraDataStore().getEraDataRules();
   (window as any).EraEditStore = useEraEditStore(pinia);
-
 
   // 传送样式，也只执行一次
   teleportStyle();
@@ -105,8 +104,8 @@ $(() => {
   window.addEventListener('pagehide', unloadUI); // 再添加新的
 
   // 监听事件
-  eventOn(tavern_events.WORLDINFO_ENTRIES_LOADED,handleLoresFilter);
-  eventOn(tavern_events.MESSAGE_RECEIVED,handleMessageReceived);
+  eventOn(tavern_events.WORLDINFO_ENTRIES_LOADED, handleLoresFilter);
+  eventOn(tavern_events.MESSAGE_RECEIVED, handleMessageReceived);
   eventOn(tavern_events.MESSAGE_RECEIVED, handleEraRulesOnMessageReceived);
   // 监听 `GENERATE_AFTER_DATA` 事件，在提示词发送前处理 ERA 宏
   //eventOn(tavern_events.GENERATE_AFTER_DATA, handleTestPrompt);

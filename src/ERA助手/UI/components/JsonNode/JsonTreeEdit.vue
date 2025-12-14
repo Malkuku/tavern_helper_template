@@ -12,14 +12,12 @@
       @add-child="addChild"
       @remove-node="removeNode"
     />
-    <div v-if="filteredRoots.length === 0 && roots.length > 0" class="empty-tree">
-      没有匹配的搜索结果。
-    </div>
+    <div v-if="filteredRoots.length === 0 && roots.length > 0" class="empty-tree">没有匹配的搜索结果。</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, reactive } from 'vue'
+import { ref, watch, computed, reactive } from 'vue';
 import { get, set, unset, cloneDeep } from 'lodash';
 import { JsonNodeType } from '../../types/JsonNode';
 import JsonNodeEdit from './JsonNodeEdit.vue';
@@ -98,18 +96,20 @@ function buildReactiveTree(obj: any, depth = 0, path = ''): JsonNodeType[] {
 }
 
 // --- 修改：监听外部 data 变化，重建树并恢复状态 ---
-watch(() => props.data, (newData, oldData) => {
-  // 1. 在重建树之前，保存当前已展开节点的路径
-  const expandedPaths = getExpandedPaths(roots.value);
+watch(
+  () => props.data,
+  (newData, oldData) => {
+    // 1. 在重建树之前，保存当前已展开节点的路径
+    const expandedPaths = getExpandedPaths(roots.value);
 
-  // 2. 重建树
-  roots.value = buildReactiveTree(newData);
+    // 2. 重建树
+    roots.value = buildReactiveTree(newData);
 
-  // 3. 恢复展开状态
-  restoreExpandedState(roots.value, expandedPaths);
-
-}, { immediate: true }); // 注意：这里的 deep: true 可以移除了，因为我们是在替换整个 data 对象，浅层监听引用变化即可。
-
+    // 3. 恢复展开状态
+    restoreExpandedState(roots.value, expandedPaths);
+  },
+  { immediate: true },
+); // 注意：这里的 deep: true 可以移除了，因为我们是在替换整个 data 对象，浅层监听引用变化即可。
 
 /* ---------- 搜索与过滤 (已集成) ---------- */
 const filteredRoots = computed(() => {
@@ -140,7 +140,6 @@ const filteredRoots = computed(() => {
 
   return filter(searchableRoots);
 });
-
 
 /* ---------- 事件处理 ---------- */
 function findNodeByPath(nodes: JsonNodeType[], path: string): JsonNodeType | null {
@@ -177,7 +176,7 @@ function saveEdit({ path, value }: { path: string; value: any }) {
   editingNodePath.value = null;
 }
 
-function addChild({ path, isObject }: { path: string, isObject: boolean }) {
+function addChild({ path, isObject }: { path: string; isObject: boolean }) {
   const newData = cloneDeep(props.data);
   const parent = get(newData, path);
 

@@ -6,6 +6,4 @@
  * 获取模型列表
  */
 
-
-export const ApiConnectUtil = {
-}
+export const ApiConnectUtil = {};

@@ -98,8 +98,12 @@
                   <div class="handle-header">
                     <strong>{{ handleKey }}</strong> (顺序: {{ handleItem.order }}, 循环: {{ handleItem.loop }})
                   </div>
-                  <div v-if="handleItem.if" class="handle-expression"><strong>条件:</strong> {{  DSLHandler.exprToHumanView(handleItem.if) }}</div>
-                  <div class="handle-expression"><strong>操作:</strong> {{ DSLHandler.exprToHumanView(handleItem.op) }}</div>
+                  <div v-if="handleItem.if" class="handle-expression">
+                    <strong>条件:</strong> {{ DSLHandler.exprToHumanView(handleItem.if) }}
+                  </div>
+                  <div class="handle-expression">
+                    <strong>操作:</strong> {{ DSLHandler.exprToHumanView(handleItem.op) }}
+                  </div>
                 </div>
               </div>
 
@@ -168,10 +172,24 @@
           </div>
 
           <!-- 规则级别的 IF 配置 -->
-          <div class="rule-if-config" style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 4px; border: 1px dashed #ccc;">
+          <div
+            class="rule-if-config"
+            style="
+              margin-bottom: 15px;
+              padding: 10px;
+              background: rgba(0, 0, 0, 0.03);
+              border-radius: 4px;
+              border: 1px dashed #ccc;
+            "
+          >
             <div class="dsl-builder">
               <div class="dsl-header">
-                <label>规则执行条件 (if): <span style="font-size: 0.85em; color: #666; font-weight: normal;">(控制所有Handle规则的执行)</span></label>
+                <label
+                  >规则执行条件 (if):
+                  <span style="font-size: 0.85em; color: #666; font-weight: normal"
+                    >(控制所有Handle规则的执行)</span
+                  ></label
+                >
                 <div class="dsl-actions">
                   <button class="btn small" @click="openDslBuilder('if', '__RULE_IF__')">构建</button>
                   <button v-if="draft.if" class="btn small danger" @click="draft.if = ''">清空</button>
@@ -210,7 +228,9 @@
                   <label>条件表达式 (if):</label>
                   <div class="dsl-actions">
                     <button class="btn small" @click="openDslBuilder('if', handleKey)">构建</button>
-                    <button v-if="handleItem.if" class="btn small danger" @click="clearDsl('if', handleKey)">清空</button>
+                    <button v-if="handleItem.if" class="btn small danger" @click="clearDsl('if', handleKey)">
+                      清空
+                    </button>
                   </div>
                 </div>
                 <div class="dsl-preview">
@@ -227,7 +247,9 @@
                   <label>操作表达式 (op):</label>
                   <div class="dsl-actions">
                     <button class="btn small" @click="openDslBuilder('op', handleKey)">构建</button>
-                    <button v-if="handleItem.op" class="btn small danger" @click="clearDsl('op', handleKey)">清空</button>
+                    <button v-if="handleItem.op" class="btn small danger" @click="clearDsl('op', handleKey)">
+                      清空
+                    </button>
                   </div>
                 </div>
                 <div class="dsl-preview">
@@ -818,7 +840,7 @@ function sortRulesAndHandles() {
 
     // 如果规则有handle，则对handle也进行排序
     if (rule.handle && Object.keys(rule.handle).length > 0) {
-      const handleEntries = Object.entries(rule.handle as EraDataRuleHandle) ;
+      const handleEntries = Object.entries(rule.handle as EraDataRuleHandle);
 
       // 按handle的order排序
       handleEntries.sort(([, handleA], [, handleB]) => {
@@ -887,8 +909,7 @@ const filteredStatData = computed(() => {
       }
 
       return hasMatches ? filtered : undefined;
-    }
-    else if (Array.isArray(obj)) {
+    } else if (Array.isArray(obj)) {
       const filtered: any[] = [];
       let hasMatches = false;
 
@@ -921,7 +942,7 @@ const filteredStatData = computed(() => {
         }
       }
 
-      return hasMatches ? filtered : (query === '' ? [] : undefined);
+      return hasMatches ? filtered : query === '' ? [] : undefined;
     }
 
     // 基本类型值直接检查
@@ -931,7 +952,6 @@ const filteredStatData = computed(() => {
   const result = filterObject(statData.value);
   return result !== undefined ? result : {};
 });
-
 </script>
 
 <style scoped lang="scss">

@@ -69,11 +69,7 @@ export function setValueByPath(data: any, pathSegments: string[], value: any): v
 
     // 检查当前 key 是否存在且为对象
     // 如果不存在，或者存在但不是对象（比如是数字或null），则重置为 {}
-    if (
-      !(key in current) ||
-      current[key] === null ||
-      typeof current[key] !== 'object'
-    ) {
+    if (!(key in current) || current[key] === null || typeof current[key] !== 'object') {
       current[key] = {};
     }
 

@@ -7,7 +7,7 @@ const currentVersion = ref('v1.0.0');
 // 作者信息
 const author = ref({
   name: 'cat987',
-  github: 'https://github.com/Malkuku/EraHelper-all-in-one-solution-for-ERA-scripts'
+  github: 'https://github.com/Malkuku/EraHelper-all-in-one-solution-for-ERA-scripts',
 });
 
 // 版本更新历史记录
@@ -15,10 +15,8 @@ const versionHistory = ref([
   {
     version: 'v1.0.0',
     date: '2025-12-13',
-    changes: [
-      '发布首个版本。',
-    ]
-  }
+    changes: ['发布首个版本。'],
+  },
 ]);
 </script>
 
@@ -44,7 +42,9 @@ const versionHistory = ref([
     <div class="section">
       <h2 class="section-title">免责声明</h2>
       <ul class="notes-list">
-        <li>本插件仅供个人学习与技术交流使用，严禁用于任何商业目的或非法活动。使用者需自行承担因使用本插件而产生的一切风险与法律责任，开发者对此不承担任何责任。</li>
+        <li>
+          本插件仅供个人学习与技术交流使用，严禁用于任何商业目的或非法活动。使用者需自行承担因使用本插件而产生的一切风险与法律责任，开发者对此不承担任何责任。
+        </li>
       </ul>
       <h2 class="section-title">注意事项</h2>
       <ul class="notes-list">

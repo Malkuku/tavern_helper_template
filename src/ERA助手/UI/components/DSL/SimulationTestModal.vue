@@ -83,7 +83,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   importedData: () => ({}),
   resultData: () => ({}),
-  executionLog: ''
+  executionLog: '',
 });
 
 const emit = defineEmits<Emits>();
@@ -100,31 +100,42 @@ const resultDataObj = ref<any>(null);
 // 文件导入引用
 const fileImportRef = ref<InstanceType<typeof FileImportExport> | null>(null);
 
-
 // 监听props变化并更新本地变量
-watch(() => props.importedData, (newVal) => {
-  try {
-    localImportedDataText.value = JSON.stringify(newVal, null, 2);
-    importedDataObj.value = newVal;
-  } catch (e) {
-    localImportedDataText.value = '无法序列化数据';
-    importedDataObj.value = null;
-  }
-}, { deep: true, immediate: true });
+watch(
+  () => props.importedData,
+  newVal => {
+    try {
+      localImportedDataText.value = JSON.stringify(newVal, null, 2);
+      importedDataObj.value = newVal;
+    } catch (e) {
+      localImportedDataText.value = '无法序列化数据';
+      importedDataObj.value = null;
+    }
+  },
+  { deep: true, immediate: true },
+);
 
-watch(() => props.resultData, (newVal) => {
-  try {
-    localResultDataText.value = JSON.stringify(newVal, null, 2);
-    resultDataObj.value = newVal;
-  } catch (e) {
-    localResultDataText.value = '无法序列化数据';
-    resultDataObj.value = null;
-  }
-}, { deep: true, immediate: true });
+watch(
+  () => props.resultData,
+  newVal => {
+    try {
+      localResultDataText.value = JSON.stringify(newVal, null, 2);
+      resultDataObj.value = newVal;
+    } catch (e) {
+      localResultDataText.value = '无法序列化数据';
+      resultDataObj.value = null;
+    }
+  },
+  { deep: true, immediate: true },
+);
 
-watch(() => props.executionLog, (newVal) => {
-  localExecutionLog.value = newVal;
-}, { immediate: true });
+watch(
+  () => props.executionLog,
+  newVal => {
+    localExecutionLog.value = newVal;
+  },
+  { immediate: true },
+);
 
 // 处理测试数据加载
 function handleTestDataLoaded(content: string, file: File) {

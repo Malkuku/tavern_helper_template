@@ -8,7 +8,7 @@ export class DSLEvaluator {
   constructor(
     private data: any,
     private globalVars: VariableStore, // 全局变量
-    private localVars: VariableStore   // 局部变量
+    private localVars: VariableStore, // 局部变量
   ) {}
 
   evaluate(node: ASTNode): any {
@@ -29,7 +29,8 @@ export class DSLEvaluator {
   }
 
   private evaluateBinaryOp(node: BinaryOpNode): any {
-    if (node.operator === '=') { // 赋值不会检查类型，这是为了将来可能的扩展预留的机制
+    if (node.operator === '=') {
+      // 赋值不会检查类型，这是为了将来可能的扩展预留的机制
       return this.performAssignment(node.left, node.right);
     }
     const left = this.evaluate(node.left);
@@ -46,7 +47,7 @@ export class DSLEvaluator {
         const rightValStr = JSON.stringify(right);
         throw new Error(
           `算术运算符 '${node.operator}' 类型不匹配。` +
-          `两个操作数都必须是数字，但得到了 ${typeof left} (${leftValStr}) 和 ${typeof right} (${rightValStr})。`
+            `两个操作数都必须是数字，但得到了 ${typeof left} (${leftValStr}) 和 ${typeof right} (${rightValStr})。`,
         );
       }
     }
@@ -61,7 +62,7 @@ export class DSLEvaluator {
         const rightValStr = JSON.stringify(right);
         throw new Error(
           `比较运算符 '${node.operator}' 类型不匹配。` +
-          `操作数必须是相同类型，但得到了 ${leftType} (${leftValStr}) 和 ${rightType} (${rightValStr})。`
+            `操作数必须是相同类型，但得到了 ${leftType} (${leftValStr}) 和 ${rightType} (${rightValStr})。`,
         );
       }
       // 额外检查：禁止对 object 类型进行比较（除了 null）
@@ -71,20 +72,34 @@ export class DSLEvaluator {
     }
 
     switch (node.operator) {
-      case '&&': return left && right;
-      case '||': return left || right;
-      case '==': return left == right;
-      case '!=': return left != right;
-      case '<': return left < right;
-      case '>': return left > right;
-      case '<=': return left <= right;
-      case '>=': return left >= right;
-      case '+': return left + right;
-      case '-': return left - right;
-      case '*': return left * right;
-      case '/': return left / right;
-      case '%': return left % right;
-      case '**': return Math.pow(left, right);
+      case '&&':
+        return left && right;
+      case '||':
+        return left || right;
+      case '==':
+        return left == right;
+      case '!=':
+        return left != right;
+      case '<':
+        return left < right;
+      case '>':
+        return left > right;
+      case '<=':
+        return left <= right;
+      case '>=':
+        return left >= right;
+      case '+':
+        return left + right;
+      case '-':
+        return left - right;
+      case '*':
+        return left * right;
+      case '/':
+        return left / right;
+      case '%':
+        return left % right;
+      case '**':
+        return Math.pow(left, right);
       default:
         throw new Error(`未知的运算符: ${node.operator}`);
     }
@@ -114,18 +129,30 @@ export class DSLEvaluator {
   private evaluateFunctionCall(node: FunctionCallNode): any {
     const args = node.args.map(arg => this.evaluate(arg));
     switch (node.name) {
-      case 'neg': return -Number(args[0]);
-      case 'sum': return args.reduce((acc, val) => acc + Number(val), 0);
-      case 'avg': return args.length === 0 ? 0 : args.reduce((acc, val) => acc + Number(val), 0) / args.length;
-      case 'ln': return Math.log(Number(args[0]));
-      case 'log2': return Math.log2(Number(args[0]));
-      case 'sqrt': return Math.sqrt(Number(args[0]));
-      case 'abs': return Math.abs(Number(args[0]));
-      case 'floor': return Math.floor(Number(args[0]));
-      case 'ceil': return Math.ceil(Number(args[0]));
-      case 'max': return Math.max(...args.map(Number));
-      case 'min': return Math.min(...args.map(Number));
-      default: throw new Error(`未知的函数: ${node.name}`);
+      case 'neg':
+        return -Number(args[0]);
+      case 'sum':
+        return args.reduce((acc, val) => acc + Number(val), 0);
+      case 'avg':
+        return args.length === 0 ? 0 : args.reduce((acc, val) => acc + Number(val), 0) / args.length;
+      case 'ln':
+        return Math.log(Number(args[0]));
+      case 'log2':
+        return Math.log2(Number(args[0]));
+      case 'sqrt':
+        return Math.sqrt(Number(args[0]));
+      case 'abs':
+        return Math.abs(Number(args[0]));
+      case 'floor':
+        return Math.floor(Number(args[0]));
+      case 'ceil':
+        return Math.ceil(Number(args[0]));
+      case 'max':
+        return Math.max(...args.map(Number));
+      case 'min':
+        return Math.min(...args.map(Number));
+      default:
+        throw new Error(`未知的函数: ${node.name}`);
     }
   }
 

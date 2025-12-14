@@ -11,7 +11,7 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
     const { stat_data } = getVariables({ type: 'chat' });
     eraLogger.log('获取stat_data内容: ', stat_data);
     return stat_data || {};
-  }
+  };
 
   /**
    * 辅助函数：根据路径深度设置值
@@ -46,21 +46,13 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
     const toUpdate: Record<string, any> = {};
     const toInsert: Record<string, any> = {};
 
-    const walk = (
-      snapNode: any,
-      objNode: any,
-      path: string[] = []
-    ) => {
+    const walk = (snapNode: any, objNode: any, path: string[] = []) => {
       /* 收集所有 key */
       const snapKeys = new Set(
-        snapNode && typeof snapNode === 'object' && !Array.isArray(snapNode)
-          ? Object.keys(snapNode)
-          : []
+        snapNode && typeof snapNode === 'object' && !Array.isArray(snapNode) ? Object.keys(snapNode) : [],
       );
       const objKeys = new Set(
-        objNode && typeof objNode === 'object' && !Array.isArray(objNode)
-          ? Object.keys(objNode)
-          : []
+        objNode && typeof objNode === 'object' && !Array.isArray(objNode) ? Object.keys(objNode) : [],
       );
 
       /* 处理删除逻辑：snap 有，object 没有 */
@@ -68,10 +60,7 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
         if (!objKeys.has(k)) {
           const val = snapNode[k];
           // 检查这个被删除的节点是否有子节点
-          const hasChildren = val &&
-            typeof val === 'object' &&
-            !Array.isArray(val) &&
-            Object.keys(val).length > 0;
+          const hasChildren = val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0;
 
           // 如果有子节点，通常后端协议可能需要 {} 来表示删除容器，否则用 null 删除值
           setDeepValue(toDelete, path, k, hasChildren ? {} : null);
@@ -130,6 +119,6 @@ export const useEraEditStore = defineStore('KatEraEdit', () => {
 
   return {
     getStatData,
-    saveEraEdit
+    saveEraEdit,
   };
 });

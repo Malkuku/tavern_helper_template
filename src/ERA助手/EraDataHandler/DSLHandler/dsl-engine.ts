@@ -9,7 +9,7 @@ import { eraLogger } from '../../utils/EraHelperLogger';
 export interface DSLResultItem {
   path?: string; // 如果是赋值操作，返回被修改的路径
   targetType?: 'data' | 'temp'; // 赋值目标的类型
-  value: any;    // 表达式的计算结果
+  value: any; // 表达式的计算结果
 }
 
 export interface DSLResult {
@@ -19,7 +19,6 @@ export interface DSLResult {
 }
 
 export class DSLEngine {
-
   // --- AST 缓存 ---
   // Key: 预处理后的表达式字符串, Value: 解析后的 AST 根节点
   private static astCache = new Map<string, ASTNode>();
@@ -29,7 +28,7 @@ export class DSLEngine {
     expression: string,
     data: any,
     globalVars: VariableStore, // 接收全局变量
-    localVars: VariableStore   // 接收局部变量
+    localVars: VariableStore, // 接收局部变量
   ): DSLResult {
     try {
       const cleanExpression = DSLPreprocessor.process(expression);
@@ -56,7 +55,7 @@ export class DSLEngine {
           // 检查容量
           if (this.astCache.size >= this.MAX_CACHE_SIZE) {
             const oldestKey = this.astCache.keys().next().value;
-            if(oldestKey) this.astCache.delete(oldestKey);
+            if (oldestKey) this.astCache.delete(oldestKey);
           }
           // 插入新值（会自动排在 Map 末尾）
           this.astCache.set(expr, ast);
@@ -87,7 +86,7 @@ export class DSLEngine {
         results.push({
           path: modifiedPath,
           targetType: targetType, // 传递目标类型
-          value: resultValue
+          value: resultValue,
         });
       }
 

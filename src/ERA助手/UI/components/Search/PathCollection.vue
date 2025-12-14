@@ -29,7 +29,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isExpanded: false
+  isExpanded: false,
 });
 
 const emit = defineEmits<Emits>();

@@ -7,7 +7,7 @@ import { reSendEraUpdate } from './AsyncAnalyze/handleAsyncAnalyzeEvents';
 $(() => {
   replaceScriptButtons([
     { name: '🐱ERA助手', visible: true },
-    { name: '🍬重新分析变量', visible: true }
+    { name: '🍬重新分析变量', visible: true },
   ]);
 
   eventOn(getButtonEvent('🐱ERA助手'), () => {

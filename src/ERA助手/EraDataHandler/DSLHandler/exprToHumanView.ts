@@ -78,7 +78,6 @@ export const exprToHumanView = (localExpression: string): string => {
 
     // 3. 递归遍历 AST，生成人类可读的字符串
     return astToHumanView(ast);
-
   } catch (error: any) {
     // 为了调试方便，这里返回错误信息
     return `[无效表达式: ${error.message}]`;

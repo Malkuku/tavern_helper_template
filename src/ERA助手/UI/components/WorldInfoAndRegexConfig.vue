@@ -76,7 +76,12 @@
             </div>
             <div v-show="isRegexListOpen" class="entry-list">
               <div v-for="(regex, index) in localRegexList" :key="index" class="entry-item">
-                <input v-model="localRegexList[index]" type="text" class="regex-input light-theme" placeholder="请输入正则表达式" />
+                <input
+                  v-model="localRegexList[index]"
+                  type="text"
+                  class="regex-input light-theme"
+                  placeholder="请输入正则表达式"
+                />
                 <button class="btn remove-btn" @click="removeRegex(index)">×</button>
               </div>
               <button class="btn add-btn" @click="addRegex">添加正则</button>
@@ -105,139 +110,141 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import * as toastr from 'toastr'
-import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore'
-import { storeToRefs } from 'pinia'
-import { WorldInfoUtil } from '../../../Utils/WorldInfoUtil'
-import FileImportExport from './File/FileImportExport.vue'
+import { ref, onMounted, watch } from 'vue';
+import * as toastr from 'toastr';
+import { useAsyncAnalyzeStore } from '../../stores/AsyncAnalyzeStore';
+import { storeToRefs } from 'pinia';
+import { WorldInfoUtil } from '../../../Utils/WorldInfoUtil';
+import FileImportExport from './File/FileImportExport.vue';
 
-const asyncAnalyzeStore = useAsyncAnalyzeStore()
-const { analyzeRores, updateRores, ignoreRores, regexList } = storeToRefs(asyncAnalyzeStore)
+const asyncAnalyzeStore = useAsyncAnalyzeStore();
+const { analyzeRores, updateRores, ignoreRores, regexList } = storeToRefs(asyncAnalyzeStore);
 
 // 可展开/收起状态
-const isWorldInfoOpen = ref(false)
-const isRegexOpen = ref(false)
-const isAnalyzeListOpen = ref(false)
-const isUpdateListOpen = ref(false)
-const isIgnoreListOpen = ref(false)
-const isRegexListOpen = ref(false)
+const isWorldInfoOpen = ref(false);
+const isRegexOpen = ref(false);
+const isAnalyzeListOpen = ref(false);
+const isUpdateListOpen = ref(false);
+const isIgnoreListOpen = ref(false);
+const isRegexListOpen = ref(false);
 
 // 本地数据副本
-const localAnalyzeEntries = ref<string[]>([])
-const localUpdateEntries = ref<string[]>([])
-const localIgnoreEntries = ref<string[]>([])
-const localRegexList = ref<string[]>([])
+const localAnalyzeEntries = ref<string[]>([]);
+const localUpdateEntries = ref<string[]>([]);
+const localIgnoreEntries = ref<string[]>([]);
+const localRegexList = ref<string[]>([]);
 
 // 世界书名称列表
-const worldBookNames = ref<string[]>([])
+const worldBookNames = ref<string[]>([]);
 
 // 切换世界书配置区域展开/收起
 const toggleWorldInfoSection = () => {
-  isWorldInfoOpen.value = !isWorldInfoOpen.value
-}
+  isWorldInfoOpen.value = !isWorldInfoOpen.value;
+};
 
 // 切换正则配置区域展开/收起
 const toggleRegexSection = () => {
-  isRegexOpen.value = !isRegexOpen.value
-}
+  isRegexOpen.value = !isRegexOpen.value;
+};
 
 // 切换子列表展开/收起
 const toggleAnalyzeList = () => {
-  isAnalyzeListOpen.value = !isAnalyzeListOpen.value
-}
+  isAnalyzeListOpen.value = !isAnalyzeListOpen.value;
+};
 
 const toggleUpdateList = () => {
-  isUpdateListOpen.value = !isUpdateListOpen.value
-}
+  isUpdateListOpen.value = !isUpdateListOpen.value;
+};
 
 const toggleIgnoreList = () => {
-  isIgnoreListOpen.value = !isIgnoreListOpen.value
-}
+  isIgnoreListOpen.value = !isIgnoreListOpen.value;
+};
 
 const toggleRegexList = () => {
-  isRegexListOpen.value = !isRegexListOpen.value
-}
+  isRegexListOpen.value = !isRegexListOpen.value;
+};
 
 // 获取世界书名称列表
 const loadWorldBookNames = async () => {
   try {
-    worldBookNames.value = await WorldInfoUtil.getAllWorldBookNames()
+    worldBookNames.value = await WorldInfoUtil.getAllWorldBookNames();
   } catch (error) {
-    console.error('获取世界书名称失败:', error)
-    toastr.error('获取世界书名称失败')
+    console.error('获取世界书名称失败:', error);
+    toastr.error('获取世界书名称失败');
   }
-}
+};
 
 // 刷新世界书列表
 const refreshWorldBooks = async () => {
-  await loadWorldBookNames()
-  toastr.info('世界书列表已刷新')
-}
+  await loadWorldBookNames();
+  toastr.info('世界书列表已刷新');
+};
 
 // 添加世界书条目
 const addAnalyzeEntry = () => {
-  localAnalyzeEntries.value.push('')
-}
+  localAnalyzeEntries.value.push('');
+};
 
 const addUpdateEntry = () => {
-  localUpdateEntries.value.push('')
-}
+  localUpdateEntries.value.push('');
+};
 
 const addIgnoreEntry = () => {
-  localIgnoreEntries.value.push('')
-}
+  localIgnoreEntries.value.push('');
+};
 
 // 删除世界书条目
 const removeAnalyzeEntry = (index: number) => {
-  localAnalyzeEntries.value.splice(index, 1)
-}
+  localAnalyzeEntries.value.splice(index, 1);
+};
 
 const removeUpdateEntry = (index: number) => {
-  localUpdateEntries.value.splice(index, 1)
-}
+  localUpdateEntries.value.splice(index, 1);
+};
 
 const removeIgnoreEntry = (index: number) => {
-  localIgnoreEntries.value.splice(index, 1)
-}
+  localIgnoreEntries.value.splice(index, 1);
+};
 
 // 正则表达式操作
 const addRegex = () => {
-  localRegexList.value.push('<(variable(?:insert|edit|delete))>\\s*(?=[\\s\\S]*?\\S[\\s\\S]*?</\\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|</\\1>)[\\s\\S])*?)\\s*</\\1>')
-}
+  localRegexList.value.push(
+    '<(variable(?:insert|edit|delete))>\\s*(?=[\\s\\S]*?\\S[\\s\\S]*?</\\1>)((?:(?!<(?:era_data|variable(?:think|insert|edit|delete))>|</\\1>)[\\s\\S])*?)\\s*</\\1>',
+  );
+};
 
 const removeRegex = (index: number) => {
-  localRegexList.value.splice(index, 1)
-}
+  localRegexList.value.splice(index, 1);
+};
 
 // 保存配置
 const handleSave = async () => {
   // 更新 store 中的值
-  analyzeRores.value = [...localAnalyzeEntries.value]
-  updateRores.value = [...localUpdateEntries.value]
-  ignoreRores.value = [...localIgnoreEntries.value]
-  regexList.value = [...localRegexList.value]
+  analyzeRores.value = [...localAnalyzeEntries.value];
+  updateRores.value = [...localUpdateEntries.value];
+  ignoreRores.value = [...localIgnoreEntries.value];
+  regexList.value = [...localRegexList.value];
 
-  await asyncAnalyzeStore.saveWorldInfoFilterConfig()
-  await asyncAnalyzeStore.saveRegexConfig()
+  await asyncAnalyzeStore.saveWorldInfoFilterConfig();
+  await asyncAnalyzeStore.saveRegexConfig();
 
-  toastr.success('配置已保存')
-}
+  toastr.success('配置已保存');
+};
 
 // 清空配置
 const handleClear = async () => {
   if (confirm('确定要清空所有配置吗？')) {
-    localAnalyzeEntries.value = []
-    localUpdateEntries.value = []
-    localIgnoreEntries.value = []
-    localRegexList.value = []
+    localAnalyzeEntries.value = [];
+    localUpdateEntries.value = [];
+    localIgnoreEntries.value = [];
+    localRegexList.value = [];
 
-    await asyncAnalyzeStore.clearWorldInfoFilterConfig()
-    await asyncAnalyzeStore.clearRegexConfig()
+    await asyncAnalyzeStore.clearWorldInfoFilterConfig();
+    await asyncAnalyzeStore.clearRegexConfig();
 
-    toastr.info('配置已清空')
+    toastr.info('配置已清空');
   }
-}
+};
 
 // 导出配置
 const handleExport = () => {
@@ -250,79 +257,78 @@ const handleExport = () => {
       regexList: localRegexList.value.map(regex => {
         // 保持正则表达式原样，避免双重转义
         return regex;
-      })
-    }
+      }),
+    };
 
     // 创建 Blob 对象
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
 
     // 创建下载链接
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `worldinfo-regex-config-${new Date().toISOString().slice(0, 10)}.json`
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `worldinfo-regex-config-${new Date().toISOString().slice(0, 10)}.json`;
 
     // 触发下载
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
     // 清理 URL 对象
-    URL.revokeObjectURL(url)
+    URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('导出配置失败:', error)
-    toastr.error('导出配置失败')
+    console.error('导出配置失败:', error);
+    toastr.error('导出配置失败');
   }
-}
+};
 
 // 导入配置
 const handleImport = (content: string) => {
   try {
-    const importedData = JSON.parse(content)
+    const importedData = JSON.parse(content);
 
     // 验证导入的数据结构
     if (typeof importedData !== 'object' || importedData === null) {
-
-      toastr.error('无效的配置文件格式')
+      toastr.error('无效的配置文件格式');
       return;
     }
 
     // 更新本地数据
     if (Array.isArray(importedData.analyzeEntries)) {
-      localAnalyzeEntries.value = [...importedData.analyzeEntries]
+      localAnalyzeEntries.value = [...importedData.analyzeEntries];
     }
 
     if (Array.isArray(importedData.updateEntries)) {
-      localUpdateEntries.value = [...importedData.updateEntries]
+      localUpdateEntries.value = [...importedData.updateEntries];
     }
 
     if (Array.isArray(importedData.ignoreEntries)) {
-      localIgnoreEntries.value = [...importedData.ignoreEntries]
+      localIgnoreEntries.value = [...importedData.ignoreEntries];
     }
 
     if (Array.isArray(importedData.regexList)) {
       // 导入时保持数据原样，不需要额外处理
-      localRegexList.value = [...importedData.regexList]
+      localRegexList.value = [...importedData.regexList];
     }
 
-    toastr.success('配置导入成功')
+    toastr.success('配置导入成功');
   } catch (error) {
-    console.error('导入配置失败:', error)
-    toastr.error('导入配置失败: ' + (error instanceof Error ? error.message : '无效的配置文件'))
+    console.error('导入配置失败:', error);
+    toastr.error('导入配置失败: ' + (error instanceof Error ? error.message : '无效的配置文件'));
   }
-}
+};
 
 // 初始化数据
 onMounted(async () => {
   // 加载世界书名称
-  await loadWorldBookNames()
+  await loadWorldBookNames();
 
   // 从 store 初始化本地值
-  localAnalyzeEntries.value = [...analyzeRores.value]
-  localUpdateEntries.value = [...updateRores.value]
-  localIgnoreEntries.value = [...ignoreRores.value]
-  localRegexList.value = [...regexList.value]
-})
+  localAnalyzeEntries.value = [...analyzeRores.value];
+  localUpdateEntries.value = [...updateRores.value];
+  localIgnoreEntries.value = [...ignoreRores.value];
+  localRegexList.value = [...regexList.value];
+});
 
 // 监听store变化并同步到本地
 watch(
@@ -331,16 +337,16 @@ watch(
     analyzeRores.value,
     updateRores.value,
     ignoreRores.value,
-    regexList.value
+    regexList.value,
   ],
   () => {
     // 同步 store 值到本地
-    localAnalyzeEntries.value = [...analyzeRores.value]
-    localUpdateEntries.value = [...updateRores.value]
-    localIgnoreEntries.value = [...ignoreRores.value]
-    localRegexList.value = [...regexList.value]
-  }
-)
+    localAnalyzeEntries.value = [...analyzeRores.value];
+    localUpdateEntries.value = [...updateRores.value];
+    localIgnoreEntries.value = [...ignoreRores.value];
+    localRegexList.value = [...regexList.value];
+  },
+);
 </script>
 
 <style scoped lang="scss">
