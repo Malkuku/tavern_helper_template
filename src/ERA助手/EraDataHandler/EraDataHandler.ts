@@ -163,9 +163,11 @@ export function diffObjects(current: any, original: any): any {
     }
 
     // 检查类型是否一致
-    const getType = (value: any) => value === null ? 'null' : typeof value;
+    const getType = (value: any) => (value === null ? 'null' : typeof value);
     if (getType(currentValue) !== getType(originalValue)) {
-      eraLogger.warn(`[diffObjects] 已忽略键 '${key}' 的类型不匹配。原始值: ${getType(originalValue)}, 当前值: ${getType(currentValue)}。`);
+      eraLogger.warn(
+        `[diffObjects] 已忽略键 '${key}' 的类型不匹配。原始值: ${getType(originalValue)}, 当前值: ${getType(currentValue)}。`,
+      );
       continue;
     }
 
@@ -217,8 +219,7 @@ export const EraDataHandler = {
       const logger = new EraRuleLogger();
       const workingData = mergeDataToSnapshot(data, snap);
 
-      const sortedRules = Object.entries(rules)
-        .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+      const sortedRules = Object.entries(rules).sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
       // 创建全局变量池,生命周期为整个 applyRule 调用
       const globalVars: VariableStore = new Map();
@@ -241,22 +242,22 @@ export const EraDataHandler = {
             path: rule.path,
             action: 'error',
             success: false,
-            message: e.message || '未知错误'
+            message: e.message || '未知错误',
           });
         }
       }
 
       eraLogger.log(`[EraDataHandler] 已完成数据的更新`, workingData);
-      eraLogger.log(`[EraDataHandler] 处理过程日志`, logger.getLogs())
+      eraLogger.log(`[EraDataHandler] 处理过程日志`, logger.getLogs());
 
       const diff = diffObjects(workingData, snap);
       eraLogger.log(`[EraDataHandler] 合并数据变化`, diff);
       return {
         data: diff,
         log: logger.toString(),
-        rawLogs: logger.getLogs()
+        rawLogs: logger.getLogs(),
       };
-    }finally{
+    } finally {
       DSLHandler.clearCache();
     }
   },
@@ -265,7 +266,14 @@ export const EraDataHandler = {
    * 统一规则处理器
    * 核心逻辑：获取上下文列表 -> 遍历上下文 -> 执行规则
    */
-  async _processRule(data: any, snap: any, ruleName: string, rule: EraDataRule[string], logger: EraRuleLogger, globalVars: VariableStore) {
+  async _processRule(
+    data: any,
+    snap: any,
+    ruleName: string,
+    rule: EraDataRule[string],
+    logger: EraRuleLogger,
+    globalVars: VariableStore,
+  ) {
     // 创建局部变量池,生命周期为单个规则
     const localVars: VariableStore = new Map();
 
@@ -310,24 +318,24 @@ export const EraDataHandler = {
       // 因为在同一个 Context 下，wildcardValues 是不变的，
       // 所以 injectWildcards 的结果在整个 ruleLoopCount 循环中都是一样的。
       const concreteIf = rule.if ? injectWildcards(rule.if, wildcardValues) : null;
-      const preparedHandles: { key: string, cfg: any, concreteIf: string | null, concreteOp: string }[] = [];
+      const preparedHandles: { key: string; cfg: any; concreteIf: string | null; concreteOp: string }[] = [];
       if (rule.handle) {
-        const sortedHandles = Object.entries(rule.handle)
-          .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+        const sortedHandles = Object.entries(rule.handle).sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
 
         for (const [key, cfg] of sortedHandles) {
           preparedHandles.push({
             key,
             cfg,
             concreteIf: cfg.if ? injectWildcards(cfg.if, wildcardValues) : null,
-            concreteOp: injectWildcards(cfg.op, wildcardValues)
+            concreteOp: injectWildcards(cfg.op, wildcardValues),
           });
         }
       }
 
       // 3. 规则级循环 (Rule Loop)
       for (let loopIndex = 0; loopIndex < ruleLoopCount; loopIndex++) {
-        const shouldLogRuleLoop = ruleLoopCount <= LOG_WINDOW * 2 || loopIndex < LOG_WINDOW || loopIndex >= ruleLoopCount - LOG_WINDOW;
+        const shouldLogRuleLoop =
+          ruleLoopCount <= LOG_WINDOW * 2 || loopIndex < LOG_WINDOW || loopIndex >= ruleLoopCount - LOG_WINDOW;
 
         // 如果循环次数过多，在适当位置插入一条省略日志
         if (ruleLoopCount > LOG_WINDOW * 2 && loopIndex === LOG_WINDOW) {
@@ -336,7 +344,7 @@ export const EraDataHandler = {
             path: currentPath || 'Global',
             action: 'skip',
             success: true,
-            message: `正在跳过循环 ${LOG_WINDOW + 1} 到 ${ruleLoopCount - LOG_WINDOW} 的日志...`
+            message: `正在跳过循环 ${LOG_WINDOW + 1} 到 ${ruleLoopCount - LOG_WINDOW} 的日志...`,
           });
         }
 
@@ -348,19 +356,18 @@ export const EraDataHandler = {
           // --- 修改开始 ---
           if (!ifRes.success) {
             isRuleMet = false;
-            if (shouldLogRuleLoop) { // 只有在需要记录日志的循环中才记录
+            if (shouldLogRuleLoop) {
+              // 只有在需要记录日志的循环中才记录
               logger.add({
                 ruleName,
                 path: currentPath || 'Global',
                 action: 'error', // 使用 'error' 或 'if-error'
                 success: false,
-                message: `规则 'if' 条件执行失败: ${ifRes.error}`
+                message: `规则 'if' 条件执行失败: ${ifRes.error}`,
               });
             }
           } else {
-            isRuleMet = Array.isArray(ifRes.value)
-              ? ifRes.value.every(v => v.value === true)
-              : !!ifRes.value;
+            isRuleMet = Array.isArray(ifRes.value) ? ifRes.value.every(v => v.value === true) : !!ifRes.value;
           }
         }
         // 如果条件不满足
@@ -375,7 +382,7 @@ export const EraDataHandler = {
           for (const item of preparedHandles) {
             const hLoop = Math.max(1, Math.min(item.cfg.loop ?? 1, MAX_LOOP_COUNT));
 
-            for(let i=0; i<hLoop; i++) {
+            for (let i = 0; i < hLoop; i++) {
               const shouldLogHandleLoop = hLoop <= LOG_WINDOW * 2 || i < LOG_WINDOW || i >= hLoop - LOG_WINDOW;
 
               if (hLoop > LOG_WINDOW * 2 && i === LOG_WINDOW) {
@@ -384,21 +391,22 @@ export const EraDataHandler = {
                   path: currentPath || 'Global',
                   action: 'skip',
                   success: true,
-                  message: `Loop ${i + 1}/${hLoop} [${item.key}] 正在跳过循环 ${LOG_WINDOW + 1} 到 ${hLoop - LOG_WINDOW} 的日志...`
+                  message: `Loop ${i + 1}/${hLoop} [${item.key}] 正在跳过循环 ${LOG_WINDOW + 1} 到 ${hLoop - LOG_WINDOW} 的日志...`,
                 });
               }
 
               // 使用预计算的字符串
               if (item.concreteIf) {
                 const res = DSLHandler.execute(item.concreteIf, data, globalVars, localVars);
-                if (!res.success) { //  handle 内部的 if 添加日志
+                if (!res.success) {
+                  //  handle 内部的 if 添加日志
                   if (shouldLogHandleLoop) {
                     logger.add({
                       ruleName,
                       path: currentPath || 'Global',
                       action: 'error',
                       success: false,
-                      message: `Loop ${i + 1}/${hLoop} 处理 [${item.key}] 'if' 条件执行失败: ${res.error}`
+                      message: `Loop ${i + 1}/${hLoop} 处理 [${item.key}] 'if' 条件执行失败: ${res.error}`,
                     });
                   }
                   break; // 条件执行失败，跳出此 handle 的循环
@@ -425,7 +433,7 @@ export const EraDataHandler = {
                         action: 'handle',
                         success: true,
                         message: `Loop ${i + 1}/${hLoop} [${item.key}] (Ctx: ${wildcardValues.join('.')})`,
-                        changes: { from: oldValue, to: change.value }
+                        changes: { from: oldValue, to: change.value },
                       });
                     }
                   }
@@ -444,7 +452,7 @@ export const EraDataHandler = {
                       // 记录无赋值的纯计算操作
                       logger.add({
                         ruleName,
-                        path: currentPath || 'Global' ,
+                        path: currentPath || 'Global',
                         action: 'handle',
                         success: true,
                         message: `Loop ${i + 1}/${hLoop} [${item.key}] 计算值: ${JSON.stringify(change.value)} (无赋值操作)`,
@@ -459,7 +467,7 @@ export const EraDataHandler = {
                     path: currentPath || 'Global',
                     action: 'handle',
                     success: false,
-                    message: `Loop ${i + 1}/${hLoop} [${item.key}] 错误: ${opRes.error}`
+                    message: `Loop ${i + 1}/${hLoop} [${item.key}] 错误: ${opRes.error}`,
                   });
                 }
               }
@@ -481,8 +489,15 @@ export const EraDataHandler = {
   /**
    *  Limit 和 Range 逻辑
    */
-  _applyLimitAndRange(data: any, snap: any, rule: EraDataRule[string], currentPath: string, logger: EraRuleLogger, ruleName: string, shouldLog: boolean) {
-
+  _applyLimitAndRange(
+    data: any,
+    snap: any,
+    rule: EraDataRule[string],
+    currentPath: string,
+    logger: EraRuleLogger,
+    ruleName: string,
+    shouldLog: boolean,
+  ) {
     // 1. 获取当前值 (Raw Value)
     const currentV = DSLHandler.getValue(data, currentPath);
     // 2. 获取快照值 (Raw Value)
@@ -508,7 +523,7 @@ export const EraDataHandler = {
               action: 'limit',
               success: true,
               message: `增量 ${delta} 已限制在 [${minDelta}, ${maxDelta}] 范围内`,
-              changes: { from: currentV, to: finalVal }
+              changes: { from: currentV, to: finalVal },
             });
           }
         }
@@ -532,7 +547,7 @@ export const EraDataHandler = {
               action: 'range',
               success: true,
               message: `值已限制在 [${min}, ${max}] 范围内`,
-              changes: { from: valAfterLimit, to: clamped }
+              changes: { from: valAfterLimit, to: clamped },
             });
           }
         }

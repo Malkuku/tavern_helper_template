@@ -11,11 +11,9 @@ import { eraLogger } from './EraHelperLogger';
 export function exportRulesToJson(rules: Record<string, any>, pretty: boolean = true): string {
   try {
     const exportData = {
-      rules: rules
+      rules: rules,
     };
-    return pretty
-      ? JSON.stringify(exportData, null, 2)
-      : JSON.stringify(exportData);
+    return pretty ? JSON.stringify(exportData, null, 2) : JSON.stringify(exportData);
   } catch (error) {
     eraLogger.error('导出规则失败:', error);
     throw new Error('导出规则失败');
@@ -116,7 +114,7 @@ export function validateRules(rules: Record<string, any>): { valid: boolean; err
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 

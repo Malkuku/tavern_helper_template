@@ -33,7 +33,7 @@ export const router = createRouter({
           path: '/Version',
           name: 'Version',
           component: () => import('../view/VersionInformation.vue'),
-        }
+        },
       ],
     },
   ],

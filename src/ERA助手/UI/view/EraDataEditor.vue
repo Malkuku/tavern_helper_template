@@ -337,7 +337,7 @@ function openConfirmModal(
   title: string,
   content: string,
   type: 'confirm' | 'alert' = 'confirm',
-  onConfirm?: () => void
+  onConfirm?: () => void,
 ) {
   confirmTitle.value = title;
   confirmContent.value = content;
@@ -447,9 +447,7 @@ async function saveData() {
       statusMessage.value = '正在保存...';
 
       // 如果当前是 raw 模式，需要从 rawJsonString 解析数据来保存
-      const dataToSave = editMode.value === 'raw'
-        ? JSON.parse(rawJsonString.value)
-        : currentData.value;
+      const dataToSave = editMode.value === 'raw' ? JSON.parse(rawJsonString.value) : currentData.value;
 
       await eraEditStore.saveEraEdit(dataToSave);
 
@@ -458,7 +456,9 @@ async function saveData() {
       currentData.value = dataToSave; // 确保 currentData 与保存后的一致
 
       statusMessage.value = '保存成功';
-      setTimeout(() => { statusMessage.value = '就绪'; }, 3000);
+      setTimeout(() => {
+        statusMessage.value = '就绪';
+      }, 3000);
     } catch (error) {
       eraLogger.error('保存失败:', error);
       statusMessage.value = '保存失败';
@@ -467,7 +467,6 @@ async function saveData() {
     }
   });
 }
-
 
 function formatJson() {
   if (editMode.value !== 'raw' || jsonParseError.value) return;
@@ -498,32 +497,50 @@ const isValidInput = computed(() => {
   const { path, type } = newField.value;
   if (!path.trim()) return false;
   switch (type) {
-    case 'string': return typeof newField.value.value === 'string';
-    case 'number': return typeof newField.value.value === 'number' || (String(newField.value.value).trim() !== '');
-    case 'boolean': return typeof newField.value.value === 'boolean';
-    case 'null': return true;
+    case 'string':
+      return typeof newField.value.value === 'string';
+    case 'number':
+      return typeof newField.value.value === 'number' || String(newField.value.value).trim() !== '';
+    case 'boolean':
+      return typeof newField.value.value === 'boolean';
+    case 'null':
+      return true;
     case 'object':
-    case 'array': return isValidJson.value && newField.value.jsonValue.trim() !== '';
-    default: return false;
+    case 'array':
+      return isValidJson.value && newField.value.jsonValue.trim() !== '';
+    default:
+      return false;
   }
 });
 
 function onTypeChange() {
   const type = newField.value.type;
   switch (type) {
-    case 'string': newField.value.value = ''; break;
-    case 'number': newField.value.value = 0; break;
-    case 'boolean': newField.value.value = true; break;
-    case 'null': newField.value.value = null; break;
-    case 'object': newField.value.jsonValue = '{}'; validateJson(); break;
-    case 'array': newField.value.jsonValue = '[]'; validateJson(); break;
+    case 'string':
+      newField.value.value = '';
+      break;
+    case 'number':
+      newField.value.value = 0;
+      break;
+    case 'boolean':
+      newField.value.value = true;
+      break;
+    case 'null':
+      newField.value.value = null;
+      break;
+    case 'object':
+      newField.value.jsonValue = '{}';
+      validateJson();
+      break;
+    case 'array':
+      newField.value.jsonValue = '[]';
+      validateJson();
+      break;
   }
 }
 
 function getJsonPlaceholder() {
-  return newField.value.type === 'object'
-    ? '{\n  "key": "value"\n}'
-    : '[\n  "item1", 123\n]';
+  return newField.value.type === 'object' ? '{\n  "key": "value"\n}' : '[\n  "item1", 123\n]';
 }
 
 function validateJson() {
@@ -535,7 +552,10 @@ function validateJson() {
   }
   try {
     const parsed = JSON.parse(jsonStr);
-    if (newField.value.type === 'object' && ! (typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null)) {
+    if (
+      newField.value.type === 'object' &&
+      !(typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null)
+    ) {
       jsonError.value = '必须是有效的JSON对象';
       isValidJson.value = false;
     } else if (newField.value.type === 'array' && !Array.isArray(parsed)) {
@@ -580,12 +600,26 @@ function confirmAddField() {
   try {
     let finalValue: any;
     switch (newField.value.type) {
-      case 'string': finalValue = newField.value.value; break;
-      case 'number': finalValue = Number(newField.value.value); if (isNaN(finalValue)) { alert('请输入有效的数字'); return; } break;
-      case 'boolean': finalValue = newField.value.value; break;
-      case 'null': finalValue = null; break;
+      case 'string':
+        finalValue = newField.value.value;
+        break;
+      case 'number':
+        finalValue = Number(newField.value.value);
+        if (isNaN(finalValue)) {
+          alert('请输入有效的数字');
+          return;
+        }
+        break;
+      case 'boolean':
+        finalValue = newField.value.value;
+        break;
+      case 'null':
+        finalValue = null;
+        break;
       case 'object':
-      case 'array': finalValue = JSON.parse(newField.value.jsonValue); break;
+      case 'array':
+        finalValue = JSON.parse(newField.value.jsonValue);
+        break;
     }
     // 直接修改 currentData，JsonTreeEdit 会自动响应
     set(currentData.value, newField.value.path, finalValue);
@@ -602,7 +636,6 @@ onMounted(() => {
   loadData();
 });
 </script>
-
 
 <style scoped lang="scss">
 .stat-data-editor {

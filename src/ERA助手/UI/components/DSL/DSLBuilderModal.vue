@@ -14,25 +14,15 @@
             <div class="path-selection-row">
               <button class="btn small" @click="addComponent(`$[${selectedPath}]`)">当前路径</button>
               <div v-if="uiStore.collectedPaths.length > 0" class="path-dropdown-container">
-                <select
-                  v-model="selectedStoredPath"
-                  class="path-dropdown light-theme"
-                  @change="handleStoredPathSelect"
-                >
+                <select v-model="selectedStoredPath" class="path-dropdown light-theme" @change="handleStoredPathSelect">
                   <option value="">选择已收集路径</option>
-                  <option
-                    v-for="(path, index) in uiStore.collectedPaths"
-                    :key="index"
-                    :value="path"
-                  >
+                  <option v-for="(path, index) in uiStore.collectedPaths" :key="index" :value="path">
                     {{ path }}
                   </option>
                 </select>
               </div>
             </div>
-            <div v-if="selectedPath" class="selected-path">
-              已选择: {{ selectedPath }}
-            </div>
+            <div v-if="selectedPath" class="selected-path">已选择: {{ selectedPath }}</div>
           </div>
 
           <div v-if="type === 'if'" class="component-section">
@@ -183,7 +173,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  selectedPath: ''
+  selectedPath: '',
 });
 
 // 提前声明变量以避免初始化顺序问题
@@ -192,7 +182,7 @@ const customValue = ref('');
 const valueType = ref<'num' | 'str' | 'bool'>('num');
 const selectedStoredPath = ref('');
 const expressionTextarea = ref<HTMLTextAreaElement | null>(null);
-const lastCursorPosition = ref<{start: number, end: number} | null>(null);
+const lastCursorPosition = ref<{ start: number; end: number } | null>(null);
 const isInserting = ref(false);
 
 // 新增：临时变量相关的 ref
@@ -203,12 +193,15 @@ const emit = defineEmits<Emits>();
 const uiStore = useUiStore();
 
 // 同步prop到本地ref
-watch(() => props.expression, (newVal) => {
-  localExpression.value = newVal;
-});
+watch(
+  () => props.expression,
+  newVal => {
+    localExpression.value = newVal;
+  },
+);
 
 // 同步本地ref到prop
-watch(localExpression, (newVal) => {
+watch(localExpression, newVal => {
   emit('update:expression', newVal);
 });
 
@@ -237,7 +230,7 @@ const rawExpression = computed(() => {
  * 去除 $[] ?[] #[] &[] 等标识符
  */
 const readableExpression = computed(() => {
-  return DSLHandler.exprToHumanView(rawExpression.value)
+  return DSLHandler.exprToHumanView(rawExpression.value);
 });
 
 function handleClose() {
@@ -358,7 +351,6 @@ function addTempValue() {
   tempVarName.value = ''; // 清空输入框
 }
 
-
 function clearExpression() {
   localExpression.value = '';
   emit('update:expression', '');
@@ -401,20 +393,23 @@ const updateCursorPosition = () => {
 
     lastCursorPosition.value = {
       start: start,
-      end: end
+      end: end,
     };
   }
 };
 
 // 监听visible变化，清空自定义值和光标位置
-watch(() => props.visible, (newVal) => {
-  if (!newVal) {
-    customValue.value = '';
-    selectedStoredPath.value = '';
-    lastCursorPosition.value = null;
-    tempVarName.value = ''; // 新增：关闭时清空临时变量名
-  }
-});
+watch(
+  () => props.visible,
+  newVal => {
+    if (!newVal) {
+      customValue.value = '';
+      selectedStoredPath.value = '';
+      lastCursorPosition.value = null;
+      tempVarName.value = ''; // 新增：关闭时清空临时变量名
+    }
+  },
+);
 </script>
 
 <style scoped lang="scss">
@@ -714,7 +709,6 @@ watch(() => props.visible, (newVal) => {
     align-items: stretch;
   }
 }
-
 
 /* 强制浅色主题 */
 .light-theme {

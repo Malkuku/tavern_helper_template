@@ -1,15 +1,15 @@
 // lexer.ts
 
 export type TokenType =
-  | 'IDENTIFIER'    // $[path]
+  | 'IDENTIFIER' // $[path]
   | 'TEMP_VARIABLE' // @[{g|s}name]
-  | 'LITERAL'       // &[{type}value]
-  | 'OP_LOGIC'      // ?[==], ?[&&]
-  | 'OP_MATH'       // #[+], #[=]
-  | 'FUNC_START'    // #[{ln}
-  | 'RBRACKET'      // ] (用于闭合函数调用)
-  | 'LPAREN'        // (
-  | 'RPAREN'        // )
+  | 'LITERAL' // &[{type}value]
+  | 'OP_LOGIC' // ?[==], ?[&&]
+  | 'OP_MATH' // #[+], #[=]
+  | 'FUNC_START' // #[{ln}
+  | 'RBRACKET' // ] (用于闭合函数调用)
+  | 'LPAREN' // (
+  | 'RPAREN' // )
   | 'EOF';
 
 export interface Token {
@@ -233,7 +233,7 @@ export class DSLLexer {
       type,
       value,
       start: this.position,
-      end: this.position + value.length
+      end: this.position + value.length,
     });
     this.position += value.length;
   }
@@ -256,10 +256,15 @@ export function parseLiteralValue(raw: string): LiteralValue {
 
   const [, type, valStr] = match;
   switch (type) {
-    case 'num': return { type: 'number', value: parseFloat(valStr) };
-    case 'str': return { type: 'string', value: valStr };
-    case 'bool': return { type: 'boolean', value: valStr === 'true' };
-    case 'null': return { type: 'null', value: null };
-    default: return { type: 'string', value: valStr };
+    case 'num':
+      return { type: 'number', value: parseFloat(valStr) };
+    case 'str':
+      return { type: 'string', value: valStr };
+    case 'bool':
+      return { type: 'boolean', value: valStr === 'true' };
+    case 'null':
+      return { type: 'null', value: null };
+    default:
+      return { type: 'string', value: valStr };
   }
 }

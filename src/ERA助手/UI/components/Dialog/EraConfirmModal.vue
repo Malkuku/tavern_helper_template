@@ -5,9 +5,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>{{ title }}</h3>
-          <button v-if="showClose" class="modal-close" @click="handleCancel">
-            &times;
-          </button>
+          <button v-if="showClose" class="modal-close" @click="handleCancel">&times;</button>
         </div>
         <div class="modal-body">
           <slot name="default">
@@ -37,22 +35,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch } from 'vue';
 
 interface Props {
-  visible: boolean
-  title?: string
-  content?: string
-  type?: 'confirm' | 'alert'
-  confirmText?: string
-  cancelText?: string
-  showClose?: boolean
+  visible: boolean;
+  title?: string;
+  content?: string;
+  type?: 'confirm' | 'alert';
+  confirmText?: string;
+  cancelText?: string;
+  showClose?: boolean;
 }
 
 interface Emits {
-  (e: 'confirm'): void
-  (e: 'cancel'): void
-  (e: 'update:visible', value: boolean): void
+  (e: 'confirm'): void;
+  (e: 'cancel'): void;
+  (e: 'update:visible', value: boolean): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -61,32 +59,32 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'confirm',
   confirmText: '确认',
   cancelText: '取消',
-  showClose: true
-})
+  showClose: true,
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 const handleConfirm = () => {
-  emit('confirm')
-  emit('update:visible', false)
-}
+  emit('confirm');
+  emit('update:visible', false);
+};
 
 const handleCancel = () => {
-  emit('cancel')
-  emit('update:visible', false)
-}
+  emit('cancel');
+  emit('update:visible', false);
+};
 
 // 阻止背景滚动
 watch(
   () => props.visible,
-  (newVal) => {
+  newVal => {
     if (newVal) {
-      document.body.style.overflow = 'hidden'
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = ''
+      document.body.style.overflow = '';
     }
-  }
-)
+  },
+);
 </script>
 
 <style scoped lang="scss">

@@ -66,7 +66,14 @@
 
       <!-- 操作按钮 (Flexbox布局) -->
       <div v-if="!isEditing" class="actions">
-        <button v-if="!node.isLeaf" class="btn-action" title="添加子节点" @click="emit('addChild', { path: node.path, isObject: !Array.isArray(node.value) })">+</button>
+        <button
+          v-if="!node.isLeaf"
+          class="btn-action"
+          title="添加子节点"
+          @click="emit('addChild', { path: node.path, isObject: !Array.isArray(node.value) })"
+        >
+          +
+        </button>
         <button class="btn-action" title="编辑值" @click="startEdit">✎</button>
         <button class="btn-action danger" title="删除节点" @click="emit('removeNode', node.path)">🗑</button>
       </div>
@@ -164,7 +171,7 @@ function save() {
   emit('saveEdit', { path: props.node.path, value: finalValue });
 }
 
-watch(isEditing, (isNowEditing) => {
+watch(isEditing, isNowEditing => {
   if (isNowEditing) {
     nextTick(() => {
       inputRef.value?.focus();
@@ -218,10 +225,19 @@ watch(isEditing, (isNowEditing) => {
 
 .value {
   cursor: pointer;
-  &.type-string { color: #059669; }
-  &.type-number { color: #dc2626; }
-  &.type-boolean { color: #7c3aed; }
-  &.type-null { color: #64748b; font-style: italic; }
+  &.type-string {
+    color: #059669;
+  }
+  &.type-number {
+    color: #dc2626;
+  }
+  &.type-boolean {
+    color: #7c3aed;
+  }
+  &.type-null {
+    color: #64748b;
+    font-style: italic;
+  }
 }
 
 .preview {
@@ -235,7 +251,8 @@ watch(isEditing, (isNowEditing) => {
   align-items: center;
 }
 
-.edit-select, .edit-input {
+.edit-select,
+.edit-input {
   padding: 2px 6px;
   font-size: 12px;
   border: 1px solid #cbd5e1;
@@ -280,8 +297,12 @@ watch(isEditing, (isNowEditing) => {
     background-color: #fee2e2;
     color: #ef4444;
   }
-  &.save { color: #10b981; }
-  &.cancel { color: #ef4444; }
+  &.save {
+    color: #10b981;
+  }
+  &.cancel {
+    color: #ef4444;
+  }
 }
 
 .children-container {

@@ -3,44 +3,28 @@
     <div class="card">
       <!-- 顶部按钮组 -->
       <div class="top-button-group">
-        <button
-          class="btn"
-          :class="{ active: currentRoute === '/AsyncAnalyze' }"
-          @click="goToRoute('/AsyncAnalyze')"
-        >
+        <button class="btn" :class="{ active: currentRoute === '/AsyncAnalyze' }" @click="goToRoute('/AsyncAnalyze')">
           <span class="btn-text">📊分步分析配置</span>
         </button>
-        <button
-          class="btn"
-          :class="{ active: currentRoute === '/EraDataHandle' }"
-          @click="goToRoute('/EraDataHandle')"
-        >
+        <button class="btn" :class="{ active: currentRoute === '/EraDataHandle' }" @click="goToRoute('/EraDataHandle')">
           <span class="btn-text">⚙️Era规则配置</span>
         </button>
-        <button
-          class="btn"
-          :class="{ active: currentRoute === '/EraDataEdit' }"
-          @click="goToRoute('/EraDataEdit')"
-        >
+        <button class="btn" :class="{ active: currentRoute === '/EraDataEdit' }" @click="goToRoute('/EraDataEdit')">
           <span class="btn-text">📝Era变量编辑</span>
         </button>
 
-        <button
-          class="btn"
-          :class="{ active: currentRoute === '/Version' }"
-          @click="goToRoute('/Version')"
-        >
+        <button class="btn" :class="{ active: currentRoute === '/Version' }" @click="goToRoute('/Version')">
           <span class="btn-text">🍎版本信息</span>
         </button>
 
-<!--        <button-->
-<!--          v-if="true"-->
-<!--          class="btn"-->
-<!--          :class="{ active: currentRoute === '/tempTest' }"-->
-<!--          @click="goToRoute('/tempTest')"-->
-<!--        >-->
-<!--          <span class="btn-text">临时测试</span>-->
-<!--        </button>-->
+        <!--        <button-->
+        <!--          v-if="true"-->
+        <!--          class="btn"-->
+        <!--          :class="{ active: currentRoute === '/tempTest' }"-->
+        <!--          @click="goToRoute('/tempTest')"-->
+        <!--        >-->
+        <!--          <span class="btn-text">临时测试</span>-->
+        <!--        </button>-->
       </div>
 
       <!-- 关闭按钮 -->
@@ -69,9 +53,12 @@ const route = useRoute();
 const currentRoute = ref(route.path);
 
 // 监听路由变化
-watch(() => route.path, (newPath) => {
-  currentRoute.value = newPath;
-});
+watch(
+  () => route.path,
+  newPath => {
+    currentRoute.value = newPath;
+  },
+);
 
 const close = () => {
   UiStore.showUI = false;

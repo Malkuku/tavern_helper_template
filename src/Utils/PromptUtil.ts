@@ -1,9 +1,11 @@
-const sendPrompt = async(user_input: string,
-                         promptInjects: any[],
-                         max_chat_history: number,
-                         is_should_stream: boolean,
-                         customModelSettings: any,
-                         profileSetting: any) =>{
+const sendPrompt = async (
+  user_input: string,
+  promptInjects: any[],
+  max_chat_history: number,
+  is_should_stream: boolean,
+  customModelSettings: any,
+  profileSetting: any,
+) => {
   //因为部分预设会用到 {{lastUserMessage}}，因此进行修正。
   console.log('Before RegisterMacro');
   SillyTavern.registerMacro('lastUserMessage', () => {
@@ -13,10 +15,10 @@ const sendPrompt = async(user_input: string,
 
   //如果profileSetting不为空，先切换预设
   let tempProfileSetting;
-  try{
-    if(profileSetting){
+  try {
+    if (profileSetting) {
       console.log('切换预设', profileSetting);
-      tempProfileSetting = (await (window as any).SillyTavern.executeSlashCommands('/profile') as any).pipe;
+      tempProfileSetting = ((await (window as any).SillyTavern.executeSlashCommands('/profile')) as any).pipe;
       await (window as any).SillyTavern.executeSlashCommands(`/profile ${profileSetting}`);
       (window as any).EjsTemplate.refreshWorldInfo();
     }
@@ -40,15 +42,14 @@ const sendPrompt = async(user_input: string,
       }),
     });
     return result;
-  }finally {
+  } finally {
     //恢复预设
-    if(profileSetting){
+    if (profileSetting) {
       await (window as any).SillyTavern.executeSlashCommands(`/profile ${tempProfileSetting}`);
     }
   }
-}
-
+};
 
 export const PromptUtil = {
   sendPrompt,
-}
+};

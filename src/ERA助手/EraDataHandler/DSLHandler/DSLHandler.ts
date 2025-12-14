@@ -15,12 +15,7 @@ export const DSLHandler = {
    * @param globalVars 全局变量存储 (在一次 applyRule 中共享)
    * @param localVars 局部变量存储 (在单个 rule 中共享)
    */
-  execute(
-    expression: string,
-    data: any,
-    globalVars: VariableStore,
-    localVars: VariableStore
-  ): DSLResult {
+  execute(expression: string, data: any, globalVars: VariableStore, localVars: VariableStore): DSLResult {
     return DSLEngine.evaluate(expression, data, globalVars, localVars);
   },
 
@@ -78,5 +73,5 @@ export const DSLHandler = {
    */
   clearCache(): void {
     DSLEngine.clearCache();
-  }
+  },
 };

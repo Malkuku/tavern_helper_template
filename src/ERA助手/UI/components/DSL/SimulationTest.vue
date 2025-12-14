@@ -4,20 +4,20 @@
       <h2>测试模拟</h2>
     </div>
     <div class="test-controls">
-<!--      <button class="btn" @click="openSimulationTestModal">打开模拟测试</button>-->
+      <!--      <button class="btn" @click="openSimulationTestModal">打开模拟测试</button>-->
       <button class="btn" @click="openDslTester">打开 Rule 测试器 (所有规则)</button>
     </div>
-<!--TODO 目前功能上与DSL类似而且有bug,暂时弃用-->
-<!--    &lt;!&ndash; 模拟测试模态框 &ndash;&gt;-->
-<!--    <SimulationTestModal-->
-<!--      :visible="showSimulationModal"-->
-<!--      :imported-data="statData"-->
-<!--      :result-data="testResultData"-->
-<!--      :execution-log="executionLog"-->
-<!--      @update:visible="showSimulationModal = $event"-->
-<!--      @close="closeSimulationModal"-->
-<!--      @run-test="handleRunTest"-->
-<!--    />-->
+    <!--TODO 目前功能上与DSL类似而且有bug,暂时弃用-->
+    <!--    &lt;!&ndash; 模拟测试模态框 &ndash;&gt;-->
+    <!--    <SimulationTestModal-->
+    <!--      :visible="showSimulationModal"-->
+    <!--      :imported-data="statData"-->
+    <!--      :result-data="testResultData"-->
+    <!--      :execution-log="executionLog"-->
+    <!--      @update:visible="showSimulationModal = $event"-->
+    <!--      @close="closeSimulationModal"-->
+    <!--      @run-test="handleRunTest"-->
+    <!--    />-->
 
     <!-- DSL 测试器模态框 -->
     <DslTesterModal
@@ -41,12 +41,12 @@ import { EraDataRule } from '../../../EraDataHandler/types/EraDataRule';
 const props = defineProps({
   rules: {
     type: Object,
-    required: true
+    required: true,
   },
   statData: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const emit = defineEmits(['update-stat-data']);
@@ -67,14 +67,18 @@ const testResultText = ref<string>('');
 const currentTesterRules = ref<EraDataRule>({});
 
 // 监听 props.rules 变化，如果当前没有打开测试器，同步更新
-watch(() => props.rules, (newRules) => {
-  if (!showDslTester.value) {
-    currentTesterRules.value = newRules as EraDataRule;
-  }
-}, { deep: true, immediate: true });
+watch(
+  () => props.rules,
+  newRules => {
+    if (!showDslTester.value) {
+      currentTesterRules.value = newRules as EraDataRule;
+    }
+  },
+  { deep: true, immediate: true },
+);
 
 // 处理运行测试事件
-const handleRunTest = async(testData: any) => {
+const handleRunTest = async (testData: any) => {
   try {
     const snap = JSON.parse(JSON.stringify(testData));
     const clone = JSON.parse(JSON.stringify(testData));
@@ -122,7 +126,7 @@ const closeSimulationModal = () => {
 
 // 暴露方法给父组件
 defineExpose({
-  openDslTesterWithRules
+  openDslTesterWithRules,
 });
 </script>
 

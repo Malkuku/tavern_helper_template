@@ -1,28 +1,14 @@
 <template>
   <div class="file-import-export">
-    <input
-      ref="fileInputRef"
-      type="file"
-      :accept="accept"
-      style="display: none"
-      @change="handleFileImport"
-    />
+    <input ref="fileInputRef" type="file" :accept="accept" style="display: none" @change="handleFileImport" />
 
     <div v-if="showButtons" class="button-group">
-      <button
-        class="btn small"
-        :class="{ disabled: importing }"
-        @click="triggerImport"
-      >
+      <button class="btn small" :class="{ disabled: importing }" @click="triggerImport">
         <span v-if="importing" class="loading-spinner"></span>
         {{ importText }}
       </button>
 
-      <button
-        class="btn small primary"
-        :class="{ disabled: exporting }"
-        @click="exportFile"
-      >
+      <button class="btn small primary" :class="{ disabled: exporting }" @click="exportFile">
         <span v-if="exporting" class="loading-spinner"></span>
         {{ exportText }}
       </button>
@@ -85,7 +71,7 @@ const props = withDefaults(defineProps<Props>(), {
   confirmText: '确认导入',
   cancelText: '取消',
   showButtons: true,
-  requireConfirm: true
+  requireConfirm: true,
 });
 
 // Emits 定义
@@ -99,9 +85,9 @@ const emit = defineEmits<{
   // 当导入确认时触发
   'import-confirmed': [content: string, file: File];
   // 当发生错误时触发
-  'error': [error: string];
+  error: [error: string];
   // 当显示消息时触发
-  'message': [text: string, type: 'success' | 'error' | 'warning'];
+  message: [text: string, type: 'success' | 'error' | 'warning'];
 }>();
 
 // 引用
@@ -130,7 +116,7 @@ function handleFileImport(event: Event) {
   emit('file-selected', file);
 
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = e => {
     try {
       const content = e.target?.result as string;
 
@@ -284,8 +270,12 @@ function showMessage(text: string, type: 'success' | 'error' | 'warning') {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .status-message {

@@ -7,7 +7,7 @@ import { ERAEvents } from '../Constants/ERAEvent';
  */
 const DeleteByObject = async (object: object) => {
   await eventEmit(ERAEvents.DELETE_BY_OBJECT, object);
-}
+};
 
 /**
  * 发送更新ERA对象的事件
@@ -15,7 +15,7 @@ const DeleteByObject = async (object: object) => {
  */
 const UpdateByObject = async (object: object) => {
   await eventEmit(ERAEvents.UPDATE_BY_OBJECT, object);
-}
+};
 
 /**
  * 发送写入ERA对象事件
@@ -23,17 +23,17 @@ const UpdateByObject = async (object: object) => {
  */
 const InsertByObject = async (object: object) => {
   await eventEmit(ERAEvents.INSERT_BY_OBJECT, object);
-}
+};
 
 /**
  * 触发一次强制同步
  */
 const ForceSync = async (syncMode: string) => {
-  await eventEmit(ERAEvents.FORCE_SYNC,{ mode: syncMode });
-}
+  await eventEmit(ERAEvents.FORCE_SYNC, { mode: syncMode });
+};
 const ForceSyncByMessageId = async (messageId: number) => {
-  await eventEmit(ERAEvents.FORCE_SYNC,{ mode: ERAEvents.SYNC_MODE.ROLLBACK_TO ,message_id: messageId});
-}
+  await eventEmit(ERAEvents.FORCE_SYNC, { mode: ERAEvents.SYNC_MODE.ROLLBACK_TO, message_id: messageId });
+};
 
 /**
  * 发送获取ERA快照的事件
@@ -48,8 +48,7 @@ const EmitEraSnapshot = async () => {
   }
   console.error(`未找到位于第${getCurrentMessageId()}楼层的旧数据`);
   return null;
-}
-
+};
 
 export const ERAUtil = {
   DeleteByObject,
@@ -57,5 +56,5 @@ export const ERAUtil = {
   EmitEraSnapshot,
   InsertByObject,
   ForceSync,
-  ForceSyncByMessageId
-}
+  ForceSyncByMessageId,
+};

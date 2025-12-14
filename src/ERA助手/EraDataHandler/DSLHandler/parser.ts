@@ -2,12 +2,7 @@
 import { DSLLexer, Token, TokenType, parseLiteralValue, LiteralValue } from './lexer';
 
 // AST Nodes
-export type ASTNode =
-  | BinaryOpNode
-  | FunctionCallNode
-  | IdentifierNode
-  | LiteralNode
-  | TempVariableNode; // 新增
+export type ASTNode = BinaryOpNode | FunctionCallNode | IdentifierNode | LiteralNode | TempVariableNode; // 新增
 
 export interface BinaryOpNode {
   type: 'BinaryOp';
@@ -39,7 +34,6 @@ export interface TempVariableNode {
   name: string;
 }
 
-
 export class DSLParser {
   private tokens: Token[];
   private position = 0;
@@ -50,7 +44,7 @@ export class DSLParser {
 
   parse(): ASTNode {
     if (this.tokens.length === 0 || this.tokens[0].type === 'EOF') {
-      throw new Error("表达式为空");
+      throw new Error('表达式为空');
     }
     const node = this.parseExpression();
 
@@ -220,7 +214,7 @@ export class DSLParser {
     if (this.isAtEnd()) return false;
     const token = this.peek();
 
-    const typeMatch = type ? token.type === type : (token.type === 'OP_LOGIC' || token.type === 'OP_MATH');
+    const typeMatch = type ? token.type === type : token.type === 'OP_LOGIC' || token.type === 'OP_MATH';
 
     if (typeMatch && values.includes(token.value)) {
       this.advance();
