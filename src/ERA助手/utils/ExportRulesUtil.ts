@@ -10,8 +10,25 @@ import { eraLogger } from './EraHelperLogger';
  */
 export function exportRulesToJson(rules: Record<string, any>, pretty: boolean = true): string {
   try {
+    // 创建一个新的规则对象，调整字段顺序
+    const orderedRules: Record<string, any> = {};
+
+    for (const [ruleKey, ruleValue] of Object.entries(rules)) {
+      // 重新组织规则字段顺序
+      orderedRules[ruleKey] = {
+        enable: ruleValue.enable || true,
+        path: ruleValue.path || '*',
+        order: ruleValue.order || 0,
+        loop: ruleValue.loop || 1,
+        range: ruleValue.range || [],
+        limit: ruleValue.limit || [],
+        if: ruleValue.if || '',
+        handle: ruleValue.handle || {},
+      };
+    }
+
     const exportData = {
-      rules: rules,
+      rules: orderedRules
     };
     return pretty ? JSON.stringify(exportData, null, 2) : JSON.stringify(exportData);
   } catch (error) {

@@ -13,6 +13,14 @@ const author = ref({
 // 版本更新历史记录
 const versionHistory = ref([
   {
+    version: 'v1.0.1',
+    date: '2025-12-15',
+    changes: [
+      '修复 limit 和 range 可能保存为包含空字符串的问题',
+      '调整优化了rule的导出顺序'
+    ],
+  },
+  {
     version: 'v1.0.0',
     date: '2025-12-13',
     changes: ['发布首个版本。'],

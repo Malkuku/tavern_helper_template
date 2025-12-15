@@ -495,14 +495,18 @@ function confirmSave() {
 }
 
 function saveRuleWithoutCancelEdit() {
-  if (draftRangeMin.value !== null && draftRangeMax.value !== null) {
-    draft.value.range = [draftRangeMin.value, draftRangeMax.value];
+  // 修复范围限制检查
+  if (draftRangeMin.value !== null && draftRangeMax.value !== null &&
+    !isNaN(Number(draftRangeMin.value)) && !isNaN(Number(draftRangeMax.value))) {
+    draft.value.range = [Number(draftRangeMin.value), Number(draftRangeMax.value)];
   } else {
     draft.value.range = [];
   }
 
-  if (draftLimitNeg.value !== null && draftLimitPos.value !== null) {
-    draft.value.limit = [draftLimitNeg.value, draftLimitPos.value];
+// 修复变化值限制检查
+  if (draftLimitNeg.value !== null && draftLimitPos.value !== null &&
+    !isNaN(Number(draftLimitNeg.value)) && !isNaN(Number(draftLimitPos.value))) {
+    draft.value.limit = [Number(draftLimitNeg.value), Number(draftLimitPos.value)];
   } else {
     draft.value.limit = [];
   }
@@ -861,6 +865,8 @@ function sortRulesAndHandles() {
 
   // 更新rules引用以触发视图更新
   rules.value = sortedRules;
+
+  saveRules();
 
   showMessage('规则和Handle已按Order排序', 'success');
 }
