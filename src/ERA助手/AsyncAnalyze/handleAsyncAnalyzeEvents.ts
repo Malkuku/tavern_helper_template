@@ -90,7 +90,6 @@ export const handleMessageReceived = async (message_id: number) => {
   eraLogger.info('开始分步分析，等待era事件完成');
 
   getAsyncAnalyzeStore().isUpdateEra = true;
-  (window as any).EjsTemplate.refreshWorldInfo();
 
   await handleKatEraUpdate();
   /**
@@ -206,7 +205,7 @@ export const handleKatEraUpdate = async () => {
   try {
     toastr.info('正在构建提示词并请求AI分析');
     eraLogger.info('正在构建提示词并请求AI分析');
-    const user_input = `本次不生成故事，处理Era变量`;
+    const user_input = `本次不生成故事，处理ERA变量`;
     const max_chat_history = 2;
     const is_should_stream = false;
     const promptInjects = [

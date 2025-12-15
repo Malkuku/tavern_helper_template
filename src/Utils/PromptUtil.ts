@@ -20,8 +20,10 @@ const sendPrompt = async (
       console.log('切换预设', profileSetting);
       tempProfileSetting = ((await (window as any).SillyTavern.executeSlashCommands('/profile')) as any).pipe;
       await (window as any).SillyTavern.executeSlashCommands(`/profile ${profileSetting}`);
-      (window as any).EjsTemplate.refreshWorldInfo();
     }
+
+    await (window as any).EjsTemplate.refreshWorldInfo();
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // 发送请求以获取结果
     const result = await generate({
