@@ -21,12 +21,12 @@
             <div class="res-row">
               <span>初始金钱:</span>
               <span class="val">{{ finalMoney }}</span>
-              <span class="sub">(1000 + {{ moneyExchangePoints * 200 }})</span>
+              <span class="sub">(2000 + {{ moneyExchangePoints * 200 }})</span>
             </div>
             <div class="res-row">
               <span>缥缈异质:</span>
               <span class="val text-blue">{{ finalHeterogeneity }}</span>
-              <span class="sub">(4000 + {{ heterogeneityPoints * 100 }})</span>
+              <span class="sub">(2000 + {{ heterogeneityPoints * 100 }})</span>
             </div>
           </div>
 
