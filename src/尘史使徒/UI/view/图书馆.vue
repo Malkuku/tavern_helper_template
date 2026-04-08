@@ -953,7 +953,7 @@ onUnmounted(() => {
   max-height: 0;
 }
 .log-item.expanded .log-item__body-wrapper {
-  max-height: 1000px; /* 足够大的值 */
+  max-height: 1000000px; /* 足够大的值 */
 }
 
 .log-item__body {
