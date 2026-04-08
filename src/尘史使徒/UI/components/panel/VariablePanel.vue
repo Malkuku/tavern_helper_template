@@ -3,7 +3,7 @@
   <transition name="slide-down-edit">
     <div class="edit-panel variable-panel">
       <div class="edit-header">
-        <span>变量监控 (VARIABLE_DEBUGGER)</span>
+        <span>变量监控</span>
         <button class="close-edit" @click="$emit('close')">×</button>
       </div>
 
@@ -34,8 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, defineComponent, computed, onMounted, watch } from 'vue';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore'; // 注意路径根据实际情况调整
+import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 
 const emit = defineEmits<{
   (e: 'close'): void;

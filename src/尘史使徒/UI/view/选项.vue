@@ -12,6 +12,7 @@
       :unread-log-count="unreadLogCount"
       @toggle-log-panel="toggleLogPanel"
       @toggle-edit-panel="showEditPanel = !showEditPanel"
+      @toggle-variable-panel="showVariablePanel = !showVariablePanel"
       @change-font-size="changeFontSize"
     />
 
@@ -28,6 +29,12 @@
     <ContentEditPanel
       v-if="showEditPanel"
       @close="showEditPanel = false"
+    />
+
+    <!-- 变量监控面板 -->
+    <VariablePanel
+      v-if="showVariablePanel"
+      @close="showVariablePanel = false"
     />
 
     <!-- 消息滚动显示区域 -->
@@ -81,6 +88,7 @@ import LoadingOverlay from '@/尘史使徒/UI/components/panel/LoadingOverlay.vu
 import StatusBar from '@/尘史使徒/UI/components/panel/StatusBar.vue';
 import EventLogPanel from '@/尘史使徒/UI/components/panel/EventLogPanel.vue';
 import ContentEditPanel from '@/尘史使徒/UI/components/panel/ContentEditPanel.vue';
+import VariablePanel from '@/尘史使徒/UI/components/panel/VariablePanel.vue';
 import MessageDisplay from '@/尘史使徒/UI/components/panel/MessageDisplay.vue';
 import JumpLinks from '@/尘史使徒/UI/components/panel/JumpLinks.vue';
 import InteractionPanel from '@/尘史使徒/UI/components/panel/InteractionPanel.vue';
@@ -134,7 +142,8 @@ const isInitializing = ref(true);
 const userInput = ref('');
 const fontSize = ref(18);
 const messageDisplayRef = ref<InstanceType<typeof MessageDisplay> | null>(null);
-const showEditPanel = ref(false); // 控制编辑面板显示
+const showEditPanel = ref(false);
+const showVariablePanel = ref(false);
 
 // --- Event Handlers & Logic ---
 const handleSendOrStop = async () => {
