@@ -59,6 +59,7 @@
               <p v-html="highlightText('如果您做好了准备，就来“书库”找我吧')"></p>
               <p v-html="highlightText('嗯...')"></p>
               <p v-html="highlightText('“书库”在状态栏里面，记得先按“启程”开局')"></p>
+              <p v-html="highlightText('如果不能正常开局的话，请尝试切换到edge浏览器')"></p>
             </div>
             <div class="message-signature">
               by 爱丽丝
@@ -116,7 +117,7 @@ const goldKeywords = [
 ];
 
 const redKeywords = [
-  '杯','蛾','冬','启','林地', '仪式', '秘传', '漫宿', '纯白之门', '器具', '献祭', '攥升', '委托', '书库', '龙牙山脉'
+  '杯','蛾','冬','启','林地', '仪式', '秘传', '漫宿', '纯白之门', '器具', '献祭', '攥升', '委托', '书库', '龙牙山脉','edge'
 ];
 
 const allKeywords = [...goldKeywords, ...redKeywords].sort((a, b) => b.length - a.length);
