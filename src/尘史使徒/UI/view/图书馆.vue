@@ -206,7 +206,7 @@ const handleAliceChange = async (newSetting) => {
   try {
     // 同时清空聊天记录和聊天总结的 WI 条目
     await WorldInfoUtil.updateEntryContent('<图书馆>聊天记录', '');
-    await WorldInfo_util.updateEntryContent('<图书馆>聊天总结', '');
+    await WorldInfoUtil.updateEntryContent('<图书馆>聊天总结', '');
     await MvuUtil.updateMvuDataByDiff({ "图书馆": { "爱丽丝设定": newSetting } });
     showToast(`已切换为：${newSetting}，聊天记录与总结已清空`);
     await syncChatRecord();
