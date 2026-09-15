@@ -14,6 +14,8 @@ export interface StatData {
   "术": Record<string, Record<string, string>>;
   "图书馆": LibraryData;
   "system": SystemSettings;
+  "总结概括": Record<string, SummaryOverview>;
+  "总结详细": Record<string, SummaryDetails>;
 }
 
 /**

@@ -13,12 +13,14 @@
       </div>
 
       <!-- 当前剧本展示 -->
-      <div class="scenario-display-section" v-if="currentScenario">
+      <div v-if="currentScenario" class="scenario-display-section">
         <div class="section-title">当前剧本</div>
         <div class="scenario-card active" :class="currentScenario.theme">
           <div class="art-bg-effect"></div>
           <div class="card-content">
             <div class="scenario-icon-wrapper">
+              <!-- 图标只来自本地 ScenarioIconPaths 白名单。 -->
+              <!-- eslint-disable-next-line vue/no-v-html -->
               <svg viewBox="0 0 64 64" class="scenario-svg" v-html="currentScenario.iconPath"></svg>
             </div>
             <h2 class="scenario-title art-name">{{ currentScenario.name }}</h2>
@@ -26,7 +28,7 @@
         </div>
       </div>
 
-      <div class="scenario-display-section" v-else>
+      <div v-else class="scenario-display-section">
         <div class="section-title">当前剧本</div>
         <div class="no-scenario">
           <span>暂无进行中的剧本</span>
@@ -44,15 +46,18 @@
   </div>
 </template>
 
-<script setup>
-import { computed } from 'vue';
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
+import { DefaultScenarioIconPath, ScenarioIconPaths } from '@/尘史使徒/UI/types/剧本数据';
 import NarrativePaceSelector from '@/尘史使徒/UI/components/story/NarrativePaceSelector.vue';
+import type { ScenarioSourceBundle } from '../../../创意工坊/scenario/types';
+import { loadScenarioSourceFromWorldbook } from '../../../创意工坊/scenario/worldbookSource';
 
 const statStore = useStatStore();
 const { stat_data } = storeToRefs(statStore);
+const scenarioSource = ref<ScenarioSourceBundle>();
 
 // 获取系统设置数据
 const systemSettings = computed(() => stat_data.value?.system);
@@ -61,7 +66,20 @@ const systemSettings = computed(() => stat_data.value?.system);
 const currentScenario = computed(() => {
   const currentName = systemSettings.value?.当前剧本;
   if (!currentName) return null;
-  return ScenariosMetadata.find(s => s.name === currentName);
+  const scenario = Object.values(scenarioSource.value?.scenarios ?? {}).find(item => item.key === currentName);
+  return {
+    name: currentName,
+    theme: scenario?.主题 ?? '',
+    iconPath: scenario ? (ScenarioIconPaths[scenario.图标] ?? DefaultScenarioIconPath) : DefaultScenarioIconPath,
+  };
+});
+
+onMounted(async () => {
+  try {
+    scenarioSource.value = await loadScenarioSourceFromWorldbook();
+  } catch (error) {
+    console.warn('当前剧本展示无法读取世界书元数据：', error);
+  }
 });
 </script>
 
@@ -219,14 +237,14 @@ const currentScenario = computed(() => {
 .theme-moth .art-name { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 2s infinite steps(1); }
 .theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.2; }
 @keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 5% { transform: translate(-2px, 1px) skew(-2deg); } 10% { transform: translate(2px, -1px) skew(2deg); } 15% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
-.theme-forgotten { --theme-color: #C5A059; --theme-glow: rgba(197, 160, 89, 0.2); }
-.theme-forgotten .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
-.theme-forgotten .art-bg-effect {
+.theme-broken-mirror { --theme-color: #C5A059; --theme-glow: rgba(197, 160, 89, 0.2); }
+.theme-broken-mirror .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
+.theme-broken-mirror .art-bg-effect {
   background: linear-gradient(135deg, transparent 40%, rgba(197, 160, 89, 0.1) 40%, rgba(197, 160, 89, 0.1) 60%, transparent 60%);
   background-size: 20px 20px;
   opacity: 0.3;
 }
-.theme-forgotten .scenario-svg {
+.theme-broken-mirror .scenario-svg {
   animation: broken-shake 5s infinite;
 }
 @keyframes broken-shake {

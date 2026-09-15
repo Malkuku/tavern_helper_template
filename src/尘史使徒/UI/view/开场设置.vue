@@ -19,15 +19,21 @@
         <div class="card-content">
           <!-- SVG 图标 -->
           <div class="scenario-icon-wrapper">
+            <!-- 图标只来自本地 ScenarioIconPaths 白名单。 -->
+            <!-- eslint-disable-next-line vue/no-v-html -->
             <svg viewBox="0 0 64 64" class="scenario-svg" v-html="item.iconPath"></svg>
           </div>
 
           <!-- 标题 -->
           <h2 class="scenario-title art-name">{{ item.name }}</h2>
+          <div class="scenario-tags">
+            <span class="tag">作者：{{ item.author }}</span>
+            <span v-if="item.customProtagonist" class="tag">自定义主角</span>
+          </div>
 
           <!-- 详情区域 (点击选中后显示) -->
-          <div class="scenario-details" v-show="selectedScenario === item.id">
-            <p class="scenario-desc" v-html="item.desc"></p>
+          <div v-show="selectedScenario === item.id" class="scenario-details">
+            <p class="scenario-desc">{{ item.desc }}</p>
 
             <!-- 启程按钮 / 开发中按钮 -->
             <button
@@ -64,32 +70,57 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue';
-import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
-import { router } from '@/尘史使徒/UI/router/router';
-import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
-import { MvuUtil } from '@/Utils/MvuUtil';
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { DefaultScenarioIconPath, ScenarioIconPaths } from '@/尘史使徒/UI/types/剧本数据';
 import QuickCharacterSetup from '@/尘史使徒/UI/components/start/QuickCharacterSetup.vue';
+import { assembleScenario } from '../../../创意工坊/scenario/assembler';
+import { formatScenarioError } from '../../../创意工坊/scenario/errors';
+import { applyScenarioToLatestMessage } from '../../../创意工坊/scenario/hostAdapter';
+import type { ScenarioSourceBundle } from '../../../创意工坊/scenario/types';
+import { loadScenarioSourceFromWorldbook } from '../../../创意工坊/scenario/worldbookSource';
 
 const selectedScenario = ref('');
+const router = useRouter();
 const loading = ref(false);
 const loadingId = ref('');
 const showQuickSetup = ref(false);
-
-const scenarios = ScenariosMetadata;
+const source = ref<ScenarioSourceBundle>();
+interface ScenarioViewModel {
+  id: string;
+  name: string;
+  isReady: boolean;
+  theme: string;
+  desc: string;
+  iconPath: string;
+  author: string;
+  customProtagonist: boolean;
+}
+const scenarios = computed(() =>
+  Object.entries(source.value?.scenarios ?? {}).map(([id, scenario]) => ({
+    id,
+    name: scenario.key,
+    isReady: scenario.可用,
+    theme: scenario.主题,
+    desc: scenario.desc,
+    iconPath: ScenarioIconPaths[scenario.图标] ?? DefaultScenarioIconPath,
+    author: scenario.author,
+    customProtagonist: scenario.自定义主角,
+  })),
+);
 
 // 计算当前选中的主题类名
 const currentTheme = computed(() => {
-  const active = scenarios.find(s => s.id === selectedScenario.value);
+  const active = scenarios.value.find(s => s.id === selectedScenario.value);
   return active ? active.theme : '';
 });
 
-const selectScenario = (id) => {
+const selectScenario = (id: string) => {
   selectedScenario.value = id;
 };
 
-const confirmStart = async (item) => {
+const confirmStart = async (item: ScenarioViewModel) => {
   // 安全检查
   if (!item.isReady) {
     toastr.info(`剧本 [${item.name}] 正在锐意制作中...`);
@@ -100,21 +131,19 @@ const confirmStart = async (item) => {
   loadingId.value = item.id;
 
   try {
-    // 1. 加载世界书内容 (这一步必须先做，因为需要初始化环境)
-    await loadScenarioContent(item.worldBookEntry);
+    const latestSource = await loadScenarioSourceFromWorldbook();
+    source.value = latestSource;
+    const result = assembleScenario(latestSource, item.id);
+    await applyScenarioToLatestMessage(result);
 
-    // 3. 根据剧本 ID 决定跳转逻辑
-    if (item.id === 'forgotten') {
-      // 如果是“被遗忘者”，跳转到角色创建页
+    if (result.scenario.自定义主角) {
       await router.push('/人物创建');
     } else {
-      // 其他剧本弹出基础设置确认框
       showQuickSetup.value = true;
     }
-
   } catch (e) {
     console.error(e);
-    if (window.toastr) window.toastr.error(`启动失败: ${e.message}`);
+    toastr.error(`启动失败: ${formatScenarioError(e)}`);
   } finally {
     loading.value = false;
     loadingId.value = '';
@@ -126,72 +155,14 @@ const onQuickSetupComplete = async () => {
   await router.push('/选项');
 };
 
-/**
- * 通用剧本加载函数
- * @param {string} entryName - 世界书中的条目名称
- */
-const loadScenarioContent = async (entryName) => {
-  if (!entryName) throw new Error('Entry name is missing');
-
-  // 1. 读取世界书内容
-  let content = await WorldInfoUtil.getWorldBookContent([entryName]);
-
-  if (!content) {
-    toastr.error(`未找到世界书条目: ${entryName}`);
+onMounted(async () => {
+  try {
+    source.value = await loadScenarioSourceFromWorldbook();
+  } catch (error) {
+    console.error(error);
+    toastr.error(`剧本配置读取失败: ${formatScenarioError(error)}`);
   }
-
-  // --- 处理 <VariableInsert> 标签 ---
-  // 提取被包裹的 JSON 内容，通过 Mvu 更新，并从正文中移除
-  const variableRegex = /<VariableInsert>([\s\S]*?)<\/VariableInsert>/;
-  const match = content.match(variableRegex);
-
-  if (match) {
-    try {
-      const jsonStr = match[1];
-
-      updateVariablesWith(
-        vars => ({
-          ...vars,
-          stat_data: JSON.parse(jsonStr)
-        }),
-        {type: 'message', message_id: -1},
-      );
-      await eventEmit('kat_mvu_update_finished');
-
-      // 移除标签部分
-      content = content.replace(variableRegex, '');
-    } catch (e) {
-      console.error('Error parsing VariableInsert:', e);
-      toastr.error(`剧本变量解析失败: ${e.message}`);
-    }
-  }
-  // --------------------------------
-
-  // 2. 获取当前消息ID
-  const msgId = getLastMessageId();
-  if (msgId === undefined || msgId === null) {
-    toastr.error('无法获取当前消息ID');
-    throw new Error('No message ID');
-  }
-
-  console.log(`正在加载剧本 [${entryName}] 到消息 ID: ${msgId}`);
-
-  // 3. 替换当前楼层文本
-  await setChatMessages([{
-    message_id: msgId,
-    message: content
-  }], { refresh: 'affected' });
-
-  await MvuUtil.updateMvuData(`
-  <JSONPatch>
-[
-  { "op": "replace", "path": "/哈基米", "value": "叮咚鸡" }
-]
-</JSONPatch>
-  `);
-
-  toastr.success('剧本加载成功，世界已重塑。');
-};
+});
 </script>
 
 <style scoped>
@@ -349,6 +320,7 @@ const loadScenarioContent = async (entryName) => {
   color: var(--c-text-dim);
   margin-bottom: 25px;
   max-width: 90%;
+  white-space: pre-line;
 }
 
 /* --- 按钮样式更新 --- */
@@ -428,14 +400,14 @@ const loadScenarioContent = async (entryName) => {
 @keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 5% { transform: translate(-2px, 1px) skew(-2deg); } 10% { transform: translate(2px, -1px) skew(2deg); } 15% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
 
 /* 被遗忘者 (Forgotten) */
-.theme-forgotten { --theme-color: #C5A059; --theme-glow: rgba(197, 160, 89, 0.2); }
-.scenario-card.theme-forgotten .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
-.scenario-card.theme-forgotten .art-bg-effect {
+.theme-broken-mirror { --theme-color: #C5A059; --theme-glow: rgba(197, 160, 89, 0.2); }
+.scenario-card.theme-broken-mirror .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
+.scenario-card.theme-broken-mirror .art-bg-effect {
   background: linear-gradient(135deg, transparent 40%, rgba(197, 160, 89, 0.1) 40%, rgba(197, 160, 89, 0.1) 60%, transparent 60%);
   background-size: 20px 20px;
   opacity: 0.3;
 }
-.theme-forgotten.active .scenario-svg {
+.theme-broken-mirror.active .scenario-svg {
   animation: broken-shake 5s infinite;
 }
 @keyframes broken-shake {
