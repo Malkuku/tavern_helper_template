@@ -130,6 +130,7 @@
 import { ref, h, defineComponent, computed, onMounted, watch, nextTick, reactive } from 'vue';
 import { useUiStore } from '@/变量卷轴-蒸汽朋克/UI/store/UIStore';
 import { useMessageStore } from '@/变量卷轴-蒸汽朋克/UI/store/MessageStore';
+import { parseVariableLogs, type VariableLog } from '@/Utils/VariableLogParser';
 
 
 const uiStore = useUiStore();
@@ -137,7 +138,7 @@ const messageStore = useMessageStore();
 
 const draggableBtn = ref<HTMLElement | null>(null);
 const draggableWindow = ref<HTMLElement | null>(null);
-const parsedLogs = ref<Array<{ type: string, data: any }>>([]);
+const parsedLogs = ref<VariableLog[]>([]);
 const isDragging = ref(false);
 
 // 新增：是否有新数据（控制特效）
@@ -184,194 +185,8 @@ const formatType = (type: string) => {
   return map[type] || type.toUpperCase();
 };
 
-// ============================================================
-// JSONPatch 处理工具函数
-// ============================================================
-
-function parsePath(path: string): string[] {
-  if (!path) return [];
-  const normalized = path.startsWith('/') ? path.slice(1) : path;
-  return normalized.split('/').filter(seg => seg !== '');
-}
-
-function isNumericIndex(str: string): boolean {
-  return /^\d+$/.test(str);
-}
-
-function ensureParent(
-  root: any,
-  segments: string[],
-  createMissing = true
-): { parent: any; key: string } | null {
-  let current = root;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const seg = segments[i];
-    const nextSeg = segments[i + 1];
-    if (!(seg in current)) {
-      if (!createMissing) return null;
-      if (nextSeg && (nextSeg === '-' || isNumericIndex(nextSeg))) {
-        current[seg] = [];
-      } else {
-        current[seg] = {};
-      }
-    }
-    current = current[seg];
-  }
-  return { parent: current, key: segments[segments.length - 1] };
-}
-
-function setAtPath(root: any, segments: string[], value: any, isAppend = false) {
-  if (segments.length === 0) {
-    Object.assign(root, value);
-    return;
-  }
-  const parentInfo = ensureParent(root, segments, true);
-  if (!parentInfo) return;
-  const { parent, key } = parentInfo;
-
-  if (isAppend && key === '-') {
-    if (!Array.isArray(parent)) {
-      console.warn('Path expects array for append, but parent is not array. Overwriting.');
-    } else {
-      parent.push(value);
-    }
-  } else {
-    parent[key] = value;
-  }
-}
-
-function removeAtPath(root: any, segments: string[]) {
-  if (segments.length === 0) return;
-  const parentInfo = ensureParent(root, segments, false);
-  if (!parentInfo) return;
-  const { parent, key } = parentInfo;
-  if (Array.isArray(parent)) {
-    const index = Number(key);
-    if (!isNaN(index) && index >= 0 && index < parent.length) {
-      parent.splice(index, 1);
-    }
-  } else {
-    delete parent[key];
-  }
-}
-
-function deltaAtPath(root: any, segments: string[], delta: number) {
-  const parentInfo = ensureParent(root, segments, false);
-  if (!parentInfo) {
-    setAtPath(root, segments, 0);
-    deltaAtPath(root, segments, delta);
-    return;
-  }
-  const { parent, key } = parentInfo;
-  let currentValue = parent[key];
-  if (typeof currentValue === 'number') {
-    parent[key] = currentValue + delta;
-  } else {
-    parent[key] = delta;
-  }
-}
-
-function applyJSONPatch(patchArray: any[]): any {
-  const root = {};
-  for (const op of patchArray) {
-    const { op: type, path, value } = op;
-    const segments = parsePath(path);
-    try {
-      switch (type) {
-        case 'replace':
-        case 'insert':
-          setAtPath(root, segments, value, type === 'insert' && segments[segments.length - 1] === '-');
-          break;
-        case 'delta':
-          deltaAtPath(root, segments, value);
-          break;
-        case 'remove':
-          removeAtPath(root, segments);
-          break;
-        default:
-          console.warn('Unknown patch op:', type);
-      }
-    } catch (e) {
-      console.error('Error applying patch operation:', op, e);
-    }
-  }
-  return root;
-}
-
-// ============================================================
-// 解析消息内容
-// ============================================================
 const parseMessageContent = () => {
-  const text = messageStore.message;
-  if (!text) {
-    parsedLogs.value = [];
-    return;
-  }
-
-  const results = [];
-
-  // 1. 匹配旧格式 <variableX>...</variableX>
-  const varRegex = /<(variable(?:insert|edit|delete|think))>(.*?)<\/\1>/gsi;
-  let varMatch;
-  while ((varMatch = varRegex.exec(text)) !== null) {
-    const type = varMatch[1].toLowerCase();
-    const content = varMatch[2];
-    let parsedData = type === 'variablethink' ? content.trim() : content;
-    try { if (type !== 'variablethink') parsedData = JSON.parse(content); } catch (e) {}
-    results.push({ type, data: parsedData });
-  }
-
-  // 2. 匹配 <JSONPatch>...</JSONPatch>
-  const patchRegex = /<JSONPatch>([\s\S]*?)<\/JSONPatch>/gi;
-  let patchMatch;
-  while ((patchMatch = patchRegex.exec(text)) !== null) {
-    const content = patchMatch[1].trim();
-    try {
-      const patchArray = JSON.parse(content);
-      if (Array.isArray(patchArray)) {
-        const finalTree = applyJSONPatch(patchArray);
-        results.push({ type: 'variableedit', data: finalTree });
-      } else {
-        results.push({ type: 'jsonpatch', data: patchArray });
-      }
-    } catch (e) {
-      results.push({ type: 'jsonpatch', data: content });
-    }
-  }
-
-  // 3. 新增：匹配 <UpdateVariable>...</UpdateVariable> (包含 Analysis 和 JSON Patch)
-  const updateVarRegex = /<UpdateVariable>([\s\S]*?)<\/UpdateVariable>/gi;
-  let updateMatch;
-  while ((updateMatch = updateVarRegex.exec(text)) !== null) {
-    let innerContent = updateMatch[1];
-
-    // 3.1 提取 Analysis 作为思考内容
-    const analysisRegex = /<Analysis>([\s\S]*?)<\/Analysis>/i;
-    const analysisMatch = analysisRegex.exec(innerContent);
-    if (analysisMatch) {
-      results.push({ type: 'variablethink', data: analysisMatch[1].trim() });
-      // 移除 Analysis 部分，以免干扰 JSON 解析
-      innerContent = innerContent.replace(analysisMatch[0], '');
-    }
-
-    // 3.2 提取 JSON 数组
-    const start = innerContent.indexOf('[');
-    const end = innerContent.lastIndexOf(']');
-
-    if (start !== -1 && end !== -1 && end > start) {
-      const jsonString = innerContent.substring(start, end + 1);
-      try {
-        const patchArray = JSON.parse(jsonString);
-        if (Array.isArray(patchArray)) {
-          const finalTree = applyJSONPatch(patchArray);
-          results.push({ type: 'variableedit', data: finalTree });
-        }
-      } catch (e) {
-        console.warn('Failed to parse JSON in UpdateVariable:', e);
-      }
-    }
-  }
-
+  const results = parseVariableLogs(messageStore.message, { includeUpdateVariable: true });
   parsedLogs.value = results;
 
   if (results.length > 0 && !uiStore.showUI) {

@@ -111,13 +111,14 @@
 import { ref, h, defineComponent, computed, onMounted, watch, nextTick, reactive } from 'vue';
 import { useUiStore } from '@/变量卷轴/UI/store/UIStore';
 import { useMessageStore } from '@/变量卷轴/UI/store/MessageStore';
+import { parseVariableLogs, type VariableLog } from '@/Utils/VariableLogParser';
 
 const uiStore = useUiStore();
 const messageStore = useMessageStore();
 
 const draggableBtn = ref<HTMLElement | null>(null);
 const draggableWindow = ref<HTMLElement | null>(null);
-const parsedLogs = ref<Array<{ type: string, data: any }>>([]);
+const parsedLogs = ref<VariableLog[]>([]);
 const isDragging = ref(false);
 
 // 新增：是否有新数据（控制特效）
@@ -164,205 +165,8 @@ const formatType = (type: string) => {
   return map[type] || type.toUpperCase();
 };
 
-// ============================================================
-// JSONPatch 处理工具函数
-// ============================================================
-
-/**
- * 解析路径字符串，返回段数组
- * 例如 "/世界/时间" -> ["世界", "时间"]
- */
-function parsePath(path: string): string[] {
-  if (!path) return [];
-  // 移除开头的 '/'
-  const normalized = path.startsWith('/') ? path.slice(1) : path;
-  return normalized.split('/').filter(seg => seg !== '');
-}
-
-/**
- * 判断字符串是否为非负整数（数组索引）
- */
-function isNumericIndex(str: string): boolean {
-  return /^\d+$/.test(str);
-}
-
-/**
- * 确保路径上的中间节点存在，并返回父节点和最后一个键
- * @param root 根对象
- * @param segments 路径段数组
- * @param createMissing 是否创建缺失的中间节点
- */
-function ensureParent(
-  root: any,
-  segments: string[],
-  createMissing = true
-): { parent: any; key: string } | null {
-  let current = root;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const seg = segments[i];
-    const nextSeg = segments[i + 1];
-    if (!(seg in current)) {
-      if (!createMissing) return null;
-      // 根据下一个段的类型决定创建对象还是数组
-      if (nextSeg && (nextSeg === '-' || isNumericIndex(nextSeg))) {
-        current[seg] = [];
-      } else {
-        current[seg] = {};
-      }
-    }
-    current = current[seg];
-    // 如果当前节点应该是数组但实际不是，尝试转换？这里简单假定路径正确
-  }
-  return { parent: current, key: segments[segments.length - 1] };
-}
-
-/**
- * 设置路径的值 (replace / insert)
- * @param root 根对象
- * @param segments 路径段
- * @param value 要设置的值
- * @param isAppend 是否为数组追加模式（最后一段为 '-'）
- */
-function setAtPath(root: any, segments: string[], value: any, isAppend = false) {
-  if (segments.length === 0) {
-    // 替换整个根（极少见），直接赋值
-    Object.assign(root, value);
-    return;
-  }
-
-  const parentInfo = ensureParent(root, segments, true);
-  if (!parentInfo) return; // 理论上不会
-  const { parent, key } = parentInfo;
-
-  if (isAppend && key === '-') {
-    // 数组追加：父节点应为数组
-    if (!Array.isArray(parent)) {
-      // 如果不是数组，尝试转换？这里简单忽略或报错，我们强制改为数组
-      console.warn('Path expects array for append, but parent is not array. Overwriting.');
-      // 可以选择将父节点重新赋值为数组，但会影响其他数据，我们简单不处理
-    } else {
-      parent.push(value);
-    }
-  } else {
-    // 普通设置
-    parent[key] = value;
-  }
-}
-
-/**
- * 删除路径 (remove)
- */
-function removeAtPath(root: any, segments: string[]) {
-  if (segments.length === 0) return; // 不能删除根
-  const parentInfo = ensureParent(root, segments, false);
-  if (!parentInfo) return; // 路径不存在
-  const { parent, key } = parentInfo;
-  if (Array.isArray(parent)) {
-    const index = Number(key);
-    if (!isNaN(index) && index >= 0 && index < parent.length) {
-      parent.splice(index, 1);
-    }
-  } else {
-    delete parent[key];
-  }
-}
-
-/**
- * 数值增减 (delta)
- */
-function deltaAtPath(root: any, segments: string[], delta: number) {
-  // 先尝试获取当前值
-  const parentInfo = ensureParent(root, segments, false);
-  if (!parentInfo) {
-    // 路径不存在，先创建路径，初始值为 0，再加 delta
-    setAtPath(root, segments, 0);
-    deltaAtPath(root, segments, delta);
-    return;
-  }
-  const { parent, key } = parentInfo;
-  let currentValue = parent[key];
-  if (typeof currentValue === 'number') {
-    parent[key] = currentValue + delta;
-  } else {
-    // 当前不是数字，直接设置为 delta（或者初始化为 0+delta）
-    parent[key] = delta;
-  }
-}
-
-/**
- * 应用整个 JSONPatch 数组，返回最终的对象树
- */
-function applyJSONPatch(patchArray: any[]): any {
-  const root = {}; // 初始空对象
-  for (const op of patchArray) {
-    const { op: type, path, value } = op;
-    const segments = parsePath(path);
-    try {
-      switch (type) {
-        case 'replace':
-        case 'insert':
-          // insert 和 replace 在设置值上逻辑相同，区别在于 insert 可能使用 '-'
-          setAtPath(root, segments, value, type === 'insert' && segments[segments.length - 1] === '-');
-          break;
-        case 'delta':
-          deltaAtPath(root, segments, value);
-          break;
-        case 'remove':
-          removeAtPath(root, segments);
-          break;
-        default:
-          console.warn('Unknown patch op:', type);
-      }
-    } catch (e) {
-      console.error('Error applying patch operation:', op, e);
-    }
-  }
-  return root;
-}
-
-// ============================================================
-// 解析消息内容
-// ============================================================
 const parseMessageContent = () => {
-  const text = messageStore.message;
-  if (!text) {
-    parsedLogs.value = [];
-    return;
-  }
-
-  const results = [];
-
-  // 1. 解析旧的 variable 标签
-  const varRegex = /<(variable(?:insert|edit|delete|think))>(.*?)<\/\1>/gsi;
-  let varMatch;
-  while ((varMatch = varRegex.exec(text)) !== null) {
-    const type = varMatch[1].toLowerCase();
-    const content = varMatch[2];
-    let parsedData = type === 'variablethink' ? content.trim() : content;
-    try { if (type !== 'variablethink') parsedData = JSON.parse(content); } catch (e) {}
-    results.push({ type, data: parsedData });
-  }
-
-  // 2. 解析新的 JSONPatch 标签，并转换为最终的变量树
-  const patchRegex = /<JSONPatch>([\s\S]*?)<\/JSONPatch>/gi;
-  let patchMatch;
-  while ((patchMatch = patchRegex.exec(text)) !== null) {
-    const content = patchMatch[1].trim();
-    try {
-      const patchArray = JSON.parse(content);
-      if (Array.isArray(patchArray)) {
-        const finalTree = applyJSONPatch(patchArray);
-        results.push({ type: 'variableedit', data: finalTree });
-      } else {
-        // 如果不是数组，直接当作普通文本显示（但这种情况较少）
-        results.push({ type: 'jsonpatch', data: patchArray });
-      }
-    } catch (e) {
-      // 解析失败，保留原始字符串，类型标记为 jsonpatch 便于识别
-      results.push({ type: 'jsonpatch', data: content });
-    }
-  }
-
+  const results = parseVariableLogs(messageStore.message);
   parsedLogs.value = results;
 
   if (results.length > 0 && !uiStore.showUI) {

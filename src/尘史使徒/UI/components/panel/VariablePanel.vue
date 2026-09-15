@@ -35,6 +35,7 @@
 
 <script setup lang="ts">
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore'; // 注意路径根据实际情况调整
+import { parseVariableLogs, type VariableLog } from '@/Utils/VariableLogParser';
 import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 
 const emit = defineEmits<{
@@ -42,7 +43,7 @@ const emit = defineEmits<{
 }>();
 
 const messageStore = useMessageStore();
-const parsedLogs = ref<Array<{ type: string, data: any }>>([]);
+const parsedLogs = ref<VariableLog[]>([]);
 
 const formatType = (type: string) => {
   const map: Record<string, string> = {
@@ -54,150 +55,8 @@ const formatType = (type: string) => {
   return map[type] || type.toUpperCase();
 };
 
-// ============================================================
-// JSONPatch 处理工具函数
-// ============================================================
-function parsePath(path: string): string[] {
-  if (!path) return [];
-  const normalized = path.startsWith('/') ? path.slice(1) : path;
-  return normalized.split('/').filter(seg => seg !== '');
-}
-
-function isNumericIndex(str: string): boolean {
-  return /^\d+$/.test(str);
-}
-
-function ensureParent(root: any, segments: string[], createMissing = true): { parent: any; key: string } | null {
-  let current = root;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const seg = segments[i];
-    const nextSeg = segments[i + 1];
-    if (!(seg in current)) {
-      if (!createMissing) return null;
-      if (nextSeg && (nextSeg === '-' || isNumericIndex(nextSeg))) {
-        current[seg] = [];
-      } else {
-        current[seg] = {};
-      }
-    }
-    current = current[seg];
-  }
-  return { parent: current, key: segments[segments.length - 1] };
-}
-
-function setAtPath(root: any, segments: string[], value: any, isAppend = false) {
-  if (segments.length === 0) {
-    Object.assign(root, value);
-    return;
-  }
-  const parentInfo = ensureParent(root, segments, true);
-  if (!parentInfo) return;
-  const { parent, key } = parentInfo;
-
-  if (isAppend && key === '-') {
-    if (Array.isArray(parent)) parent.push(value);
-  } else {
-    parent[key] = value;
-  }
-}
-
-function removeAtPath(root: any, segments: string[]) {
-  if (segments.length === 0) return;
-  const parentInfo = ensureParent(root, segments, false);
-  if (!parentInfo) return;
-  const { parent, key } = parentInfo;
-  if (Array.isArray(parent)) {
-    const index = Number(key);
-    if (!isNaN(index) && index >= 0 && index < parent.length) {
-      parent.splice(index, 1);
-    }
-  } else {
-    delete parent[key];
-  }
-}
-
-function deltaAtPath(root: any, segments: string[], delta: number) {
-  const parentInfo = ensureParent(root, segments, false);
-  if (!parentInfo) {
-    setAtPath(root, segments, 0);
-    deltaAtPath(root, segments, delta);
-    return;
-  }
-  const { parent, key } = parentInfo;
-  let currentValue = parent[key];
-  if (typeof currentValue === 'number') {
-    parent[key] = currentValue + delta;
-  } else {
-    parent[key] = delta;
-  }
-}
-
-function applyJSONPatch(patchArray: any[]): any {
-  const root = {};
-  for (const op of patchArray) {
-    const { op: type, path, value } = op;
-    const segments = parsePath(path);
-    try {
-      switch (type) {
-        case 'replace':
-        case 'insert':
-          setAtPath(root, segments, value, type === 'insert' && segments[segments.length - 1] === '-');
-          break;
-        case 'delta':
-          deltaAtPath(root, segments, value);
-          break;
-        case 'remove':
-          removeAtPath(root, segments);
-          break;
-      }
-    } catch (e) {
-      console.error('Error applying patch operation:', op, e);
-    }
-  }
-  return root;
-}
-
-// ============================================================
-// 解析消息内容
-// ============================================================
 const parseMessageContent = () => {
-  const text = messageStore.message;
-  if (!text) {
-    parsedLogs.value = [];
-    return;
-  }
-
-  const results = [];
-
-  // 1. 解析 variable 标签
-  const varRegex = /<(variable(?:insert|edit|delete|think))>(.*?)<\/\1>/gsi;
-  let varMatch;
-  while ((varMatch = varRegex.exec(text)) !== null) {
-    const type = varMatch[1].toLowerCase();
-    const content = varMatch[2];
-    let parsedData = type === 'variablethink' ? content.trim() : content;
-    try { if (type !== 'variablethink') parsedData = JSON.parse(content); } catch (e) {}
-    results.push({ type, data: parsedData });
-  }
-
-  // 2. 解析 JSONPatch 标签
-  const patchRegex = /<JSONPatch>([\s\S]*?)<\/JSONPatch>/gi;
-  let patchMatch;
-  while ((patchMatch = patchRegex.exec(text)) !== null) {
-    const content = patchMatch[1].trim();
-    try {
-      const patchArray = JSON.parse(content);
-      if (Array.isArray(patchArray)) {
-        const finalTree = applyJSONPatch(patchArray);
-        results.push({ type: 'variableedit', data: finalTree });
-      } else {
-        results.push({ type: 'jsonpatch', data: patchArray });
-      }
-    } catch (e) {
-      results.push({ type: 'jsonpatch', data: content });
-    }
-  }
-
+  const results = parseVariableLogs(messageStore.message);
   parsedLogs.value = results;
 };
 
