@@ -49,5 +49,8 @@
   "[vue]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "liveServer.settings.host": "localhost",
+  "liveServer.settings.port": 5500,
+  "liveServer.settings.cors": true
 }
