@@ -89,7 +89,11 @@ import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
 
 const props = defineProps({
-  visible: Boolean
+  visible: Boolean,
+  initialUser: {
+    type: Object,
+    default: null,
+  },
 });
 const emit = defineEmits(['update:visible', 'complete']);
 
@@ -114,7 +118,8 @@ watch(() => statStore.stat_data, (newVal) => {
 
 const initData = () => {
   const sourceData = statStore.stat_data || {};
-  const user = sourceData?.["角色"]?.["user"] || {};
+  // 打开弹窗时，Store 可能尚未收到 MVU 写入后的更新事件；本次组装结果是这里的即时权威数据。
+  const user = props.initialUser || sourceData?.["角色"]?.["user"] || {};
 
   formData.value = {
     identity: user["当前身份"] || "",

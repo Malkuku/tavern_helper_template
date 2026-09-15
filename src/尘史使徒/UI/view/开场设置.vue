@@ -27,7 +27,6 @@
           <!-- 标题 -->
           <h2 class="scenario-title art-name">{{ item.name }}</h2>
           <div class="scenario-tags">
-            <span class="tag">作者：{{ item.author }}</span>
             <span v-if="item.customProtagonist" class="tag">自定义主角</span>
           </div>
 
@@ -65,6 +64,7 @@
     <!-- 快速基础设定弹窗 -->
     <QuickCharacterSetup
       v-model:visible="showQuickSetup"
+      :initial-user="quickSetupUser"
       @complete="onQuickSetupComplete"
     />
   </div>
@@ -86,6 +86,7 @@ const router = useRouter();
 const loading = ref(false);
 const loadingId = ref('');
 const showQuickSetup = ref(false);
+const quickSetupUser = ref();
 const source = ref<ScenarioSourceBundle>();
 interface ScenarioViewModel {
   id: string;
@@ -94,7 +95,6 @@ interface ScenarioViewModel {
   theme: string;
   desc: string;
   iconPath: string;
-  author: string;
   customProtagonist: boolean;
 }
 const scenarios = computed(() =>
@@ -105,7 +105,6 @@ const scenarios = computed(() =>
     theme: scenario.主题,
     desc: scenario.desc,
     iconPath: ScenarioIconPaths[scenario.图标] ?? DefaultScenarioIconPath,
-    author: scenario.author,
     customProtagonist: scenario.自定义主角,
   })),
 );
@@ -139,6 +138,7 @@ const confirmStart = async (item: ScenarioViewModel) => {
     if (result.scenario.自定义主角) {
       await router.push('/人物创建');
     } else {
+      quickSetupUser.value = result.statData.角色.user;
       showQuickSetup.value = true;
     }
   } catch (e) {
