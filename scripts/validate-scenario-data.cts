@@ -47,12 +47,16 @@ expectCode('RESOURCE_NOT_FOUND', draft => {
   draft.scenarios[scenarioId].内容配置.世界 = 'missing-world';
 });
 
-expectCode('DUPLICATE_KEY', draft => {
+{
+  const draft = cloneSource();
   const roleIds = draft.scenarios[scenarioId].内容配置.角色.filter(
     (id: string) => draft.registries.角色[id].type === '主要角色',
   );
   draft.registries.角色[roleIds[1]].key = draft.registries.角色[roleIds[0]].key;
-});
+  draft.registries.角色[roleIds[0]].data = { 被覆盖: true };
+  draft.registries.角色[roleIds[1]].data = { 生效: true };
+  assert.deepEqual(assembleScenario(draft, scenarioId).statData.角色.主要角色[draft.registries.角色[roleIds[0]].key], { 生效: true });
+}
 
 expectCode('UNKNOWN_ROLE_TYPE', draft => {
   const roleId = draft.scenarios[scenarioId].内容配置.角色.find(
@@ -66,11 +70,6 @@ expectCode('DUPLICATE_USER', draft => {
     (id: string) => draft.registries.角色[id].type === '主要角色',
   );
   draft.registries.角色[roleId].type = 'user';
-});
-
-expectCode('RESOURCE_NOT_FOUND', draft => {
-  const mapId = draft.scenarios[scenarioId].内容配置.地图;
-  draft.registries.地图[mapId].root = { 'missing-map-node': {} };
 });
 
 async function validateHostRollback() {

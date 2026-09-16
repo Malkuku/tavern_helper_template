@@ -4,7 +4,7 @@ import { webcrypto } from 'node:crypto';
 import { cloneSource, findReferenceIssues, normalizeScenarioAvailability } from '../src/创意工坊/assets/model';
 import { createPackage, listConflicts, mergePackage, parsePackage } from '../src/创意工坊/assets/package';
 import { saveScenarioSource } from '../src/创意工坊/assets/repository';
-import { addRoleToRuntime } from '../src/创意工坊/assets/runtimeRole';
+import { addRoleToRuntime, getRuntimeRoles } from '../src/创意工坊/assets/runtimeRole';
 import type { ScenarioSourceBundle, WorkshopPackage } from '../src/创意工坊/scenario/types';
 
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
@@ -25,10 +25,9 @@ function fixture(): ScenarioSourceBundle {
     registries: {
       世界: { world: { author: 'acceptance', desc: '', data: {} } }, 世界经济: {},
       主线: { main: { author: 'acceptance', desc: '', data: {} } }, 事件: {}, 任务: {}, 势力: {},
-      地图: { map: { author: 'acceptance', desc: '', root: { node: {} } } },
-      地图节点: { node: baseEntry }, 季节与节日: {},
+      地图: { map: { author: 'acceptance', desc: '', data: { 艾斯特拉: { 描述: '城市' } } } }, 季节与节日: {},
       开场文本: { text: { author: 'acceptance', desc: '', data: 'opening' } }, 种族: {},
-      角色: { role: { ...baseEntry, type: '主要角色' } },
+      角色: { role: { ...baseEntry, type: 'user' } },
     },
   };
 }
@@ -42,11 +41,31 @@ async function testPackageAndReferences(): Promise<void> {
   assert.equal(normalizeScenarioAvailability(missing).length, 1);
   assert.equal(missing.scenarios.scenario.可用, false);
 
+  const emptyRequired = cloneSource(source);
+  emptyRequired.scenarios.scenario.可用 = true;
+  emptyRequired.scenarios.scenario.内容配置.开场文本 = '';
+  emptyRequired.scenarios.scenario.内容配置.世界 = '';
+  emptyRequired.scenarios.scenario.内容配置.地图 = '';
+  emptyRequired.scenarios.scenario.内容配置.主线 = '';
+  emptyRequired.scenarios.scenario.内容配置.角色 = [];
+  normalizeScenarioAvailability(emptyRequired);
+  assert.equal(emptyRequired.scenarios.scenario.可用, false, '必填单例和 user 均缺失时必须归一为不可用');
+
+  const multipleUsers = cloneSource(source);
+  multipleUsers.registries.角色.secondUser = { ...baseEntry, key: 'second', type: 'user' };
+  multipleUsers.scenarios.scenario.内容配置.角色.push('secondUser');
+  assert.ok(normalizeScenarioAvailability(multipleUsers).some(issue => issue.field === '角色.user'));
+  assert.equal(multipleUsers.scenarios.scenario.可用, false);
+
   const selected = createPackage(source, { 开场白: ['scenario'], 角色: ['role'] });
   assert.deepEqual(Object.keys(selected.assets).sort(), ['开场白', '角色']);
   assert.equal(parsePackage(JSON.stringify(selected)).format, 'dust-history-workshop-package');
   assert.throws(() => parsePackage('{bad json'));
-  assert.throws(() => parsePackage(JSON.stringify({ ...selected, version: 2 })));
+  assert.throws(() => parsePackage(JSON.stringify({ ...selected, version: 1 })));
+  assert.throws(() => parsePackage(JSON.stringify({ ...selected, version: 3 })));
+  const secondMapPackage: WorkshopPackage = { format: 'dust-history-workshop-package', version: 2, exportedAt: new Date().toISOString(), assets: { 地图: { another: { author: '', desc: '', data: {} } } } };
+  assert.throws(() => listConflicts(source, secondMapPackage), /只允许唯一地图/);
+  assert.throws(() => mergePackage(source, secondMapPackage, {}), /只允许唯一地图/);
 
   const target = fixture();
   target.registries.角色.role.data = { target: true };
@@ -73,7 +92,7 @@ async function testWorldbookTransaction(): Promise<void> {
   const source = fixture();
   const names = [
     '<开场白>配置', '<世界>配置', '<世界经济>配置', '<主线>配置', '<事件>配置', '<任务>配置', '<势力>配置',
-    '<地图>配置', '<地图节点>配置', '<季节与节日>配置', '<开场文本>配置', '<种族>配置', '<角色>配置',
+    '<地图>配置', '<季节与节日>配置', '<开场文本>配置', '<种族>配置', '<角色>配置',
   ];
   const previous = names.map((name, index) => ({ uid: index, name, content: '{}' }));
   (globalThis as any).getCharWorldbookNames = () => ({ primary: 'primary' });
@@ -109,6 +128,13 @@ async function testRuntimeRoleTransaction(): Promise<void> {
   assert.deepEqual(writes[0].stat_data.角色.主要角色.key, { replacement: true });
   assert.deepEqual(writes[0].stat_data.system.关注角色列表, initial.stat_data.system.关注角色列表);
 
+  const snapshot = await getRuntimeRoles();
+  assert.deepEqual(Object.keys(snapshot.主要角色), ['key']);
+  const user = { author: '', desc: '', key: 'user', type: 'user', data: { name: '新主角' } };
+  assert.equal(await addRoleToRuntime(user, false), 'conflict');
+  assert.equal(await addRoleToRuntime(user, true), 'overwritten');
+  assert.deepEqual(writes.at(-1).stat_data.角色.user, { name: '新主角' });
+
   writes.length = 0;
   let calls = 0;
   (globalThis as any).Mvu.replaceMvuData = async (value: unknown) => {
@@ -123,7 +149,7 @@ async function testRuntimeRoleTransaction(): Promise<void> {
 
 async function testDamagedAssetPayload(): Promise<void> {
   const pkg: WorkshopPackage = {
-    format: 'dust-history-workshop-package', version: 1, exportedAt: new Date().toISOString(),
+    format: 'dust-history-workshop-package', version: 2, exportedAt: new Date().toISOString(),
     assets: { 角色: { damaged: { arbitrary: true } } },
   };
   assert.throws(() => parsePackage(JSON.stringify(pkg)), /./);
