@@ -1,7 +1,7 @@
 import { klona } from 'klona';
 
 import type { ScenarioSourceBundle } from '../scenario/types';
-import { scenarioWorldbookEntryNames, parseScenarioSourceEntries } from '../scenario/worldbookSource';
+import { scenarioWorldbookEntryNames, parseScenarioSourceEntries, synchronizeAutomaticReferences } from '../scenario/worldbookSource';
 
 function documents(source: ScenarioSourceBundle): Record<keyof typeof scenarioWorldbookEntryNames, unknown> {
   return {
@@ -15,6 +15,7 @@ export async function saveScenarioSource(source: ScenarioSourceBundle): Promise<
   if (!primary) throw new Error('当前角色没有绑定主世界书。');
   const previous = await getWorldbook(primary);
   const next = klona(previous);
+  synchronizeAutomaticReferences(source);
   const docs = documents(source);
   for (const [category, name] of Object.entries(scenarioWorldbookEntryNames) as [keyof typeof scenarioWorldbookEntryNames, string][]) {
     const matches = next.filter(entry => entry.name === name);

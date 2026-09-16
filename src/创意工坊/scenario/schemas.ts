@@ -3,7 +3,6 @@ import { z } from 'zod';
 import type {
   CollectionEntry,
   MapEntry,
-  MapTopology,
   ScenarioEntry,
   SingletonEntry,
   TextEntry,
@@ -35,12 +34,8 @@ export const TypedCollectionEntrySchema: z.ZodType<TypedCollectionEntry> = Entry
   data: z.unknown(),
 }).strict();
 
-export const MapTopologySchema: z.ZodType<MapTopology> = z.lazy(() =>
-  z.record(z.string().min(1), MapTopologySchema),
-);
-
 export const MapEntrySchema: z.ZodType<MapEntry> = EntryBaseSchema.extend({
-  root: MapTopologySchema,
+  data: JsonObjectSchema,
 }).strict();
 
 const ContentConfigSchema = z

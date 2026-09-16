@@ -1,12 +1,7 @@
 import { klona } from 'klona';
 
 import { ScenarioEntrySchema } from '../scenario/schemas';
-import type {
-  MapTopology,
-  ReferenceIssue,
-  ResourceCategory,
-  ScenarioSourceBundle,
-} from '../scenario/types';
+import type { ReferenceIssue, ResourceCategory, ScenarioSourceBundle } from '../scenario/types';
 
 export type WorkshopCategory = '开场白' | ResourceCategory;
 
@@ -30,21 +25,12 @@ export function assetsOf(source: ScenarioSourceBundle): Record<WorkshopCategory,
   return { 开场白: source.scenarios, ...source.registries };
 }
 
-function walkTopology(topology: MapTopology, ownerId: string, issues: ReferenceIssue[], nodes: Set<string>): void {
-  for (const [nodeId, children] of Object.entries(topology)) {
-    if (!nodes.has(nodeId)) {
-      issues.push({ ownerCategory: '地图', ownerId, field: 'root', targetCategory: '地图节点', targetId: nodeId });
-    }
-    walkTopology(children, ownerId, issues, nodes);
-  }
-}
-
 export function findReferenceIssues(source: ScenarioSourceBundle): ReferenceIssue[] {
   const issues: ReferenceIssue[] = [];
   for (const [ownerId, scenario] of Object.entries(source.scenarios)) {
     for (const [field, category] of Object.entries(singleReferences) as [keyof typeof singleReferences, ResourceCategory][]) {
       const targetId = scenario.内容配置[field];
-      if (targetId && !source.registries[category][targetId]) {
+      if (!targetId || !source.registries[category][targetId]) {
         issues.push({ ownerCategory: '开场白', ownerId, field, targetCategory: category, targetId });
       }
     }
@@ -55,9 +41,17 @@ export function findReferenceIssues(source: ScenarioSourceBundle): ReferenceIssu
         }
       }
     }
+    const resolvedUsers = scenario.内容配置.角色.filter(id => source.registries.角色[id]?.type === 'user');
+    if (resolvedUsers.length !== 1) {
+      issues.push({
+        ownerCategory: '开场白',
+        ownerId,
+        field: '角色.user',
+        targetCategory: '角色',
+        targetId: resolvedUsers.length === 0 ? '' : resolvedUsers[1],
+      });
+    }
   }
-  const nodes = new Set(Object.keys(source.registries.地图节点));
-  for (const [ownerId, map] of Object.entries(source.registries.地图)) walkTopology(map.root, ownerId, issues, nodes);
   return issues;
 }
 
@@ -87,11 +81,6 @@ export function findReferencesTo(source: ScenarioSourceBundle, category: Resourc
   return all.filter(issue => issue.targetCategory === category && issue.targetId === id);
 }
 
-function removeNode(topology: MapTopology, id: string): void {
-  delete topology[id];
-  for (const children of Object.values(topology)) removeNode(children, id);
-}
-
 function removeReferences(source: ScenarioSourceBundle, category: ResourceCategory, id: string): void {
   for (const scenario of Object.values(source.scenarios)) {
     for (const [field, target] of Object.entries(singleReferences)) {
@@ -107,7 +96,6 @@ function removeReferences(source: ScenarioSourceBundle, category: ResourceCatego
       }
     }
   }
-  if (category === '地图节点') for (const map of Object.values(source.registries.地图)) removeNode(map.root, id);
 }
 
 export function validateDraft(source: ScenarioSourceBundle): ReferenceIssue[] {

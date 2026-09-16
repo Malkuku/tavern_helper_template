@@ -7,7 +7,6 @@ import type {
   AssemblyResult,
   CollectionEntry,
   JsonObject,
-  MapTopology,
   Registry,
   ResourceCategory,
   RuntimeStatData,
@@ -28,8 +27,8 @@ function requireEntry<T>(registry: Registry<T>, category: ResourceCategory, reso
 
 function assembleCollection(
   category: ResourceCategory,
-  ids: string[],
   registry: Registry<CollectionEntry>,
+  ids = Object.keys(registry),
 ): JsonObject {
   const result: JsonObject = {};
   const referenced = new Set<string>();
@@ -56,8 +55,8 @@ function assembleCollection(
 
 function assembleTypedCollection(
   category: ResourceCategory,
-  ids: string[],
   registry: Registry<TypedCollectionEntry>,
+  ids = Object.keys(registry),
 ): JsonObject {
   const result: JsonObject = {};
   const referenced = new Set<string>();
@@ -72,12 +71,7 @@ function assembleTypedCollection(
     referenced.add(id);
     const entry = requireEntry(registry, category, id);
     const bucket = (result[entry.type] ??= {}) as JsonObject;
-    if (Object.hasOwn(bucket, entry.key)) {
-      throw new ScenarioDataError('DUPLICATE_KEY', `${category}存在重复 type/key：${entry.type}/${entry.key}`, {
-        category,
-        resourceId: id,
-      });
-    }
+    if (Object.hasOwn(bucket, entry.key)) throw new ScenarioDataError('DUPLICATE_KEY', `${category}存在重复 type/key：${entry.type}/${entry.key}`, { category, resourceId: id });
     bucket[entry.key] = klona(entry.data);
   }
   return result;
@@ -120,12 +114,7 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
     }
 
     const bucket = result[entry.type] as JsonObject;
-    if (Object.hasOwn(bucket, entry.key)) {
-      throw new ScenarioDataError('DUPLICATE_KEY', `角色存在重复 type/key：${entry.type}/${entry.key}`, {
-        category: '角色',
-        resourceId: id,
-      });
-    }
+    // 角色引用是有序覆盖链；同 type + key 以后引用的完整 data 为准。
     bucket[entry.key] = klona(data);
   }
 
@@ -133,38 +122,6 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
     throw new ScenarioDataError('RESOURCE_NOT_FOUND', '剧本未配置 user 角色。', { category: '角色' });
   }
   return result as RuntimeStatData['角色'];
-}
-
-function assembleMap(
-  topology: MapTopology,
-  registry: Registry<CollectionEntry>,
-  visited = new Set<string>(),
-): JsonObject {
-  const result: JsonObject = {};
-
-  for (const [id, children] of Object.entries(topology)) {
-    if (visited.has(id)) {
-      throw new ScenarioDataError('DUPLICATE_REFERENCE', '地图拓扑重复引用同一节点。', {
-        category: '地图节点',
-        resourceId: id,
-      });
-    }
-    visited.add(id);
-    const entry = requireEntry(registry, '地图节点', id);
-    if (Object.hasOwn(result, entry.key)) {
-      throw new ScenarioDataError('DUPLICATE_KEY', `同级地图节点存在重复 key：${entry.key}`, {
-        category: '地图节点',
-        resourceId: id,
-      });
-    }
-    const data = z.record(z.string(), z.unknown()).parse(entry.data);
-    const childMap = assembleMap(children, registry, visited);
-    result[entry.key] = {
-      ...klona(data),
-      ...(Object.keys(childMap).length > 0 ? { 子地图: childMap } : {}),
-    };
-  }
-  return result;
 }
 
 export function assembleScenario(source: ScenarioSourceBundle, scenarioId: string): AssemblyResult {
@@ -194,14 +151,14 @@ export function assembleScenario(source: ScenarioSourceBundle, scenarioId: strin
     ...fixedData,
     世界: klona(world.data),
     角色: assembleRoles(config.角色, source.registries.角色),
-    地图: assembleMap(map.root, source.registries.地图节点),
-    世界经济: assembleCollection('世界经济', config.世界经济, source.registries.世界经济),
-    季节与节日: assembleCollection('季节与节日', config.季节与节日, source.registries.季节与节日),
-    势力: assembleCollection('势力', config.势力, source.registries.势力),
-    种族: assembleTypedCollection('种族', config.种族, source.registries.种族),
+    地图: klona(map.data),
+    世界经济: assembleCollection('世界经济', source.registries.世界经济),
+    季节与节日: assembleCollection('季节与节日', source.registries.季节与节日),
+    势力: assembleCollection('势力', source.registries.势力),
+    种族: assembleTypedCollection('种族', source.registries.种族),
     主线: klona(mainQuest.data),
-    任务: assembleCollection('任务', config.任务, source.registries.任务),
-    事件: assembleCollection('事件', config.事件, source.registries.事件),
+    任务: assembleCollection('任务', source.registries.任务, config.任务),
+    事件: assembleCollection('事件', source.registries.事件, config.事件),
     system: {
       ...system,
       当前剧本: scenario.key,

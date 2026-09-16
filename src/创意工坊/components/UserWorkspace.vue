@@ -1,6 +1,259 @@
-<template><section class="workspace"><article><p class="eyebrow">PACKAGE LIBRARY</p><h2>管理资产包</h2><p>安装前必须检查内容、冲突和引用完整性。</p><div><button @click="exportOpen=true">导出全部资产</button><label class="file">选择资产包<input type="file" accept="application/json" @change="importFile"></label></div></article><article><p class="eyebrow">RUNTIME CAST</p><h2>加入运行角色</h2><label>搜索角色<input v-model="roleQuery" type="search"></label><label>类型筛选<select v-model="roleType"><option value="">全部</option><option>主要角色</option><option>次要角色</option></select></label><div v-if="filteredRoles.length" class="roles"><button v-for="role in filteredRoles" :key="role.id" @click="add(role.id)"><strong>{{assetTitle('角色',role.entry)}}</strong><span>{{role.entry.type}} · {{role.entry.desc||'暂无说明'}}</span></button></div><p v-else class="empty">没有符合条件的可加入角色。</p></article>
-<AppDialog :open="exportOpen" title="导出预览" @cancel="exportOpen=false"><p>将导出当前主世界书的全部资产。</p><ul><li v-for="(count,c) in exportCounts" :key="c">{{c}}：{{count}} 项</li></ul><template #actions><button class="primary" @click="exportAll">下载资产包</button></template></AppDialog>
-<AppDialog :open="!!pending" title="资产包安装预览" @cancel="cancelImport"><div v-if="preview"><p>新增 {{preview.added}} 项 · 相同 {{preview.identical}} 项 · 冲突 {{preview.conflicts}} 项</p><ul><li v-for="(count,c) in preview.counts" :key="c">{{c}}：{{count}} 项</li></ul><p :class="{warning:preview.issues.length}">引用完整性：{{preview.issues.length?`${preview.issues.length} 处需要修复`:'通过'}}</p></div><details v-for="item in conflicts" :key="item.category+item.id"><summary>{{item.category}} · {{assetTitle(item.category,item.incoming)}}</summary><p>{{diffSourcesFor(item).length}} 个字段发生变化。</p><label>冲突决策<select v-model="decisions[`${item.category}:${item.id}`]"><option value="skip">跳过—保留当前内容</option><option value="overwrite">覆盖—以包内内容整体替换</option><option value="copy">复制—保留两份并重映射包内引用</option></select></label></details><template #actions><button class="primary" @click="install">确认安装</button></template></AppDialog>
-<AppDialog :open="!!overwriteRole" title="覆盖运行角色" @cancel="overwriteRole=''"> <p>运行数据中已有“{{overwriteRole&&source.registries.角色[overwriteRole]?.key}}”。继续将整体覆盖当前角色，不会修改世界书。</p><template #actions><button class="danger" @click="confirmRoleOverwrite">整体覆盖</button></template></AppDialog></section></template>
-<script setup lang="ts">import{computed,ref}from'vue';import{assetsOf,type WorkshopCategory}from'../assets/model';import{createPackage,downloadPackage,listConflicts,mergePackage,parsePackage,type PackageConflict}from'../assets/package';import{assetTitle,previewPackage,type ImportPreview}from'../assets/presentation';import{saveScenarioSource}from'../assets/repository';import{addRoleToRuntime}from'../assets/runtimeRole';import type{PackageConflictDecision,ScenarioSourceBundle,WorkshopPackage}from'../scenario/types';import AppDialog from'./AppDialog.vue';const props=defineProps<{source:ScenarioSourceBundle}>(),emit=defineEmits<{changed:[];message:[value:{text:string;error?:boolean}]}>();const pending=ref<WorkshopPackage>(),preview=ref<ImportPreview>(),conflicts=ref<PackageConflict[]>([]),decisions=ref<Record<string,PackageConflictDecision>>({}),exportOpen=ref(false),roleQuery=ref(''),roleType=ref(''),overwriteRole=ref('');const roles=computed(()=>Object.entries(props.source.registries.角色).map(([id,entry])=>({id,entry})).filter(x=>x.entry.type==='主要角色'||x.entry.type==='次要角色'));const filteredRoles=computed(()=>roles.value.filter(x=>(!roleType.value||x.entry.type===roleType.value)&&`${x.entry.key} ${x.entry.desc}`.toLowerCase().includes(roleQuery.value.toLowerCase())));const exportCounts=computed(()=>Object.fromEntries(Object.entries(assetsOf(props.source)).map(([c,v])=>[c,Object.keys(v).length])));function selection(){return Object.fromEntries(Object.entries(assetsOf(props.source)).map(([c,v])=>[c,Object.keys(v)]))as Record<WorkshopCategory,string[]>}function exportAll(){downloadPackage(createPackage(props.source,selection()));exportOpen.value=false}async function importFile(e:Event){try{const input=e.target as HTMLInputElement,file=input.files?.[0];if(!file)return;pending.value=parsePackage(await file.text());preview.value=previewPackage(props.source,pending.value);conflicts.value=listConflicts(props.source,pending.value);decisions.value=Object.fromEntries(conflicts.value.map(c=>[`${c.category}:${c.id}`,'skip']));input.value=''}catch(error){show(error,true)}}function cancelImport(){pending.value=undefined;preview.value=undefined;conflicts.value=[];decisions.value={}}async function install(){if(!pending.value)return;try{await saveScenarioSource(mergePackage(props.source,pending.value,decisions.value));cancelImport();show('资产包已安装。');emit('changed')}catch(error){show(error,true)}}async function add(id:string){try{const result=await addRoleToRuntime(props.source.registries.角色[id]);if(result==='conflict')overwriteRole.value=id;else show('角色已加入当前运行剧本。')}catch(error){show(error,true)}}async function confirmRoleOverwrite(){const id=overwriteRole.value;overwriteRole.value='';try{await addRoleToRuntime(props.source.registries.角色[id],true);show('角色已整体覆盖。')}catch(error){show(error,true)}}function show(v:unknown,error=false){emit('message',{text:v instanceof Error?v.message:String(v),error})}function diffSourcesFor(item:PackageConflict){return JSON.stringify(item.current)===JSON.stringify(item.incoming)?[]:['changed']}</script>
-<style scoped>.workspace{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.workspace article{padding:24px;background:#1d2123;border:1px solid #393d3f}.eyebrow{color:#cbb477;font-size:10px;letter-spacing:.18em}.workspace article>p{color:#b8b09f}.workspace article>label{display:grid;gap:5px;margin:8px 0}.workspace article>div{display:flex;gap:8px;flex-wrap:wrap}.file{padding:8px 12px;border:1px solid #5a554a;cursor:pointer}.file input{display:none}.roles{display:grid!important;grid-template-columns:repeat(2,1fr)}.roles button{text-align:left}.roles strong,.roles span{display:block}.roles span{color:#b8b09f}.empty{text-align:center}.warning{color:#d8a95d}.danger{color:#f1c2bc!important;border-color:#d47569!important}@media(max-width:700px){.workspace{grid-template-columns:1fr}.roles{grid-template-columns:1fr!important}}</style>
+<template>
+  <section class="workspace">
+    <article>
+      <p class="eyebrow">RUNTIME CAST</p>
+      <h2>加入运行角色</h2>
+      <p>已存在的同 type + key 角色已自动排除。</p>
+      <label>搜索<input v-model="query" type="search" /></label
+      ><label
+        >类型<select v-model="type">
+          <option value="">全部</option>
+          <option>user</option>
+          <option>主要角色</option>
+          <option>次要角色</option>
+        </select></label
+      ><label
+        >派生标签<select v-model="tag">
+          <option value="">全部</option>
+          <option v-for="v in tags" :key="v">{{ v }}</option>
+        </select></label
+      >
+      <div class="roles">
+        <button v-for="r in filtered" :key="r.id" @click="choose(r.id)">
+          <strong>{{ assetTitle('角色', r.entry) }}</strong
+          ><span>{{ r.entry.type }} · {{ r.tags.join(' / ') || '无标签' }}</span>
+        </button>
+      </div>
+      <p v-if="!filtered.length">没有可加入的候选角色。</p>
+    </article>
+    <article>
+      <p class="eyebrow">PACKAGE LIBRARY</p>
+      <h2>开发者兼容工具</h2>
+      <p>资产包可承载锁定资源，但不会将它们暴露为普通编辑入口。</p>
+      <button @click="exportAll">导出全部资产</button
+      ><label class="file">安装资产包<input type="file" accept="application/json" @change="importFile" /></label>
+    </article>
+    <AppDialog :open="!!pending" title="资产包安装预览" @cancel="pending = undefined"
+      ><p v-if="preview">
+        新增 {{ preview.added }}·相同 {{ preview.identical }}·冲突 {{ preview.conflicts }}·引用问题
+        {{ preview.issues.length }}
+      </p>
+      <label v-for="c in conflicts" :key="`${c.category}:${c.id}`"
+        >{{ c.category }} · {{ assetTitle(c.category, c.incoming)
+        }}<select v-model="decisions[`${c.category}:${c.id}`]">
+          <option value="skip">保留当前</option>
+          <option value="overwrite">整体覆盖</option>
+          <option value="copy">复制并重映射引用</option>
+        </select></label
+      >
+      <template #actions><button class="primary" @click="install">确认安装</button></template></AppDialog
+    ><AppDialog
+      :open="!!overwriteId"
+      :title="overwrite?.type === 'user' ? '覆盖运行主角' : '覆盖运行角色'"
+      @cancel="overwriteId = ''"
+      ><p>将整体替换，不执行字段合并。</p>
+      <dl>
+        <template v-for="d in runtimeDiff" :key="d.field"
+          ><dt>{{ d.field }}</dt>
+          <dd>{{ short(d.before) }} → {{ short(d.after) }}</dd></template
+        >
+      </dl>
+      <template #actions><button class="danger" @click="confirmOverwrite">确认整体覆盖</button></template></AppDialog
+    >
+  </section>
+</template>
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { assetsOf, type WorkshopCategory } from '../assets/model';
+import {
+  createPackage,
+  downloadPackage,
+  listConflicts,
+  mergePackage,
+  parsePackage,
+  type PackageConflict,
+} from '../assets/package';
+import { assetTitle, previewPackage, type ImportPreview } from '../assets/presentation';
+import { saveScenarioSource } from '../assets/repository';
+import { addRoleToRuntime, getRuntimeRoles, type RuntimeRoleSnapshot } from '../assets/runtimeRole';
+import type { PackageConflictDecision, ScenarioSourceBundle, WorkshopPackage } from '../scenario/types';
+import AppDialog from './AppDialog.vue';
+const props = defineProps<{ source: ScenarioSourceBundle }>(),
+  emit = defineEmits<{ changed: []; message: [value: { text: string; error?: boolean }] }>();
+const query = ref(''),
+  type = ref(''),
+  tag = ref(''),
+  runtime = ref<RuntimeRoleSnapshot>(),
+  overwriteId = ref(''),
+  pending = ref<WorkshopPackage>(),
+  preview = ref<ImportPreview>(),
+  conflicts = ref<PackageConflict[]>([]),
+  decisions = ref<Record<string, PackageConflictDecision>>({});
+const roles = computed(() =>
+  Object.entries(props.source.registries.角色).map(([id, entry]) => ({
+    id,
+    entry,
+    tags: [entry.author, ...arr(entry.data?.区域检索词), ...arr(entry.data?.名称检索词)].filter(Boolean),
+  })),
+);
+const tags = computed(() => [...new Set(roles.value.flatMap(r => r.tags))]);
+const filtered = computed(() =>
+  roles.value.filter(
+    r =>
+      !exists(r.entry.type, r.entry.key) &&
+      (!type.value || r.entry.type === type.value) &&
+      (!tag.value || r.tags.includes(tag.value)) &&
+      `${r.entry.key} ${r.entry.desc} ${r.tags.join(' ')}`.toLowerCase().includes(query.value.toLowerCase()),
+  ),
+);
+const overwrite = computed(() => props.source.registries.角色[overwriteId.value]);
+const runtimeDiff = computed(() => {
+  if (!overwrite.value) return [];
+  const before =
+    overwrite.value.type === 'user'
+      ? runtime.value?.user
+      : runtime.value?.[overwrite.value.type]?.[overwrite.value.key];
+  return diff(before ?? {}, overwrite.value.data as Record<string, unknown>);
+});
+onMounted(async () => {
+  try {
+    runtime.value = await getRuntimeRoles();
+  } catch (error) {
+    show(error, true);
+  }
+});
+function arr(v: unknown) {
+  return Array.isArray(v) ? v.map(String) : [];
+}
+function exists(t: string, key: string) {
+  if (!runtime.value) return false;
+  return t === 'user' ? false : Object.prototype.hasOwnProperty.call(runtime.value[t as '主要角色' | '次要角色'], key);
+}
+async function choose(id: string) {
+  const r = props.source.registries.角色[id];
+  if (r.type === 'user') {
+    overwriteId.value = id;
+    return;
+  }
+  try {
+    await addRoleToRuntime(r);
+    runtime.value = await getRuntimeRoles();
+    show('角色已加入。');
+  } catch (e) {
+    show(e, true);
+  }
+}
+async function confirmOverwrite() {
+  const r = overwrite.value;
+  overwriteId.value = '';
+  try {
+    await addRoleToRuntime(r, true);
+    runtime.value = await getRuntimeRoles();
+    show('角色已整体覆盖。');
+  } catch (e) {
+    show(e, true);
+  }
+}
+function diff(a: Record<string, unknown>, b: Record<string, unknown>) {
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])]
+    .filter(k => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+    .map(field => ({ field, before: a[field], after: b[field] }));
+}
+function short(v: unknown) {
+  const s = v === undefined ? '未设置' : JSON.stringify(v);
+  return s.length > 60 ? s.slice(0, 60) + '…' : s;
+}
+function selection() {
+  return Object.fromEntries(Object.entries(assetsOf(props.source)).map(([c, v]) => [c, Object.keys(v)])) as Record<
+    WorkshopCategory,
+    string[]
+  >;
+}
+function exportAll() {
+  downloadPackage(createPackage(props.source, selection()));
+}
+async function importFile(e: Event) {
+  try {
+    const input = e.target as HTMLInputElement,
+      file = input.files?.[0];
+    if (!file) return;
+    pending.value = parsePackage(await file.text());
+    preview.value = previewPackage(props.source, pending.value);
+    conflicts.value = listConflicts(props.source, pending.value);
+    decisions.value = Object.fromEntries(conflicts.value.map(c => [`${c.category}:${c.id}`, 'skip']));
+    input.value = '';
+  } catch (x) {
+    show(x, true);
+  }
+}
+async function install() {
+  if (!pending.value) return;
+  try {
+    await saveScenarioSource(mergePackage(props.source, pending.value, decisions.value));
+    pending.value = undefined;
+    show('资产包已按审阅决策安装。');
+    emit('changed');
+  } catch (x) {
+    show(x, true);
+  }
+}
+function show(v: unknown, error = false) {
+  emit('message', { text: v instanceof Error ? v.message : String(v), error });
+}
+</script>
+<style scoped>
+.workspace {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+.workspace article {
+  padding: 24px;
+  background: #1d2123;
+  border: 1px solid #393d3f;
+}
+.workspace label {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0;
+}
+.roles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.roles button {
+  text-align: left;
+}
+.roles strong,
+.roles span {
+  display: block;
+}
+.roles span {
+  color: #b8b09f;
+}
+.eyebrow {
+  color: #cbb477;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+.file input {
+  display: none;
+}
+dl {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 6px;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .workspace,
+  .roles {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

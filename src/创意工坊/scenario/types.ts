@@ -6,7 +6,6 @@ export const resourceCategories = [
   '任务',
   '势力',
   '地图',
-  '地图节点',
   '季节与节日',
   '开场文本',
   '种族',
@@ -17,10 +16,6 @@ export type ResourceCategory = (typeof resourceCategories)[number];
 
 export type JsonObject = Record<string, unknown>;
 export type Registry<T> = Record<string, T>;
-export interface MapTopology {
-  [resourceId: string]: MapTopology;
-}
-
 export interface BaseEntry {
   author: string;
   desc: string;
@@ -44,7 +39,7 @@ export interface TypedCollectionEntry extends CollectionEntry {
 }
 
 export interface MapEntry extends BaseEntry {
-  root: MapTopology;
+  data: JsonObject;
 }
 
 export interface ContentConfig {
@@ -83,7 +78,6 @@ export interface ScenarioSourceBundle {
     任务: Registry<CollectionEntry>;
     势力: Registry<CollectionEntry>;
     地图: Registry<MapEntry>;
-    地图节点: Registry<CollectionEntry>;
     季节与节日: Registry<CollectionEntry>;
     开场文本: Registry<TextEntry>;
     种族: Registry<TypedCollectionEntry>;
@@ -118,7 +112,7 @@ export interface AssemblyResult {
 
 export interface WorkshopPackage {
   format: 'dust-history-workshop-package';
-  version: 1;
+  version: 2;
   exportedAt: string;
   assets: Partial<Record<'开场白' | ResourceCategory, Registry<unknown>>>;
 }
@@ -126,7 +120,7 @@ export interface WorkshopPackage {
 export type PackageConflictDecision = 'overwrite' | 'skip' | 'copy';
 
 export interface ReferenceIssue {
-  ownerCategory: '开场白' | '地图';
+  ownerCategory: '开场白';
   ownerId: string;
   field: string;
   targetCategory: ResourceCategory;
