@@ -45,15 +45,15 @@ export const MapEntrySchema: z.ZodType<MapEntry> = EntryBaseSchema.extend({
 
 const ContentConfigSchema = z
   .object({
-    开场文本: z.string().min(1),
-    世界: z.string().min(1),
+    开场文本: z.string(),
+    世界: z.string(),
     角色: z.array(z.string().min(1)),
-    地图: z.string().min(1),
+    地图: z.string(),
     世界经济: z.array(z.string().min(1)),
     季节与节日: z.array(z.string().min(1)),
     势力: z.array(z.string().min(1)),
     种族: z.array(z.string().min(1)),
-    主线: z.string().min(1),
+    主线: z.string(),
     任务: z.array(z.string().min(1)),
     事件: z.array(z.string().min(1)),
   })

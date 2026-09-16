@@ -115,3 +115,20 @@ export interface AssemblyResult {
   statData: RuntimeStatData;
   openingText: string;
 }
+
+export interface WorkshopPackage {
+  format: 'dust-history-workshop-package';
+  version: 1;
+  exportedAt: string;
+  assets: Partial<Record<'开场白' | ResourceCategory, Registry<unknown>>>;
+}
+
+export type PackageConflictDecision = 'overwrite' | 'skip' | 'copy';
+
+export interface ReferenceIssue {
+  ownerCategory: '开场白' | '地图';
+  ownerId: string;
+  field: string;
+  targetCategory: ResourceCategory;
+  targetId: string;
+}
