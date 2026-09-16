@@ -1,4 +1,13 @@
 <template>
+  <section class="identity-preview">
+    <RoleAvatar class="large-avatar" :src="entry.meta?.avatar" :alt="entry.data?.姓名 || entry.key || '角色头像'" />
+    <div class="visual-fields">
+      <h3>角色外观</h3>
+      <label>头像链接或本地资源路径<input v-model="entry.meta.avatar" placeholder="例如：/user/files/头像.webp" /></label>
+      <label class="color-field">对话颜色<input v-model="entry.meta.color" type="color" /><input v-model="entry.meta.color" pattern="#[0-9a-fA-F]{6}" /></label>
+      <small>头像用于角色卡与角色展示；颜色仅用于主要角色的特殊对话框。</small>
+    </div>
+  </section>
   <section id="role-basic" class="role">
     <h3>基本资料、外貌与背景</h3>
     <label
@@ -148,18 +157,30 @@
   </section>
 </template>
 <script setup lang="ts">
+import { watchEffect } from 'vue';
+import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import EntrySetEditor from './EntrySetEditor.vue';
 import StringField from './StringField.vue';
 const entry = defineModel<any>('entry', { required: true });
 defineEmits<{ requestTypeChange: [type: string] }>();
 const personality = ['社交表现', '行动逻辑', '思维习惯', '人际距离', '道德底色'];
 const qualities = ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'];
+watchEffect(() => {
+  entry.value.meta ??= { avatar: '', color: '#C9B485' };
+});
 </script>
 <style scoped>
 .role {
   display: grid;
   gap: 10px;
 }
+.identity-preview { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; align-items: center; padding: 20px; background: radial-gradient(circle at left, rgba(197, 160, 89, 0.12), transparent 46%), #17191c; border: 1px solid rgba(197, 160, 89, 0.28); }
+.large-avatar { --avatar-size: 92px; }
+.visual-fields { display: grid; gap: 8px; }
+.visual-fields h3 { margin: 0; }
+.visual-fields small { color: #9d9689; }
+.color-field { grid-template-columns: auto minmax(110px, 1fr); align-items: center; }
+.color-field input[type='color'] { width: 54px !important; padding: 3px !important; }
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

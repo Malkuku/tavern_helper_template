@@ -18,7 +18,7 @@ export function createDefaultAsset(category: WorkshopCategory): any {
   if (category === '势力') return collection({ 名称检索词: [], 区域检索词: [], 描述: '' });
   if (category === '季节与节日') return collection({ 名称检索词: [], 区域检索词: [], 描述: [], 类型: '季节', 开始日期: '', 截止日期: '' });
   if (category === '种族') return { ...collection([]), type: '类人种' };
-  return { ...collection(defaultRoleData('user')), type: 'user' };
+  return { ...collection(defaultRoleData('user')), type: 'user', meta: { avatar: '', color: '#C9B485' } };
 }
 
 function collection(data: unknown) { return { author: '', desc: '', key: '', data }; }

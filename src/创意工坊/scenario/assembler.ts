@@ -94,6 +94,10 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
     referenced.add(id);
     const entry = requireEntry(registry, '角色', id);
     const data = z.record(z.string(), z.unknown()).parse(entry.data);
+    const runtimeData = {
+      ...klona(data),
+      meta: klona(entry.meta ?? { avatar: '', color: '#C9B485' }),
+    };
 
     if (entry.type === 'user') {
       if (result.user) {
@@ -102,7 +106,7 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
           resourceId: id,
         });
       }
-      result.user = klona(data);
+      result.user = runtimeData;
       continue;
     }
 
@@ -115,7 +119,7 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
 
     const bucket = result[entry.type] as JsonObject;
     // 角色引用是有序覆盖链；同 type + key 以后引用的完整 data 为准。
-    bucket[entry.key] = klona(data);
+    bucket[entry.key] = runtimeData;
   }
 
   if (!result.user) {

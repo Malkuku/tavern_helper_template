@@ -47,7 +47,7 @@
           :class="{ active: selectedId === 'user' }"
           @click="selectRole('user', 'user')"
         >
-          <span class="icon">♟</span>
+          <RoleAvatar class="list-avatar" :src="userData?.meta?.avatar" alt="我" />
           <span class="name">{{ '我' }}</span>
         </div>
 
@@ -62,6 +62,7 @@
           :class="{ active: selectedId === id }"
           @click="selectRole(id, 'main')"
         >
+          <RoleAvatar class="list-avatar" :src="char.meta?.avatar" :alt="id" />
           <span class="name">{{ id }}</span>
           <span v-if="!char.在场 && !isOmniscient" class="absent-tag">(离)</span>
           <span
@@ -81,6 +82,7 @@
           :class="{ active: selectedId === id }"
           @click="selectRole(id, 'minor')"
         >
+          <RoleAvatar class="list-avatar" :src="char.meta?.avatar" :alt="id" />
           <span class="name">{{ id }}</span>
           <span
             class="star-icon"
@@ -110,6 +112,7 @@
 <script setup>
 import { MvuUtil } from '@/Utils/MvuUtil';
 import CharPanel from '@/尘史使徒/UI/components/role/CharPanel.vue';
+import RoleAvatar from '@/尘史使徒/UI/components/common/RoleAvatar.vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { computed, ref, watch } from 'vue';
 
@@ -353,6 +356,7 @@ watch(() => store.stat_data, (newVal) => {
   border-left: 3px solid transparent;
   position: relative;
 }
+.list-avatar { --avatar-size: 30px; margin-right: 3px; }
 
 .role-item:hover {
   background: var(--c-hover-bg);

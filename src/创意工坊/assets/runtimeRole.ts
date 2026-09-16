@@ -37,8 +37,12 @@ export async function addRoleToRuntime(role: TypedCollectionEntry, overwrite = f
   const exists = role.type === 'user' || Object.prototype.hasOwnProperty.call(bucket, role.key);
   if (exists && !overwrite) return 'conflict';
   const next = klona(previous) as Record<string, any>;
-  if (role.type === 'user') next.stat_data.角色.user = klona(role.data);
-  else next.stat_data.角色[role.type][role.key] = klona(role.data);
+  const runtimeRole = {
+    ...(klona(role.data) as Record<string, unknown>),
+    meta: klona(role.meta ?? { avatar: '', color: '#C9B485' }),
+  };
+  if (role.type === 'user') next.stat_data.角色.user = runtimeRole;
+  else next.stat_data.角色[role.type][role.key] = runtimeRole;
   try {
     await Mvu.replaceMvuData(next as Mvu.MvuData, option);
   } catch (error) {

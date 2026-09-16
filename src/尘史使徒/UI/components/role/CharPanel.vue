@@ -2,10 +2,13 @@
   <div class="char-panel" :class="panelClass">
     <header class="panel-header">
       <div class="header-content">
-        <div>
+        <div class="identity-block">
+          <RoleAvatar class="detail-avatar" :src="data?.meta?.avatar" :alt="displayName" />
+          <div>
           <h2 class="char-name">{{ displayName }}</h2>
           <div class="char-intro" v-if="charType === 'minor' && !isEditing">{{ data.简介 || '暂无简介' }}</div>
           <div class="char-identity" v-else>{{ data.当前身份 }}</div>
+          </div>
         </div>
         <div class="header-actions">
           <button class="edit-btn" @click="isEditing ? saveEdit() : startEdit()">
@@ -188,6 +191,7 @@ import LifeStatusModule from './LifeStatusModule.vue';
 import RelationshipModule from './RelationshipModule.vue';
 import InventoryModule from './InventoryModule.vue';
 import SkillModule from './SkillModule.vue';
+import RoleAvatar from '../common/RoleAvatar.vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
 
 const props = defineProps({
@@ -326,6 +330,8 @@ const deleteChar = async () => {
   justify-content: space-between;
   align-items: flex-start;
 }
+.identity-block { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.detail-avatar { --avatar-size: 74px; }
 
 .char-name {
   font-family: var(--font-title);

@@ -15,6 +15,7 @@
       <h3>独立初始世界状态</h3>
       <div v-if="world" class="grid">
         <label v-for="f in worldFields" :key="f">{{ f }}<input v-model="world.data[f]" /></label
+        ><label>地图索引<div class="location-control"><input v-model="world.data.地图索引" readonly /><button type="button" @click="mapOpen = true">打开地图</button></div></label
         ><label class="check"><input v-model="world.data.危险场景" type="checkbox" />危险场景</label>
       </div>
       <p v-else class="warning">缺少初始世界状态，请重新创建剧本或修复引用。</p>
@@ -77,6 +78,7 @@
       />
     </section>
   </form>
+  <MapLocationPicker :open="mapOpen" :map="mapData" @close="mapOpen = false" @select="world.data.地图索引 = $event" />
 </template>
 <script setup lang="ts">
 /* eslint-disable vue/no-mutating-props */ import { computed, ref } from 'vue';
@@ -84,12 +86,14 @@ import { assetTitle } from '../assets/presentation';
 import type { ScenarioSourceBundle } from '../scenario/types';
 import EntrySetEditor from './EntrySetEditor.vue';
 import NarrativeList from './NarrativeList.vue';
+import MapLocationPicker from './MapLocationPicker.vue';
 const props = defineProps<{ entry: any; source: ScenarioSourceBundle }>();
-const roleCandidate = ref(''),
-  worldFields = ['时间', '地点', '季节', '天气', '地图索引'];
+const roleCandidate = ref(''), mapOpen = ref(false),
+  worldFields = ['时间', '地点', '季节', '天气'];
 const world = computed<any>(() => props.source.registries.世界[props.entry.内容配置.世界]),
   opening = computed<any>(() => props.source.registries.开场文本[props.entry.内容配置.开场文本]),
   mainline = computed<any>(() => props.source.registries.主线[props.entry.内容配置.主线]);
+const mapData = computed<Record<string, any>>(() => Object.values(props.source.registries.地图)[0]?.data ?? {});
 const availableRoles = computed(() =>
   Object.fromEntries(
     Object.entries(props.source.registries.角色).filter(([id]) => !props.entry.内容配置.角色.includes(id)),
@@ -153,6 +157,7 @@ function usage(category: '开场文本' | '主线', id: string) {
 .check input {
   width: auto !important;
 }
+.location-control { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
 .reference {
   display: grid;
   grid-template-columns: 1fr auto auto auto;

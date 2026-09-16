@@ -28,9 +28,8 @@
           :class="{ active: selectedId === r.id }"
           @click="selectedId = r.id"
         >
-          <strong>{{ r.title }}</strong
-          ><span>{{ r.entry.type }} · {{ r.variantCount }}个变体</span
-          ><small>{{ r.tags.join(' · ') || '无派生标签' }}</small>
+          <RoleAvatar class="catalog-avatar" :src="r.entry.meta?.avatar" :alt="r.title" />
+          <span class="asset-copy"><strong>{{ r.title }}</strong><span>{{ r.entry.type }} · {{ r.variantCount }}个变体</span><small>{{ references(r.id).join(' · ') || '尚未加入剧本' }}</small></span>
         </button></template
       ><template v-else
         ><button
@@ -145,6 +144,7 @@ import { assetTitle, createDefaultAsset, defaultRoleData, diffSources } from '..
 import type { ReferenceIssue, ScenarioSourceBundle } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
+import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import ScenarioEditor from './ScenarioEditor.vue';
 const props = defineProps<{ source: ScenarioSourceBundle; draft: ScenarioSourceBundle }>();
 defineEmits<{ save: []; requestReload: [] }>();
@@ -297,11 +297,18 @@ function format(v: unknown) {
 <style scoped>
 .studio {
   display: grid;
-  grid-template-columns: 150px 280px minmax(440px, 1fr) 240px;
+  grid-template-areas: 'domains catalog editing' 'domains catalog status';
+  grid-template-columns: 112px 300px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 1px;
   margin-top: 16px;
+  height: calc(100vh - 142px);
   background: #393d3f;
 }
+.domains { grid-area: domains; }
+.catalog { grid-area: catalog; overflow: auto; }
+.editing { grid-area: editing; }
+.status { grid-area: status; display: grid; grid-template-columns: auto minmax(220px, 1fr) minmax(260px, 1fr); gap: 16px; align-items: start; border-top: 1px solid #393d3f; }
 .domains,
 .catalog,
 .editing,
@@ -330,22 +337,29 @@ function format(v: unknown) {
   outline: 2px solid #cbb477;
 }
 .asset {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
   text-align: left;
 }
-.asset strong,
-.asset span,
+.asset-copy,
+.asset-copy strong,
+.asset-copy span,
 .asset small,
 .issue span,
 .context button > * {
   display: block;
 }
+.catalog-avatar { --avatar-size: 38px; }
+.asset-copy { min-width: 0; }
 .asset span,
 .asset small,
 .muted {
   color: #b8b09f;
 }
 .editing {
-  max-height: calc(100vh - 145px);
+  max-height: none;
   overflow: auto;
 }
 .editing > header {
@@ -395,15 +409,16 @@ function format(v: unknown) {
 }
 @media (max-width: 1100px) {
   .studio {
-    grid-template-columns: 130px 250px 1fr;
+    grid-template-areas: 'domains catalog editing' 'domains catalog status';
+    grid-template-columns: 96px 250px minmax(0, 1fr);
   }
-  .status {
-    display: none;
-  }
+  .status { grid-template-columns: 1fr 1fr; }
+  .status > h2 { grid-column: 1 / -1; }
 }
 @media (max-width: 720px) {
   .studio {
     display: block;
+    height: auto;
   }
   .domains {
     flex-direction: row;
@@ -411,5 +426,6 @@ function format(v: unknown) {
   .editing {
     max-height: none;
   }
+  .status { display: grid; grid-template-columns: 1fr; }
 }
 </style>

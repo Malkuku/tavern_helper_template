@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, computed } from 'vue';
-import { getCharacterInfo } from './characterConfig';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 
 const props = defineProps<{
   displayHtml: string;
@@ -20,6 +20,19 @@ const props = defineProps<{
 }>();
 
 const scrollContainer = ref<HTMLElement | null>(null);
+const statStore = useStatStore();
+
+const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] ?? char);
+const resolveCharacter = (rawName: string) => {
+  const roles = statStore.stat_data?.角色?.主要角色 ?? {};
+  for (const [key, data] of Object.entries(roles) as [string, any][]) {
+    const names = [key, data?.姓名, ...(Array.isArray(data?.名称检索词) ? data.名称检索词 : [])].filter(Boolean).map(String);
+    if (!names.some(name => rawName.includes(name))) continue;
+    const color = /^#[0-9a-fA-F]{6}$/.test(data?.meta?.color) ? data.meta.color : '#C9B485';
+    return { fixedName: String(data?.姓名 || key), avatarUrl: String(data?.meta?.avatar || ''), color };
+  }
+  return { fixedName: rawName, avatarUrl: '', color: '#C9B485' };
+};
 
 // 将名字拆解为错落有致的HTML结构
 const formatStaggeredName = (name: string) => {
@@ -40,7 +53,7 @@ const formatStaggeredName = (name: string) => {
     const offsetClass = charIndex % 2 === 0 ? 'name-char-even' : 'name-char-odd';
     const charClass = isFirst ? 'name-first-char' : offsetClass;
 
-    result += `<span class="name-char ${charClass}">${char}</span>`;
+    result += `<span class="name-char ${charClass}">${escapeHtml(char)}</span>`;
     charIndex++;
   }
   return result;
@@ -64,7 +77,7 @@ const processedHtml = computed(() => {
 
   const regex = /【([^】]+)】\s*(?:<q>(.*?)<\/q>|([「『].*?[」』])|<em>\s*\*?(.*?)\*?\s*<\/em>|\*(.*?)\*)/gs;
 
-  let html = props.displayHtml.replace(regex, (match, rawName, qText, quoteText, emText, starText) => {
+  const html = props.displayHtml.replace(regex, (match, rawName, qText, quoteText, emText, starText) => {
     let content = '';
     let isDialogue = false;
 
@@ -74,10 +87,12 @@ const processedHtml = computed(() => {
     else if (starText !== undefined) { content = starText; }
 
     content = content.trim().replace(/^([「『"])|([」』"])$/g, '').trim();
-    const charInfo = getCharacterInfo(rawName);
+    const charInfo = resolveCharacter(rawName);
+    const safeAvatar = escapeHtml(charInfo.avatarUrl);
+    const safeName = escapeHtml(charInfo.fixedName);
 
     const avatarHtml = charInfo.avatarUrl
-      ? `<img src="${charInfo.avatarUrl}" class="avatar-img" alt="${charInfo.fixedName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+      ? `<img src="${safeAvatar}" class="avatar-img" alt="${safeName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
          <span class="avatar-fallback-wrapper" style="display:none;">${defaultSvg}</span>`
       : `<span class="avatar-fallback-wrapper">${defaultSvg}</span>`;
 
@@ -87,7 +102,7 @@ const processedHtml = computed(() => {
       <span class="role-block">
         <span class="role-avatar">${avatarHtml}</span>
         <span class="role-main">
-          <span class="role-name-wrapper ${charInfo.cssClass}" style="color: ${charInfo.color}">${formatStaggeredName(charInfo.fixedName)}</span>
+          <span class="role-name-wrapper char-default" style="color: ${charInfo.color}">${formatStaggeredName(charInfo.fixedName)}</span>
           <span class="${textClass}">${content}</span>
         </span>
       </span>
@@ -304,4 +319,3 @@ defineExpose({ scrollContainer, scrollToBottom });
 .typing-cursor { display: inline-block; color: var(--c-gold); font-weight: bold; animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 </style>
-

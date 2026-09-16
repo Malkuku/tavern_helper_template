@@ -31,6 +31,13 @@ export const CollectionEntrySchema: z.ZodType<CollectionEntry> = EntryBaseSchema
 export const TypedCollectionEntrySchema: z.ZodType<TypedCollectionEntry> = EntryBaseSchema.extend({
   key: z.string().min(1),
   type: z.string().min(1),
+  meta: z
+    .object({
+      avatar: z.string(),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/, '角色颜色必须是六位十六进制颜色。'),
+    })
+    .strict()
+    .optional(),
   data: z.unknown(),
 }).strict();
 

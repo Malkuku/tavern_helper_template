@@ -34,8 +34,14 @@ export interface CollectionEntry extends BaseEntry {
   data: unknown;
 }
 
+export interface RoleMeta {
+  avatar: string;
+  color: string;
+}
+
 export interface TypedCollectionEntry extends CollectionEntry {
   type: string;
+  meta?: RoleMeta;
 }
 
 export interface MapEntry extends BaseEntry {
