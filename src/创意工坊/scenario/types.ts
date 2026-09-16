@@ -37,6 +37,7 @@ export interface CollectionEntry extends BaseEntry {
 export interface RoleMeta {
   avatar: string;
   color: string;
+  avatarStyle?: string;
 }
 
 export interface TypedCollectionEntry extends CollectionEntry {

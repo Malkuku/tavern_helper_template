@@ -1,12 +1,7 @@
 <template>
   <div class="role-view-container">
-
     <!-- 移动端：遮罩层 -->
-    <div
-      class="mobile-overlay"
-      v-if="isMobileMenuOpen"
-      @click="isMobileMenuOpen = false"
-    ></div>
+    <div class="mobile-overlay" v-if="isMobileMenuOpen" @click="isMobileMenuOpen = false"></div>
 
     <!-- 移动端：菜单切换按钮 -->
     <button class="mobile-menu-toggle" @click="isMobileMenuOpen = !isMobileMenuOpen">
@@ -22,12 +17,7 @@
 
       <!-- 新增：搜索与工具栏 -->
       <div class="sidebar-tools">
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          placeholder="搜索..."
-        />
+        <input v-model="searchQuery" type="text" class="search-input" placeholder="搜索..." />
         <button
           class="tool-btn"
           :class="{ active: isOmniscient }"
@@ -39,7 +29,6 @@
       </div>
 
       <div class="role-list scroll-wrapper">
-
         <!-- 玩家 (始终显示，除非搜索过滤) -->
         <div
           v-if="matchesSearch('我')"
@@ -47,7 +36,13 @@
           :class="{ active: selectedId === 'user' }"
           @click="selectRole('user', 'user')"
         >
-          <RoleAvatar class="list-avatar" :src="userData?.meta?.avatar" alt="我" />
+          <RoleAvatar
+            class="list-avatar"
+            :src="userData?.meta?.avatar"
+            alt="我"
+            seed="user"
+            :fallback-style="userData?.meta?.avatarStyle"
+          />
           <span class="name">{{ '我' }}</span>
         </div>
 
@@ -62,7 +57,13 @@
           :class="{ active: selectedId === id }"
           @click="selectRole(id, 'main')"
         >
-          <RoleAvatar class="list-avatar" :src="char.meta?.avatar" :alt="id" />
+          <RoleAvatar
+            class="list-avatar"
+            :src="char.meta?.avatar"
+            :alt="id"
+            :seed="id"
+            :fallback-style="char.meta?.avatarStyle"
+          />
           <span class="name">{{ id }}</span>
           <span v-if="!char.在场 && !isOmniscient" class="absent-tag">(离)</span>
           <span
@@ -70,7 +71,8 @@
             :class="{ active: isFollowed(id, '主要角色') }"
             @click.stop="toggleFollow(id, '主要角色')"
             title="关注/取消关注"
-          >★</span>
+            >★</span
+          >
         </div>
 
         <!-- 次要角色 -->
@@ -82,16 +84,22 @@
           :class="{ active: selectedId === id }"
           @click="selectRole(id, 'minor')"
         >
-          <RoleAvatar class="list-avatar" :src="char.meta?.avatar" :alt="id" />
+          <RoleAvatar
+            class="list-avatar"
+            :src="char.meta?.avatar"
+            :alt="id"
+            :seed="id"
+            :fallback-style="char.meta?.avatarStyle"
+          />
           <span class="name">{{ id }}</span>
           <span
             class="star-icon"
             :class="{ active: isFollowed(id, '次要角色') }"
             title="关注/取消关注"
             @click.stop="toggleFollow(id, '次要角色')"
-          >★</span>
+            >★</span
+          >
         </div>
-
       </div>
     </aside>
 
@@ -105,7 +113,6 @@
         :char-type="selectedType"
       />
     </main>
-
   </div>
 </template>
 
@@ -135,8 +142,8 @@ const ensureSystemData = () => {
   if (!store.stat_data.system) store.stat_data.system = {};
   if (!store.stat_data.system['关注角色列表']) {
     store.stat_data.system['关注角色列表'] = {
-      '主要角色': [],
-      '次要角色': []
+      主要角色: [],
+      次要角色: [],
     };
   }
 };
@@ -162,7 +169,7 @@ const toggleFollow = (id, categoryKey) => {
     list.push(id);
   }
   const updatePayload = {
-    system: { '关注角色列表': store.stat_data.system['关注角色列表'] }
+    system: { 关注角色列表: store.stat_data.system['关注角色列表'] },
   };
   // 使用 MvuUtil 的差分更新方法更新关注列表
   MvuUtil.updateMvuDataByDiff(updatePayload).catch(err => console.error(err));
@@ -171,7 +178,7 @@ const toggleFollow = (id, categoryKey) => {
 // --- 核心过滤逻辑 (修改) ---
 
 // 简单的搜索匹配检查
-const matchesSearch = (name) => {
+const matchesSearch = name => {
   if (!searchQuery.value) return true;
   return name.toLowerCase().includes(searchQuery.value.toLowerCase());
 };
@@ -218,13 +225,16 @@ const currentData = computed(() => {
   return {};
 });
 
-watch(() => store.stat_data, (newVal) => {
-  if (newVal) {
-    ensureSystemData();
-    if (!selectedId.value) selectedId.value = 'user';
-  }
-}, { immediate: true });
-
+watch(
+  () => store.stat_data,
+  newVal => {
+    if (newVal) {
+      ensureSystemData();
+      if (!selectedId.value) selectedId.value = 'user';
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -234,7 +244,7 @@ watch(() => store.stat_data, (newVal) => {
   display: flex;
   height: 100%;
   width: 100%;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
 }
@@ -261,15 +271,15 @@ watch(() => store.stat_data, (newVal) => {
   justify-content: center;
   align-items: center;
   position: relative;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.8);
 }
 /* --- 新增：工具栏样式 --- */
 .sidebar-tools {
   display: flex;
   padding: 10px;
   gap: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   box-sizing: border-box; /* 新增：防止 padding 撑开宽度 */
   width: 100%; /* 新增：确保宽度不超过父容器 */
 }
@@ -277,7 +287,7 @@ watch(() => store.stat_data, (newVal) => {
 .search-input {
   flex: 1;
   min-width: 0; /* 新增：允许输入框在 flex 容器中缩小，防止溢出 */
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   border: 1px solid var(--c-border);
   color: #ddd;
   padding: 4px 8px;
@@ -310,7 +320,7 @@ watch(() => store.stat_data, (newVal) => {
 }
 
 .tool-btn:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
 
@@ -356,7 +366,10 @@ watch(() => store.stat_data, (newVal) => {
   border-left: 3px solid transparent;
   position: relative;
 }
-.list-avatar { --avatar-size: 30px; margin-right: 3px; }
+.list-avatar {
+  --avatar-size: 30px;
+  margin-right: 3px;
+}
 
 .role-item:hover {
   background: var(--c-hover-bg);
@@ -388,10 +401,10 @@ watch(() => store.stat_data, (newVal) => {
 }
 .star-icon:hover {
   color: #888;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 .star-icon.active {
-  color: #FFD700;
+  color: #ffd700;
   text-shadow: 0 0 5px rgba(255, 215, 0, 0.4);
 }
 
@@ -414,12 +427,24 @@ watch(() => store.stat_data, (newVal) => {
   position: relative;
 }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
-.mobile-menu-toggle { display: none; }
-.mobile-close-btn { display: none; }
-.mobile-overlay { display: none; }
+.mobile-menu-toggle {
+  display: none;
+}
+.mobile-close-btn {
+  display: none;
+}
+.mobile-overlay {
+  display: none;
+}
 
 @media (max-width: 768px) {
   .role-view-container {
@@ -442,7 +467,7 @@ watch(() => store.stat_data, (newVal) => {
     padding-bottom: calc(40px + env(safe-area-inset-bottom));
     background: #1a1a1a !important;
     backdrop-filter: none !important;
-    box-shadow: 2px 0 15px rgba(0,0,0,0.9);
+    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.9);
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 2000;
@@ -455,7 +480,7 @@ watch(() => store.stat_data, (newVal) => {
     border-bottom: 1px solid #333;
   }
 
-  .role-list.scroll-wrapper{
+  .role-list.scroll-wrapper {
     min-height: 100vh;
     min-height: 100dvh;
     background: #1a1a1a !important;
@@ -474,7 +499,7 @@ watch(() => store.stat_data, (newVal) => {
     top: 12px;
     left: 12px;
     z-index: 900;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.6);
     border: 1px solid var(--c-border);
     color: var(--c-gold);
     width: 36px;
@@ -499,8 +524,11 @@ watch(() => store.stat_data, (newVal) => {
   .mobile-overlay {
     display: block;
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.6);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
     z-index: 1999;
     backdrop-filter: blur(2px);
   }

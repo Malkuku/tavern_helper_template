@@ -15,18 +15,31 @@
       <slot v-if="!collapsed.has(String(key))" name="entry" :entry="value" :entry-key="String(key)" />
     </article>
     <div class="new">
-      <label>{{ label }}名称<input v-model.trim="newKey" @keydown.enter.prevent="add" /></label
+      <label
+        >{{ label }}名称<input
+          v-model.trim="newKey"
+          :list="keyOptions?.length ? listId : undefined"
+          @keydown.enter.prevent="add" /></label
       ><button type="button" :disabled="!newKey || newKey in modelValue" @click="add">+ 添加{{ label }}</button>
+      <datalist v-if="keyOptions?.length" :id="listId">
+        <option v-for="option in keyOptions" :key="option" :value="option" />
+      </datalist>
     </div>
   </div>
 </template>
 <script setup lang="ts">
 import { klona } from 'klona';
 import { reactive, ref } from 'vue';
-const props = defineProps<{ modelValue: Record<string, any>; label: string; create: () => unknown }>();
+const props = defineProps<{
+  modelValue: Record<string, any>;
+  label: string;
+  create: () => unknown;
+  keyOptions?: string[];
+}>();
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, any>] }>();
 const newKey = ref(''),
-  collapsed = reactive(new Set<string>());
+  collapsed = reactive(new Set<string>(Object.keys(props.modelValue))),
+  listId = `entry-options-${Math.random().toString(36).slice(2)}`;
 function add() {
   if (!newKey.value || newKey.value in props.modelValue) return;
   emit('update:modelValue', { ...props.modelValue, [newKey.value]: props.create() });

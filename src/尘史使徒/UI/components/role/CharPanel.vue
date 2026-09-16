@@ -3,11 +3,17 @@
     <header class="panel-header">
       <div class="header-content">
         <div class="identity-block">
-          <RoleAvatar class="detail-avatar" :src="data?.meta?.avatar" :alt="displayName" />
+          <RoleAvatar
+            class="detail-avatar"
+            :src="data?.meta?.avatar"
+            :alt="displayName"
+            :seed="displayName"
+            :fallback-style="data?.meta?.avatarStyle"
+          />
           <div>
-          <h2 class="char-name">{{ displayName }}</h2>
-          <div class="char-intro" v-if="charType === 'minor' && !isEditing">{{ data.简介 || '暂无简介' }}</div>
-          <div class="char-identity" v-else>{{ data.当前身份 }}</div>
+            <h2 class="char-name">{{ displayName }}</h2>
+            <div class="char-intro" v-if="charType === 'minor' && !isEditing">{{ data.简介 || '暂无简介' }}</div>
+            <div class="char-identity" v-else>{{ data.当前身份 }}</div>
           </div>
         </div>
         <div class="header-actions">
@@ -78,13 +84,23 @@
           >
             <h3>背景</h3>
             <p v-if="!isEditing" class="text-content">{{ data.背景?.join('\n') }}</p>
-            <textarea v-else v-model="editForm._背景Str" class="edit-textarea" placeholder="每行一条背景故事"></textarea>
+            <textarea
+              v-else
+              v-model="editForm._背景Str"
+              class="edit-textarea"
+              placeholder="每行一条背景故事"
+            ></textarea>
           </section>
 
           <section class="info-block">
             <h3>外貌</h3>
             <p v-if="!isEditing">{{ data.外貌?.join('\n') }}</p>
-            <textarea v-else v-model="editForm._外貌Str" class="edit-textarea" placeholder="每行一条外貌特征"></textarea>
+            <textarea
+              v-else
+              v-model="editForm._外貌Str"
+              class="edit-textarea"
+              placeholder="每行一条外貌特征"
+            ></textarea>
           </section>
 
           <!-- 修改点：将性格倾向纳入详情模式 -->
@@ -100,7 +116,6 @@
               @update:data="editForm.性格 = $event"
             />
           </section>
-
 
           <section v-if="charType === 'main'" class="info-block">
             <h3>活动范围</h3>
@@ -201,8 +216,8 @@ const props = defineProps({
   charType: {
     type: String,
     default: 'main',
-    validator: (v) => ['user', 'main', 'minor'].includes(v)
-  }
+    validator: v => ['user', 'main', 'minor'].includes(v),
+  },
 });
 
 const panelClass = computed(() => `${props.charType}-panel`);
@@ -229,12 +244,15 @@ const tabs = computed(() => {
 
 const currentTab = ref(tabs.value.includes('状态') ? '状态' : tabs.value[0]);
 
-watch(() => props.data?.姓名, () => {
-  if (!tabs.value.includes(currentTab.value)) currentTab.value = tabs.value[0];
-});
+watch(
+  () => props.data?.姓名,
+  () => {
+    if (!tabs.value.includes(currentTab.value)) currentTab.value = tabs.value[0];
+  },
+);
 
 const showDetails = ref(false);
-const toggleDetails = () => showDetails.value = !showDetails.value;
+const toggleDetails = () => (showDetails.value = !showDetails.value);
 
 const isEditing = ref(false);
 const editForm = ref({});
@@ -252,14 +270,20 @@ const startEdit = () => {
 };
 
 const saveEdit = async () => {
-  const newAppearance = editForm.value._外貌Str.split('\n').map(s => s.trim()).filter(s => s);
-  const newBackground = editForm.value._背景Str.split('\n').map(s => s.trim()).filter(s => s);
+  const newAppearance = editForm.value._外貌Str
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s);
+  const newBackground = editForm.value._背景Str
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s);
 
   const diff = {
     外貌: newAppearance,
     背景: newBackground,
     性格: editForm.value.性格,
-    人际关系: editForm.value.人际关系
+    人际关系: editForm.value.人际关系,
   };
 
   if (props.charType === 'minor') {
@@ -273,9 +297,9 @@ const saveEdit = async () => {
   await MvuUtil.updateMvuDataByDiff({
     角色: {
       [cat]: {
-        [cid]: diff
-      }
-    }
+        [cid]: diff,
+      },
+    },
   });
   isEditing.value = false;
 };
@@ -290,10 +314,10 @@ const deleteChar = async () => {
   if (!confirm(`确定要删除角色【${nameDisplay}】吗？\n此操作将删除该角色的所有数据且不可恢复。`)) return;
   try {
     await MvuUtil.updateMvuDataByDiff({
-      角色: { [props.category]: { [props.charId]: null } }
+      角色: { [props.category]: { [props.charId]: null } },
     });
   } catch (error) {
-    console.error("删除角色时发生错误:", error);
+    console.error('删除角色时发生错误:', error);
   }
 };
 </script>
@@ -330,8 +354,15 @@ const deleteChar = async () => {
   justify-content: space-between;
   align-items: flex-start;
 }
-.identity-block { display: flex; align-items: center; gap: 18px; min-width: 0; }
-.detail-avatar { --avatar-size: 74px; }
+.identity-block {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.detail-avatar {
+  --avatar-size: 74px;
+}
 
 .char-name {
   font-family: var(--font-title);

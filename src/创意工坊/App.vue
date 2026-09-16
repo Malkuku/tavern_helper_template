@@ -1,6 +1,12 @@
 <template>
   <div class="workshop-root" :class="{ expanded: !collapsed }">
-    <button v-if="collapsed" class="launcher" @click="collapsed = false">打开尘史创意工坊</button>
+    <button v-if="collapsed" ref="launcher" class="launcher" title="打开尘史创意工坊（可拖拽）" @click="openWorkshop">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M15 48c9-3 14-10 17-21 3 11 8 18 17 21M20 19c7-5 17-5 24 0l-5 25H25l-5-25Z" />
+        <path d="M25 26h14M27 33h10M29 40h6" />
+      </svg>
+      <span class="sr-only">打开尘史创意工坊</span>
+    </button>
     <main v-else class="shell">
       <header>
         <div>
@@ -49,7 +55,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { cloneSource, validateDraft } from './assets/model';
 import { diffSources } from './assets/presentation';
 import { saveScenarioSource, serializeScenarioSource } from './assets/repository';
@@ -62,7 +68,9 @@ const workspace = ref<'user' | 'developer'>('user'),
   source = ref<ScenarioSourceBundle>(),
   draft = ref<ScenarioSourceBundle>(),
   busy = ref(false),
-  collapsed = ref(false),
+  collapsed = ref(true),
+  launcher = ref<HTMLElement>(),
+  launcherDragging = ref(false),
   message = ref(''),
   error = ref(false),
   loadError = ref(''),
@@ -71,6 +79,20 @@ const dirtyCount = computed(() => (source.value && draft.value ? diffSources(sou
 function showMessage(v: { text: string; error?: boolean }) {
   message.value = v.text;
   error.value = !!v.error;
+}
+function initLauncherDrag() {
+  if (!launcher.value) return;
+  const button = $(launcher.value);
+  if (button.data('ui-draggable')) button.draggable('destroy');
+  button.draggable({
+    containment: 'window',
+    scroll: false,
+    start: () => (launcherDragging.value = true),
+    stop: () => window.setTimeout(() => (launcherDragging.value = false), 100),
+  });
+}
+function openWorkshop() {
+  if (!launcherDragging.value) collapsed.value = false;
 }
 async function load() {
   busy.value = true;
@@ -135,8 +157,12 @@ function pageHide(e: PageTransitionEvent) {
 }
 onMounted(() => {
   void load();
+  void nextTick(initLauncherDrag);
   window.addEventListener('beforeunload', beforeUnload);
   window.addEventListener('pagehide', pageHide);
+});
+watch(collapsed, value => {
+  if (value) void nextTick(initLauncherDrag);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnload);
@@ -205,11 +231,43 @@ onBeforeUnmount(() => {
   outline-offset: 2px;
 }
 .workshop-root :deep(button.primary),
-header button.active,
-.launcher {
+header button.active {
   color: #17130c !important;
   background: var(--gold) !important;
   border-color: var(--gold) !important;
+}
+.launcher {
+  color: var(--gold) !important;
+  background: radial-gradient(circle at 35% 28%, #343027, #090a0c 72%) !important;
+  border-color: #8a7953 !important;
+}
+.launcher {
+  width: 58px;
+  height: 58px;
+  min-height: 58px !important;
+  padding: 10px !important;
+  border-radius: 50% !important;
+  box-shadow:
+    0 0 0 3px #0d0f12,
+    0 0 20px rgba(201, 180, 133, 0.3);
+  touch-action: none;
+}
+.launcher svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .workshop-root :deep(button:disabled) {
   opacity: 0.45;

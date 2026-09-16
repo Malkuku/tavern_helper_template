@@ -35,6 +35,7 @@ export const TypedCollectionEntrySchema: z.ZodType<TypedCollectionEntry> = Entry
     .object({
       avatar: z.string(),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/, '角色颜色必须是六位十六进制颜色。'),
+      avatarStyle: z.enum(['auto', '0', '1', '2', '3', '4', '5']).optional(),
     })
     .strict()
     .optional(),

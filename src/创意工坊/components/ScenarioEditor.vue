@@ -15,14 +15,20 @@
       <h3>独立初始世界状态</h3>
       <div v-if="world" class="grid">
         <label v-for="f in worldFields" :key="f">{{ f }}<input v-model="world.data[f]" /></label
-        ><label>地图索引<div class="location-control"><input v-model="world.data.地图索引" readonly /><button type="button" @click="mapOpen = true">打开地图</button></div></label
+        ><label
+          >地图索引
+          <div class="location-control">
+            <input v-model="world.data.地图索引" readonly /><button type="button" @click="mapOpen = true">
+              打开地图
+            </button>
+          </div></label
         ><label class="check"><input v-model="world.data.危险场景" type="checkbox" />危险场景</label>
       </div>
       <p v-else class="warning">缺少初始世界状态，请重新创建剧本或修复引用。</p>
     </section>
     <section>
       <h3>角色组装</h3>
-      <p>顺序即覆盖顺序；相同 type + key 的后者整体生效。剧本必须恰有一个 user。</p>
+      <p>顺序决定同一角色多个版本的优先级：列表中靠后的版本生效。剧本必须恰有一个 user。</p>
       <article v-for="(id, index) in entry.内容配置.角色" :key="id + index" class="reference">
         <div>
           <b>{{ roleName(id) }}</b
@@ -88,7 +94,8 @@ import EntrySetEditor from './EntrySetEditor.vue';
 import NarrativeList from './NarrativeList.vue';
 import MapLocationPicker from './MapLocationPicker.vue';
 const props = defineProps<{ entry: any; source: ScenarioSourceBundle }>();
-const roleCandidate = ref(''), mapOpen = ref(false),
+const roleCandidate = ref(''),
+  mapOpen = ref(false),
   worldFields = ['时间', '地点', '季节', '天气'];
 const world = computed<any>(() => props.source.registries.世界[props.entry.内容配置.世界]),
   opening = computed<any>(() => props.source.registries.开场文本[props.entry.内容配置.开场文本]),
@@ -110,7 +117,7 @@ function roleContext(id: string, index: number) {
     const v = props.source.registries.角色[x];
     return v?.type === r.type && v?.key === r.key;
   });
-  return later ? '将被后续同名变体整体覆盖' : '最终生效';
+  return later ? '后面还有同一角色的版本，本项不会生效' : '本角色最终使用此版本';
 }
 function move(a: string[], i: number, d: number) {
   [a[i], a[i + d]] = [a[i + d], a[i]];
@@ -157,7 +164,11 @@ function usage(category: '开场文本' | '主线', id: string) {
 .check input {
   width: auto !important;
 }
-.location-control { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
+.location-control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+}
 .reference {
   display: grid;
   grid-template-columns: 1fr auto auto auto;
