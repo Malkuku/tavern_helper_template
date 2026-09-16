@@ -24,7 +24,7 @@ assert.deepEqual(findReferenceIssues(source), []);
 const unavailable = structuredClone(source); unavailable.scenarios.s.内容配置 = { 开场文本: '', 世界: '', 角色: [], 地图: '', 世界经济: [], '季节与节日': [], 势力: [], 种族: [], 主线: '', 任务: [], 事件: [] }; normalizeScenarioAvailability(unavailable); assert.equal(unavailable.scenarios.s.可用, false);
 const blocked = structuredClone(source); assert.equal(deleteAsset(blocked, '角色', 'role', false).length, 1); assert.ok(blocked.registries.角色.role);
 deleteAsset(blocked, '角色', 'role', true); assert.deepEqual(blocked.scenarios.s.内容配置.角色, []);
-source.registries.角色.role.meta = { avatar: '/user/files/role.webp', color: '#AABBCC' };
+source.registries.角色.role.meta = { avatar: '/user/files/role.webp', color: '#AABBCC', avatarStyle: '4' };
 const pkg = createPackage(source, { 开场白: ['s'], 角色: ['role'] }); const parsedPackage = parsePackage(JSON.stringify(pkg)); assert.equal(parsedPackage.version, 2); assert.deepEqual(parsedPackage.assets.角色.role.meta, source.registries.角色.role.meta);
 const legacyPackage = { format: 'dust-history-workshop-package', version: 1, exportedAt: new Date().toISOString(), assets: { 地图: { legacy: { author: 'a', desc: '旧地图', root: { node: {} } } }, 地图节点: { node: entry } } };
 assert.throws(() => parsePackage(JSON.stringify(legacyPackage)));
