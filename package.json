@@ -7,7 +7,8 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "dump": "node dump_schema.ts",
-    "validate:scenario": "ts-node --project scripts/tsconfig.json --transpile-only scripts/validate-scenario-data.cts"
+    "validate:scenario": "ts-node --project scripts/tsconfig.json --transpile-only scripts/validate-scenario-data.cts",
+    "validate:workshop": "ts-node --project scripts/tsconfig.json --transpile-only scripts/validate-workshop.cts"
   },
   "browserslist": [
     "defaults and partially supports es6-module"
