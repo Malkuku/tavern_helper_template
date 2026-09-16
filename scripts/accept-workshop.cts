@@ -101,7 +101,7 @@ const dialog = readFileSync(join(process.cwd(), 'src/创意工坊/components/App
 const sourceText = `${app}\n${developer}\n${user}\n${dialog}`;
 assert.doesNotMatch(sourceText, /\b(?:confirm|prompt)\s*\(/);
 assert.doesNotMatch(sourceText, /StructuredValueEditor/);
-for (const token of ['beforeunload', 'pagehide', '重新读取', '放弃草稿', '收起工作坊', "switchWorkspace('user')", '资产包安装预览', '导出预览', '没有匹配结果', '还没有', '正在读取', '无法打开工作区']) assert.ok(sourceText.includes(token), `缺少 UI 门禁：${token}`);
+for (const token of ['beforeunload', 'pagehide', '重新读取', '放弃草稿', '收起工作坊', "switchWorkspace('user')", '资产包安装预览', '导出预览', '没有符合条件的角色', '尚未加入剧本', '正在读取', '无法打开工作区']) assert.ok(sourceText.includes(token), `缺少 UI 门禁：${token}`);
 assert.ok(dialog.includes('@keydown.tab="keepFocus"'));
 assert.ok(sourceText.includes('@media(max-width:700px)') || sourceText.includes('@media (max-width: 700px)'));
 assert.equal(findReferenceIssues(beta).length, 0, '真实 Beta 自身存在缺失引用，需明确判定而非忽略');
