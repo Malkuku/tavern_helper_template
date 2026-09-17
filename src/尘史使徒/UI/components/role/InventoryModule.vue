@@ -1,6 +1,5 @@
 <template>
   <div class="inventory-module" :class="{ editing: mode === 'edit' }">
-    <!-- 工具栏 -->
     <div class="toolbar">
       <button v-if="mode === 'edit'" type="button" @click="addItem">＋ 新增物品</button>
       <div class="search-box">
@@ -33,7 +32,7 @@
 
     <!-- 主体区域 -->
     <div class="inventory-container">
-      <!-- 左侧：物品列表 -->
+      <!-- 物品目录 -->
       <div class="inventory-grid-wrapper">
         <div class="inventory-grid">
           <ItemCard
@@ -54,7 +53,7 @@
         </div>
       </div>
 
-      <!-- 右侧：详情面板 -->
+      <!-- 当前物品编辑区 -->
       <Transition name="panel-slide">
         <ItemDetailPanel
           v-if="selectedItem"
@@ -184,11 +183,11 @@ const updateItemField = (field, value) => {
   const name = selectedItem.value.name;
   const nextItem = { ...props.data[name], [field]: value };
   if (field === '类型') {
-    const allowed =
-      value === '秘传'
-        ? ['遗片', '佚存', '残卷', '蛀损', '完帙']
-        : ['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知'];
-    if (!allowed.includes(nextItem.品质)) nextItem.品质 = value === '秘传' ? '遗片' : '凡庸';
+    const isDocument = ['秘传', '仪式'].includes(value);
+    const allowed = isDocument
+      ? ['遗片', '佚存', '残卷', '蛀损', '完帙', '未知']
+      : ['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知'];
+    if (!allowed.includes(nextItem.品质)) nextItem.品质 = isDocument ? '遗片' : '凡庸';
   }
   emit('update:data', { ...props.data, [name]: nextItem });
   selectedItem.value = { name, ...nextItem };
@@ -231,6 +230,7 @@ const copyItem = () => {
   --c-border: rgba(255, 255, 255, 0.08);
 
   position: relative;
+  isolation: isolate;
   background: var(--c-bg);
   color: var(--c-text);
   padding: 20px;
@@ -363,6 +363,7 @@ const copyItem = () => {
 .inventory-module.editing :deep(.detail-panel) {
   flex: none;
   width: 100%;
+  z-index: 1 !important;
   border-top: 2px solid var(--q-color);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);

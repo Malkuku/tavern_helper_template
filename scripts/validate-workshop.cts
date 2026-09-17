@@ -212,6 +212,26 @@ assert.doesNotMatch(roleEditorSource, /基础数值\[f\].*type="number"/s, '基�
 assert.doesNotMatch(roleEditorSource, /id: 'stats'/, '基础状态不得保留独立页签');
 assert.match(roleEditorSource, /id: 'skills'.*基础状态、能力和性相/s, '基础状态必须并入技能与术分区');
 assert.match(roleEditorSource, /<ArtLevelEditor/, '术之等级必须使用固定性相加点组件');
+assert.match(roleEditorSource, /v-model="entry\.meta\.avatar"/, '头像地址必须直接写入 meta.avatar');
+assert.match(roleEditorSource, /hasAvatar \? '图片头像' : '默认头像'/, '图片头像必须优先于默认头像状态');
+const developerWorkspaceSource = readFileSync(
+  join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'),
+  'utf8',
+);
+assert.match(developerWorkspaceSource, /current\.desc\?\.trim\(\) \|\| '暂无素材说明'/, '角色版本必须显示素材说明');
+assert.doesNotMatch(developerWorkspaceSource, /`区别：/, '角色版本不得继续显示字段差异摘要');
+const skillModuleSource = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/role/SkillModule.vue'), 'utf8');
+assert.match(
+  skillModuleSource,
+  /const activate = name => \{[\s\S]*activeSkill\.value = name;/,
+  '技能卡聚焦不得切换退出编辑态',
+);
+const inventoryModuleSource = readFileSync(
+  join(process.cwd(), 'src/尘史使徒/UI/components/role/InventoryModule.vue'),
+  'utf8',
+);
+assert.match(inventoryModuleSource, /isolation: isolate/, '物品模块必须建立独立层叠上下文');
+assert.match(inventoryModuleSource, /z-index: 1 !important/, '工坊内嵌物品详情不得保留全屏遮罩层级');
 const artEditorSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/ArtLevelEditor.vue'), 'utf8');
 assert.match(artEditorSource, /\['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启'\]/, '术之类型必须严格限定为八性相');
 assert.match(artEditorSource, /if \(level === 0\) delete next\[art\]/, '零级性相不得写入角色 JSON');
@@ -220,7 +240,7 @@ const itemDetailSource = readFileSync(
   'utf8',
 );
 assert.match(itemDetailSource, /\['器具', '药食', '证明', '秘传', '仪式', '杂物'\]/, '物品类型必须使用严格枚举');
-assert.match(itemDetailSource, /\['遗片', '佚存', '残卷', '蛀损', '完帙'\]/, '秘传必须使用专用品质枚举');
+assert.match(itemDetailSource, /\['遗片', '佚存', '残卷', '蛀损', '完帙', '未知'\]/, '秘传与仪式必须使用专用品质枚举');
 const vitalsSource = structuredClone(source);
 vitalsSource.registries.角色.vitals = {
   author: 'a',
@@ -243,11 +263,15 @@ const enumSource = structuredClone(vitalsSource);
 };
 (enumSource.registries.角色.vitals.data as any).物品 = {
   秘典: { 类型: '秘传', 品质: '珍品' },
+  仪式: { 类型: '仪式', 品质: '残卷' },
+  未知仪式: { 类型: '仪式', 品质: '未知' },
   怪东西: { 类型: '武器', 品质: '传奇' },
 };
 normalizeRoleEnums(enumSource);
 assert.deepEqual((enumSource.registries.角色.vitals.data as any).术之等级, { 灯: { 等级: 1, 经验: 0 } });
 assert.equal((enumSource.registries.角色.vitals.data as any).物品.秘典.品质, '遗片');
+assert.equal((enumSource.registries.角色.vitals.data as any).物品.仪式.品质, '残卷');
+assert.equal((enumSource.registries.角色.vitals.data as any).物品.未知仪式.品质, '未知');
 assert.deepEqual((enumSource.registries.角色.vitals.data as any).物品.怪东西, { 类型: '杂物', 品质: '凡庸' });
 const creationRelationsSource = readFileSync(
   join(process.cwd(), 'src/尘史使徒/UI/components/start/CreationRelations.vue'),

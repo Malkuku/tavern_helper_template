@@ -38,7 +38,7 @@
               >
                 <option v-for="aspect in aspects" :key="aspect">{{ aspect }}</option></select
               ><span v-else class="skill-aspect-tag">{{ skill.性相 }}</span>
-              <button v-if="mode === 'edit'" class="edit-trigger" type="button" @click.stop="activate(name)">
+              <button v-if="mode === 'edit'" class="edit-trigger" type="button" @click.stop="toggleEditing(name)">
                 {{ isActive(name) ? '完成' : '编辑' }}
               </button>
             </div>
@@ -112,6 +112,9 @@ const activeSkill = ref('');
 const isActive = name => props.mode === 'edit' && activeSkill.value === name;
 const activate = name => {
   if (props.mode !== 'edit') return;
+  activeSkill.value = name;
+};
+const toggleEditing = name => {
   activeSkill.value = activeSkill.value === name ? '' : name;
 };
 const aspects = ['杯', '刃', '启', '铸', '蛾', '心', '冬', '灯', '秘史', '无'];

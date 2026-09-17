@@ -1,7 +1,8 @@
 <template>
   <div class="detail-panel" :class="[qualityClass]">
     <div class="panel-actions">
-      <button class="close-panel-btn" @click="$emit('close')">×</button>
+      <div><small>CURRENT ITEM</small><strong>当前物品</strong></div>
+      <button class="close-panel-btn" type="button" aria-label="关闭当前物品" @click="$emit('close')">×</button>
     </div>
 
     <div class="panel-content-wrapper">
@@ -112,8 +113,8 @@ const props = defineProps({
 defineEmits(['close', 'rename', 'update:field', 'delete']);
 const itemTypes = ['器具', '药食', '证明', '秘传', '仪式', '杂物'];
 const standardQualities = ['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知'];
-const secretQualities = ['遗片', '佚存', '残卷', '蛀损', '完帙'];
-const qualities = computed(() => (props.type === '秘传' ? secretQualities : standardQualities));
+const documentQualities = ['遗片', '佚存', '残卷', '蛀损', '完帙', '未知'];
+const qualities = computed(() => (['秘传', '仪式'].includes(props.type) ? documentQualities : standardQualities));
 const effectText = computed(() => (Array.isArray(props.effect) ? props.effect.join('\n') : props.effect));
 
 const hasEffect = computed(() => {
@@ -185,6 +186,20 @@ const qualityClass = computed(() => {
   display: flex;
   justify-content: flex-end;
   padding: 10px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.panel-actions > div {
+  display: grid;
+  margin-right: auto;
+}
+.panel-actions small {
+  color: var(--q-color);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+}
+.panel-actions strong {
+  font-size: 0.9rem;
 }
 
 .close-panel-btn {

@@ -384,14 +384,7 @@ function selectAsset(id: string) {
 }
 function versionSummary(id: string) {
   const current = props.draft.registries.角色[id];
-  const peers = roles.value.filter(r => r.id !== id && r.entry.type === current.type && r.entry.key === current.key);
-  const fields = new Set<string>();
-  for (const peer of peers) {
-    for (const key of [...Object.keys(current.data as object), ...Object.keys(peer.entry.data as object)]) {
-      if (JSON.stringify((current.data as any)[key]) !== JSON.stringify((peer.entry.data as any)[key])) fields.add(key);
-    }
-  }
-  return fields.size ? `区别：${[...fields].slice(0, 3).join('、')}` : current.desc || '内容相同';
+  return current.desc?.trim() || '暂无素材说明';
 }
 function scenarioTitle(id: string) {
   return assetTitle('开场白', props.draft.scenarios[id]);

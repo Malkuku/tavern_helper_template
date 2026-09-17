@@ -22,20 +22,23 @@
             <p>PORTRAIT</p>
             <h3>角色外观</h3>
           </div>
-          <span class="color-swatch" :style="{ background: entry.meta.color }" :title="entry.meta.color"></span>
+          <div class="visual-state">
+            <span class="avatar-source" :class="{ image: hasAvatar }">{{ hasAvatar ? '图片头像' : '默认头像' }}</span>
+            <span class="color-swatch" :style="{ background: entry.meta.color }" :title="entry.meta.color"></span>
+          </div>
         </div>
         <details class="visual-editor">
           <summary>调整头像与主题</summary>
           <div class="visual-editor-body">
             <AvatarMediaField v-model="entry.meta.avatar" />
             <div class="avatar-style-field">
-              <span>默认头像</span>
+              <span>无图或图片加载失败时使用</span>
               <div class="avatar-options">
                 <button
                   v-for="option in avatarStyles"
                   :key="option.value"
                   type="button"
-                  :class="{ active: entry.meta.avatarStyle === option.value }"
+                  :class="{ active: !hasAvatar && entry.meta.avatarStyle === option.value }"
                   @click="entry.meta.avatarStyle = option.value"
                 >
                   <RoleAvatar :src="''" :alt="option.label" :seed="entry.key" :fallback-style="option.value" /><small>{{
@@ -49,7 +52,9 @@
                 v-model="entry.meta.color"
                 pattern="#[0-9a-fA-F]{6}"
             /></label>
-            <small>没有头像图片时，默认头像由角色 key 稳定生成；主题颜色用于主要角色的特殊对话框。</small>
+            <small
+              >图片地址优先保存并显示；默认样式只在没有图片或图片加载失败时使用。主题颜色用于主要角色的特殊对话框。</small
+            >
           </div>
         </details>
       </div>
@@ -207,6 +212,7 @@ const tabs = [
 ];
 const visibleTabs = computed(() => tabs.filter(tab => tab.id !== 'personality' || entry.value.type !== '次要角色'));
 const roleName = computed(() => entry.value.data?.姓名 || entry.value.key || '角色头像');
+const hasAvatar = computed(() => Boolean(entry.value.meta?.avatar?.trim()));
 const aspectMap: Record<string, string> = {
   灯: 'Lantern',
   铸: 'Forge',
@@ -327,6 +333,22 @@ input[readonly] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.visual-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar-source {
+  padding: 4px 8px;
+  color: #a9a293;
+  font-size: 11px;
+  border: 1px solid #4b4f51;
+}
+.avatar-source.image {
+  color: #9dd6ae;
+  background: rgba(75, 132, 91, 0.12);
+  border-color: #4b845b;
 }
 .visual-summary p {
   margin: 0 0 3px;

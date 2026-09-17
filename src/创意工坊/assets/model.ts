@@ -40,7 +40,7 @@ export function normalizeRoleEnums(source: ScenarioSourceBundle): void {
   const artTypes = new Set(['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启']);
   const itemTypes = new Set(['器具', '药食', '证明', '秘传', '仪式', '杂物']);
   const standardQualities = new Set(['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知']);
-  const secretQualities = new Set(['遗片', '佚存', '残卷', '蛀损', '完帙']);
+  const documentQualities = new Set(['遗片', '佚存', '残卷', '蛀损', '完帙', '未知']);
   for (const role of Object.values(source.registries.角色)) {
     const data = role.data as Record<string, any>;
     const arts = data?.术之等级;
@@ -55,8 +55,9 @@ export function normalizeRoleEnums(source: ScenarioSourceBundle): void {
     for (const item of Object.values(items) as Record<string, any>[]) {
       if (!item || typeof item !== 'object') continue;
       if (!itemTypes.has(item.类型)) item.类型 = '杂物';
-      const qualities = item.类型 === '秘传' ? secretQualities : standardQualities;
-      if (!qualities.has(item.品质)) item.品质 = item.类型 === '秘传' ? '遗片' : '凡庸';
+      const isDocument = item.类型 === '秘传' || item.类型 === '仪式';
+      const qualities = isDocument ? documentQualities : standardQualities;
+      if (!qualities.has(item.品质)) item.品质 = isDocument ? '遗片' : '凡庸';
     }
   }
 }

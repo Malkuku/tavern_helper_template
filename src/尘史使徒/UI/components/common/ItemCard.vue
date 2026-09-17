@@ -209,16 +209,16 @@ const typeClass = computed(() => {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
-/* 移除所有 overflow: hidden，确保内容完整显示 */
 .item-card:hover {
   transform: translateY(-3px);
   box-shadow:
     0 8px 20px rgba(0, 0, 0, 0.4),
     0 0 12px var(--q-glow);
   border-color: rgba(255, 255, 255, 0.25);
-  z-index: 2;
+  z-index: 1;
 }
 
 .item-card.is-selected {
@@ -564,16 +564,9 @@ const typeClass = computed(() => {
   text-shadow: 0 0 6px rgba(80, 200, 120, 0.5);
 }
 
-/* 完全消除所有隐藏裁剪风险 */
-.item-card,
-.card-content,
-.card-main,
-.item-name {
-  overflow: visible;
-}
-
 /* 保证长单词完美断行 */
 .item-name {
+  overflow: visible;
   hyphens: auto;
   word-break: break-word;
 }
