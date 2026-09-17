@@ -74,4 +74,9 @@ function add() {
   display: grid;
   gap: 5px;
 }
+@media (max-width: 720px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

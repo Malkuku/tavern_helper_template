@@ -1,6 +1,5 @@
 <template>
-  <Teleport to="body"
-    ><div v-if="open" class="backdrop" @click.self="$emit('cancel')">
+  <div v-if="open" class="backdrop" @click.self="$emit('cancel')">
       <section
         ref="panel"
         class="modal"
@@ -15,8 +14,8 @@
         <footer>
           <button ref="safe" @click="$emit('cancel')">{{ cancelLabel }}</button><slot name="actions" />
         </footer>
-      </section></div
-  ></Teleport>
+      </section>
+  </div>
 </template>
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
@@ -35,10 +34,11 @@ function keepFocus(event: KeyboardEvent) {
   if (!items?.length) return;
   const first = items[0];
   const last = items[items.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
+  const active = panel.value?.ownerDocument.activeElement;
+  if (event.shiftKey && active === first) {
     event.preventDefault();
     last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
+  } else if (!event.shiftKey && active === last) {
     event.preventDefault();
     first.focus();
   }
@@ -47,8 +47,8 @@ watch(
   () => props.open,
   async open => {
     if (open) {
-      previous = document.activeElement as HTMLElement;
       await nextTick();
+      previous = panel.value?.ownerDocument.activeElement as HTMLElement | null;
       safe.value?.focus();
     } else previous?.focus();
   },
@@ -65,17 +65,19 @@ watch(
   background: #000b;
 }
 .modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(680px, 100%);
-  max-height: min(82vh, 780px);
-  overflow: auto;
-  padding: 24px;
+  max-height: min(82dvh, 780px);
+  overflow: hidden;
   color: #eee7d8;
   background: #1d2123;
   border: 1px solid #67604f;
   box-shadow: 0 24px 80px #000;
 }
 .modal h2 {
-  margin: 0 0 16px;
+  margin: 0;
+  padding: 24px 24px 16px;
   font:
     500 22px Georgia,
     serif;
@@ -83,16 +85,30 @@ watch(
 .body {
   display: grid;
   gap: 12px;
+  overflow: auto;
+  padding: 0 24px 20px;
 }
 .modal footer {
-  position: sticky;
-  bottom: -24px;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin: 20px -24px -24px;
   padding: 14px 24px;
   background: #15181a;
   border-top: 1px solid #393d3f;
+}
+@media (max-width: 720px) {
+  .backdrop {
+    align-items: end;
+    padding: 0;
+  }
+  .modal {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top));
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+  }
+  .modal footer {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
 }
 </style>

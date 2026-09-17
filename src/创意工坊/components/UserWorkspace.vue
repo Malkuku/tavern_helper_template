@@ -111,7 +111,7 @@ const query = ref(''),
 const roles = computed(() =>
   Object.entries(props.source.registries.角色).map(([id, entry]) => {
     const title = assetTitle('角色', entry),
-      existing = exists(entry.type, entry.key);
+      exists = roleExists(entry.type, entry.key);
     const summary =
       entry.type === '次要角色'
         ? String(entry.data?.简介 || entry.desc || '尚未填写角色简介')
@@ -124,7 +124,7 @@ const roles = computed(() =>
       id,
       entry,
       title,
-      existing,
+      exists,
       summary,
       terms: `${title} ${entry.key} ${entry.author} ${entry.desc}`.toLowerCase(),
     };
@@ -160,7 +160,7 @@ onMounted(async () => {
 function arr(v: unknown) {
   return Array.isArray(v) ? v.map(String) : [];
 }
-function exists(t: string, key: string) {
+function roleExists(t: string, key: string) {
   if (!runtime.value) return false;
   return t === 'user'
     ? Object.keys(runtime.value.user ?? {}).length > 0
@@ -168,7 +168,7 @@ function exists(t: string, key: string) {
 }
 async function choose(id: string) {
   const role = props.source.registries.角色[id];
-  if (exists(role.type, role.key)) {
+  if (roleExists(role.type, role.key)) {
     overwriteId.value = id;
     return;
   }
@@ -304,7 +304,7 @@ function show(value: unknown, error = false) {
 }
 .roles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
   gap: 12px;
 }
 .role-card {

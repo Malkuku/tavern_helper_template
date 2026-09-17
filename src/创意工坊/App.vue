@@ -189,19 +189,38 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  width: 100vw;
-  height: 100vh;
-}
-.shell {
   width: 100%;
   height: 100%;
-  overflow: auto;
+}
+.shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   padding: 18px 18px 70px;
   color: var(--text) !important;
   font:
     14px Arial,
     sans-serif;
-  background: var(--bg) !important;
+  background:
+    radial-gradient(circle at 14% -12%, rgba(203, 180, 119, 0.13), transparent 32%),
+    radial-gradient(circle at 92% 18%, rgba(78, 96, 94, 0.1), transparent 28%), var(--bg) !important;
+}
+.shell > header {
+  padding: 10px 12px 14px;
+  border-bottom: 1px solid rgba(203, 180, 119, 0.24);
+}
+.shell > :deep(.studio),
+.shell > :deep(.workspace) {
+  flex: 1;
+  min-height: 0;
+}
+.shell > :deep(.studio) {
+  overflow: hidden;
+}
+.shell > :deep(.workspace) {
+  overflow: auto;
 }
 .workshop-root :deep(button),
 .workshop-root :deep(input),
@@ -222,6 +241,15 @@ onBeforeUnmount(() => {
 }
 .workshop-root :deep(button) {
   cursor: pointer;
+  transition:
+    color 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+.workshop-root :deep(button:not(:disabled):hover) {
+  border-color: var(--gold) !important;
+  transform: translateY(-1px);
 }
 .workshop-root :deep(button:focus-visible),
 .workshop-root :deep(input:focus-visible),
@@ -330,13 +358,22 @@ h1 {
     align-items: flex-start;
   }
   .shell {
-    padding: 10px 10px 70px;
+    padding: 8px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .shell > header {
+    padding: 4px 2px 8px;
   }
   h1 {
     font-size: 21px;
   }
-  .connection {
+  .eyebrow {
     display: none;
+  }
+  .connection {
+    width: 10px;
+    overflow: hidden;
+    white-space: nowrap;
   }
 }
 </style>

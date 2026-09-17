@@ -1,16 +1,16 @@
 <template>
-  <section class="studio">
-    <nav class="domains">
+  <section class="studio" :class="`mobile-${mobilePane}`">
+    <nav class="domains mobile-catalog">
       <button :class="{ active: domain === '剧本' }" @click="pickDomain('剧本')">
         剧本 <small>{{ scenarios.length }}</small></button
       ><button :class="{ active: domain === '角色' }" @click="pickDomain('角色')">
         角色 <small>{{ roleGroups.length }}</small>
       </button>
     </nav>
-    <aside class="catalog">
+    <aside class="catalog mobile-catalog">
       <header>
         <h2>{{ domain }}</h2>
-        <button class="primary" @click="createCurrent">+ 新建</button>
+        <div class="catalog-actions"><button v-if="domain === '角色'" @click="generatorOpen = true">✦ AI 生成</button><button class="primary" @click="createCurrent">+ 新建</button></div>
       </header>
       <input v-model="query" type="search" :placeholder="`搜索${domain}`" /><template v-if="domain === '角色'"
         ><select v-model="roleType">
@@ -50,7 +50,7 @@
               :key="r.id"
               class="variant"
               :class="{ active: selectedId === r.id }"
-              @click="selectedId = r.id"
+            @click="selectAsset(r.id)"
             >
               <strong>{{ r.entry.author || '未署名版本' }}</strong
               ><span>{{ references(r.id).join('、') || '尚未加入剧本' }}</span
@@ -64,7 +64,7 @@
           :key="s.id"
           class="asset"
           :class="{ active: selectedId === s.id }"
-          @click="selectedId = s.id"
+          @click="selectAsset(s.id)"
         >
           <strong>{{ s.title }}</strong
           ><span>{{ s.entry.可用 ? '可玩' : '编辑中' }}</span
@@ -72,7 +72,8 @@
         </button></template
       >
     </aside>
-    <main class="editing">
+    <main class="editing mobile-editor">
+      <button class="mobile-back" @click="mobilePane = 'catalog'">‹ 返回资源</button>
       <header v-if="entry">
         <div>
           <small>{{ domain }}</small>
@@ -100,7 +101,7 @@
       ><ScenarioEditor v-else-if="entry" :entry="entry" :source="draft" />
       <div v-else class="empty">选择或新建一项{{ domain }}</div>
     </main>
-    <aside class="status">
+    <aside class="status mobile-status">
       <h2>工作状态</h2>
       <p>{{ changes.length ? `${changes.length}项未保存` : '全部已保存' }}</p>
       <h3>自动装配</h3>
@@ -118,13 +119,18 @@
         class="issue"
         @click="
           domain = '剧本';
-          selectedId = i.ownerId;
+          selectAsset(i.ownerId);
         "
       >
         {{ scenarioTitle(i.ownerId) }}<span>{{ i.field }}缺失</span>
       </button>
       <p v-if="!issues.length" class="pass">✓ 引用完整</p>
     </aside>
+    <nav class="mobile-nav" aria-label="移动工作区导航">
+      <button :class="{ active: mobilePane === 'catalog' }" @click="mobilePane = 'catalog'">资源</button>
+      <button :class="{ active: mobilePane === 'editor' }" :disabled="!entry" @click="mobilePane = 'editor'">编辑</button>
+      <button :class="{ active: mobilePane === 'status' }" @click="mobilePane = 'status'">检查</button>
+    </nav>
     <footer class="savebar">
       <span>{{ changes.length }}项未保存</span>
       <div>
@@ -152,6 +158,16 @@
         </button></template
       ></AppDialog
     >
+    <AppDialog :open="generatorOpen" title="AI 生成角色草稿" @cancel="closeGenerator">
+      <div class="generator-form">
+        <label>角色类型<select v-model="generatorType"><option>user</option><option>主要角色</option><option>次要角色</option></select></label>
+        <label>角色创意<textarea v-model="generatorIdea" rows="6" placeholder="身份、经历、性格、外貌、与世界的联系……" /></label>
+        <label>提升词（可选）<textarea v-model="generatorEnhancement" rows="3" placeholder="强调的写作方向或额外限制" /></label>
+        <p class="muted">规则与世界资料会从当前角色主世界书读取；生成结果只进入草稿，仍需审阅保存。</p>
+        <p v-if="generatorError" class="generator-error" role="alert">{{ generatorError }}</p>
+      </div>
+      <template #actions><button class="primary" :disabled="generating || !generatorIdea.trim()" @click="runGenerator">{{ generating ? '生成中…' : '生成草稿' }}</button></template>
+    </AppDialog>
     <AppDialog :open="exportOpen" title="导出预览" @cancel="exportOpen = false"
       ><p>将导出{{ domain }}“{{ title }}”。</p>
       <template #actions><button class="primary" @click="confirmExport">下载</button></template></AppDialog
@@ -171,6 +187,7 @@ import { computed, reactive, ref } from 'vue';
 import { deleteAsset, findReferenceIssues, findReferencesTo } from '../assets/model';
 import { createPackage, downloadPackage } from '../assets/package';
 import { assetTitle, createDefaultAsset, defaultRoleData, diffSources } from '../assets/presentation';
+import { generateRoleDraft, type GeneratedRoleType } from '../assets/roleGenerator';
 import type { ReferenceIssue, ScenarioSourceBundle } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
@@ -188,6 +205,13 @@ const domain = ref<'角色' | '剧本'>('剧本'),
   deleteOpen = ref(false),
   deleteImpacts = ref<ReferenceIssue[]>([]),
   pendingRoleType = ref(''),
+  mobilePane = ref<'catalog' | 'editor' | 'status'>('catalog'),
+  generatorOpen = ref(false),
+  generatorType = ref<GeneratedRoleType>('主要角色'),
+  generatorIdea = ref(''),
+  generatorEnhancement = ref(''),
+  generatorError = ref(''),
+  generating = ref(false),
   expandedGroups = reactive(new Set<string>());
 const shared = ['地图', '世界经济', '季节与节日', '势力', '种族'] as const;
 const changes = computed(() => diffSources(props.source, props.draft)),
@@ -270,11 +294,15 @@ function references(id: string) {
 }
 function openRoleGroup(group: (typeof roleGroups.value)[number]) {
   if (group.items.length === 1) {
-    selectedId.value = group.items[0].id;
+    selectAsset(group.items[0].id);
     return;
   }
   if (expandedGroups.has(group.identity)) expandedGroups.delete(group.identity);
   else expandedGroups.add(group.identity);
+}
+function selectAsset(id: string) {
+  selectedId.value = id;
+  mobilePane.value = 'editor';
 }
 function versionSummary(id: string) {
   const current = props.draft.registries.角色[id];
@@ -293,6 +321,7 @@ function scenarioTitle(id: string) {
 function pickDomain(v: '角色' | '剧本') {
   domain.value = v;
   selectedId.value = '';
+  mobilePane.value = 'catalog';
   query.value = '';
 }
 function variantDiff(id: string) {
@@ -308,6 +337,35 @@ function createCurrent() {
   if (domain.value === '角色') props.draft.registries.角色[id] = createDefaultAsset('角色');
   else createScenario(id);
   selectedId.value = id;
+  mobilePane.value = 'editor';
+}
+function closeGenerator() {
+  if (generating.value) return;
+  generatorOpen.value = false;
+  generatorError.value = '';
+}
+async function runGenerator() {
+  generating.value = true;
+  generatorError.value = '';
+  try {
+    const id = crypto.randomUUID();
+    props.draft.registries.角色[id] = await generateRoleDraft(
+      generatorType.value,
+      generatorIdea.value,
+      generatorEnhancement.value,
+      props.draft,
+    );
+    domain.value = '角色';
+    selectedId.value = id;
+    mobilePane.value = 'editor';
+    generatorOpen.value = false;
+    generatorIdea.value = '';
+    generatorEnhancement.value = '';
+  } catch (error) {
+    generatorError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    generating.value = false;
+  }
 }
 function createScenario(id: string) {
   const s = createDefaultAsset('开场白');
@@ -366,12 +424,12 @@ function format(v: unknown) {
 <style scoped>
 .studio {
   display: grid;
-  grid-template-areas: 'domains catalog editing' 'domains catalog status';
+  grid-template-areas: 'domains catalog editing' 'domains catalog status' 'save save save';
   grid-template-columns: 112px 300px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   gap: 1px;
   margin-top: 16px;
-  height: calc(100vh - 142px);
+  height: auto;
   background: #393d3f;
 }
 .domains {
@@ -526,7 +584,8 @@ function format(v: unknown) {
   text-align: left;
 }
 .savebar {
-  position: fixed;
+  grid-area: save;
+  position: static;
   z-index: 20;
   right: 0;
   bottom: 0;
@@ -546,9 +605,25 @@ function format(v: unknown) {
   padding: 40px;
   text-align: center;
 }
+.mobile-nav,
+.mobile-back {
+  display: none !important;
+}
+.generator-form,
+.generator-form label {
+  display: grid;
+  gap: 7px;
+}
+.generator-error {
+  margin: 0;
+  padding: 10px 12px;
+  color: #f1c2bc;
+  background: rgba(121, 43, 36, 0.28);
+  border-left: 3px solid #d47569;
+}
 @media (max-width: 1100px) {
   .studio {
-    grid-template-areas: 'domains catalog editing' 'domains catalog status';
+    grid-template-areas: 'domains catalog editing' 'domains catalog status' 'save save save';
     grid-template-columns: 96px 250px minmax(0, 1fr);
   }
   .status {
@@ -560,18 +635,83 @@ function format(v: unknown) {
 }
 @media (max-width: 720px) {
   .studio {
-    display: block;
-    height: auto;
+    display: grid;
+    grid-template-areas: 'pane' 'save' 'nav';
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    height: 100%;
+    min-height: 0;
+    margin-top: 8px;
+    background: #15181a;
   }
-  .domains {
+  .studio > .domains,
+  .studio > .catalog,
+  .studio > .editing,
+  .studio > .status {
+    display: none;
+    grid-area: pane;
+    min-height: 0;
+    overflow: auto;
+    padding-bottom: 24px;
+  }
+  .studio.mobile-catalog {
+    grid-template-areas: 'domains' 'pane' 'save' 'nav';
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+  .studio.mobile-catalog > .domains,
+  .studio.mobile-catalog > .catalog {
+    display: flex;
+  }
+  .studio.mobile-catalog > .domains {
+    grid-area: domains;
     flex-direction: row;
+    padding: 10px 12px;
+    border-bottom: 1px solid #393d3f;
   }
-  .editing {
-    max-height: none;
+  .studio.mobile-catalog > .domains button {
+    flex: 1;
   }
-  .status {
+  .studio.mobile-editor > .editing,
+  .studio.mobile-status > .status {
+    display: block;
+  }
+  .studio.mobile-status > .status {
     display: grid;
     grid-template-columns: 1fr;
+  }
+  .mobile-back {
+    display: inline-flex !important;
+    margin-bottom: 10px;
+  }
+  .mobile-nav {
+    grid-area: nav;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: #0b0d0e;
+    border-top: 1px solid #4c4f50;
+  }
+  .mobile-nav button.active {
+    color: #17130c !important;
+    background: #cbb477 !important;
+  }
+  .savebar {
+    position: static;
+    grid-area: save;
+    padding: 9px 12px;
+  }
+  .savebar > span {
+    display: none;
+  }
+  .savebar > div,
+  .savebar button {
+    width: 100%;
+  }
+  .catalog-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 }
 </style>
