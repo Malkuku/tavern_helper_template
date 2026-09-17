@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { deleteAsset, findReferenceIssues, normalizeScenarioAvailability } from '../src/创意工坊/assets/model';
 import { createPackage, listConflicts, mergePackage, parsePackage } from '../src/创意工坊/assets/package';
 import { createDefaultAsset, diffSources, previewPackage, workshopCategories } from '../src/创意工坊/assets/presentation';
+import { buildRoleGenerationPrompt, parseGeneratedRole } from '../src/创意工坊/assets/roleGenerator';
 import { serializeScenarioSource } from '../src/创意工坊/assets/repository';
 import { parseScenarioSourceEntries, scenarioWorldbookEntryNames, synchronizeAutomaticReferences } from '../src/创意工坊/scenario/worldbookSource';
 import type { ScenarioSourceBundle } from '../src/创意工坊/scenario/types';
@@ -51,6 +52,12 @@ const changed = structuredClone(source); changed.registries.世界.world.data = 
 const diff = diffSources(source, changed); assert.equal(diff.length, 1); assert.equal(diff[0].fields[0].path, 'data.时间');
 const preview = previewPackage(target, pkg); assert.equal(preview.conflicts, 1); assert.equal(preview.identical, 1);
 assert.deepEqual(serializeScenarioSource(source), source, '内存结构应无损往返');
+const generatedRole = parseGeneratedRole('{"author":"AI","key":"雾鸦","data":{"姓名":"雾鸦","基础数值":{"力量":8}}}', '主要角色');
+assert.equal(generatedRole.data.姓名, '雾鸦');
+assert.equal((generatedRole.data.基础数值 as any).力量, 8);
+assert.ok((generatedRole.data.基础数值 as any).敏捷 === 0, '生成角色应由固定模板补齐字段');
+assert.throws(() => parseGeneratedRole('不是 JSON', '主要角色'), /不是可解析的角色 JSON/);
+assert.match(buildRoleGenerationPrompt('主要角色', '雾中信使', '克制', '规则正文', source), /雾中信使/);
 const automatic = structuredClone(source); automatic.registries.世界经济.economy = { ...entry, key: '经济' }; automatic.registries.势力.faction = { ...entry, key: '势力' }; synchronizeAutomaticReferences(automatic);
 assert.deepEqual(automatic.scenarios.s.内容配置.世界经济, ['economy']); assert.deepEqual(automatic.scenarios.s.内容配置.势力, ['faction']);
 
