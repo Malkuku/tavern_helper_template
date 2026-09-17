@@ -2,12 +2,12 @@
   <div v-if="data && Object.keys(data).length > 0" class="special-status-container">
     <button v-if="mode === 'edit'" class="module-add" type="button" @click="addStatus">＋ 新增状态</button>
     <ul class="status-list-styled">
-      <template v-for="(status, name) in data" :key="name">
-        <li :class="getStatusClass(name)">
+      <template v-for="(status, name, index) in data" :key="name">
+        <li :class="[getStatusClass(name), { active: activeStatus === name }]" @click="activate(name)">
           <div class="status-header">
             <strong class="status-title">
               <input
-                v-if="mode === 'edit'"
+                v-if="isActive(name)"
                 class="edit-control status-name"
                 :value="name"
                 @change="renameStatus(name, $event)"
@@ -16,18 +16,21 @@
                 >[不可移除]</span
               >
             </strong>
+            <button v-if="mode === 'edit'" class="edit-trigger" type="button" @click.stop="activate(name)">
+              {{ isActive(name) ? '完成' : '编辑' }}
+            </button>
           </div>
           <div class="status-body">
             <!-- 使用 formatText 处理描述文本 -->
             <textarea
-              v-if="mode === 'edit'"
+              v-if="isActive(name)"
               class="status-desc edit-control"
               :value="status.描述"
               @input="updateField(name, '描述', $event.target.value)"
             ></textarea>
             <p v-else class="status-desc">{{ formatText(typeof status === 'string' ? status : status.描述) }}</p>
             <!-- 使用 formatText 处理效果文本 -->
-            <label v-if="mode === 'edit'" class="status-effect"
+            <label v-if="isActive(name)" class="status-effect"
               >效果：<textarea
                 class="edit-control"
                 :value="status.效果"
@@ -37,15 +40,31 @@
             <p v-else-if="typeof status !== 'string' && status.效果" class="status-effect">
               效果：{{ formatText(status.效果) }}
             </p>
-            <label v-if="mode === 'edit'" class="status-duration"
+            <label v-if="isActive(name)" class="status-duration"
               >持续时间<input
                 class="edit-control"
                 :value="status.持续时间"
                 @input="updateField(name, '持续时间', $event.target.value)"
             /></label>
-            <button v-if="mode === 'edit'" class="remove-btn" type="button" @click="removeStatus(name)">
+            <button
+              v-if="isActive(name) && !(typeof status !== 'string' && status.不可移除)"
+              class="remove-btn"
+              type="button"
+              @click.stop="removeStatus(name)"
+            >
               删除状态
             </button>
+            <div v-if="isActive(name)" class="card-actions">
+              <button type="button" :disabled="index === 0" @click.stop="moveStatus(name, -1)">上移</button>
+              <button
+                type="button"
+                :disabled="index === Object.keys(data).length - 1"
+                @click.stop="moveStatus(name, 1)"
+              >
+                下移
+              </button>
+              <button type="button" @click.stop="copyStatus(name)">复制</button>
+            </div>
           </div>
         </li>
       </template>
@@ -57,6 +76,7 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 // 接收 data (状态列表) 和 stats (角色属性数据，包含"基础数值"和"生命状态")
 const props = defineProps({
   data: { type: Object, default: () => ({}) },
@@ -64,6 +84,12 @@ const props = defineProps({
   mode: { type: String, default: 'view' },
 });
 const emit = defineEmits(['update:data']);
+const activeStatus = ref('');
+const isActive = name => props.mode === 'edit' && activeStatus.value === name;
+const activate = name => {
+  if (props.mode !== 'edit') return;
+  activeStatus.value = activeStatus.value === name ? '' : name;
+};
 const uniqueName = base => {
   let name = base,
     index = 2;
@@ -74,11 +100,26 @@ const emitData = data => emit('update:data', data);
 const addStatus = () => {
   const name = uniqueName('新状态');
   emitData({ ...props.data, [name]: { 描述: '', 效果: '', 持续时间: '' } });
+  activeStatus.value = name;
 };
 const removeStatus = name => {
   const next = { ...props.data };
   delete next[name];
   emitData(next);
+  activeStatus.value = '';
+};
+const copyStatus = name => {
+  const nextName = uniqueName(`${name}副本`);
+  emitData({ ...props.data, [nextName]: structuredClone(props.data[name]) });
+  activeStatus.value = nextName;
+};
+const moveStatus = (name, delta) => {
+  const rows = Object.entries(props.data),
+    index = rows.findIndex(([key]) => key === name),
+    target = index + delta;
+  if (target < 0 || target >= rows.length) return;
+  [rows[index], rows[target]] = [rows[target], rows[index]];
+  emitData(Object.fromEntries(rows));
 };
 const renameStatus = (name, event) => {
   const nextName = event.target.value.trim();
@@ -89,9 +130,14 @@ const renameStatus = (name, event) => {
   const next = {};
   for (const [key, value] of Object.entries(props.data)) next[key === name ? nextName : key] = value;
   emitData(next);
+  activeStatus.value = nextName;
 };
-const updateField = (name, field, value) =>
-  emitData({ ...props.data, [name]: { ...props.data[name], [field]: value } });
+const updateField = (name, field, value) => {
+  const current = props.data[name];
+  const base =
+    current && typeof current === 'object' ? current : { 描述: String(current ?? ''), 效果: '', 持续时间: '' };
+  emitData({ ...props.data, [name]: { ...base, [field]: value } });
+};
 
 /**
  * 格式化文本，将 ${属性名} 替换为 属性名[数值]
@@ -171,6 +217,11 @@ const getStatusClass = name => {
   background: transparent;
   border: 1px solid #8f4444;
 }
+.card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
 .no-status {
   color: var(--c-text-dim, #888);
   font-style: italic;
@@ -193,9 +244,26 @@ const getStatusClass = name => {
   position: relative;
   overflow: hidden;
 }
+.status-item.active {
+  border-top: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-right: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+}
+.status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.edit-trigger {
+  flex: 0 0 auto;
+  color: #cbb477;
+  background: transparent;
+  border-color: #5d5544;
+}
 .status-title {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   font-size: 1.05rem;
   margin-bottom: 5px;
   color: #e0e0e0;

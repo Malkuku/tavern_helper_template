@@ -25,16 +25,58 @@ export function assetsOf(source: ScenarioSourceBundle): Record<WorkshopCategory,
   return { 开场白: source.scenarios, ...source.registries };
 }
 
+export function syncRoleVitalsToMaximum(source: ScenarioSourceBundle): void {
+  for (const role of Object.values(source.registries.角色)) {
+    const vitals = (role.data as Record<string, any>)?.生命状态;
+    if (!vitals || typeof vitals !== 'object') continue;
+    for (const key of ['生命', '体力', '精神']) {
+      const status = vitals[key];
+      if (status && typeof status === 'object' && '最大值' in status) status.当前 = status.最大值;
+    }
+  }
+}
+
+export function normalizeRoleEnums(source: ScenarioSourceBundle): void {
+  const artTypes = new Set(['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启']);
+  const itemTypes = new Set(['器具', '药食', '证明', '秘传', '仪式', '杂物']);
+  const standardQualities = new Set(['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知']);
+  const secretQualities = new Set(['遗片', '佚存', '残卷', '蛀损', '完帙']);
+  for (const role of Object.values(source.registries.角色)) {
+    const data = role.data as Record<string, any>;
+    const arts = data?.术之等级;
+    if (arts && typeof arts === 'object') {
+      for (const [key, value] of Object.entries(arts)) {
+        if (!artTypes.has(key) || !value || typeof value !== 'object' || Number((value as any).等级) <= 0)
+          delete arts[key];
+      }
+    }
+    const items = data?.物品;
+    if (!items || typeof items !== 'object') continue;
+    for (const item of Object.values(items) as Record<string, any>[]) {
+      if (!item || typeof item !== 'object') continue;
+      if (!itemTypes.has(item.类型)) item.类型 = '杂物';
+      const qualities = item.类型 === '秘传' ? secretQualities : standardQualities;
+      if (!qualities.has(item.品质)) item.品质 = item.类型 === '秘传' ? '遗片' : '凡庸';
+    }
+  }
+}
+
 export function findReferenceIssues(source: ScenarioSourceBundle): ReferenceIssue[] {
   const issues: ReferenceIssue[] = [];
   for (const [ownerId, scenario] of Object.entries(source.scenarios)) {
-    for (const [field, category] of Object.entries(singleReferences) as [keyof typeof singleReferences, ResourceCategory][]) {
+    for (const [field, category] of Object.entries(singleReferences) as [
+      keyof typeof singleReferences,
+      ResourceCategory,
+    ][]) {
       const targetId = scenario.内容配置[field];
       if (!targetId || !source.registries[category][targetId]) {
         issues.push({ ownerCategory: '开场白', ownerId, field, targetCategory: category, targetId });
       }
     }
-    for (const [field, category] of Object.entries(collectionReferences) as [keyof typeof collectionReferences, ResourceCategory][]) {
+    for (const [field, category] of Object.entries(collectionReferences) as [
+      keyof typeof collectionReferences,
+      ResourceCategory,
+    ][]) {
       for (const targetId of scenario.内容配置[field]) {
         if (!source.registries[category][targetId]) {
           issues.push({ ownerCategory: '开场白', ownerId, field, targetCategory: category, targetId });
@@ -73,7 +115,12 @@ export function normalizeScenarioAvailability(source: ScenarioSourceBundle): Ref
   return issues;
 }
 
-export function deleteAsset(source: ScenarioSourceBundle, category: ResourceCategory, id: string, force: boolean): ReferenceIssue[] {
+export function deleteAsset(
+  source: ScenarioSourceBundle,
+  category: ResourceCategory,
+  id: string,
+  force: boolean,
+): ReferenceIssue[] {
   const impacts = findReferencesTo(source, category, id);
   if (impacts.length && !force) return impacts;
   delete source.registries[category][id];
@@ -82,7 +129,11 @@ export function deleteAsset(source: ScenarioSourceBundle, category: ResourceCate
   return [];
 }
 
-export function findReferencesTo(source: ScenarioSourceBundle, category: ResourceCategory, id: string): ReferenceIssue[] {
+export function findReferencesTo(
+  source: ScenarioSourceBundle,
+  category: ResourceCategory,
+  id: string,
+): ReferenceIssue[] {
   const all = findReferenceIssues({
     ...source,
     registries: { ...source.registries, [category]: { ...source.registries[category], [id]: undefined } },
@@ -124,7 +175,5 @@ export function normalizeRoleSelection(ids: string[], roles: ScenarioSourceBundl
     const identity = role.type === 'user' ? 'user' : `${role.type}\u0000${role.key}`;
     winners.set(identity, { id, index });
   });
-  return [...winners.values()]
-    .sort((a, b) => a.index - b.index)
-    .map(value => value.id);
+  return [...winners.values()].sort((a, b) => a.index - b.index).map(value => value.id);
 }

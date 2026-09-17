@@ -14,12 +14,14 @@
         />
         <h2 v-else class="panel-title">{{ name }}</h2>
         <div class="panel-meta">
-          <input
+          <select
             v-if="mode === 'edit'"
             class="panel-type edit-control"
             :value="type"
-            @input="$emit('update:field', '类型', $event.target.value)"
-          /><span v-else class="panel-type">{{ type || '杂物' }}</span>
+            @change="$emit('update:field', '类型', $event.target.value)"
+          >
+            <option v-for="option in itemTypes" :key="option">{{ option }}</option></select
+          ><span v-else class="panel-type">{{ type || '杂物' }}</span>
           <select
             v-if="mode === 'edit'"
             class="panel-quality edit-control"
@@ -96,7 +98,9 @@ const props = defineProps({
   quality: {
     type: String,
     default: '',
-    validator: v => !v || ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'].includes(v),
+    validator: v =>
+      !v ||
+      ['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'].includes(v),
   },
   quantity: { type: Number, default: 1 },
   durability: { type: Number, default: 0 },
@@ -106,7 +110,10 @@ const props = defineProps({
 });
 
 defineEmits(['close', 'rename', 'update:field', 'delete']);
-const qualities = ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'];
+const itemTypes = ['器具', '药食', '证明', '秘传', '仪式', '杂物'];
+const standardQualities = ['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知'];
+const secretQualities = ['遗片', '佚存', '残卷', '蛀损', '完帙'];
+const qualities = computed(() => (props.type === '秘传' ? secretQualities : standardQualities));
 const effectText = computed(() => (Array.isArray(props.effect) ? props.effect.join('\n') : props.effect));
 
 const hasEffect = computed(() => {
@@ -127,6 +134,7 @@ const qualityClass = computed(() => {
   const qualityMap = {
     凡庸: 'quality-common',
     遗物: 'quality-relic',
+    佚品: 'quality-lost',
     珍品: 'quality-rare',
     禁忌: 'quality-forbidden',
     神造: 'quality-divine',
@@ -331,6 +339,10 @@ const qualityClass = computed(() => {
 .quality-relic {
   --q-color: #5c9eff;
   --q-glow: rgba(92, 158, 255, 0.2);
+}
+.quality-lost {
+  --q-color: #6fb6c9;
+  --q-glow: rgba(111, 182, 201, 0.2);
 }
 .quality-rare {
   --q-color: #b366ff;

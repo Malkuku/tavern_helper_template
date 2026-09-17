@@ -8,74 +8,74 @@
       <button type="button" @click="adding = true">＋ 新增{{ itemLabel }}</button>
     </header>
     <div class="card-grid">
-      <button v-for="(value, key) in modelValue" :key="key" type="button" class="entry-card" @click="open(String(key))">
-        <span>{{ icon }}</span>
-        <div>
-          <strong>{{ key }}</strong
-          ><small>{{ summary(value) }}</small>
+      <article
+        v-for="(value, key, index) in modelValue"
+        :key="key"
+        class="entry-card"
+        :class="{ active: activeKey === key }"
+        @click="open(String(key))"
+      >
+        <div class="entry-summary">
+          <span>{{ icon }}</span>
+          <div>
+            <strong>{{ key }}</strong
+            ><small>{{ summary(value) }}</small>
+          </div>
+          <button type="button" @click.stop="open(String(key))">{{ activeKey === key ? '收起' : '编辑' }}</button>
         </div>
-        <b>编辑 ›</b>
-      </button>
+        <div v-if="activeKey === key" class="inline-editor" @click.stop>
+          <label v-for="field in fields" :key="field.key"
+            ><span>{{ field.label }}</span>
+            <input
+              v-if="field.type === 'number'"
+              :value="activeRecord[field.key]"
+              type="number"
+              @input="setField(field.key, Number(($event.target as HTMLInputElement).value))"
+            />
+            <textarea
+              v-else
+              :value="displayValue(activeRecord[field.key])"
+              rows="3"
+              @input="setTextField(field.key, ($event.target as HTMLTextAreaElement).value)"
+            />
+          </label>
+          <div class="entry-actions">
+            <button type="button" class="danger" @click="remove">删除{{ itemLabel }}</button>
+            <span>
+              <button type="button" :disabled="index === 0" @click="move(String(key), -1)">上移</button>
+              <button
+                type="button"
+                :disabled="index === Object.keys(modelValue).length - 1"
+                @click="move(String(key), 1)"
+              >
+                下移
+              </button>
+              <button type="button" @click="copy(String(key))">复制</button>
+              <button type="button" @click="close">完成</button>
+            </span>
+          </div>
+        </div>
+      </article>
       <button v-if="!Object.keys(modelValue).length" type="button" class="empty-card" @click="adding = true">
         尚无{{ itemLabel }}，点击创建
       </button>
     </div>
+    <div v-if="adding" class="create-row">
+      <label
+        >{{ itemLabel }}名称<input
+          v-model.trim="newKey"
+          :list="options.length ? listId : undefined"
+          @keydown.enter.prevent="add" /></label
+      ><datalist v-if="options.length" :id="listId">
+        <option v-for="option in options" :key="option" :value="option" />
+      </datalist>
+      <p v-if="newKey && newKey in modelValue" class="warning">该名称已经存在。</p>
+      <div>
+        <button type="button" @click="close">取消</button
+        ><button type="button" class="primary" :disabled="!newKey || newKey in modelValue" @click="add">创建</button>
+      </div>
+    </div>
   </section>
-
-  <div v-if="activeKey || adding" class="drawer-backdrop" @click.self="close">
-    <aside class="drawer" role="dialog" aria-modal="true" :aria-label="`${title}详情`">
-      <header>
-        <div>
-          <p>{{ eyebrow }}</p>
-          <h3>{{ adding ? `新增${itemLabel}` : activeKey }}</h3>
-        </div>
-        <button type="button" aria-label="关闭" @click="close">×</button>
-      </header>
-      <div v-if="adding" class="drawer-body">
-        <label
-          >{{ itemLabel }}名称<input
-            v-model.trim="newKey"
-            :list="options.length ? listId : undefined"
-            @keydown.enter.prevent="add" /></label
-        ><datalist v-if="options.length" :id="listId">
-          <option v-for="option in options" :key="option" :value="option" />
-        </datalist>
-        <p v-if="newKey && newKey in modelValue" class="warning">该名称已经存在。</p>
-      </div>
-      <div v-else-if="activeValue" class="drawer-body">
-        <label v-for="field in fields" :key="field.key"
-          ><span>{{ field.label }}</span>
-          <select
-            v-if="field.options"
-            :value="activeRecord[field.key]"
-            @change="setField(field.key, ($event.target as HTMLSelectElement).value)"
-          >
-            <option value="">未指定</option>
-            <option v-for="option in field.options" :key="option">{{ option }}</option>
-          </select>
-          <input
-            v-else-if="field.type === 'number'"
-            :value="activeRecord[field.key]"
-            type="number"
-            @input="setField(field.key, Number(($event.target as HTMLInputElement).value))"
-          />
-          <textarea
-            v-else
-            :value="displayValue(activeRecord[field.key])"
-            rows="5"
-            @input="setTextField(field.key, ($event.target as HTMLTextAreaElement).value)"
-          />
-        </label>
-      </div>
-      <footer>
-        <button v-if="activeKey" type="button" class="danger" @click="remove">删除{{ itemLabel }}</button><span></span
-        ><button type="button" @click="close">完成</button
-        ><button v-if="adding" type="button" class="primary" :disabled="!newKey || newKey in modelValue" @click="add">
-          创建
-        </button>
-      </footer>
-    </aside>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -126,7 +126,7 @@ function summary(value: any) {
   ).slice(0, 54);
 }
 function open(key: string) {
-  activeKey.value = key;
+  activeKey.value = activeKey.value === key ? '' : key;
 }
 function close() {
   activeKey.value = '';
@@ -145,6 +145,21 @@ function remove() {
   delete next[activeKey.value];
   emit('update:modelValue', next);
   close();
+}
+function copy(key: string) {
+  let nextKey = `${key}副本`,
+    index = 2;
+  while (nextKey in props.modelValue) nextKey = `${key}副本${index++}`;
+  emit('update:modelValue', { ...props.modelValue, [nextKey]: structuredClone(props.modelValue[key]) });
+  activeKey.value = nextKey;
+}
+function move(key: string, delta: number) {
+  const rows = Object.entries(props.modelValue),
+    index = rows.findIndex(([name]) => name === key),
+    target = index + delta;
+  if (target < 0 || target >= rows.length) return;
+  [rows[index], rows[target]] = [rows[target], rows[index]];
+  emit('update:modelValue', Object.fromEntries(rows));
 }
 function updateActive(value: any) {
   emit('update:modelValue', { ...props.modelValue, [activeKey.value]: value });
@@ -183,8 +198,7 @@ function setTextField(key: string, value: string) {
 .collection-board p {
   margin: 0;
 }
-.collection-board p,
-.drawer header p {
+.collection-board p {
   color: #cbb477;
   font-size: 10px;
   letter-spacing: 0.18em;
@@ -195,19 +209,35 @@ function setTextField(key: string, value: string) {
   gap: 10px;
 }
 .entry-card {
-  display: grid !important;
-  grid-template-columns: auto 1fr auto;
+  display: grid;
+  min-height: 90px;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(145deg, #202426, #141719);
+  border: 1px solid #393d3f;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+.entry-card.active {
+  grid-column: 1 / -1;
+  border-color: #82704b;
+  background: linear-gradient(145deg, #24251f, #151719);
+}
+.entry-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  min-height: 90px;
-  text-align: left !important;
-  background: linear-gradient(145deg, #202426, #141719) !important;
+  min-height: 88px;
+  padding: 14px 16px;
+  cursor: pointer;
 }
-.entry-card > span {
+.entry-summary > span {
   color: #cbb477;
   font-size: 24px;
 }
-.entry-card > div {
+.entry-summary > div {
   display: grid;
   gap: 5px;
   min-width: 0;
@@ -218,75 +248,60 @@ function setTextField(key: string, value: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.entry-card > b {
-  color: #cbb477;
-  font-size: 11px;
+.inline-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid #393d3f;
+}
+.inline-editor label {
+  display: grid;
+  gap: 6px;
+  color: #bdb39f;
+}
+.inline-editor textarea {
+  min-height: 76px;
+}
+.entry-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.entry-actions span {
+  display: flex;
+  gap: 6px;
 }
 .empty-card {
   min-height: 100px;
   border-style: dashed !important;
 }
-.drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 22000;
-  background: #050607b8;
-}
-.drawer {
-  position: absolute;
-  inset: 0 0 0 auto;
+.create-row {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(520px, 100%);
-  color: #eee7d8;
-  background: #15191b;
-  border-left: 1px solid #82704b;
-  box-shadow: -24px 0 70px #000;
-}
-.drawer > header,
-.drawer > footer {
-  display: flex;
-  align-items: center;
   gap: 10px;
-  padding: 18px 20px;
-  border-bottom: 1px solid #393d3f;
+  padding: 14px;
+  background: #181c1e;
+  border: 1px dashed #756744;
 }
-.drawer > header {
-  justify-content: space-between;
-}
-.drawer h3,
-.drawer p {
-  margin: 0;
-}
-.drawer-body {
-  display: grid;
-  align-content: start;
-  gap: 16px;
-  overflow: auto;
-  padding: 22px;
-}
-.drawer-body label {
+.create-row label {
   display: grid;
   gap: 6px;
 }
-.drawer-body label > span {
-  color: #cbb477;
-}
-.drawer > footer {
-  grid-template-columns: auto 1fr auto auto;
-  border-top: 1px solid #393d3f;
-  border-bottom: 0;
+.create-row > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .warning {
   color: #d8a95d;
 }
 @media (max-width: 700px) {
-  .drawer {
-    width: 100%;
-    border-left: 0;
+  .inline-editor {
+    grid-template-columns: 1fr;
   }
-  .drawer > footer {
-    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  .entry-actions {
+    grid-column: auto;
   }
 }
 </style>

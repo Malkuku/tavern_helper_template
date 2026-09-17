@@ -7,7 +7,9 @@ import {
   deleteAsset,
   findReferenceIssues,
   normalizeRoleSelection,
+  normalizeRoleEnums,
   normalizeScenarioAvailability,
+  syncRoleVitalsToMaximum,
 } from '../src/创意工坊/assets/model';
 import { createPackage, listConflicts, mergePackage, parsePackage } from '../src/创意工坊/assets/package';
 import {
@@ -207,6 +209,46 @@ for (const removedKind of ['关系', '技能', '状态', '物品']) {
   );
 }
 assert.doesNotMatch(roleEditorSource, /基础数值\[f\].*type="number"/s, '基础数值不得保留编辑输入框');
+assert.doesNotMatch(roleEditorSource, /id: 'stats'/, '基础状态不得保留独立页签');
+assert.match(roleEditorSource, /id: 'skills'.*基础状态、能力和性相/s, '基础状态必须并入技能与术分区');
+assert.match(roleEditorSource, /<ArtLevelEditor/, '术之等级必须使用固定性相加点组件');
+const artEditorSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/ArtLevelEditor.vue'), 'utf8');
+assert.match(artEditorSource, /\['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启'\]/, '术之类型必须严格限定为八性相');
+assert.match(artEditorSource, /if \(level === 0\) delete next\[art\]/, '零级性相不得写入角色 JSON');
+const itemDetailSource = readFileSync(
+  join(process.cwd(), 'src/尘史使徒/UI/components/common/ItemDetailPanel.vue'),
+  'utf8',
+);
+assert.match(itemDetailSource, /\['器具', '药食', '证明', '秘传', '仪式', '杂物'\]/, '物品类型必须使用严格枚举');
+assert.match(itemDetailSource, /\['遗片', '佚存', '残卷', '蛀损', '完帙'\]/, '秘传必须使用专用品质枚举');
+const vitalsSource = structuredClone(source);
+vitalsSource.registries.角色.vitals = {
+  author: 'a',
+  desc: 'd',
+  key: 'vitals',
+  type: '主要角色',
+  data: { 生命状态: { 生命: { 当前: 1, 最大值: 10 }, 体力: { 当前: 2, 最大值: 20 }, 精神: { 当前: 3, 最大值: 30 } } },
+} as never;
+syncRoleVitalsToMaximum(vitalsSource);
+assert.deepEqual((vitalsSource.registries.角色.vitals.data as any).生命状态, {
+  生命: { 当前: 10, 最大值: 10 },
+  体力: { 当前: 20, 最大值: 20 },
+  精神: { 当前: 30, 最大值: 30 },
+});
+const enumSource = structuredClone(vitalsSource);
+(enumSource.registries.角色.vitals.data as any).术之等级 = {
+  灯: { 等级: 1, 经验: 0 },
+  杯: { 等级: 0, 经验: 20 },
+  秘史: { 等级: 3, 经验: 0 },
+};
+(enumSource.registries.角色.vitals.data as any).物品 = {
+  秘典: { 类型: '秘传', 品质: '珍品' },
+  怪东西: { 类型: '武器', 品质: '传奇' },
+};
+normalizeRoleEnums(enumSource);
+assert.deepEqual((enumSource.registries.角色.vitals.data as any).术之等级, { 灯: { 等级: 1, 经验: 0 } });
+assert.equal((enumSource.registries.角色.vitals.data as any).物品.秘典.品质, '遗片');
+assert.deepEqual((enumSource.registries.角色.vitals.data as any).物品.怪东西, { 类型: '杂物', 品质: '凡庸' });
 const creationRelationsSource = readFileSync(
   join(process.cwd(), 'src/尘史使徒/UI/components/start/CreationRelations.vue'),
   'utf8',

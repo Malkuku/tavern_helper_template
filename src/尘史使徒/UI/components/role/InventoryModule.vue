@@ -1,5 +1,5 @@
 <template>
-  <div class="inventory-module">
+  <div class="inventory-module" :class="{ editing: mode === 'edit' }">
     <!-- 工具栏 -->
     <div class="toolbar">
       <button v-if="mode === 'edit'" type="button" @click="addItem">＋ 新增物品</button>
@@ -70,7 +70,9 @@
           @rename="renameItem"
           @update:field="updateItemField"
           @delete="deleteItem"
-        />
+        >
+          <template v-if="mode === 'edit'" #actions><button type="button" @click="copyItem">复制物品</button></template>
+        </ItemDetailPanel>
       </Transition>
     </div>
   </div>
@@ -181,6 +183,13 @@ const updateItemField = (field, value) => {
   if (!selectedItem.value) return;
   const name = selectedItem.value.name;
   const nextItem = { ...props.data[name], [field]: value };
+  if (field === '类型') {
+    const allowed =
+      value === '秘传'
+        ? ['遗片', '佚存', '残卷', '蛀损', '完帙']
+        : ['凡庸', '遗物', '佚品', '珍品', '禁忌', '神造', '未知'];
+    if (!allowed.includes(nextItem.品质)) nextItem.品质 = value === '秘传' ? '遗片' : '凡庸';
+  }
   emit('update:data', { ...props.data, [name]: nextItem });
   selectedItem.value = { name, ...nextItem };
 };
@@ -201,6 +210,13 @@ const deleteItem = () => {
   emit('update:data', next);
   closeDetail();
 };
+const copyItem = () => {
+  if (!selectedItem.value) return;
+  const name = uniqueName(`${selectedItem.value.name}副本`),
+    nextItem = structuredClone(props.data[selectedItem.value.name]);
+  emit('update:data', { ...props.data, [name]: nextItem });
+  selectedItem.value = { name, ...nextItem };
+};
 </script>
 
 <style scoped>
@@ -218,10 +234,10 @@ const deleteItem = () => {
   background: var(--c-bg);
   color: var(--c-text);
   padding: 20px;
-  height: 100%;
+  min-height: 0;
   width: 100%;
   font-family: 'Segoe UI', sans-serif;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
@@ -318,7 +334,7 @@ const deleteItem = () => {
   flex: 1;
   display: flex;
   flex-direction: row;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   gap: 0;
 }
@@ -335,10 +351,57 @@ const deleteItem = () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
-  overflow-y: auto;
+  overflow: visible;
   padding-right: 5px;
   padding-bottom: 20px;
   align-content: start;
+}
+.inventory-module.editing .inventory-container {
+  flex-direction: column;
+  gap: 14px;
+}
+.inventory-module.editing :deep(.detail-panel) {
+  flex: none;
+  width: 100%;
+  border-top: 2px solid var(--q-color);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+.inventory-module.editing :deep(.panel-content-wrapper) {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(150px, 0.55fr) repeat(2, minmax(180px, 1fr));
+  gap: 12px;
+  overflow: visible;
+  padding: 0 16px 16px;
+}
+.inventory-module.editing :deep(.panel-header) {
+  margin: 0;
+  text-align: left;
+}
+.inventory-module.editing :deep(.panel-meta) {
+  justify-content: flex-start;
+}
+.inventory-module.editing :deep(.stat-grid),
+.inventory-module.editing :deep(.info-section) {
+  margin: 0;
+}
+.inventory-module.editing :deep(.delete-item) {
+  grid-column: 1 / -1;
+  width: auto;
+  justify-self: start;
+}
+.inventory-module.editing :deep(.panel-actions) {
+  padding: 5px 10px;
+}
+.inventory-module.editing :deep(.panel-title) {
+  font-size: 1.2rem;
+}
+.inventory-module.editing :deep(.stat-box) {
+  padding: 8px;
+}
+.inventory-module.editing :deep(textarea) {
+  min-height: 72px;
+  resize: vertical;
 }
 
 .empty-state {
@@ -367,6 +430,16 @@ const deleteItem = () => {
   .inventory-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 8px;
+  }
+  .inventory-module.editing :deep(.detail-panel) {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  .inventory-module.editing :deep(.panel-content-wrapper) {
+    grid-template-columns: 1fr;
+    padding-bottom: 20px;
   }
 }
 </style>

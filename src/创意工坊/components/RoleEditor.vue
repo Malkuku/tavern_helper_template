@@ -5,7 +5,7 @@
       <h2>{{ roleName }}</h2>
       <span>{{ entry.type }} · {{ entry.author || '未署名版本' }}</span>
     </div>
-    <span class="editing-badge">编辑中</span>
+    <span class="dossier-hint">点击内容即可编辑</span>
   </div>
   <div class="role-dossier">
     <section class="identity-preview">
@@ -17,30 +17,41 @@
         :fallback-style="entry.meta?.avatarStyle"
       />
       <div class="visual-fields">
-        <h3>角色外观</h3>
-        <AvatarMediaField v-model="entry.meta.avatar" />
-        <div class="avatar-style-field">
-          <span>默认头像</span>
-          <div class="avatar-options">
-            <button
-              v-for="option in avatarStyles"
-              :key="option.value"
-              type="button"
-              :class="{ active: entry.meta.avatarStyle === option.value }"
-              @click="entry.meta.avatarStyle = option.value"
-            >
-              <RoleAvatar :src="''" :alt="option.label" :seed="entry.key" :fallback-style="option.value" /><small>{{
-                option.label
-              }}</small>
-            </button>
+        <div class="visual-summary">
+          <div>
+            <p>PORTRAIT</p>
+            <h3>角色外观</h3>
           </div>
+          <span class="color-swatch" :style="{ background: entry.meta.color }" :title="entry.meta.color"></span>
         </div>
-        <label class="color-field"
-          >主题颜色<input v-model="entry.meta.color" type="color" /><input
-            v-model="entry.meta.color"
-            pattern="#[0-9a-fA-F]{6}"
-        /></label>
-        <small>没有头像图片时，默认头像由角色 key 稳定生成；主题颜色用于主要角色的特殊对话框。</small>
+        <details class="visual-editor">
+          <summary>调整头像与主题</summary>
+          <div class="visual-editor-body">
+            <AvatarMediaField v-model="entry.meta.avatar" />
+            <div class="avatar-style-field">
+              <span>默认头像</span>
+              <div class="avatar-options">
+                <button
+                  v-for="option in avatarStyles"
+                  :key="option.value"
+                  type="button"
+                  :class="{ active: entry.meta.avatarStyle === option.value }"
+                  @click="entry.meta.avatarStyle = option.value"
+                >
+                  <RoleAvatar :src="''" :alt="option.label" :seed="entry.key" :fallback-style="option.value" /><small>{{
+                    option.label
+                  }}</small>
+                </button>
+              </div>
+            </div>
+            <label class="color-field"
+              >主题颜色<input v-model="entry.meta.color" type="color" /><input
+                v-model="entry.meta.color"
+                pattern="#[0-9a-fA-F]{6}"
+            /></label>
+            <small>没有头像图片时，默认头像由角色 key 稳定生成；主题颜色用于主要角色的特殊对话框。</small>
+          </div>
+        </details>
       </div>
     </section>
     <nav class="section-nav" aria-label="角色编辑分区">
@@ -52,7 +63,7 @@
         @click="activeTab = item.id"
       >
         <span>{{ item.icon }}</span
-        ><b>{{ item.label }}</b
+        ><b>{{ item.label }}<i v-if="dirtySections.includes(item.id)" class="dirty-dot" title="有未保存更改"></i></b
         ><small>{{ item.note }}</small>
       </button>
     </nav>
@@ -69,17 +80,18 @@
         </select></label
       >
       <div class="grid">
-        <label>角色 key<input v-model="entry.key" required :readonly="entry.type === 'user'" /></label
-        ><label>作者<input v-model="entry.author" /></label
-        ><label class="wide">素材说明<textarea v-model="entry.desc" /></label
-        ><label v-if="entry.type !== 'user'">姓名<input v-model="entry.data.姓名" /></label
-        ><label v-if="entry.type !== 'user'" class="check"
+        <InlineEditableText v-model="entry.key" label="角色 key" :readonly="entry.type === 'user'" />
+        <InlineEditableText v-model="entry.author" label="作者" />
+        <InlineEditableText v-model="entry.desc" label="素材说明" multiline wide />
+        <InlineEditableText v-if="entry.type !== 'user'" v-model="entry.data.姓名" label="姓名" />
+        <label v-if="entry.type !== 'user'" class="check"
           ><input v-model="entry.data.在场" type="checkbox" />当前在场</label
-        ><label v-if="entry.type !== '次要角色'">年龄<input v-model="entry.data.年龄" /></label
-        ><label v-if="entry.type !== '次要角色'">当前身份<input v-model="entry.data.当前身份" /></label
-        ><label v-if="entry.type === '主要角色'">当前想法<textarea v-model="entry.data.当前想法" /></label
-        ><label v-if="entry.type === '主要角色'">外貌概括<textarea v-model="entry.data.外貌概括" /></label
-        ><label v-if="entry.type === '次要角色'" class="wide">简介<textarea v-model="entry.data.简介" /></label>
+        >
+        <InlineEditableText v-if="entry.type !== '次要角色'" v-model="entry.data.年龄" label="年龄" />
+        <InlineEditableText v-if="entry.type !== '次要角色'" v-model="entry.data.当前身份" label="当前身份" />
+        <InlineEditableText v-if="entry.type === '主要角色'" v-model="entry.data.当前想法" label="当前想法" multiline />
+        <InlineEditableText v-if="entry.type === '主要角色'" v-model="entry.data.外貌概括" label="外貌概括" multiline />
+        <InlineEditableText v-if="entry.type === '次要角色'" v-model="entry.data.简介" label="简介" multiline wide />
       </div>
       <template v-if="entry.type !== 'user'"
         ><StringField v-model="entry.data.名称检索词" label="名称检索词" /><StringField
@@ -103,7 +115,7 @@
     >
       <h3>性格与关系</h3>
       <div class="grid">
-        <label v-for="f in personality" :key="f">{{ f }}<textarea v-model="entry.data.性格[f]" /></label>
+        <InlineEditableText v-for="f in personality" :key="f" v-model="entry.data.性格[f]" :label="f" multiline />
       </div>
       <RelationshipModule
         :data="entry.data.人际关系"
@@ -127,15 +139,18 @@
               " /></label></template></EntrySetEditor
       ><label v-else>共享说明<input v-model="entry.data.性经验" /></label>
     </section>
-    <section v-show="activeTab === 'stats'" id="role-stats" class="dossier-panel">
-      <h3>基础数值与生命</h3>
-      <LifeStatusModule :data="entry.data" mode="edit" @update:data="entry.data = $event" />
-    </section>
     <section v-show="activeTab === 'skills'" id="role-skills" class="dossier-panel">
+      <h3>基础数值与生命</h3>
+      <LifeStatusModule :data="entry.data" />
+      <h3>技能与术</h3>
       <SkillModule :data="entry.data.技能" :stats="entry.data" mode="edit" @update:data="entry.data.技能 = $event" />
-      <RoleCardCollection v-model="entry.data['术之等级']" kind="术" :options="aspects" />
+      <ArtLevelEditor :model-value="entry.data['术之等级']" @update:model-value="updateArts" />
     </section>
     <section v-show="activeTab === 'items'" id="role-items" class="dossier-panel">
+      <div v-if="entry.type === 'user'" class="resource-strip">
+        <label><span>金钱</span><input v-model.number="entry.data.金钱" type="number" min="0" /></label>
+        <label><span>缥缈异质</span><input v-model.number="entry.data.缥缈异质" type="number" min="0" /></label>
+      </div>
       <SpecialStatusModule
         v-if="typeof entry.data.特殊状态 === 'object'"
         :data="entry.data.特殊状态"
@@ -149,18 +164,17 @@
         mode="edit"
         @update:data="entry.data.物品 = $event"
       /><label v-else>共享说明<input v-model="entry.data.物品" /></label>
-      <div v-if="entry.type === 'user'" class="grid">
-        <label>金钱<input v-model.number="entry.data.金钱" type="number" /></label
-        ><label>缥缈异质<input v-model.number="entry.data.缥缈异质" type="number" /></label>
-      </div>
     </section>
   </div>
 </template>
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue';
+import { calculateCharacterAttributes } from '../../尘史使徒/DOC/数值计算';
 import AvatarMediaField from './AvatarMediaField.vue';
+import ArtLevelEditor from './ArtLevelEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import EntrySetEditor from './EntrySetEditor.vue';
+import InlineEditableText from './InlineEditableText.vue';
 import RoleCardCollection from './RoleCardCollection.vue';
 import StringField from './StringField.vue';
 import InventoryModule from '../../尘史使徒/UI/components/role/InventoryModule.vue';
@@ -169,12 +183,12 @@ import RelationshipModule from '../../尘史使徒/UI/components/role/Relationsh
 import SkillModule from '../../尘史使徒/UI/components/role/SkillModule.vue';
 import SpecialStatusModule from '../../尘史使徒/UI/components/role/SpecialStatusModule.vue';
 const entry = defineModel<any>('entry', { required: true });
-const props = withDefaults(defineProps<{ roleOptions?: { id: string; label: string; identity: string }[] }>(), {
-  roleOptions: () => [],
-});
+const props = withDefaults(
+  defineProps<{ roleOptions?: { id: string; label: string; identity: string }[]; dirtySections?: string[] }>(),
+  { roleOptions: () => [], dirtySections: () => [] },
+);
 defineEmits<{ requestTypeChange: [type: string] }>();
 const personality = ['社交表现', '行动逻辑', '思维习惯', '人际距离', '道德底色'];
-const aspects = ['杯', '刃', '启', '铸', '蛾', '心', '冬', '灯', '秘史', '无'];
 const avatarStyles = [
   { value: 'auto', label: '自动' },
   { value: '0', label: '旅人' },
@@ -188,22 +202,53 @@ const activeTab = ref('basic');
 const tabs = [
   { id: 'basic', icon: '◈', label: '角色档案', note: '身份、外貌与背景' },
   { id: 'personality', icon: '◎', label: '人格关系', note: '性格与人物网络' },
-  { id: 'stats', icon: '◇', label: '能力状态', note: '基础数值与生命' },
-  { id: 'skills', icon: '✦', label: '技能与术', note: '能力和性相进度' },
+  { id: 'skills', icon: '✦', label: '技能与术', note: '基础状态、能力和性相' },
   { id: 'items', icon: '▣', label: '状态物品', note: '效果与携带物' },
 ];
 const visibleTabs = computed(() => tabs.filter(tab => tab.id !== 'personality' || entry.value.type !== '次要角色'));
 const roleName = computed(() => entry.value.data?.姓名 || entry.value.key || '角色头像');
+const aspectMap: Record<string, string> = {
+  灯: 'Lantern',
+  铸: 'Forge',
+  刃: 'Edge',
+  冬: 'Winter',
+  心: 'Heart',
+  杯: 'Grail',
+  蛾: 'Moth',
+  启: 'Knock',
+};
 const currentIdentity = computed(() =>
   entry.value.type === 'user' ? 'user' : `${entry.value.type}\u0000${entry.value.key}`,
 );
 const availableRelationshipTargets = computed(() =>
   props.roleOptions.filter(option => option.identity !== currentIdentity.value),
 );
+function updateArts(value: Record<string, { 等级: number; 经验: number }>) {
+  entry.value.data['术之等级'] = value;
+  const levels = Object.fromEntries(Object.entries(value).map(([key, art]) => [aspectMap[key] ?? key, art.等级]));
+  const result = calculateCharacterAttributes(levels);
+  entry.value.data.基础数值 = {
+    力量: result.Strength,
+    敏捷: result.Agility,
+    智慧: result.Wisdom,
+    魅力: result.Charisma,
+  };
+  entry.value.data.生命状态 ??= {};
+  for (const [key, maximum] of [
+    ['生命', result.Life],
+    ['体力', result.Stamina],
+    ['精神', result.Spirit],
+  ] as const)
+    entry.value.data.生命状态[key] = { 最大值: maximum, 当前: maximum };
+}
 watchEffect(() => {
   entry.value.meta ??= { avatar: '', color: '#C9B485', avatarStyle: 'auto' };
   entry.value.meta.avatarStyle ??= 'auto';
   if (entry.value.type === 'user') entry.value.key = 'user';
+  for (const key of ['生命', '体力', '精神']) {
+    const status = entry.value.data?.生命状态?.[key];
+    if (status && status.当前 !== status.最大值) status.当前 = status.最大值;
+  }
 });
 </script>
 <style scoped>
@@ -244,6 +289,10 @@ watchEffect(() => {
   background: rgba(203, 180, 119, 0.1);
   border: 1px solid rgba(203, 180, 119, 0.35);
 }
+.dossier-hint {
+  color: #8e887c !important;
+  font-size: 12px;
+}
 .role-dossier {
   display: grid;
   gap: 10px;
@@ -273,6 +322,38 @@ input[readonly] {
 .visual-fields h3 {
   margin: 0;
 }
+.visual-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.visual-summary p {
+  margin: 0 0 3px;
+  color: #cbb477;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+.color-swatch {
+  width: 34px;
+  height: 34px;
+  border: 5px solid #222629;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #5a5e60;
+}
+.visual-editor {
+  border-top: 1px solid #34383a;
+}
+.visual-editor summary {
+  padding: 10px 0;
+  color: #bdb39f;
+  cursor: pointer;
+}
+.visual-editor-body {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
 .visual-fields small {
   color: #9d9689;
 }
@@ -281,7 +362,7 @@ input[readonly] {
   top: 70px;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   padding: 8px;
   background: rgba(13, 15, 16, 0.94);
@@ -304,10 +385,23 @@ input[readonly] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.section-nav b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dirty-dot {
+  width: 6px;
+  height: 6px;
+  background: #e1bd63;
+  border-radius: 50%;
+  box-shadow: 0 0 7px rgba(225, 189, 99, 0.7);
+}
 .section-nav button.active {
-  color: #17130c !important;
-  background: #cbb477 !important;
+  color: #eee7d8 !important;
+  background: linear-gradient(180deg, rgba(203, 180, 119, 0.16), rgba(203, 180, 119, 0.04)) !important;
   border-color: #cbb477 !important;
+  box-shadow: inset 0 -2px #cbb477;
 }
 .section-nav button.active > span,
 .section-nav button.active small {
@@ -356,6 +450,38 @@ section[id^='role-'] {
   background: #1d2123;
   border: 1px solid #393d3f;
 }
+.dossier-panel > .grid label,
+.dossier-panel > label {
+  color: #8f897e;
+  font-size: 12px;
+}
+.dossier-panel > .grid input:not([type='checkbox']),
+.dossier-panel > .grid textarea,
+.dossier-panel > label input,
+.dossier-panel > label textarea {
+  padding: 8px 2px;
+  color: #eee9df;
+  font: inherit;
+  font-size: 15px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+}
+.dossier-panel > .grid textarea,
+.dossier-panel > label textarea {
+  min-height: 52px;
+  overflow: hidden;
+  resize: vertical;
+}
+.dossier-panel > .grid input:focus,
+.dossier-panel > .grid textarea:focus,
+.dossier-panel > label input:focus,
+.dossier-panel > label textarea:focus {
+  outline: none;
+  border-bottom-color: #cbb477;
+  background: linear-gradient(180deg, transparent, rgba(203, 180, 119, 0.05));
+}
 .color-field {
   grid-template-columns: auto minmax(110px, 1fr);
   align-items: center;
@@ -368,6 +494,32 @@ section[id^='role-'] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+.resource-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.resource-strip label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  color: #cbb477;
+  background: linear-gradient(135deg, rgba(203, 180, 119, 0.11), rgba(255, 255, 255, 0.018));
+  border: 1px solid rgba(203, 180, 119, 0.28);
+}
+.resource-strip input {
+  width: 120px !important;
+  color: #fff4d4;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(203, 180, 119, 0.35);
 }
 .wide {
   grid-column: 1/-1;
@@ -395,6 +547,9 @@ fieldset {
     top: 58px;
   }
   .grid {
+    grid-template-columns: 1fr;
+  }
+  .resource-strip {
     grid-template-columns: 1fr;
   }
 }

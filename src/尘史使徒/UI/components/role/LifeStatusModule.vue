@@ -7,16 +7,7 @@
         <span class="label">生命</span>
         <div class="bar-container">
           <div class="bar-fill hp-flow" :style="{ width: getPercent(data?.生命状态?.生命) + '%' }"></div>
-          <span class="bar-text"
-            ><input
-              v-if="mode === 'edit'"
-              :value="data?.生命状态?.生命?.当前 ?? 0"
-              type="number"
-              :max="data?.生命状态?.生命?.最大值 ?? undefined"
-              @input="updateCurrent('生命', $event)"
-            /><template v-else>{{ data?.生命状态?.生命?.当前 || 0 }}</template> /
-            {{ data?.生命状态?.生命?.最大值 || 0 }}</span
-          >
+          <span class="bar-text">{{ data?.生命状态?.生命?.当前 || 0 }} / {{ data?.生命状态?.生命?.最大值 || 0 }}</span>
         </div>
       </div>
 
@@ -25,16 +16,7 @@
         <span class="label">体力</span>
         <div class="bar-container">
           <div class="bar-fill sp-flow" :style="{ width: getPercent(data?.生命状态?.体力) + '%' }"></div>
-          <span class="bar-text"
-            ><input
-              v-if="mode === 'edit'"
-              :value="data?.生命状态?.体力?.当前 ?? 0"
-              type="number"
-              :max="data?.生命状态?.体力?.最大值 ?? undefined"
-              @input="updateCurrent('体力', $event)"
-            /><template v-else>{{ data?.生命状态?.体力?.当前 || 0 }}</template> /
-            {{ data?.生命状态?.体力?.最大值 || 0 }}</span
-          >
+          <span class="bar-text">{{ data?.生命状态?.体力?.当前 || 0 }} / {{ data?.生命状态?.体力?.最大值 || 0 }}</span>
         </div>
       </div>
 
@@ -43,16 +25,7 @@
         <span class="label">精神</span>
         <div class="bar-container">
           <div class="bar-fill mp-flow" :style="{ width: getPercent(data?.生命状态?.精神) + '%' }"></div>
-          <span class="bar-text"
-            ><input
-              v-if="mode === 'edit'"
-              :value="data?.生命状态?.精神?.当前 ?? 0"
-              type="number"
-              :max="data?.生命状态?.精神?.最大值 ?? undefined"
-              @input="updateCurrent('精神', $event)"
-            /><template v-else>{{ data?.生命状态?.精神?.当前 || 0 }}</template> /
-            {{ data?.生命状态?.精神?.最大值 || 0 }}</span
-          >
+          <span class="bar-text">{{ data?.生命状态?.精神?.当前 || 0 }} / {{ data?.生命状态?.精神?.最大值 || 0 }}</span>
         </div>
       </div>
     </div>
@@ -107,18 +80,7 @@ const props = defineProps({
       },
     }),
   },
-  mode: { type: String, default: 'view', validator: value => ['view', 'edit'].includes(value) },
 });
-const emit = defineEmits(['update:data']);
-
-const updateCurrent = (key, event) => {
-  const current = Number(event.target.value);
-  const next = structuredClone(props.data || {});
-  next.生命状态 ||= {};
-  next.生命状态[key] ||= { 当前: 0, 最大值: 0 };
-  next.生命状态[key].当前 = current;
-  emit('update:data', next);
-};
 
 /**
  * 计算属性百分比
@@ -230,14 +192,6 @@ const baseStatsConfig = [
   color: var(--c-text-dim, #a0a0a0);
   font-family: monospace;
   letter-spacing: 0.5px;
-}
-.bar-text input {
-  width: 74px;
-  padding: 1px 4px;
-  color: #fff;
-  text-align: right;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid currentColor;
 }
 
 .bar-fill {

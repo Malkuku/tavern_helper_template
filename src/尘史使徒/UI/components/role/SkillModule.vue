@@ -2,14 +2,18 @@
   <div v-if="data && Object.keys(data).length > 0" class="skills-container">
     <button v-if="mode === 'edit'" class="module-add" type="button" @click="addSkill">＋ 新增技能</button>
     <div class="skills-grid">
-      <template v-for="(skill, name) in data" :key="name">
-        <div class="skill-card" :class="getAspectClass(skill.性相)">
+      <template v-for="(skill, name, index) in data" :key="name">
+        <div
+          class="skill-card"
+          :class="[getAspectClass(skill.性相), { active: activeSkill === name }]"
+          @click="activate(name)"
+        >
           <!-- 头部：名称、等级、性相 -->
           <div class="skill-header">
             <div class="skill-title-group">
               <span class="skill-icon" v-html="getAspectIcon(skill.性相)"></span>
               <input
-                v-if="mode === 'edit'"
+                v-if="isActive(name)"
                 class="skill-name edit-control"
                 :value="name"
                 @change="renameSkill(name, $event)"
@@ -19,7 +23,7 @@
             <div class="skill-meta">
               <label class="skill-level-badge"
                 >Lv.<input
-                  v-if="mode === 'edit'"
+                  v-if="isActive(name)"
                   class="inline-number"
                   :value="skill.技能等级"
                   type="number"
@@ -27,21 +31,23 @@
                 /><template v-else>{{ skill.技能等级 }}</template></label
               >
               <select
-                v-if="mode === 'edit'"
+                v-if="isActive(name)"
                 class="skill-aspect-tag edit-control"
                 :value="skill.性相"
                 @change="updateField(name, '性相', $event.target.value)"
               >
                 <option v-for="aspect in aspects" :key="aspect">{{ aspect }}</option></select
               ><span v-else class="skill-aspect-tag">{{ skill.性相 }}</span>
-              <button v-if="mode === 'edit'" class="remove-btn" type="button" @click="removeSkill(name)">×</button>
+              <button v-if="mode === 'edit'" class="edit-trigger" type="button" @click.stop="activate(name)">
+                {{ isActive(name) ? '完成' : '编辑' }}
+              </button>
             </div>
           </div>
 
           <!-- 主体：描述 -->
           <div class="skill-body">
             <textarea
-              v-if="mode === 'edit'"
+              v-if="isActive(name)"
               class="skill-desc edit-control"
               :value="skill.描述"
               @input="updateField(name, '描述', $event.target.value)"
@@ -53,7 +59,7 @@
               <div class="detail-row cost">
                 <span class="label">消耗:</span>
                 <textarea
-                  v-if="mode === 'edit'"
+                  v-if="isActive(name)"
                   class="value edit-control"
                   :value="skill.消耗"
                   @input="updateField(name, '消耗', $event.target.value)"
@@ -65,13 +71,23 @@
               <div class="detail-row effect">
                 <span class="label">作用:</span>
                 <textarea
-                  v-if="mode === 'edit'"
+                  v-if="isActive(name)"
                   class="value edit-control"
                   :value="skill.作用"
                   @input="updateField(name, '作用', $event.target.value)"
                 ></textarea
                 ><span v-else class="value">{{ formatSkillText(skill.作用, skill) }}</span>
               </div>
+            </div>
+            <button v-if="isActive(name)" class="remove-btn" type="button" @click.stop="removeSkill(name)">
+              删除技能
+            </button>
+            <div v-if="isActive(name)" class="card-actions">
+              <button type="button" :disabled="index === 0" @click.stop="moveSkill(name, -1)">上移</button>
+              <button type="button" :disabled="index === Object.keys(data).length - 1" @click.stop="moveSkill(name, 1)">
+                下移
+              </button>
+              <button type="button" @click.stop="copySkill(name)">复制</button>
             </div>
           </div>
         </div>
@@ -84,7 +100,7 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue';
+import { defineProps, ref } from 'vue';
 
 const props = defineProps({
   data: { type: Object, default: () => ({}) },
@@ -92,6 +108,12 @@ const props = defineProps({
   mode: { type: String, default: 'view' },
 });
 const emit = defineEmits(['update:data']);
+const activeSkill = ref('');
+const isActive = name => props.mode === 'edit' && activeSkill.value === name;
+const activate = name => {
+  if (props.mode !== 'edit') return;
+  activeSkill.value = activeSkill.value === name ? '' : name;
+};
 const aspects = ['杯', '刃', '启', '铸', '蛾', '心', '冬', '灯', '秘史', '无'];
 const uniqueName = base => {
   let name = base,
@@ -103,11 +125,26 @@ const emitData = data => emit('update:data', data);
 const addSkill = () => {
   const name = uniqueName('新技能');
   emitData({ ...props.data, [name]: { 性相: '', 技能等级: 0, 描述: '', 消耗: '', 作用: '' } });
+  activeSkill.value = name;
 };
 const removeSkill = name => {
   const next = { ...props.data };
   delete next[name];
   emitData(next);
+  activeSkill.value = '';
+};
+const copySkill = name => {
+  const nextName = uniqueName(`${name}副本`);
+  emitData({ ...props.data, [nextName]: structuredClone(props.data[name]) });
+  activeSkill.value = nextName;
+};
+const moveSkill = (name, delta) => {
+  const rows = Object.entries(props.data),
+    index = rows.findIndex(([key]) => key === name),
+    target = index + delta;
+  if (target < 0 || target >= rows.length) return;
+  [rows[index], rows[target]] = [rows[target], rows[index]];
+  emitData(Object.fromEntries(rows));
 };
 const renameSkill = (name, event) => {
   const nextName = event.target.value.trim();
@@ -118,6 +155,7 @@ const renameSkill = (name, event) => {
   const next = {};
   for (const [key, value] of Object.entries(props.data)) next[key === name ? nextName : key] = value;
   emitData(next);
+  activeSkill.value = nextName;
 };
 const updateField = (name, field, value) =>
   emitData({ ...props.data, [name]: { ...props.data[name], [field]: value } });
@@ -206,8 +244,13 @@ const getAspectClass = aspect => {
   box-sizing: border-box;
   width: 100%;
   color: #e8e8e8;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(203, 180, 119, 0.24);
+}
+textarea.edit-control {
+  min-height: 0;
+  overflow: hidden;
+  resize: vertical;
 }
 .inline-number {
   width: 48px;
@@ -216,9 +259,21 @@ const getAspectClass = aspect => {
   border: 0;
 }
 .remove-btn {
+  align-self: flex-start;
+  margin-top: 10px;
   color: #ff8c8c;
   background: transparent;
   border: 1px solid #8f4444;
+}
+.edit-trigger {
+  color: #cbb477;
+  background: transparent;
+  border-color: rgba(203, 180, 119, 0.35);
+}
+.card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .no-skills {
@@ -251,6 +306,11 @@ const getAspectClass = aspect => {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
   border-color: rgba(255, 255, 255, 0.2);
+}
+.skill-card.active {
+  grid-column: 1 / -1;
+  transform: none;
+  border-color: color-mix(in srgb, currentColor 35%, rgba(255, 255, 255, 0.15));
 }
 
 /* 头部样式 */

@@ -29,20 +29,59 @@
         <div class="details-grid">
           <div v-if="rel['认知了解'] || isEditing" class="detail-item">
             <h4 class="detail-title">认知了解</h4>
-            <p v-if="!isEditing" class="detail-text">{{ rel['认知了解'] }}</p>
-            <textarea v-else v-model="rel['认知了解']" class="edit-textarea" @input="updateField"></textarea>
+            <p
+              v-if="!isEditing || editingField !== `${name}:认知了解`"
+              class="detail-text editable-copy"
+              @click="startField(name, '认知了解')"
+            >
+              {{ rel['认知了解'] || '点击填写认知了解' }}
+            </p>
+            <textarea
+              v-else
+              v-model="rel['认知了解']"
+              class="edit-textarea"
+              autofocus
+              @input="updateField"
+              @blur="editingField = ''"
+            ></textarea>
           </div>
 
           <div v-if="rel['情感羁绊'] || isEditing" class="detail-item">
             <h4 class="detail-title">情感羁绊</h4>
-            <p v-if="!isEditing" class="detail-text">{{ rel['情感羁绊'] }}</p>
-            <textarea v-else v-model="rel['情感羁绊']" class="edit-textarea" @input="updateField"></textarea>
+            <p
+              v-if="!isEditing || editingField !== `${name}:情感羁绊`"
+              class="detail-text editable-copy"
+              @click="startField(name, '情感羁绊')"
+            >
+              {{ rel['情感羁绊'] || '点击填写情感羁绊' }}
+            </p>
+            <textarea
+              v-else
+              v-model="rel['情感羁绊']"
+              class="edit-textarea"
+              autofocus
+              @input="updateField"
+              @blur="editingField = ''"
+            ></textarea>
           </div>
 
           <div v-if="rel['利益纽带'] || isEditing" class="detail-item">
             <h4 class="detail-title">利益纽带</h4>
-            <p v-if="!isEditing" class="detail-text">{{ rel['利益纽带'] }}</p>
-            <textarea v-else v-model="rel['利益纽带']" class="edit-textarea" @input="updateField"></textarea>
+            <p
+              v-if="!isEditing || editingField !== `${name}:利益纽带`"
+              class="detail-text editable-copy"
+              @click="startField(name, '利益纽带')"
+            >
+              {{ rel['利益纽带'] || '点击填写利益纽带' }}
+            </p>
+            <textarea
+              v-else
+              v-model="rel['利益纽带']"
+              class="edit-textarea"
+              autofocus
+              @input="updateField"
+              @blur="editingField = ''"
+            ></textarea>
           </div>
         </div>
       </div>
@@ -64,6 +103,7 @@ const emit = defineEmits(['update:data']);
 const expandedState = ref({});
 const editableData = ref({});
 const activeTarget = ref('');
+const editingField = ref('');
 const visibleEditableData = computed(() =>
   activeTarget.value && editableData.value[activeTarget.value]
     ? { [activeTarget.value]: editableData.value[activeTarget.value] }
@@ -82,6 +122,10 @@ watch(
 
 const updateField = () => {
   emit('update:data', editableData.value);
+};
+const startField = (name, field) => {
+  if (!props.isEditing) return;
+  editingField.value = `${name}:${field}`;
 };
 const addRelationship = name => {
   editableData.value = { ...editableData.value, [name]: { 认知了解: '', 情感羁绊: '', 利益纽带: '' } };
@@ -209,6 +253,16 @@ const formatName = name => {
   color: #ddd;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+.editable-copy {
+  min-height: 28px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  cursor: text;
+}
+.editable-copy:hover {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(212, 175, 55, 0.22);
 }
 
 .edit-textarea {

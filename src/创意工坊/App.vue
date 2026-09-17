@@ -56,7 +56,7 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { cloneSource, validateDraft } from './assets/model';
+import { cloneSource, normalizeRoleEnums, syncRoleVitalsToMaximum, validateDraft } from './assets/model';
 import { diffSources } from './assets/presentation';
 import { saveScenarioSource, serializeScenarioSource } from './assets/repository';
 import AppDialog from './components/AppDialog.vue';
@@ -101,6 +101,8 @@ async function load() {
   try {
     source.value = await loadScenarioSourceFromWorldbook();
     draft.value = cloneSource(source.value);
+    normalizeRoleEnums(draft.value);
+    syncRoleVitalsToMaximum(draft.value);
     return true;
   } catch (c) {
     loadError.value = c instanceof Error ? c.message : String(c);
@@ -113,7 +115,10 @@ async function save() {
   if (!draft.value) return;
   busy.value = true;
   try {
-    const checked = serializeScenarioSource(cloneSource(draft.value)),
+    const saving = cloneSource(draft.value);
+    normalizeRoleEnums(saving);
+    syncRoleVitalsToMaximum(saving);
+    const checked = serializeScenarioSource(saving),
       issues = validateDraft(checked);
     await saveScenarioSource(checked);
     source.value = checked;

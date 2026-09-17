@@ -91,6 +91,7 @@
         ><RoleEditor
           v-model:entry="entry"
           :role-options="roleOptions"
+          :dirty-sections="roleDirtySections"
           @request-type-change="pendingRoleType = $event" /></template
       ><ScenarioEditor v-else-if="entry" :entry="entry" :source="draft" />
       <div v-else class="empty">选择或新建一项{{ domain }}</div>
@@ -98,7 +99,7 @@
     <aside class="status mobile-status">
       <header class="status-summary">
         <div class="status-heading">
-          <h2>保存与发布检查</h2>
+          <h2>草稿与检查</h2>
           <p v-if="domain === '角色' && entry">当前：{{ title }} · {{ entry.author || '未署名版本' }}</p>
           <p v-else-if="entry">当前：{{ title }}</p>
           <p v-else>选择资源后可查看检查详情</p>
@@ -149,17 +150,7 @@
           </p>
         </section>
         <section class="status-section">
-          <h3>自动装配</h3>
-          <dl>
-            <template v-for="c in shared" :key="c"
-              ><dt>{{ c }}</dt>
-              <dd>{{ Object.keys(draft.registries[c]).length }}项</dd></template
-            >
-          </dl>
-          <p class="muted">地图使用唯一地图；共享资源不提供编辑或选择入口。</p>
-        </section>
-        <section class="status-section">
-          <h3>发布检查</h3>
+          <h3>需要处理</h3>
           <button
             v-for="i in issues"
             :key="i.ownerId + i.field"
@@ -183,7 +174,7 @@
       <button :class="{ active: mobilePane === 'status' }" @click="mobilePane = 'status'">检查</button>
     </nav>
     <footer class="savebar">
-      <span>{{ changes.length }}项未保存</span>
+      <span>{{ changes.length }} 个资产有更改</span>
       <div>
         <button :disabled="!changes.length" @click="$emit('requestReload')">放弃草稿</button
         ><button class="primary" :disabled="!changes.length" @click="reviewOpen = true">审阅并保存</button>
@@ -279,9 +270,22 @@ const domain = ref<'角色' | '剧本'>('剧本'),
   generatorError = ref(''),
   generating = ref(false),
   expandedGroups = reactive(new Set<string>());
-const shared = ['地图', '世界经济', '季节与节日', '势力', '种族'] as const;
 const changes = computed(() => diffSources(props.source, props.draft)),
   issues = computed(() => findReferenceIssues(props.draft));
+const roleDirtySections = computed(() => {
+  if (domain.value !== '角色' || !selectedId.value) return [];
+  const change = changes.value.find(item => item.category === '角色' && item.id === selectedId.value);
+  if (change?.kind === 'added') return ['basic', 'personality', 'skills', 'items'];
+  const fields = change?.fields ?? [];
+  const sections = new Set<string>();
+  for (const { path } of fields) {
+    if (/^data\.(性格|人际关系|性经验)/.test(path)) sections.add('personality');
+    else if (/^data\.(基础数值|生命状态|技能|术之等级)/.test(path)) sections.add('skills');
+    else if (/^data\.(特殊状态|物品|金钱|缥缈异质)/.test(path)) sections.add('items');
+    else sections.add('basic');
+  }
+  return [...sections];
+});
 const scenarios = computed(() =>
   Object.entries(props.draft.scenarios).map(([id, entry]) => ({ id, entry, title: assetTitle('开场白', entry) })),
 );
