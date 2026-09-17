@@ -11,7 +11,7 @@
       <header>
         <h2>{{ domain }}</h2>
         <div class="catalog-actions">
-          <button v-if="domain === '角色'" @click="generatorOpen = true">✦ AI 生成</button
+          <button v-if="domain === '角色'" @click="openRoleAssistant()">✦ AI 新建</button
           ><button class="primary" @click="createCurrent">+ 新建</button>
         </div>
       </header>
@@ -83,7 +83,8 @@
           <h2>{{ title }}</h2>
         </div>
         <div>
-          <button @click="copyCurrent">复制</button><button @click="exportOpen = true">导出</button
+          <button v-if="domain === '角色'" @click="openRoleAssistant(selectedId)">✦ AI 修改</button
+          ><button @click="copyCurrent">复制</button><button @click="exportOpen = true">导出</button
           ><button class="danger" @click="askDelete">删除</button>
         </div>
       </header>
@@ -200,27 +201,51 @@
         </button></template
       ></AppDialog
     >
-    <AppDialog :open="generatorOpen" title="AI 生成角色草稿" @cancel="closeGenerator">
+    <AppDialog
+      :open="generatorOpen"
+      :title="generatorTargetId ? '使用外部 AI 修改角色' : '使用外部 AI 新建角色'"
+      @cancel="closeGenerator"
+    >
       <div class="generator-form">
         <label
-          >角色类型<select v-model="generatorType">
+          >角色类型<select v-model="generatorType" :disabled="!!generatorTargetId">
             <option>user</option>
             <option>主要角色</option>
             <option>次要角色</option>
           </select></label
         >
         <label
-          >角色创意<textarea v-model="generatorIdea" rows="6" placeholder="身份、经历、性格、外貌、与世界的联系……" />
+          >{{ generatorTargetId ? '修改要求' : '角色创意'
+          }}<textarea
+            v-model="generatorIdea"
+            rows="6"
+            :placeholder="
+              generatorTargetId ? '说明希望 AI 修改、补充或重写的内容……' : '身份、经历、性格、外貌、与世界的联系……'
+            "
+          />
         </label>
         <label
           >提升词（可选）<textarea v-model="generatorEnhancement" rows="3" placeholder="强调的写作方向或额外限制" />
         </label>
-        <p class="muted">规则与世界资料会从当前角色主世界书读取；生成结果只进入草稿，仍需审阅保存。</p>
+        <p class="muted">
+          下载的提示词包含世界书规则、stat_data 角色模板<span v-if="generatorTargetId">和当前角色 JSON</span>。在网页 AI
+          中提交后，将返回的完整 JSON 粘贴到下方{{ generatorTargetId ? '覆盖更新' : '导入' }}。
+        </p>
+        <label
+          >角色 JSON<textarea
+            v-model="generatorJson"
+            rows="9"
+            placeholder="粘贴网页 AI 返回的 JSON；可包含 ```json 代码围栏"
+          />
+        </label>
         <p v-if="generatorError" class="generator-error" role="alert">{{ generatorError }}</p>
       </div>
       <template #actions
-        ><button class="primary" :disabled="generating || !generatorIdea.trim()" @click="runGenerator">
-          {{ generating ? '生成中…' : '生成草稿' }}
+        ><button v-if="generatorTargetId" @click="downloadCurrentRoleJson">导出角色 JSON</button
+        ><button :disabled="preparingPrompt || !generatorIdea.trim()" @click="downloadGeneratorPrompt">
+          {{ preparingPrompt ? '正在拼装…' : '下载提示词' }}</button
+        ><button class="primary" :disabled="!generatorJson.trim()" @click="importGeneratedJson">
+          {{ generatorTargetId ? '完整覆盖角色' : '导入新角色' }}
         </button></template
       >
     </AppDialog>
@@ -243,7 +268,13 @@ import { computed, reactive, ref } from 'vue';
 import { deleteAsset, findReferenceIssues, findReferencesTo } from '../assets/model';
 import { createPackage, downloadPackage } from '../assets/package';
 import { assetTitle, createDefaultAsset, defaultRoleData, diffSources } from '../assets/presentation';
-import { generateRoleDraft, type GeneratedRoleType } from '../assets/roleGenerator';
+import {
+  buildDownloadableRolePrompt,
+  parseGeneratedRole,
+  parseRoleRuntimeJson,
+  roleToRuntimeJson,
+  type GeneratedRoleType,
+} from '../assets/roleGenerator';
 import type { ReferenceIssue, ScenarioSourceBundle } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
@@ -264,11 +295,13 @@ const domain = ref<'角色' | '剧本'>('剧本'),
   mobilePane = ref<'catalog' | 'editor' | 'status'>('catalog'),
   statusExpanded = ref(false),
   generatorOpen = ref(false),
+  generatorTargetId = ref(''),
   generatorType = ref<GeneratedRoleType>('主要角色'),
   generatorIdea = ref(''),
   generatorEnhancement = ref(''),
+  generatorJson = ref(''),
   generatorError = ref(''),
-  generating = ref(false),
+  preparingPrompt = ref(false),
   expandedGroups = reactive(new Set<string>());
 const changes = computed(() => diffSources(props.source, props.draft)),
   issues = computed(() => findReferenceIssues(props.draft));
@@ -403,31 +436,75 @@ function createCurrent() {
   mobilePane.value = 'editor';
 }
 function closeGenerator() {
-  if (generating.value) return;
+  if (preparingPrompt.value) return;
   generatorOpen.value = false;
   generatorError.value = '';
 }
-async function runGenerator() {
-  generating.value = true;
+function openRoleAssistant(targetId = '') {
+  generatorTargetId.value = targetId;
+  const target = props.draft.registries.角色[targetId];
+  if (target) generatorType.value = target.type as GeneratedRoleType;
+  generatorIdea.value = '';
+  generatorEnhancement.value = '';
+  generatorJson.value = '';
+  generatorError.value = '';
+  generatorOpen.value = true;
+}
+function downloadText(content: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+async function downloadGeneratorPrompt() {
+  preparingPrompt.value = true;
   generatorError.value = '';
   try {
-    const id = crypto.randomUUID();
-    props.draft.registries.角色[id] = await generateRoleDraft(
+    const target = props.draft.registries.角色[generatorTargetId.value];
+    const prompt = await buildDownloadableRolePrompt(
       generatorType.value,
       generatorIdea.value,
       generatorEnhancement.value,
       props.draft,
+      target ? roleToRuntimeJson(target) : undefined,
     );
+    downloadText(prompt, `尘史角色提示词-${generatorType.value}.txt`);
+  } catch (error) {
+    generatorError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    preparingPrompt.value = false;
+  }
+}
+function downloadCurrentRoleJson() {
+  const target = props.draft.registries.角色[generatorTargetId.value];
+  if (!target) return;
+  downloadText(JSON.stringify(roleToRuntimeJson(target), null, 2), `${target.key || '角色'}-stat_data.json`);
+}
+function importGeneratedJson() {
+  generatorError.value = '';
+  try {
+    const target = props.draft.registries.角色[generatorTargetId.value];
+    let id = generatorTargetId.value;
+    if (target) {
+      const parsed = parseRoleRuntimeJson(generatorJson.value, generatorType.value);
+      target.data = parsed.data;
+      target.meta = { ...parsed.meta, avatarStyle: target.meta?.avatarStyle ?? 'auto' };
+    } else {
+      id = crypto.randomUUID();
+      props.draft.registries.角色[id] = parseGeneratedRole(generatorJson.value, generatorType.value);
+    }
     domain.value = '角色';
     selectedId.value = id;
     mobilePane.value = 'editor';
     generatorOpen.value = false;
     generatorIdea.value = '';
     generatorEnhancement.value = '';
+    generatorJson.value = '';
+    generatorTargetId.value = '';
   } catch (error) {
     generatorError.value = error instanceof Error ? error.message : String(error);
-  } finally {
-    generating.value = false;
   }
 }
 function createScenario(id: string) {

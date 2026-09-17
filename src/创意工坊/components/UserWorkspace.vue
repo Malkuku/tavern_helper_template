@@ -9,7 +9,7 @@
       <div class="package-actions">
         <label class="file primary"
           >导入资产包<input type="file" accept="application/json" @change="importFile" /></label
-        ><button @click="exportAll">导出资产包</button>
+        ><button @click="openExport">选择导出</button>
       </div>
     </header>
     <div class="filters">
@@ -40,7 +40,10 @@
           <p>{{ r.summary }}</p>
           <small>{{ r.entry.author ? `作者：${r.entry.author}` : '未署名角色' }}</small>
         </div>
-        <button :class="{ danger: r.exists }" @click="choose(r.id)">{{ r.exists ? '替换' : '加入' }}</button>
+        <div class="role-actions">
+          <button @click="previewId = r.id">预览</button>
+          <button :class="{ danger: r.exists }" @click="choose(r.id)">{{ r.exists ? '替换' : '加入' }}</button>
+        </div>
       </article>
     </div>
     <div v-if="!filtered.length" class="empty">
@@ -63,6 +66,41 @@
       <template #actions><button class="primary" @click="install">确认安装</button></template>
     </AppDialog>
     <AppDialog
+      :open="!!previewRole"
+      :title="previewRole ? `${assetTitle('角色', previewRole)} · 角色预览` : '角色预览'"
+      @cancel="previewId = ''"
+    >
+      <div v-if="previewRole" class="role-preview">
+        <CharPanel :data="previewData" :char-type="previewCharType" mode="view" />
+      </div>
+      <template #actions
+        ><button :class="{ danger: previewExists }" @click="chooseFromPreview">
+          {{ previewExists ? '替换此角色' : '加入此角色' }}
+        </button></template
+      >
+    </AppDialog>
+    <AppDialog :open="exportOpen" title="选择导出资产" @cancel="exportOpen = false">
+      <p class="export-hint">可按分类或具体资产选择。选中剧本时，其引用的角色与叙事资源会自动包含。</p>
+      <div class="export-list">
+        <section v-for="group in exportGroups" :key="group.category">
+          <label class="export-category"
+            ><input
+              type="checkbox"
+              :checked="group.allSelected"
+              @change="toggleCategory(group.category, ($event.target as HTMLInputElement).checked)"
+            />{{ group.category }}<small>{{ group.items.length }} 项</small></label
+          >
+          <label v-for="item in group.items" :key="`${group.category}:${item.id}`"
+            ><input v-model="exportSelection[`${group.category}:${item.id}`]" type="checkbox" />{{ item.title }}</label
+          >
+        </section>
+      </div>
+      <p>已选 {{ explicitExportCount }} 项；最终导出 {{ finalExportCount }} 项（含自动依赖）。</p>
+      <template #actions
+        ><button class="primary" :disabled="!explicitExportCount" @click="confirmExport">导出所选资产</button></template
+      >
+    </AppDialog>
+    <AppDialog
       :open="!!overwriteId"
       :title="overwrite?.type === 'user' ? '替换当前主角' : '替换运行角色'"
       @cancel="overwriteId = ''"
@@ -82,6 +120,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
+import CharPanel from '../../尘史使徒/UI/components/role/CharPanel.vue';
 import { assetsOf, type WorkshopCategory } from '../assets/model';
 import {
   createPackage,
@@ -91,7 +130,7 @@ import {
   parsePackage,
   type PackageConflict,
 } from '../assets/package';
-import { assetTitle, previewPackage, type ImportPreview } from '../assets/presentation';
+import { assetTitle, previewPackage, workshopCategories, type ImportPreview } from '../assets/presentation';
 import { saveScenarioSource } from '../assets/repository';
 import { addRoleToRuntime, getRuntimeRoles, type RuntimeRoleSnapshot } from '../assets/runtimeRole';
 import type { PackageConflictDecision, ScenarioSourceBundle, WorkshopPackage } from '../scenario/types';
@@ -103,7 +142,10 @@ const query = ref(''),
   type = ref(''),
   hideExisting = ref(true),
   runtime = ref<RuntimeRoleSnapshot>(),
+  previewId = ref(''),
   overwriteId = ref(''),
+  exportOpen = ref(false),
+  exportSelection = ref<Record<string, boolean>>({}),
   pending = ref<WorkshopPackage>(),
   preview = ref<ImportPreview>(),
   conflicts = ref<PackageConflict[]>([]),
@@ -139,6 +181,29 @@ const filtered = computed(() =>
   ),
 );
 const overwrite = computed(() => props.source.registries.角色[overwriteId.value]);
+const previewRole = computed(() => props.source.registries.角色[previewId.value]);
+const previewExists = computed(() => !!previewRole.value && roleExists(previewRole.value.type, previewRole.value.key));
+const previewData = computed(() => ({ ...(previewRole.value?.data as object), meta: previewRole.value?.meta }));
+const previewCharType = computed(
+  () => ({ user: 'user', 主要角色: 'main', 次要角色: 'minor' })[previewRole.value?.type ?? ''] ?? 'main',
+);
+const exportGroups = computed(() => {
+  const all = assetsOf(props.source);
+  return workshopCategories
+    .map(category => ({
+      category,
+      items: Object.entries(all[category]).map(([id, value]) => ({ id, title: assetTitle(category, value) })),
+      allSelected:
+        Object.keys(all[category]).length > 0 &&
+        Object.keys(all[category]).every(id => exportSelection.value[`${category}:${id}`]),
+    }))
+    .filter(group => group.items.length);
+});
+const explicitExportCount = computed(() => Object.values(exportSelection.value).filter(Boolean).length);
+const exportPackage = computed(() => createPackage(props.source, selectedAssets()));
+const finalExportCount = computed(() =>
+  Object.values(exportPackage.value.assets).reduce((count, entries) => count + Object.keys(entries ?? {}).length, 0),
+);
 const runtimeDiff = computed(() => {
   if (!overwrite.value) return [];
   const before =
@@ -180,6 +245,11 @@ async function choose(id: string) {
     show(error, true);
   }
 }
+function chooseFromPreview() {
+  const id = previewId.value;
+  previewId.value = '';
+  if (id) void choose(id);
+}
 async function confirmOverwrite() {
   const role = overwrite.value;
   overwriteId.value = '';
@@ -200,13 +270,26 @@ function short(v: unknown) {
   const s = v === undefined ? '未设置' : JSON.stringify(v);
   return s.length > 60 ? `${s.slice(0, 60)}…` : s;
 }
-function selection() {
-  return Object.fromEntries(
-    Object.entries(assetsOf(props.source)).map(([category, values]) => [category, Object.keys(values)]),
-  ) as Record<WorkshopCategory, string[]>;
+function selectedAssets() {
+  const result: Partial<Record<WorkshopCategory, string[]>> = {};
+  for (const key of Object.keys(exportSelection.value).filter(key => exportSelection.value[key])) {
+    const separator = key.indexOf(':');
+    const category = key.slice(0, separator) as WorkshopCategory;
+    (result[category] ??= []).push(key.slice(separator + 1));
+  }
+  return result;
 }
-function exportAll() {
-  downloadPackage(createPackage(props.source, selection()));
+function openExport() {
+  exportSelection.value = {};
+  exportOpen.value = true;
+}
+function toggleCategory(category: WorkshopCategory, checked: boolean) {
+  for (const id of Object.keys(assetsOf(props.source)[category])) exportSelection.value[`${category}:${id}`] = checked;
+}
+function confirmExport() {
+  if (!explicitExportCount.value) return;
+  downloadPackage(exportPackage.value);
+  exportOpen.value = false;
 }
 async function importFile(event: Event) {
   try {
@@ -328,6 +411,10 @@ function show(value: unknown, error = false) {
 .role-card.existing {
   border-left-color: #a9655e;
 }
+.role-actions {
+  display: grid;
+  gap: 7px;
+}
 .role-copy {
   min-width: 0;
 }
@@ -379,6 +466,48 @@ dd {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.role-preview {
+  height: min(62dvh, 620px);
+  min-height: 420px;
+  overflow: hidden;
+}
+.export-hint,
+.export-category small {
+  color: #aaa397;
+}
+.export-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  max-height: 52vh;
+  overflow: auto;
+}
+.export-list section,
+.export-list label {
+  display: grid;
+  gap: 6px;
+}
+.export-list section {
+  align-content: start;
+  padding: 10px;
+  border: 1px solid #3b3932;
+}
+.export-list label {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+.export-list input {
+  width: auto !important;
+  min-height: 0 !important;
+}
+.export-category {
+  color: #cbb477;
+  font-weight: 700;
+}
+.export-category small {
+  margin-left: auto;
+  font-weight: 400;
+}
 @media (max-width: 760px) {
   .workspace-head {
     align-items: stretch;
@@ -393,8 +522,13 @@ dd {
   .role-card {
     grid-template-columns: auto minmax(0, 1fr);
   }
-  .role-card > button {
+  .role-actions {
     grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+  .role-preview {
+    height: calc(100dvh - 190px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: 0;
   }
 }
 </style>

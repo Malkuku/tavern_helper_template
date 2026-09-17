@@ -17,11 +17,13 @@
           </div>
         </div>
         <div class="header-actions">
-          <button class="edit-btn" @click="isEditing ? saveEdit() : startEdit()">
+          <button v-if="!isReadOnly" class="edit-btn" @click="isEditing ? saveEdit() : startEdit()">
             {{ isEditing ? '保存' : '编辑' }}
           </button>
-          <button class="cancel-btn" v-if="isEditing" @click="cancelEdit">取消</button>
-          <button class="delete-btn" v-if="charType === 'minor' && !isEditing" @click="deleteChar">删除角色</button>
+          <button v-if="!isReadOnly && isEditing" class="cancel-btn" @click="cancelEdit">取消</button>
+          <button v-if="!isReadOnly && charType === 'minor' && !isEditing" class="delete-btn" @click="deleteChar">
+            删除角色
+          </button>
           <button
             v-if="showDetailToggle"
             class="detail-toggle-btn"
@@ -213,6 +215,11 @@ const props = defineProps({
   data: { type: Object, required: true },
   charId: { type: String, default: '' },
   category: { type: String, default: '' },
+  mode: {
+    type: String,
+    default: 'runtime',
+    validator: v => ['runtime', 'view'].includes(v),
+  },
   charType: {
     type: String,
     default: 'main',
@@ -221,6 +228,7 @@ const props = defineProps({
 });
 
 const panelClass = computed(() => `${props.charType}-panel`);
+const isReadOnly = computed(() => props.mode === 'view');
 
 const displayName = computed(() => {
   if (props.charType === 'user') return substitudeMacros('{{user}}');

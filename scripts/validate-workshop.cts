@@ -14,11 +14,18 @@ import {
 import { createPackage, listConflicts, mergePackage, parsePackage } from '../src/创意工坊/assets/package';
 import {
   createDefaultAsset,
+  defaultRoleData,
   diffSources,
   previewPackage,
   workshopCategories,
 } from '../src/创意工坊/assets/presentation';
-import { buildRoleGenerationPrompt, parseGeneratedRole } from '../src/创意工坊/assets/roleGenerator';
+import {
+  buildRoleGenerationPrompt,
+  parseGeneratedRole,
+  parseRoleRuntimeJson,
+  roleGenerationMap,
+  roleToRuntimeJson,
+} from '../src/创意工坊/assets/roleGenerator';
 import { serializeScenarioSource } from '../src/创意工坊/assets/repository';
 import {
   parseScenarioSourceEntries,
@@ -96,6 +103,13 @@ const pkg = createPackage(source, { 开场白: ['s'], 角色: ['role'] });
 const parsedPackage = parsePackage(JSON.stringify(pkg));
 assert.equal(parsedPackage.version, 2);
 assert.deepEqual(parsedPackage.assets.角色.role.meta, source.registries.角色.role.meta);
+assert.deepEqual(
+  Object.keys(parsedPackage.assets).sort(),
+  ['世界', '主线', '地图', '开场文本', '开场白', '角色'].sort(),
+  '选择剧本必须自动包含全部直接依赖',
+);
+const roleOnlyPackage = createPackage(source, { 角色: ['role'] });
+assert.deepEqual(Object.keys(roleOnlyPackage.assets), ['角色'], '独立选择资源不应夹带未引用资产');
 const legacyPackage = {
   format: 'dust-history-workshop-package',
   version: 1,
@@ -154,22 +168,115 @@ assert.equal(diff.length, 1);
 assert.equal(diff[0].fields[0].path, 'data.时间');
 const preview = previewPackage(target, pkg);
 assert.equal(preview.conflicts, 1);
-assert.equal(preview.identical, 1);
+assert.equal(preview.identical, 5);
 assert.deepEqual(serializeScenarioSource(source), source, '内存结构应无损往返');
+const generatedMainData = defaultRoleData('主要角色');
+delete generatedMainData.当前想法;
+generatedMainData.姓名 = '雾鸦';
+generatedMainData.术之等级 = { 灯: { 等级: 1, 经验: 0 } };
 const generatedRole = parseGeneratedRole(
-  '{"author":"AI","key":"雾鸦","data":{"姓名":"雾鸦","基础数值":{"力量":8}}}',
+  JSON.stringify({ ...generatedMainData, meta: { avatar: '/user/files/a.webp', color: '#AABBCC' } }),
   '主要角色',
 );
 assert.equal(generatedRole.data.姓名, '雾鸦');
-assert.equal((generatedRole.data.基础数值 as any).力量, 8);
-assert.ok((generatedRole.data.基础数值 as any).敏捷 === 0, '生成角色应由固定模板补齐字段');
+assert.equal((generatedRole.data.基础数值 as any).力量, 10, '基础数值必须根据术之等级重算');
+assert.equal((generatedRole.data.生命状态 as any).生命.当前, 140, '生命状态必须根据术之等级重算并回满');
+const generatedUserData = defaultRoleData('user');
 assert.equal(
-  parseGeneratedRole('{"key":"任意值","data":{}}', 'user').key,
+  parseGeneratedRole(JSON.stringify({ ...generatedUserData, 金钱: 12, meta: {} }), 'user').key,
   'user',
   'AI 生成 user 的 key 必须锁定为 user',
 );
 assert.throws(() => parseGeneratedRole('不是 JSON', '主要角色'), /不是可解析的角色 JSON/);
-assert.match(buildRoleGenerationPrompt('主要角色', '雾中信使', '克制', '规则正文', source), /雾中信使/);
+assert.throws(() => parseGeneratedRole('{"data":{"姓名":"旧包装"}}', '主要角色'), /不要使用工坊资产包装层/);
+const runtimeJson = roleToRuntimeJson(generatedRole);
+assert.equal(runtimeJson.姓名, '雾鸦');
+assert.deepEqual(runtimeJson.meta, generatedRole.meta);
+const replacement = parseRoleRuntimeJson(
+  JSON.stringify({
+    ...generatedMainData,
+    姓名: '新雾鸦',
+    名称检索词: ['雾鸦', '信使'],
+    区域检索词: ['$all'],
+    meta: { color: '#112233' },
+  }),
+  '主要角色',
+);
+assert.equal(replacement.data.姓名, '新雾鸦');
+assert.equal(replacement.meta.color, '#112233');
+assert.deepEqual(replacement.data.名称检索词, ['雾鸦', '信使'], '导入不得覆盖手工名称检索词');
+assert.deepEqual(replacement.data.区域检索词, ['$all'], '导入不得覆盖手工区域检索词');
+assert.throws(
+  () => parseRoleRuntimeJson('{"姓名":"残缺角色","meta":{}}', '主要角色'),
+  /缺少完整字段/,
+  '角色导入不得以默认模板静默补齐残缺数据',
+);
+assert.throws(
+  () =>
+    parseRoleRuntimeJson(JSON.stringify({ ...generatedMainData, 姓名: '雾鸦', 非法字段: true, meta: {} }), '主要角色'),
+  /不支持的字段/,
+);
+source.registries.地图.map.data = {
+  大陆: {
+    名称检索词: ['大陆'],
+    描述: '第一层',
+    详情: ['保留'],
+    图标: 'earth',
+    方位: { x: [0], y: [0], z: [0] },
+    无用字段: '删除',
+    子地图: {
+      王国: {
+        描述: '第二层',
+        详情: ['保留'],
+        图标: 'flag',
+        方位: { x: [1], y: [1], z: [1] },
+        子地图: {
+          城市: {
+            描述: '第三层',
+            详情: ['保留'],
+            图标: 'city',
+            方位: { x: [2], y: [2], z: [2] },
+            子地图: {
+              街区: {
+                描述: '第四层不应保留',
+                详情: ['删除'],
+                图标: 'street',
+                方位: { x: [3], y: [3], z: [3] },
+                子地图: { 店铺: { 描述: '第五层', 详情: [], 图标: 'shop', 方位: { x: [], y: [], z: [] } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+source.registries.种族.race = { ...entry, type: '类人种', key: '人类', data: ['适应性均衡'] };
+const promptMap = roleGenerationMap(source);
+assert.equal((promptMap.大陆 as any).描述, '第一层');
+assert.equal((promptMap.大陆 as any).子地图.王国.子地图.城市.描述, '第三层');
+assert.deepEqual((promptMap.大陆 as any).子地图.王国.子地图.城市.子地图.街区, { 子地图: { 店铺: {} } });
+assert.doesNotMatch(JSON.stringify(promptMap), /图标|方位|无用字段|第四层不应保留/);
+const generatedPrompt = buildRoleGenerationPrompt('主要角色', '雾中信使', '克制', '规则正文', source);
+assert.match(generatedPrompt, /雾中信使/);
+assert.doesNotMatch(generatedPrompt, /"registries"|"author"|"内容配置"/, '提示词不得泄漏工坊包装层');
+assert.doesNotMatch(generatedPrompt, /当前工坊世界资料|世界经济|季节与节日/, '角色提示词不得注入无关世界资产');
+assert.match(generatedPrompt, /世界观中的势力资料（运行态 JSON/, '提示词必须提供纯业务结构的势力资料');
+assert.match(generatedPrompt, /世界地图（AI 特供精简 JSON/, '提示词必须提供分层清洗后的地图');
+assert.match(generatedPrompt, /"街区": \{[\s\S]*"店铺": \{\}/, '地图第三层以后仍须保留节点层级');
+assert.doesNotMatch(generatedPrompt, /第四层不应保留|"图标"|"方位"/, '地图不得泄漏深层详情或无用展示数据');
+assert.match(
+  generatedPrompt,
+  /世界观中的种族资料（运行态 JSON，仅作参考，不限制角色设计）/,
+  '提示词必须提供开放参考的种族资料',
+);
+assert.match(generatedPrompt, /"类人种": \{[\s\S]*"人类": \[/, '种族必须按运行态 type 和 key 投影');
+assert.match(generatedPrompt, /八大准则|字段规则与创作参考/, '提示词必须为术与准则规则预留明确分区');
+assert.match(generatedPrompt, /名称检索词：[\s\S]*EJS 加载完整角色资料/, '提示词必须解释名称检索词用途');
+assert.match(generatedPrompt, /区域检索词：[\s\S]*地图索引/, '提示词必须解释区域检索词用途');
+assert.match(generatedPrompt, /"名称检索词": \[\s*"\$all"/s, '新建角色模板必须默认使用 $all');
+assert.match(generatedPrompt, /信息不足时只向用户提出/, '提示词必须允许 AI 先访谈再生成');
+assert.match(generatedPrompt, /人际关系、性经验：暂时锁定/, '提示词必须禁止 AI 填充复杂关联字段');
 {
   const roles = {
     user1: { ...entry, type: 'user' },
@@ -218,8 +325,29 @@ const developerWorkspaceSource = readFileSync(
   join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'),
   'utf8',
 );
+const roleGeneratorSource = readFileSync(join(process.cwd(), 'src/创意工坊/assets/roleGenerator.ts'), 'utf8');
+for (const ruleName of ['八大准则', '灯', '铸', '刃', '冬', '心', '杯', '蛾', '启', '物品参考表'])
+  assert.match(roleGeneratorSource, new RegExp(`['"]${ruleName}['"]`), `角色提示词必须读取${ruleName}`);
+assert.match(
+  roleGeneratorSource,
+  /runtimeCollection\(source\.registries\.势力\)/,
+  '势力必须以运行态 JSON 投影进入提示词',
+);
 assert.match(developerWorkspaceSource, /current\.desc\?\.trim\(\) \|\| '暂无素材说明'/, '角色版本必须显示素材说明');
 assert.doesNotMatch(developerWorkspaceSource, /`区别：/, '角色版本不得继续显示字段差异摘要');
+assert.match(developerWorkspaceSource, /buildDownloadableRolePrompt/, '外部 AI 流程必须支持拼装并下载提示词');
+assert.match(
+  developerWorkspaceSource,
+  /parseGeneratedRole\(generatorJson\.value/,
+  '外部 AI 流程必须支持粘贴 JSON 导入',
+);
+assert.match(developerWorkspaceSource, /target\.data = parsed\.data/, '外部 AI 流程必须完整覆盖当前角色数据');
+assert.match(developerWorkspaceSource, /roleToRuntimeJson\(target\)/, '当前角色必须可导出为 stat_data JSON');
+assert.doesNotMatch(developerWorkspaceSource, /generateRaw|generateRoleDraft/, '工坊不得继续直调宿主模型生成角色');
+const avatarMediaSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/AvatarMediaField.vue'), 'utf8');
+assert.match(avatarMediaSource, /聚焦裁剪头像/, '上传头像必须提供聚焦裁剪');
+assert.match(avatarMediaSource, /toDataURL\('image\/png'\)/, '裁剪结果必须写为可持久化 data URL');
+assert.doesNotMatch(avatarMediaSource, /getDisplayMedia|截取屏幕/, '头像入口不得继续捕获用户屏幕');
 const skillModuleSource = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/role/SkillModule.vue'), 'utf8');
 assert.match(
   skillModuleSource,

@@ -1,11 +1,22 @@
 <template>
   <div class="workshop-root" :class="{ expanded: !collapsed }">
-    <button v-if="collapsed" ref="launcher" class="launcher" title="打开尘史创意工坊（可拖拽）" @click="openWorkshop">
+    <button
+      v-if="collapsed"
+      ref="launcher"
+      class="launcher"
+      :style="launcherStyle"
+      title="尘史创意工坊（拖拽移动，点击打开）"
+      @click="openWorkshop"
+      @pointerdown="startLauncherDrag"
+      @pointermove="moveLauncher"
+      @pointerup="stopLauncherDrag"
+      @pointercancel="stopLauncherDrag"
+    >
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <path d="M15 48c9-3 14-10 17-21 3 11 8 18 17 21M20 19c7-5 17-5 24 0l-5 25H25l-5-25Z" />
         <path d="M25 26h14M27 33h10M29 40h6" />
       </svg>
-      <span class="sr-only">打开尘史创意工坊</span>
+      <span>创意工坊</span>
     </button>
     <main v-else class="shell">
       <header>
@@ -71,25 +82,62 @@ const workspace = ref<'user' | 'developer'>('user'),
   collapsed = ref(true),
   launcher = ref<HTMLElement>(),
   launcherDragging = ref(false),
+  launcherPosition = ref<{ x: number; y: number }>(),
   message = ref(''),
   error = ref(false),
   loadError = ref(''),
   lossAction = ref<{ label: string; run: () => void | Promise<void> }>();
 const dirtyCount = computed(() => (source.value && draft.value ? diffSources(source.value, draft.value).length : 0));
+const launcherStyle = computed(() =>
+  launcherPosition.value ? { left: `${launcherPosition.value.x}px`, top: `${launcherPosition.value.y}px` } : {},
+);
+let dragStart: { pointerId: number; x: number; y: number; left: number; top: number } | undefined;
 function showMessage(v: { text: string; error?: boolean }) {
   message.value = v.text;
   error.value = !!v.error;
 }
-function initLauncherDrag() {
-  if (!launcher.value) return;
-  const button = $(launcher.value);
-  if (button.data('ui-draggable')) button.draggable('destroy');
-  button.draggable({
-    containment: 'window',
-    scroll: false,
-    start: () => (launcherDragging.value = true),
-    stop: () => window.setTimeout(() => (launcherDragging.value = false), 100),
-  });
+function clampLauncher(x: number, y: number) {
+  const width = launcher.value?.offsetWidth ?? 132,
+    height = launcher.value?.offsetHeight ?? 52;
+  return {
+    x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
+    y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
+  };
+}
+function restoreLauncherPosition() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('dust-history-workshop-launcher') || 'null');
+    launcherPosition.value =
+      saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)
+        ? clampLauncher(saved.x, saved.y)
+        : clampLauncher(20, window.innerHeight - (launcher.value?.offsetHeight ?? 52) - 20);
+  } catch {
+    launcherPosition.value = clampLauncher(20, window.innerHeight - 72);
+  }
+}
+function startLauncherDrag(event: PointerEvent) {
+  if (event.button !== 0 || !launcher.value) return;
+  const rect = launcher.value.getBoundingClientRect();
+  dragStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+  launcher.value.setPointerCapture(event.pointerId);
+}
+function moveLauncher(event: PointerEvent) {
+  if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+  const dx = event.clientX - dragStart.x,
+    dy = event.clientY - dragStart.y;
+  if (Math.hypot(dx, dy) > 4) launcherDragging.value = true;
+  if (launcherDragging.value) launcherPosition.value = clampLauncher(dragStart.left + dx, dragStart.top + dy);
+}
+function stopLauncherDrag(event: PointerEvent) {
+  if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+  if (launcherDragging.value && launcherPosition.value)
+    localStorage.setItem('dust-history-workshop-launcher', JSON.stringify(launcherPosition.value));
+  dragStart = undefined;
+  window.setTimeout(() => (launcherDragging.value = false), 100);
+}
+function clampStoredLauncher() {
+  if (launcherPosition.value)
+    launcherPosition.value = clampLauncher(launcherPosition.value.x, launcherPosition.value.y);
 }
 function openWorkshop() {
   if (!launcherDragging.value) collapsed.value = false;
@@ -162,16 +210,18 @@ function pageHide(e: PageTransitionEvent) {
 }
 onMounted(() => {
   void load();
-  void nextTick(initLauncherDrag);
+  void nextTick(restoreLauncherPosition);
   window.addEventListener('beforeunload', beforeUnload);
   window.addEventListener('pagehide', pageHide);
+  window.addEventListener('resize', clampStoredLauncher);
 });
 watch(collapsed, value => {
-  if (value) void nextTick(initLauncherDrag);
+  if (value) void nextTick(restoreLauncherPosition);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnload);
   window.removeEventListener('pagehide', pageHide);
+  window.removeEventListener('resize', clampStoredLauncher);
 });
 </script>
 <style scoped lang="scss">
@@ -194,8 +244,12 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 .shell {
   display: flex;
@@ -275,32 +329,31 @@ header button.active {
   border-color: #8a7953 !important;
 }
 .launcher {
-  width: 58px;
-  height: 58px;
-  min-height: 58px !important;
-  padding: 10px !important;
-  border-radius: 50% !important;
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px !important;
+  padding: 7px 12px 7px 8px !important;
+  border-radius: 24px !important;
   box-shadow:
     0 0 0 3px #0d0f12,
     0 0 20px rgba(201, 180, 133, 0.3);
   touch-action: none;
+  user-select: none;
 }
 .launcher svg {
-  width: 100%;
-  height: 100%;
+  width: 34px;
+  height: 34px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
 }
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.launcher span {
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 .workshop-root :deep(button:disabled) {
   opacity: 0.45;
@@ -364,7 +417,6 @@ h1 {
   }
   .shell {
     padding: 8px;
-    padding-bottom: env(safe-area-inset-bottom);
   }
   .shell > header {
     padding: 4px 2px 8px;
