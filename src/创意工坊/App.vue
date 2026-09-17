@@ -7,10 +7,6 @@
       :style="launcherStyle"
       title="尘史创意工坊（拖拽移动，点击打开）"
       @click="openWorkshop"
-      @pointerdown="startLauncherDrag"
-      @pointermove="moveLauncher"
-      @pointerup="stopLauncherDrag"
-      @pointercancel="stopLauncherDrag"
     >
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <path d="M15 48c9-3 14-10 17-21 3 11 8 18 17 21M20 19c7-5 17-5 24 0l-5 25H25l-5-25Z" />
@@ -66,7 +62,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { cloneSource, normalizeRoleEnums, syncRoleVitalsToMaximum, validateDraft } from './assets/model';
 import { diffSources } from './assets/presentation';
 import { saveScenarioSource, serializeScenarioSource } from './assets/repository';
@@ -82,62 +78,57 @@ const workspace = ref<'user' | 'developer'>('user'),
   collapsed = ref(true),
   launcher = ref<HTMLElement>(),
   launcherDragging = ref(false),
-  launcherPosition = ref<{ x: number; y: number }>(),
   message = ref(''),
   error = ref(false),
   loadError = ref(''),
   lossAction = ref<{ label: string; run: () => void | Promise<void> }>();
 const dirtyCount = computed(() => (source.value && draft.value ? diffSources(source.value, draft.value).length : 0));
-const launcherStyle = computed(() =>
-  launcherPosition.value ? { left: `${launcherPosition.value.x}px`, top: `${launcherPosition.value.y}px` } : {},
-);
-let dragStart: { pointerId: number; x: number; y: number; left: number; top: number } | undefined;
+const launcherPosition = reactive(readLauncherPosition());
+const launcherStyle = computed(() => ({ left: `${launcherPosition.left}px`, top: `${launcherPosition.top}px` }));
 function showMessage(v: { text: string; error?: boolean }) {
   message.value = v.text;
   error.value = !!v.error;
 }
-function clampLauncher(x: number, y: number) {
-  const width = launcher.value?.offsetWidth ?? 132,
-    height = launcher.value?.offsetHeight ?? 52;
-  return {
-    x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
-    y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
-  };
-}
-function restoreLauncherPosition() {
+function readLauncherPosition() {
   try {
-    const saved = JSON.parse(localStorage.getItem('dust-history-workshop-launcher') || 'null');
-    launcherPosition.value =
-      saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)
-        ? clampLauncher(saved.x, saved.y)
-        : clampLauncher(20, window.innerHeight - (launcher.value?.offsetHeight ?? 52) - 20);
-  } catch {
-    launcherPosition.value = clampLauncher(20, window.innerHeight - 72);
+    const variables = getVariables({ type: 'script', script_id: getScriptId() }) || {};
+    const saved = variables.workshopLauncherPosition;
+    if (saved && Number.isFinite(saved.top) && Number.isFinite(saved.left)) return { top: saved.top, left: saved.left };
+  } catch (cause) {
+    console.warn('[workshop] 读取悬浮入口位置失败', cause);
+  }
+  return { top: 120, left: 24 };
+}
+function saveLauncherPosition() {
+  try {
+    updateVariablesWith(variables => ({ ...variables, workshopLauncherPosition: { ...launcherPosition } }), {
+      type: 'script',
+      script_id: getScriptId(),
+    });
+  } catch (cause) {
+    console.warn('[workshop] 保存悬浮入口位置失败', cause);
   }
 }
-function startLauncherDrag(event: PointerEvent) {
-  if (event.button !== 0 || !launcher.value) return;
-  const rect = launcher.value.getBoundingClientRect();
-  dragStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
-  launcher.value.setPointerCapture(event.pointerId);
+function initLauncherDrag() {
+  if (!launcher.value) return;
+  const button = $(launcher.value);
+  if (button.data('ui-draggable')) button.draggable('destroy');
+  button.draggable({
+    containment: 'window',
+    scroll: false,
+    start: () => (launcherDragging.value = true),
+    stop: (_event, ui) => {
+      launcherPosition.top = ui.position.top;
+      launcherPosition.left = ui.position.left;
+      saveLauncherPosition();
+      window.setTimeout(() => (launcherDragging.value = false), 100);
+    },
+  });
 }
-function moveLauncher(event: PointerEvent) {
-  if (!dragStart || event.pointerId !== dragStart.pointerId) return;
-  const dx = event.clientX - dragStart.x,
-    dy = event.clientY - dragStart.y;
-  if (Math.hypot(dx, dy) > 4) launcherDragging.value = true;
-  if (launcherDragging.value) launcherPosition.value = clampLauncher(dragStart.left + dx, dragStart.top + dy);
-}
-function stopLauncherDrag(event: PointerEvent) {
-  if (!dragStart || event.pointerId !== dragStart.pointerId) return;
-  if (launcherDragging.value && launcherPosition.value)
-    localStorage.setItem('dust-history-workshop-launcher', JSON.stringify(launcherPosition.value));
-  dragStart = undefined;
-  window.setTimeout(() => (launcherDragging.value = false), 100);
-}
-function clampStoredLauncher() {
-  if (launcherPosition.value)
-    launcherPosition.value = clampLauncher(launcherPosition.value.x, launcherPosition.value.y);
+function destroyLauncherDrag() {
+  if (!launcher.value) return;
+  const button = $(launcher.value);
+  if (button.data('ui-draggable')) button.draggable('destroy');
 }
 function openWorkshop() {
   if (!launcherDragging.value) collapsed.value = false;
@@ -210,18 +201,17 @@ function pageHide(e: PageTransitionEvent) {
 }
 onMounted(() => {
   void load();
-  void nextTick(restoreLauncherPosition);
+  void nextTick(initLauncherDrag);
   window.addEventListener('beforeunload', beforeUnload);
   window.addEventListener('pagehide', pageHide);
-  window.addEventListener('resize', clampStoredLauncher);
 });
 watch(collapsed, value => {
-  if (value) void nextTick(restoreLauncherPosition);
+  if (value) void nextTick(initLauncherDrag);
 });
 onBeforeUnmount(() => {
+  destroyLauncherDrag();
   window.removeEventListener('beforeunload', beforeUnload);
   window.removeEventListener('pagehide', pageHide);
-  window.removeEventListener('resize', clampStoredLauncher);
 });
 </script>
 <style scoped lang="scss">
