@@ -55,7 +55,11 @@ expectCode('RESOURCE_NOT_FOUND', draft => {
   draft.registries.角色[roleIds[1]].key = draft.registries.角色[roleIds[0]].key;
   draft.registries.角色[roleIds[0]].data = { 被覆盖: true };
   draft.registries.角色[roleIds[1]].data = { 生效: true };
-  assert.deepEqual(assembleScenario(draft, scenarioId).statData.角色.主要角色[draft.registries.角色[roleIds[0]].key], { 生效: true });
+  assert.throws(
+    () => assembleScenario(draft, scenarioId),
+    (error: any) => error?.code === 'DUPLICATE_KEY',
+    '同一剧本不应接受同角色的多个版本',
+  );
 }
 
 expectCode('UNKNOWN_ROLE_TYPE', draft => {

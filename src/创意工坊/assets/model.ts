@@ -51,6 +51,15 @@ export function findReferenceIssues(source: ScenarioSourceBundle): ReferenceIssu
         targetId: resolvedUsers.length === 0 ? '' : resolvedUsers[1],
       });
     }
+    const roleIdentities = new Map<string, string>();
+    for (const targetId of scenario.内容配置.角色) {
+      const role = source.registries.角色[targetId];
+      if (!role || role.type === 'user') continue;
+      const identity = `${role.type}\u0000${role.key}`;
+      if (roleIdentities.has(identity)) {
+        issues.push({ ownerCategory: '开场白', ownerId, field: '角色.版本互斥', targetCategory: '角色', targetId });
+      } else roleIdentities.set(identity, targetId);
+    }
   }
   return issues;
 }
@@ -105,4 +114,17 @@ export function validateDraft(source: ScenarioSourceBundle): ReferenceIssue[] {
 
 export function cloneSource(source: ScenarioSourceBundle): ScenarioSourceBundle {
   return klona(source);
+}
+
+export function normalizeRoleSelection(ids: string[], roles: ScenarioSourceBundle['registries']['角色']): string[] {
+  const winners = new Map<string, { id: string; index: number }>();
+  ids.forEach((id, index) => {
+    const role = roles[id];
+    if (!role) return;
+    const identity = role.type === 'user' ? 'user' : `${role.type}\u0000${role.key}`;
+    winners.set(identity, { id, index });
+  });
+  return [...winners.values()]
+    .sort((a, b) => a.index - b.index)
+    .map(value => value.id);
 }

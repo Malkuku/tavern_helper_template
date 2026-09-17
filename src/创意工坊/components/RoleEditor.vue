@@ -1,4 +1,6 @@
 <template>
+  <div class="dossier-toolbar"><div><p>CHARACTER DOSSIER</p><h2>{{ roleName }}</h2><span>{{ entry.type }} · {{ entry.author || '未署名版本' }}</span></div><button type="button" :class="{ primary: !editing }" @click="editing = !editing">{{ editing ? '完成本次编辑' : '编辑角色档案' }}</button></div>
+  <div class="role-dossier" :class="{ viewing: !editing }">
   <section class="identity-preview">
     <RoleAvatar
       class="large-avatar"
@@ -10,12 +12,7 @@
     <div class="visual-fields">
       <h3>角色外观</h3>
       <AvatarMediaField v-model="entry.meta.avatar" />
-      <label
-        >默认头像样式<select v-model="entry.meta.avatarStyle">
-          <option value="auto">根据角色 key 自动生成</option>
-          <option v-for="n in 6" :key="n - 1" :value="String(n - 1)">样式 {{ n }}</option>
-        </select></label
-      >
+      <div class="avatar-style-field"><span>默认头像</span><div class="avatar-options"><button v-for="option in avatarStyles" :key="option.value" type="button" :class="{ active: entry.meta.avatarStyle === option.value }" @click="entry.meta.avatarStyle = option.value"><RoleAvatar :src="''" :alt="option.label" :seed="entry.key" :fallback-style="option.value" /><small>{{ option.label }}</small></button></div></div>
       <label class="color-field"
         >主题颜色<input v-model="entry.meta.color" type="color" /><input
           v-model="entry.meta.color"
@@ -25,10 +22,9 @@
     </div>
   </section>
   <nav class="section-nav" aria-label="角色编辑分区">
-    <a href="#role-basic">资料</a><a v-if="entry.type !== '次要角色'" href="#role-personality">关系</a
-    ><a href="#role-stats">数值</a><a href="#role-skills">技能</a><a href="#role-items">状态与物品</a>
+    <button v-for="item in visibleTabs" :key="item.id" type="button" :class="{ active: activeTab === item.id }" @click="activeTab = item.id"><span>{{ item.icon }}</span><b>{{ item.label }}</b><small>{{ item.note }}</small></button>
   </nav>
-  <section id="role-basic" class="role">
+  <section v-show="activeTab === 'basic'" id="role-basic" class="role dossier-panel">
     <h3>基本资料、外貌与背景</h3>
     <label
       >角色类型<select
@@ -62,30 +58,16 @@
         label="背景" /></template
     ><StringField v-if="entry.type === '主要角色'" v-model="entry.data.战斗风格" label="战斗风格" />
     <template v-if="entry.type === '主要角色'">
-      <h3>语料</h3>
-      <EntrySetEditor v-model="entry.data.语料" label="语料场景" :create="() => []">
-        <template #entry="p"><StringField v-model="p.entry" label="语句" /></template>
-      </EntrySetEditor>
+      <RoleCardCollection v-model="entry.data.语料" kind="语料" />
     </template>
     <StringField v-if="entry.type === '次要角色'" v-model="entry.data.性格标签" label="性格标签" />
   </section>
-  <section v-if="entry.type !== '次要角色'" id="role-personality">
+  <section v-if="entry.type !== '次要角色'" v-show="activeTab === 'personality'" id="role-personality" class="dossier-panel">
     <h3>性格与关系</h3>
     <div class="grid">
       <label v-for="f in personality" :key="f">{{ f }}<textarea v-model="entry.data.性格[f]" /></label>
     </div>
-    <h3>人际关系</h3>
-    <EntrySetEditor
-      v-model="entry.data.人际关系"
-      label="关系对象"
-      :key-options="roleOptions"
-      :create="() => ({ 认知了解: '', 情感羁绊: '', 利益纽带: '' })"
-      ><template #entry="p"
-        ><div class="grid">
-          <label v-for="f in ['认知了解', '情感羁绊', '利益纽带']" :key="f"
-            >{{ f }}<textarea v-model="p.entry[f]" />
-          </label></div></template
-    ></EntrySetEditor>
+    <RoleCardCollection v-model="entry.data.人际关系" kind="关系" :options="roleOptions" />
     <h3>性经验</h3>
     <EntrySetEditor
       v-if="typeof entry.data.性经验 === 'object'"
@@ -102,7 +84,7 @@
             " /></label></template></EntrySetEditor
     ><label v-else>共享说明<input v-model="entry.data.性经验" /></label>
   </section>
-  <section id="role-stats">
+  <section v-show="activeTab === 'stats'" id="role-stats" class="dossier-panel">
     <h3>基础数值与生命</h3>
     <div class="stats grid">
       <label v-for="f in ['力量', '敏捷', '智慧', '魅力']" :key="f"
@@ -118,88 +100,46 @@
       </fieldset>
     </div>
   </section>
-  <section id="role-skills">
-    <h3>技能与术</h3>
-    <EntrySetEditor
-      v-model="entry.data.技能"
-      label="技能"
-      :create="() => ({ 性相: '', 技能等级: 0, 描述: '', 消耗: '', 作用: '' })"
-      ><template #entry="p"
-        ><div class="grid">
-          <label
-            >性相<select v-model="p.entry.性相">
-              <option value="">未指定</option>
-              <option v-for="aspect in aspects" :key="aspect">{{ aspect }}</option>
-            </select></label
-          ><label v-for="f in ['描述', '消耗', '作用']" :key="f">{{ f }}<textarea v-model="p.entry[f]" /></label
-          ><label>技能等级<input v-model.number="p.entry.技能等级" type="number" /></label></div></template
-    ></EntrySetEditor>
-    <h3>术之等级</h3>
-    <EntrySetEditor
-      v-model="entry.data['术之等级']"
-      label="性相"
-      :key-options="aspects"
-      :create="() => ({ 等级: 0, 经验: 0 })"
-      ><template #entry="p"
-        ><div class="grid">
-          <label>等级<input v-model.number="p.entry.等级" type="number" /></label
-          ><label>经验<input v-model.number="p.entry.经验" type="number" /></label></div></template
-    ></EntrySetEditor>
+  <section v-show="activeTab === 'skills'" id="role-skills" class="dossier-panel">
+    <RoleCardCollection v-model="entry.data.技能" kind="技能" />
+    <RoleCardCollection v-model="entry.data['术之等级']" kind="术" :options="aspects" />
   </section>
-  <section id="role-items">
-    <h3>特殊状态与物品</h3>
-    <EntrySetEditor
-      v-if="typeof entry.data.特殊状态 === 'object'"
-      v-model="entry.data.特殊状态"
-      label="状态"
-      :create="() => ({ 描述: '', 效果: '', 持续时间: '' })"
-      ><template #entry="p"
-        ><div class="grid">
-          <label v-for="f in ['描述', '效果', '持续时间']" :key="f"
-            >{{ f }}<textarea v-model="p.entry[f]" />
-          </label></div></template></EntrySetEditor
-    ><label v-else>共享说明<input v-model="entry.data.特殊状态" /></label>
-    <h3>物品</h3>
-    <EntrySetEditor
-      v-if="typeof entry.data.物品 === 'object'"
-      v-model="entry.data.物品"
-      label="物品"
-      :create="() => ({ 类型: '', 品质: '凡庸', 描述: '', 作用: '', 数量: 0, 耐久: 0 })"
-      ><template #entry="p"
-        ><div class="grid">
-          <label>类型<input v-model="p.entry.类型" /></label
-          ><label
-            >品质<select v-model="p.entry.品质">
-              <option v-for="q in qualities" :key="q">{{ q }}</option>
-            </select></label
-          ><label>描述<textarea v-model="p.entry.描述" /></label
-          ><label v-if="!Array.isArray(p.entry.作用)">作用<textarea v-model="p.entry.作用" /></label
-          ><label>数量<input v-model.number="p.entry.数量" type="number" /></label
-          ><label>耐久<input v-model.number="p.entry.耐久" type="number" /></label>
-        </div>
-        <StringField
-          v-if="Array.isArray(p.entry.作用)"
-          v-model="p.entry.作用"
-          label="作用" /></template></EntrySetEditor
-    ><label v-else>共享说明<input v-model="entry.data.物品" /></label>
+  <section v-show="activeTab === 'items'" id="role-items" class="dossier-panel">
+    <RoleCardCollection v-if="typeof entry.data.特殊状态 === 'object'" v-model="entry.data.特殊状态" kind="状态" /><label v-else>共享说明<input v-model="entry.data.特殊状态" /></label>
+    <RoleCardCollection v-if="typeof entry.data.物品 === 'object'" v-model="entry.data.物品" kind="物品" /><label v-else>共享说明<input v-model="entry.data.物品" /></label>
     <div v-if="entry.type === 'user'" class="grid">
       <label>金钱<input v-model.number="entry.data.金钱" type="number" /></label
       ><label>缥缈异质<input v-model.number="entry.data.缥缈异质" type="number" /></label>
     </div>
   </section>
+  </div>
 </template>
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
+import { computed, ref, watchEffect } from 'vue';
 import AvatarMediaField from './AvatarMediaField.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import EntrySetEditor from './EntrySetEditor.vue';
+import RoleCardCollection from './RoleCardCollection.vue';
 import StringField from './StringField.vue';
 const entry = defineModel<any>('entry', { required: true });
 withDefaults(defineProps<{ roleOptions?: string[] }>(), { roleOptions: () => [] });
 defineEmits<{ requestTypeChange: [type: string] }>();
 const personality = ['社交表现', '行动逻辑', '思维习惯', '人际距离', '道德底色'];
-const qualities = ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'];
 const aspects = ['杯', '刃', '启', '铸', '蛾', '心', '冬', '灯', '秘史', '无'];
+const avatarStyles = [
+  { value: 'auto', label: '自动' }, { value: '0', label: '旅人' }, { value: '1', label: '六芒星' },
+  { value: '2', label: '匕首' }, { value: '3', label: '羽毛笔' }, { value: '4', label: '秘眼' }, { value: '5', label: '残月' },
+];
+const activeTab = ref('basic');
+const editing = ref(false);
+const tabs = [
+  { id: 'basic', icon: '◈', label: '角色档案', note: '身份、外貌与背景' },
+  { id: 'personality', icon: '◎', label: '人格关系', note: '性格与人物网络' },
+  { id: 'stats', icon: '◇', label: '能力状态', note: '基础数值与生命' },
+  { id: 'skills', icon: '✦', label: '技能与术', note: '能力和性相进度' },
+  { id: 'items', icon: '▣', label: '状态物品', note: '效果与携带物' },
+];
+const visibleTabs = computed(() => tabs.filter(tab => tab.id !== 'personality' || entry.value.type !== '次要角色'));
 const roleName = computed(() => entry.value.data?.姓名 || entry.value.key || '角色头像');
 watchEffect(() => {
   entry.value.meta ??= { avatar: '', color: '#C9B485', avatarStyle: 'auto' };
@@ -211,6 +151,16 @@ watchEffect(() => {
   display: grid;
   gap: 10px;
 }
+.dossier-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; background: linear-gradient(120deg,#1f211e,#141719); border: 1px solid #4d493b; }
+.dossier-toolbar p,.dossier-toolbar h2 { margin: 0; }
+.dossier-toolbar p { color: #cbb477; font-size: 10px; letter-spacing: .18em; }
+.dossier-toolbar h2 { margin: 4px 0; font: 500 26px Georgia,serif; }
+.dossier-toolbar span { color: #9d9689; }
+.role-dossier { display: grid; gap: 10px; }
+.role-dossier.viewing :is(input,textarea,select) { color: #eee7d8 !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+.role-dossier.viewing :is(input,textarea,select),.role-dossier.viewing :deep(.entries button),.role-dossier.viewing :deep(.new),.role-dossier.viewing .avatar-options button { pointer-events: none; }
+.role-dossier.viewing textarea { resize: none; }
+.role-dossier.viewing .check { opacity: .75; }
 .identity-preview {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -237,20 +187,31 @@ watchEffect(() => {
   position: sticky;
   top: 70px;
   z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   padding: 8px;
   background: rgba(13, 15, 16, 0.94);
   border: 1px solid #393d3f;
 }
-.section-nav a {
-  padding: 6px 10px;
-  color: #dfd3b6;
-  text-decoration: none;
-  background: #24282a;
-  border: 1px solid #4b4f50;
+.section-nav button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  text-align: left;
 }
+.section-nav button > span { grid-row: 1 / 3; color: #cbb477; font-size: 20px; }
+.section-nav button small { overflow: hidden; color: #9d9689; text-overflow: ellipsis; white-space: nowrap; }
+.section-nav button.active { color: #17130c !important; background: #cbb477 !important; border-color: #cbb477 !important; }
+.section-nav button.active > span,.section-nav button.active small { color: inherit; }
+.avatar-style-field { display: grid; gap: 8px; }
+.avatar-options { display: flex; gap: 10px; overflow-x: auto; padding: 6px; }
+.avatar-options button { display: grid; flex: 0 0 78px; gap: 7px; place-items: center; padding: 10px 5px !important; }
+.avatar-options button :deep(.role-avatar-frame) { --avatar-size: 42px; }
+.avatar-options button.active { border-color: #cbb477 !important; background: #2c2921 !important; }
+.avatar-options small { font-size: 11px; }
+.dossier-panel { animation: panel-in .18s ease-out; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(4px); } }
 .role,
 section[id^='role-'] {
   scroll-margin-top: 118px;
@@ -288,6 +249,8 @@ fieldset {
   border: 1px solid #393d3f;
 }
 @media (max-width: 700px) {
+  .dossier-toolbar { align-items: stretch; flex-direction: column; }
+  .section-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); top: 58px; }
   .grid {
     grid-template-columns: 1fr;
   }

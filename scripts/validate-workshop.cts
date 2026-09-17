@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { deleteAsset, findReferenceIssues, normalizeScenarioAvailability } from '../src/创意工坊/assets/model';
+import { deleteAsset, findReferenceIssues, normalizeRoleSelection, normalizeScenarioAvailability } from '../src/创意工坊/assets/model';
 import { createPackage, listConflicts, mergePackage, parsePackage } from '../src/创意工坊/assets/package';
 import { createDefaultAsset, diffSources, previewPackage, workshopCategories } from '../src/创意工坊/assets/presentation';
 import { buildRoleGenerationPrompt, parseGeneratedRole } from '../src/创意工坊/assets/roleGenerator';
@@ -58,6 +58,14 @@ assert.equal((generatedRole.data.基础数值 as any).力量, 8);
 assert.ok((generatedRole.data.基础数值 as any).敏捷 === 0, '生成角色应由固定模板补齐字段');
 assert.throws(() => parseGeneratedRole('不是 JSON', '主要角色'), /不是可解析的角色 JSON/);
 assert.match(buildRoleGenerationPrompt('主要角色', '雾中信使', '克制', '规则正文', source), /雾中信使/);
+{
+  const roles = {
+    user1: { ...entry, type: 'user' }, user2: { ...entry, type: 'user' },
+    early: { ...entry, type: '主要角色', key: '同一人' }, late: { ...entry, type: '主要角色', key: '同一人' },
+    other: { ...entry, type: '次要角色', key: '同一人' },
+  } as any;
+  assert.deepEqual(normalizeRoleSelection(['user1', 'early', 'other', 'late', 'user2'], roles), ['other', 'late', 'user2']);
+}
 const automatic = structuredClone(source); automatic.registries.世界经济.economy = { ...entry, key: '经济' }; automatic.registries.势力.faction = { ...entry, key: '势力' }; synchronizeAutomaticReferences(automatic);
 assert.deepEqual(automatic.scenarios.s.内容配置.世界经济, ['economy']); assert.deepEqual(automatic.scenarios.s.内容配置.势力, ['faction']);
 

@@ -118,7 +118,12 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
     }
 
     const bucket = result[entry.type] as JsonObject;
-    // 角色引用是有序覆盖链；同 type + key 以后引用的完整 data 为准。
+    if (Object.hasOwn(bucket, entry.key)) {
+      throw new ScenarioDataError('DUPLICATE_KEY', `同一剧本只能选择角色“${entry.key}”的一个版本。`, {
+        category: '角色',
+        resourceId: id,
+      });
+    }
     bucket[entry.key] = runtimeData;
   }
 
