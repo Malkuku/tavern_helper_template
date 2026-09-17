@@ -10,7 +10,10 @@
     <aside class="catalog mobile-catalog">
       <header>
         <h2>{{ domain }}</h2>
-        <div class="catalog-actions"><button v-if="domain === '角色'" @click="generatorOpen = true">✦ AI 生成</button><button class="primary" @click="createCurrent">+ 新建</button></div>
+        <div class="catalog-actions">
+          <button v-if="domain === '角色'" @click="generatorOpen = true">✦ AI 生成</button
+          ><button class="primary" @click="createCurrent">+ 新建</button>
+        </div>
       </header>
       <input v-model="query" type="search" :placeholder="`搜索${domain}`" /><template v-if="domain === '角色'"
         ><select v-model="roleType">
@@ -50,7 +53,7 @@
               :key="r.id"
               class="variant"
               :class="{ active: selectedId === r.id }"
-            @click="selectAsset(r.id)"
+              @click="selectAsset(r.id)"
             >
               <strong>{{ r.entry.author || '未署名版本' }}</strong
               ><span>{{ references(r.id).join('、') || '尚未加入剧本' }}</span
@@ -85,16 +88,7 @@
         </div>
       </header>
       <template v-if="domain === '角色' && entry"
-        ><details v-if="variants.length > 1" class="context">
-          <summary>版本差异与剧本生效关系（{{ variants.length }}）</summary>
-          <p>同一角色的多个版本可被不同剧本引用；同一剧本重复引用时，列表中靠后的版本生效。</p>
-          <button v-for="v in variants" :key="v.id" @click="selectedId = v.id">
-            <b>{{ v.entry.author || '未署名版本' }} · {{ references(v.id).join('、') || '未引用' }}</b
-            ><span>{{ v.id === effective ? '当前筛选剧本使用' : '' }}</span
-            ><small>{{ variantDiff(v.id) }}</small>
-          </button>
-        </details>
-        <RoleEditor
+        ><RoleEditor
           v-model:entry="entry"
           :role-options="roleOptions"
           @request-type-change="pendingRoleType = $event" /></template
@@ -102,33 +96,90 @@
       <div v-else class="empty">选择或新建一项{{ domain }}</div>
     </main>
     <aside class="status mobile-status">
-      <h2>工作状态</h2>
-      <p>{{ changes.length ? `${changes.length}项未保存` : '全部已保存' }}</p>
-      <h3>自动装配</h3>
-      <dl>
-        <template v-for="c in shared" :key="c"
-          ><dt>{{ c }}</dt>
-          <dd>{{ Object.keys(draft.registries[c]).length }}项</dd></template
+      <header class="status-summary">
+        <div class="status-heading">
+          <h2>保存与发布检查</h2>
+          <p v-if="domain === '角色' && entry">当前：{{ title }} · {{ entry.author || '未署名版本' }}</p>
+          <p v-else-if="entry">当前：{{ title }}</p>
+          <p v-else>选择资源后可查看检查详情</p>
+        </div>
+        <div class="status-badges">
+          <span :class="{ warning: changes.length }">{{
+            changes.length ? `${changes.length}项未保存` : '已保存'
+          }}</span>
+          <span :class="issues.length ? 'error' : 'pass'">{{
+            issues.length ? `${issues.length}项引用问题` : '引用完整'
+          }}</span>
+        </div>
+        <button
+          class="status-toggle"
+          type="button"
+          :aria-expanded="statusExpanded"
+          @click="statusExpanded = !statusExpanded"
         >
-      </dl>
-      <p class="muted">地图使用唯一地图；共享资源不提供编辑或选择入口。</p>
-      <h3>发布检查</h3>
-      <button
-        v-for="i in issues"
-        :key="i.ownerId + i.field"
-        class="issue"
-        @click="
-          domain = '剧本';
-          selectAsset(i.ownerId);
-        "
-      >
-        {{ scenarioTitle(i.ownerId) }}<span>{{ i.field }}缺失</span>
-      </button>
-      <p v-if="!issues.length" class="pass">✓ 引用完整</p>
+          {{ statusExpanded ? '收起详情' : '展开详情' }}
+        </button>
+      </header>
+      <div v-show="statusExpanded || mobilePane === 'status'" class="status-details">
+        <section v-if="domain === '角色' && entry" class="selected-role">
+          <h3>当前角色</h3>
+          <div>
+            <RoleAvatar
+              class="selected-avatar"
+              :src="entry.meta?.avatar"
+              :alt="title"
+              :seed="entry.key"
+              :fallback-style="entry.meta?.avatarStyle"
+            />
+            <p>
+              <b>{{ title }}</b
+              ><span>{{ entry.type }} · {{ entry.author || '未署名版本' }}</span
+              ><small>{{ references(selectedId).join('、') || '尚未加入剧本' }}</small>
+            </p>
+          </div>
+          <label v-if="variants.length > 1"
+            >具体版本<select v-model="selectedId">
+              <option v-for="v in variants" :key="v.id" :value="v.id">
+                {{ v.entry.author || '未署名版本' }} · {{ references(v.id).join('、') || '未引用' }}
+              </option>
+            </select></label
+          >
+          <p v-if="scenarioFilter" class="effective-role">
+            {{ effective === selectedId ? '当前筛选剧本正在使用这个版本' : '当前筛选剧本未使用这个版本' }}
+          </p>
+        </section>
+        <section class="status-section">
+          <h3>自动装配</h3>
+          <dl>
+            <template v-for="c in shared" :key="c"
+              ><dt>{{ c }}</dt>
+              <dd>{{ Object.keys(draft.registries[c]).length }}项</dd></template
+            >
+          </dl>
+          <p class="muted">地图使用唯一地图；共享资源不提供编辑或选择入口。</p>
+        </section>
+        <section class="status-section">
+          <h3>发布检查</h3>
+          <button
+            v-for="i in issues"
+            :key="i.ownerId + i.field"
+            class="issue"
+            @click="
+              domain = '剧本';
+              selectAsset(i.ownerId);
+            "
+          >
+            {{ scenarioTitle(i.ownerId) }}<span>{{ i.field }}缺失</span>
+          </button>
+          <p v-if="!issues.length" class="pass">✓ 引用完整</p>
+        </section>
+      </div>
     </aside>
     <nav class="mobile-nav" aria-label="移动工作区导航">
       <button :class="{ active: mobilePane === 'catalog' }" @click="mobilePane = 'catalog'">资源</button>
-      <button :class="{ active: mobilePane === 'editor' }" :disabled="!entry" @click="mobilePane = 'editor'">编辑</button>
+      <button :class="{ active: mobilePane === 'editor' }" :disabled="!entry" @click="mobilePane = 'editor'">
+        编辑
+      </button>
       <button :class="{ active: mobilePane === 'status' }" @click="mobilePane = 'status'">检查</button>
     </nav>
     <footer class="savebar">
@@ -160,13 +211,27 @@
     >
     <AppDialog :open="generatorOpen" title="AI 生成角色草稿" @cancel="closeGenerator">
       <div class="generator-form">
-        <label>角色类型<select v-model="generatorType"><option>user</option><option>主要角色</option><option>次要角色</option></select></label>
-        <label>角色创意<textarea v-model="generatorIdea" rows="6" placeholder="身份、经历、性格、外貌、与世界的联系……" /></label>
-        <label>提升词（可选）<textarea v-model="generatorEnhancement" rows="3" placeholder="强调的写作方向或额外限制" /></label>
+        <label
+          >角色类型<select v-model="generatorType">
+            <option>user</option>
+            <option>主要角色</option>
+            <option>次要角色</option>
+          </select></label
+        >
+        <label
+          >角色创意<textarea v-model="generatorIdea" rows="6" placeholder="身份、经历、性格、外貌、与世界的联系……" />
+        </label>
+        <label
+          >提升词（可选）<textarea v-model="generatorEnhancement" rows="3" placeholder="强调的写作方向或额外限制" />
+        </label>
         <p class="muted">规则与世界资料会从当前角色主世界书读取；生成结果只进入草稿，仍需审阅保存。</p>
         <p v-if="generatorError" class="generator-error" role="alert">{{ generatorError }}</p>
       </div>
-      <template #actions><button class="primary" :disabled="generating || !generatorIdea.trim()" @click="runGenerator">{{ generating ? '生成中…' : '生成草稿' }}</button></template>
+      <template #actions
+        ><button class="primary" :disabled="generating || !generatorIdea.trim()" @click="runGenerator">
+          {{ generating ? '生成中…' : '生成草稿' }}
+        </button></template
+      >
     </AppDialog>
     <AppDialog :open="exportOpen" title="导出预览" @cancel="exportOpen = false"
       ><p>将导出{{ domain }}“{{ title }}”。</p>
@@ -206,6 +271,7 @@ const domain = ref<'角色' | '剧本'>('剧本'),
   deleteImpacts = ref<ReferenceIssue[]>([]),
   pendingRoleType = ref(''),
   mobilePane = ref<'catalog' | 'editor' | 'status'>('catalog'),
+  statusExpanded = ref(false),
   generatorOpen = ref(false),
   generatorType = ref<GeneratedRoleType>('主要角色'),
   generatorIdea = ref(''),
@@ -251,7 +317,15 @@ const roleGroups = computed(() => {
     };
   });
 });
-const roleOptions = computed(() => [...new Set(roles.value.map(role => role.title))]);
+const roleOptions = computed(() => {
+  const options = new Map<string, { id: string; label: string; identity: string }>();
+  for (const role of roles.value) {
+    const identity = role.entry.type === 'user' ? 'user' : `${role.entry.type}\u0000${role.entry.key}`;
+    if (!options.has(identity))
+      options.set(identity, { id: role.entry.type === 'user' ? 'user' : role.entry.key, label: role.title, identity });
+  }
+  return [...options.values()];
+});
 const filteredRoleGroups = computed(() =>
   roleGroups.value.filter(
     group =>
@@ -323,14 +397,6 @@ function pickDomain(v: '角色' | '剧本') {
   selectedId.value = '';
   mobilePane.value = 'catalog';
   query.value = '';
-}
-function variantDiff(id: string) {
-  const other = props.draft.registries.角色[id];
-  if (other === entry.value) return '当前变体';
-  const keys = [...new Set([...Object.keys(entry.value?.data ?? {}), ...Object.keys(other?.data ?? {})])].filter(
-    k => JSON.stringify(entry.value.data[k]) !== JSON.stringify(other.data[k]),
-  );
-  return keys.length ? `差异：${keys.slice(0, 5).join('、')}` : '内容相同';
 }
 function createCurrent() {
   const id = crypto.randomUUID();
@@ -413,6 +479,7 @@ function confirmRoleType() {
   for (const k of Object.keys(next)) if (k in entry.value.data) next[k] = klona(entry.value.data[k]);
   entry.value.data = next;
   entry.value.type = pendingRoleType.value;
+  if (pendingRoleType.value === 'user') entry.value.key = 'user';
   pendingRoleType.value = '';
 }
 function format(v: unknown) {
@@ -444,10 +511,6 @@ function format(v: unknown) {
 }
 .status {
   grid-area: status;
-  display: grid;
-  grid-template-columns: auto minmax(220px, 1fr) minmax(260px, 1fr);
-  gap: 16px;
-  align-items: start;
   border-top: 1px solid #393d3f;
 }
 .domains,
@@ -536,7 +599,7 @@ function format(v: unknown) {
 .asset-copy span,
 .asset small,
 .issue span,
-.context button > * {
+.selected-role p > * {
   display: block;
 }
 .catalog-avatar {
@@ -562,6 +625,62 @@ function format(v: unknown) {
   padding: 16px;
   background: #15181a;
 }
+.status-summary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.status-heading {
+  min-width: 0;
+  margin-right: auto;
+}
+.status-heading h2,
+.status-heading p {
+  margin: 0;
+}
+.status-heading h2 {
+  font-size: 16px;
+}
+.status-heading p {
+  overflow: hidden;
+  margin-top: 3px;
+  color: #b8b09f;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-badges {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+.status-badges span {
+  padding: 4px 8px;
+  background: #202426;
+  border: 1px solid #454a4c;
+}
+.status-badges .warning {
+  color: #e0c778;
+  border-color: #756744;
+}
+.status-badges .error {
+  color: #f1c2bc;
+  border-color: #8a4b44;
+}
+.status-toggle {
+  flex: 0 0 auto;
+}
+.status-details {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.25fr) minmax(190px, 0.8fr) minmax(230px, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #393d3f;
+}
+.status-section h3 {
+  margin-top: 0;
+}
 .status dl {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -569,19 +688,39 @@ function format(v: unknown) {
 .status dd {
   margin: 0;
 }
-.context {
+.selected-role {
   padding: 12px;
-  background: #27241d;
+  background: #20231f;
   border-left: 3px solid #cbb477;
 }
-.context summary {
-  cursor: pointer;
-  color: #e6d39c;
-  font-weight: 700;
+.selected-role h3 {
+  margin: 0 0 10px;
 }
-.context button {
-  width: 100%;
-  text-align: left;
+.selected-role > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.selected-role p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+.selected-role p span,
+.selected-role p small {
+  color: #b8b09f;
+}
+.selected-role label {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+.selected-avatar {
+  --avatar-size: 48px;
+}
+.effective-role {
+  margin: 8px 0 0 !important;
+  color: #d8c38b;
 }
 .savebar {
   grid-area: save;
@@ -626,10 +765,10 @@ function format(v: unknown) {
     grid-template-areas: 'domains catalog editing' 'domains catalog status' 'save save save';
     grid-template-columns: 96px 250px minmax(0, 1fr);
   }
-  .status {
+  .status-details {
     grid-template-columns: 1fr 1fr;
   }
-  .status > h2 {
+  .selected-role {
     grid-column: 1 / -1;
   }
 }
@@ -676,8 +815,26 @@ function format(v: unknown) {
     display: block;
   }
   .studio.mobile-status > .status {
-    display: grid;
+    display: block;
+  }
+  .studio.mobile-status .status-toggle {
+    display: none;
+  }
+  .status-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .status-heading {
+    width: 100%;
+  }
+  .status-badges {
+    flex-wrap: wrap;
+  }
+  .status-details {
     grid-template-columns: 1fr;
+  }
+  .selected-role {
+    grid-column: auto;
   }
   .mobile-back {
     display: inline-flex !important;

@@ -2,12 +2,9 @@
   <div class="inventory-module">
     <!-- 工具栏 -->
     <div class="toolbar">
+      <button v-if="mode === 'edit'" type="button" @click="addItem">＋ 新增物品</button>
       <div class="search-box">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="检索物品..."
-        />
+        <input v-model="searchQuery" type="text" placeholder="检索物品..." />
         <span class="search-icon">🔍</span>
       </div>
 
@@ -68,7 +65,11 @@
           :durability="selectedItem.耐久"
           :description="selectedItem.描述"
           :effect="selectedItem.作用"
+          :mode="mode"
           @close="closeDetail"
+          @rename="renameItem"
+          @update:field="updateItemField"
+          @delete="deleteItem"
         />
       </Transition>
     </div>
@@ -83,9 +84,11 @@ import ItemDetailPanel from '@/尘史使徒/UI/components/common/ItemDetailPanel
 const props = defineProps({
   data: {
     type: Object,
-    default: () => ({})
-  }
+    default: () => ({}),
+  },
+  mode: { type: String, default: 'view' },
 });
+const emit = defineEmits(['update:data']);
 
 const searchQuery = ref('');
 const sortBy = ref('name');
@@ -104,7 +107,7 @@ const allItems = computed(() => {
           描述: val,
           作用: '未知',
           数量: 1,
-          耐久: 0
+          耐久: 0,
         };
       }
       return {
@@ -114,7 +117,7 @@ const allItems = computed(() => {
         描述: val.描述 || '',
         作用: val.作用 || '',
         数量: val.数量 || 0,
-        耐久: val.耐久 || 0
+        耐久: val.耐久 || 0,
       };
     })
     .filter(item => item.name !== '$template');
@@ -137,10 +140,7 @@ const filteredItems = computed(() => {
 
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    items = items.filter(i =>
-      i.name.toLowerCase().includes(query) ||
-      (i.描述 && i.描述.toLowerCase().includes(query))
-    );
+    items = items.filter(i => i.name.toLowerCase().includes(query) || (i.描述 && i.描述.toLowerCase().includes(query)));
   }
 
   items.sort((a, b) => {
@@ -152,7 +152,7 @@ const filteredItems = computed(() => {
   return items;
 });
 
-const toggleDetail = (item) => {
+const toggleDetail = item => {
   if (selectedItem.value && selectedItem.value.name === item.name) {
     closeDetail();
   } else {
@@ -163,10 +163,50 @@ const toggleDetail = (item) => {
 const closeDetail = () => {
   selectedItem.value = null;
 };
+const uniqueName = base => {
+  let name = base,
+    index = 2;
+  while (name in props.data) name = `${base}${index++}`;
+  return name;
+};
+const addItem = () => {
+  const name = uniqueName('新物品');
+  emit('update:data', {
+    ...props.data,
+    [name]: { 类型: '杂物', 品质: '凡庸', 描述: '', 作用: '', 数量: 1, 耐久: 100 },
+  });
+  selectedItem.value = { name, 类型: '杂物', 品质: '凡庸', 描述: '', 作用: '', 数量: 1, 耐久: 100 };
+};
+const updateItemField = (field, value) => {
+  if (!selectedItem.value) return;
+  const name = selectedItem.value.name;
+  const nextItem = { ...props.data[name], [field]: value };
+  emit('update:data', { ...props.data, [name]: nextItem });
+  selectedItem.value = { name, ...nextItem };
+};
+const renameItem = value => {
+  if (!selectedItem.value) return;
+  const oldName = selectedItem.value.name,
+    name = String(value).trim();
+  if (!name || (name !== oldName && name in props.data)) return;
+  const next = {};
+  for (const [key, item] of Object.entries(props.data)) next[key === oldName ? name : key] = item;
+  emit('update:data', next);
+  selectedItem.value = { ...selectedItem.value, name };
+};
+const deleteItem = () => {
+  if (!selectedItem.value) return;
+  const next = { ...props.data };
+  delete next[selectedItem.value.name];
+  emit('update:data', next);
+  closeDetail();
+};
 </script>
 
 <style scoped>
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 .inventory-module {
   --c-bg: #0f0f13;

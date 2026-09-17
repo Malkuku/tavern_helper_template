@@ -6,41 +6,81 @@
 
     <div class="panel-content-wrapper">
       <div class="panel-header">
-        <h2 class="panel-title">{{ name }}</h2>
+        <input
+          v-if="mode === 'edit'"
+          class="panel-title edit-control"
+          :value="name"
+          @change="$emit('rename', $event.target.value)"
+        />
+        <h2 v-else class="panel-title">{{ name }}</h2>
         <div class="panel-meta">
-          <span class="panel-type">{{ type || '杂物' }}</span>
-          <span class="panel-quality" v-if="quality">{{ quality }}</span>
+          <input
+            v-if="mode === 'edit'"
+            class="panel-type edit-control"
+            :value="type"
+            @input="$emit('update:field', '类型', $event.target.value)"
+          /><span v-else class="panel-type">{{ type || '杂物' }}</span>
+          <select
+            v-if="mode === 'edit'"
+            class="panel-quality edit-control"
+            :value="quality"
+            @change="$emit('update:field', '品质', $event.target.value)"
+          >
+            <option v-for="option in qualities" :key="option">{{ option }}</option></select
+          ><span v-else-if="quality" class="panel-quality">{{ quality }}</span>
         </div>
       </div>
 
       <div class="stat-grid">
         <div class="stat-box">
           <span class="label">持有数量</span>
-          <span class="value">{{ quantity }}</span>
+          <input
+            v-if="mode === 'edit'"
+            class="value edit-control"
+            :value="quantity"
+            type="number"
+            @input="$emit('update:field', '数量', Number($event.target.value))"
+          /><span v-else class="value">{{ quantity }}</span>
         </div>
         <div class="stat-box">
           <span class="label">耐久度</span>
-          <span class="value">{{ durability }}</span>
+          <input
+            v-if="mode === 'edit'"
+            class="value edit-control"
+            :value="durability"
+            type="number"
+            @input="$emit('update:field', '耐久', Number($event.target.value))"
+          /><span v-else class="value">{{ durability }}</span>
         </div>
       </div>
 
-      <div class="info-section" v-if="description">
+      <div v-if="description || mode === 'edit'" class="info-section">
         <h4>描述</h4>
-        <p class="desc-text">{{ description }}</p>
+        <textarea
+          v-if="mode === 'edit'"
+          class="desc-text edit-control"
+          :value="description"
+          @input="$emit('update:field', '描述', $event.target.value)"
+        ></textarea>
+        <p v-else class="desc-text">{{ description }}</p>
       </div>
 
-      <div class="info-section" v-if="hasEffect">
+      <div v-if="hasEffect || mode === 'edit'" class="info-section">
         <h4>作用</h4>
-        <div class="effect-list">
-          <p
-            v-for="(effect, index) in effectList"
-            :key="index"
-            class="effect-text"
-          >
-            <span class="bullet">✦</span> {{ effect }}
+        <textarea
+          v-if="mode === 'edit'"
+          class="effect-text edit-control"
+          :value="effectText"
+          @input="$emit('update:field', '作用', $event.target.value)"
+        ></textarea>
+        <div v-else class="effect-list">
+          <p v-for="(effectItem, index) in effectList" :key="index" class="effect-text">
+            <span class="bullet">✦</span> {{ effectItem }}
           </p>
         </div>
       </div>
+
+      <button v-if="mode === 'edit'" class="delete-item" type="button" @click="$emit('delete')">删除物品</button>
 
       <slot name="actions"></slot>
     </div>
@@ -56,15 +96,18 @@ const props = defineProps({
   quality: {
     type: String,
     default: '',
-    validator: (v) => !v || ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙'].includes(v)
+    validator: v => !v || ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'].includes(v),
   },
   quantity: { type: Number, default: 1 },
   durability: { type: Number, default: 0 },
   description: { type: String, default: '' },
-  effect: { type: [String, Array], default: '' }
+  effect: { type: [String, Array], default: '' },
+  mode: { type: String, default: 'view' },
 });
 
-defineEmits(['close']);
+defineEmits(['close', 'rename', 'update:field', 'delete']);
+const qualities = ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙', '未知'];
+const effectText = computed(() => (Array.isArray(props.effect) ? props.effect.join('\n') : props.effect));
 
 const hasEffect = computed(() => {
   if (Array.isArray(props.effect)) {
@@ -82,16 +125,16 @@ const effectList = computed(() => {
 
 const qualityClass = computed(() => {
   const qualityMap = {
-    '凡庸': 'quality-common',
-    '遗物': 'quality-relic',
-    '珍品': 'quality-rare',
-    '禁忌': 'quality-forbidden',
-    '神造': 'quality-divine',
-    '遗片': 'quality-fragment',
-    '佚存': 'quality-preserved',
-    '残卷': 'quality-damaged',
-    '蛀损': 'quality-worn',
-    '完帙': 'quality-complete'
+    凡庸: 'quality-common',
+    遗物: 'quality-relic',
+    珍品: 'quality-rare',
+    禁忌: 'quality-forbidden',
+    神造: 'quality-divine',
+    遗片: 'quality-fragment',
+    佚存: 'quality-preserved',
+    残卷: 'quality-damaged',
+    蛀损: 'quality-worn',
+    完帙: 'quality-complete',
   };
   return qualityMap[props.quality] || 'quality-common';
 });
@@ -156,6 +199,20 @@ const qualityClass = computed(() => {
   flex: 1;
   overflow-y: auto;
   padding: 0 20px 40px 20px;
+}
+.edit-control {
+  box-sizing: border-box;
+  width: 100%;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--q-color);
+}
+.delete-item {
+  width: 100%;
+  padding: 9px;
+  color: #ff9b9b;
+  background: transparent;
+  border: 1px solid #8f4444;
 }
 
 .panel-header {

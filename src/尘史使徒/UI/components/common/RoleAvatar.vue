@@ -7,10 +7,7 @@
         v-if="fallbackIndex === 0"
         d="M29 78c3-15 11-23 21-23s18 8 21 23M50 22a15 15 0 1 1 0 30 15 15 0 0 1 0-30Z"
       />
-      <path
-        v-else-if="fallbackIndex === 1"
-        d="m50 16 8 20 21-3-16 14 10 19-23-8-23 8 10-19L21 33l21 3 8-20Zm0 20v22M37 47h26"
-      />
+      <path v-else-if="fallbackIndex === 1" d="M50 14 81 68H19L50 14ZM50 86 19 32h62L50 86Z" />
       <path
         v-else-if="fallbackIndex === 2"
         d="m61 17 9 9-12 12-6-6 9-15ZM52 32 27 71l3 3 4-3 3 4 4-4 3 3 20-36-12-6ZM24 76l12-4"
@@ -23,10 +20,7 @@
         v-else-if="fallbackIndex === 4"
         d="M15 50s13-19 35-19 35 19 35 19-13 19-35 19S15 50 15 50Zm35-11a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm0 4v14M43 50h14"
       />
-      <path
-        v-else
-        d="M69 20A34 34 0 1 0 78 69 29 29 0 1 1 69 20ZM29 61l12-5M35 70l9-8"
-      />
+      <path v-else d="M69 20A34 34 0 1 0 78 69 29 29 0 1 1 69 20ZM29 61l12-5M35 70l9-8" />
       <path v-if="fallbackIndex === 0" class="sigil" d="m50 8 7 10-7 5-7-5 7-10Zm0 84-7-10 7-5 7 5-7 10Z" />
     </svg>
   </span>

@@ -100,7 +100,7 @@ export function parseGeneratedRole(text: string, type: GeneratedRoleType) {
   return {
     author: String(value.author || 'AI 辅助生成'),
     desc: String(value.desc || ''),
-    key: String(value.key || name),
+    key: type === 'user' ? 'user' : String(value.key || name),
     type,
     meta: { avatar: '', color: '#C9B485', avatarStyle: 'auto' },
     data,

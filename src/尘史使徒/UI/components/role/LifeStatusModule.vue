@@ -6,8 +6,17 @@
       <div class="stat-item">
         <span class="label">生命</span>
         <div class="bar-container">
-          <div class="bar-fill hp-flow" :style="{width: getPercent(data?.生命状态?.生命) + '%'}"></div>
-          <span class="bar-text">{{ data?.生命状态?.生命?.当前 || 0 }} / {{ data?.生命状态?.生命?.最大值 || 0 }}</span>
+          <div class="bar-fill hp-flow" :style="{ width: getPercent(data?.生命状态?.生命) + '%' }"></div>
+          <span class="bar-text"
+            ><input
+              v-if="mode === 'edit'"
+              :value="data?.生命状态?.生命?.当前 ?? 0"
+              type="number"
+              :max="data?.生命状态?.生命?.最大值 ?? undefined"
+              @input="updateCurrent('生命', $event)"
+            /><template v-else>{{ data?.生命状态?.生命?.当前 || 0 }}</template> /
+            {{ data?.生命状态?.生命?.最大值 || 0 }}</span
+          >
         </div>
       </div>
 
@@ -15,8 +24,17 @@
       <div class="stat-item">
         <span class="label">体力</span>
         <div class="bar-container">
-          <div class="bar-fill sp-flow" :style="{width: getPercent(data?.生命状态?.体力) + '%'}"></div>
-          <span class="bar-text">{{ data?.生命状态?.体力?.当前 || 0 }} / {{ data?.生命状态?.体力?.最大值 || 0 }}</span>
+          <div class="bar-fill sp-flow" :style="{ width: getPercent(data?.生命状态?.体力) + '%' }"></div>
+          <span class="bar-text"
+            ><input
+              v-if="mode === 'edit'"
+              :value="data?.生命状态?.体力?.当前 ?? 0"
+              type="number"
+              :max="data?.生命状态?.体力?.最大值 ?? undefined"
+              @input="updateCurrent('体力', $event)"
+            /><template v-else>{{ data?.生命状态?.体力?.当前 || 0 }}</template> /
+            {{ data?.生命状态?.体力?.最大值 || 0 }}</span
+          >
         </div>
       </div>
 
@@ -24,8 +42,17 @@
       <div class="stat-item">
         <span class="label">精神</span>
         <div class="bar-container">
-          <div class="bar-fill mp-flow" :style="{width: getPercent(data?.生命状态?.精神) + '%'}"></div>
-          <span class="bar-text">{{ data?.生命状态?.精神?.当前 || 0 }} / {{ data?.生命状态?.精神?.最大值 || 0 }}</span>
+          <div class="bar-fill mp-flow" :style="{ width: getPercent(data?.生命状态?.精神) + '%' }"></div>
+          <span class="bar-text"
+            ><input
+              v-if="mode === 'edit'"
+              :value="data?.生命状态?.精神?.当前 ?? 0"
+              type="number"
+              :max="data?.生命状态?.精神?.最大值 ?? undefined"
+              @input="updateCurrent('精神', $event)"
+            /><template v-else>{{ data?.生命状态?.精神?.当前 || 0 }}</template> /
+            {{ data?.生命状态?.精神?.最大值 || 0 }}</span
+          >
         </div>
       </div>
     </div>
@@ -43,7 +70,15 @@
       >
         <div class="stat-label-group">
           <!-- SVG 图标 -->
-          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            class="stat-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path v-for="(path, index) in stat.paths" :key="index" :d="path.d"></path>
           </svg>
           <span class="stat-label">{{ stat.label }}</span>
@@ -55,29 +90,40 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   data: {
     type: Object,
     default: () => ({
       生命状态: {
         生命: { 当前: 0, 最大值: 100 },
         体力: { 当前: 0, 最大值: 100 },
-        精神: { 当前: 0, 最大值: 100 }
+        精神: { 当前: 0, 最大值: 100 },
       },
       基础数值: {
         力量: 0,
         敏捷: 0,
         智慧: 0,
-        魅力: 0
-      }
-    })
-  }
+        魅力: 0,
+      },
+    }),
+  },
+  mode: { type: String, default: 'view', validator: value => ['view', 'edit'].includes(value) },
 });
+const emit = defineEmits(['update:data']);
+
+const updateCurrent = (key, event) => {
+  const current = Number(event.target.value);
+  const next = structuredClone(props.data || {});
+  next.生命状态 ||= {};
+  next.生命状态[key] ||= { 当前: 0, 最大值: 0 };
+  next.生命状态[key].当前 = current;
+  emit('update:data', next);
+};
 
 /**
  * 计算属性百分比
  */
-const getPercent = (stat) => {
+const getPercent = stat => {
   if (!stat || !stat.最大值 || stat.最大值 === 0) return 0;
   const percent = (stat.当前 / stat.最大值) * 100;
   return Math.min(100, Math.max(0, percent));
@@ -93,8 +139,10 @@ const baseStatsConfig = [
     color: '#ff9800', // 橙黄的火焰
     paths: [
       // 火焰轮廓
-      { d: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' }
-    ]
+      {
+        d: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z',
+      },
+    ],
   },
   {
     key: '敏捷',
@@ -106,8 +154,8 @@ const baseStatsConfig = [
       // 羽毛主轴
       { d: 'M16 8 L2 22' },
       // 羽毛纹理细节
-      { d: 'M17.5 15 H9' }
-    ]
+      { d: 'M17.5 15 H9' },
+    ],
   },
   {
     key: '智慧',
@@ -115,8 +163,10 @@ const baseStatsConfig = [
     color: '#ffd700', // 金色的星星
     paths: [
       // 标准五角星连线
-      { d: 'M 12 2 L 15.09 8.26 L 22 9.27 L 17 14.14 L 18.18 21.02 L 12 17.77 L 5.82 21.02 L 7 14.14 L 2 9.27 L 8.91 8.26 Z' }
-    ]
+      {
+        d: 'M 12 2 L 15.09 8.26 L 22 9.27 L 17 14.14 L 18.18 21.02 L 12 17.77 L 5.82 21.02 L 7 14.14 L 2 9.27 L 8.91 8.26 Z',
+      },
+    ],
   },
   {
     key: '魅力',
@@ -128,9 +178,9 @@ const baseStatsConfig = [
       // 下嘴唇 (饱满弧度)
       { d: 'M 3 12 C 7 17, 17 17, 21 12' },
       // 嘴唇中间闭合线
-      { d: 'M 3 12 C 8 13, 16 13, 21 12' }
-    ]
-  }
+      { d: 'M 3 12 C 8 13, 16 13, 21 12' },
+    ],
+  },
 ];
 </script>
 
@@ -144,12 +194,26 @@ const baseStatsConfig = [
 }
 
 /* --- 进度条区域样式 --- */
-.stat-grid { display: flex; flex-direction: column; gap: 15px; }
-.stat-item { display: flex; align-items: center; gap: 15px; }
-.stat-item .label { width: 40px; font-family: var(--font-title, serif); color: var(--c-text-dim, #a0a0a0); font-weight: bold; }
+.stat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.stat-item .label {
+  width: 40px;
+  font-family: var(--font-title, serif);
+  color: var(--c-text-dim, #a0a0a0);
+  font-weight: bold;
+}
 
 .bar-container {
-  flex: 1; height: 16px;
+  flex: 1;
+  height: 16px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
   position: relative;
@@ -157,9 +221,23 @@ const baseStatsConfig = [
 }
 
 .bar-text {
-  position: absolute; width: 100%; text-align: right; right: 5px; top: -18px;
-  font-size: 0.75rem; color: var(--c-text-dim, #a0a0a0);
-  font-family: monospace; letter-spacing: 0.5px;
+  position: absolute;
+  width: 100%;
+  text-align: right;
+  right: 5px;
+  top: -18px;
+  font-size: 0.75rem;
+  color: var(--c-text-dim, #a0a0a0);
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+.bar-text input {
+  width: 74px;
+  padding: 1px 4px;
+  color: #fff;
+  text-align: right;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid currentColor;
 }
 
 .bar-fill {
@@ -172,10 +250,11 @@ const baseStatsConfig = [
 .bar-fill::after {
   content: '';
   position: absolute;
-  top: 0; bottom: 0;
+  top: 0;
+  bottom: 0;
   right: 0;
   width: 15px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6) 80%, rgba(255,255,255,0.9) 100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6) 80%, rgba(255, 255, 255, 0.9) 100%);
   box-shadow: 2px 0 5px currentColor;
   border-radius: 0 2px 2px 0;
   animation: water-tip-flicker 2s infinite;
@@ -183,31 +262,55 @@ const baseStatsConfig = [
 
 .bar-fill::before {
   content: '';
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: flat-flow 3s infinite linear;
   z-index: 1;
 }
 
 @keyframes water-tip-flicker {
-  0%, 100% { opacity: 0.8; width: 15px; }
-  50% { opacity: 1; width: 20px; }
+  0%,
+  100% {
+    opacity: 0.8;
+    width: 15px;
+  }
+  50% {
+    opacity: 1;
+    width: 20px;
+  }
 }
 
 @keyframes flat-flow {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
-.hp-flow { background-color: #e74c3c; color: #ffadad; }
-.sp-flow { background-color: #f1c40f; color: #fff5cc; }
-.mp-flow { background-color: #3498db; color: #b3e0ff; }
+.hp-flow {
+  background-color: #e74c3c;
+  color: #ffadad;
+}
+.sp-flow {
+  background-color: #f1c40f;
+  color: #fff5cc;
+}
+.mp-flow {
+  background-color: #3498db;
+  color: #b3e0ff;
+}
 
 /* --- 分割线 --- */
 .divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15) 50%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15) 50%, transparent);
   margin: 5px 0;
 }
 

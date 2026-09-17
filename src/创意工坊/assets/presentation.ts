@@ -63,6 +63,7 @@ export function createDefaultAsset(category: WorkshopCategory): any {
   if (category === '种族') return { ...collection([]), type: '类人种' };
   return {
     ...collection(defaultRoleData('user')),
+    key: 'user',
     type: 'user',
     meta: { avatar: '', color: '#C9B485', avatarStyle: 'auto' },
   };
