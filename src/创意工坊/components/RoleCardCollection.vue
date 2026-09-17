@@ -81,7 +81,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 type Kind = '术' | '语料';
-const props = withDefaults(defineProps<{ modelValue: Record<string, any>; kind: Kind; options?: string[] }>(), {
+const props = withDefaults(defineProps<{ modelValue?: Record<string, any>; kind: Kind; options?: string[] }>(), {
+  modelValue: () => ({}),
   options: () => [],
 });
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, any>] }>();
@@ -188,6 +189,7 @@ function setTextField(key: string, value: string) {
 .collection-board {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 .collection-board > header {
   display: flex;
@@ -205,7 +207,7 @@ function setTextField(key: string, value: string) {
 }
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   gap: 10px;
 }
 .entry-card {
@@ -268,10 +270,12 @@ function setTextField(key: string, value: string) {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .entry-actions span {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .empty-card {
   min-height: 100px;
@@ -297,11 +301,29 @@ function setTextField(key: string, value: string) {
   color: #d8a95d;
 }
 @media (max-width: 700px) {
+  .collection-board > header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .entry-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .entry-summary > button {
+    grid-column: 1 / -1;
+  }
   .inline-editor {
     grid-template-columns: 1fr;
   }
   .entry-actions {
     grid-column: auto;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .entry-actions > button,
+  .entry-actions span,
+  .entry-actions span button {
+    flex: 1;
   }
 }
 </style>

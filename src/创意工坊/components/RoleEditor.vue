@@ -173,7 +173,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue';
+import { computed, ref, watch, watchEffect } from 'vue';
 import { calculateCharacterAttributes } from '../../尘史使徒/DOC/数值计算';
 import AvatarMediaField from './AvatarMediaField.vue';
 import ArtLevelEditor from './ArtLevelEditor.vue';
@@ -211,6 +211,13 @@ const tabs = [
   { id: 'items', icon: '▣', label: '状态物品', note: '效果与携带物' },
 ];
 const visibleTabs = computed(() => tabs.filter(tab => tab.id !== 'personality' || entry.value.type !== '次要角色'));
+watch(
+  [() => entry.value.type, visibleTabs],
+  () => {
+    if (!visibleTabs.value.some(tab => tab.id === activeTab.value)) activeTab.value = 'basic';
+  },
+  { immediate: true },
+);
 const roleName = computed(() => entry.value.data?.姓名 || entry.value.key || '角色头像');
 const hasAvatar = computed(() => Boolean(entry.value.meta?.avatar?.trim()));
 const aspectMap: Record<string, string> = {

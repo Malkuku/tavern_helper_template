@@ -90,6 +90,7 @@
       </header>
       <template v-if="domain === '角色' && entry"
         ><RoleEditor
+          :key="selectedId"
           v-model:entry="entry"
           :role-options="roleOptions"
           :dirty-sections="roleDirtySections"
