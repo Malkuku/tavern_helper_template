@@ -212,6 +212,8 @@ function setTextField(key: string, value: string) {
 }
 .entry-card {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   min-height: 90px;
   padding: 0;
   overflow: hidden;
@@ -252,6 +254,8 @@ function setTextField(key: string, value: string) {
 }
 .inline-editor {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding: 16px;
@@ -259,11 +263,16 @@ function setTextField(key: string, value: string) {
 }
 .inline-editor label {
   display: grid;
+  min-width: 0;
   gap: 6px;
   color: #bdb39f;
 }
 .inline-editor textarea {
+  width: 100%;
+  max-width: 100%;
   min-height: 76px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .entry-actions {
   grid-column: 1 / -1;

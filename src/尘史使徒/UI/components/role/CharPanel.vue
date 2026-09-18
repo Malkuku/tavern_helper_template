@@ -559,14 +559,27 @@ const deleteChar = async () => {
 }
 
 .corpus-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
   margin-bottom: 8px;
   font-size: 0.9em;
 }
 
 .mood-tag {
+  min-width: 0;
   color: var(--c-gold);
   font-weight: bold;
-  margin-right: 8px;
+  overflow-wrap: anywhere;
+}
+
+.corpus-text {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .text-content {
@@ -632,5 +645,11 @@ const deleteChar = async () => {
 
 .mb-3 {
   margin-bottom: 15px;
+}
+
+@media (max-width: 700px) {
+  .corpus-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

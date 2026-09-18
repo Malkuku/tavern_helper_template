@@ -6,6 +6,8 @@
       class="launcher"
       :style="launcherStyle"
       title="尘史创意工坊（拖拽移动，点击打开）"
+      @mousedown="startLauncherMouseDrag"
+      @touchstart="startLauncherTouchDrag"
       @click="openWorkshop"
     >
       <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -78,6 +80,7 @@ const workspace = ref<'user' | 'developer'>('user'),
   collapsed = ref(true),
   launcher = ref<HTMLElement>(),
   launcherDragging = ref(false),
+  launcherDidDrag = ref(false),
   message = ref(''),
   error = ref(false),
   loadError = ref(''),
@@ -85,6 +88,14 @@ const workspace = ref<'user' | 'developer'>('user'),
 const dirtyCount = computed(() => (source.value && draft.value ? diffSources(source.value, draft.value).length : 0));
 const launcherPosition = reactive(readLauncherPosition());
 const launcherStyle = computed(() => ({ left: `${launcherPosition.left}px`, top: `${launcherPosition.top}px` }));
+let dragDocument: Document | undefined,
+  dragWindow: Window | undefined,
+  activeTouchId: number | undefined,
+  dragStartX = 0,
+  dragStartY = 0,
+  dragStartLeft = 0,
+  dragStartTop = 0,
+  clearDidDragTimer: number | undefined;
 function showMessage(v: { text: string; error?: boolean }) {
   message.value = v.text;
   error.value = !!v.error;
@@ -109,29 +120,95 @@ function saveLauncherPosition() {
     console.warn('[workshop] 保存悬浮入口位置失败', cause);
   }
 }
+function hostContext() {
+  const document = launcher.value?.ownerDocument;
+  return document ? { document, window: document.defaultView } : undefined;
+}
+function clampLauncher(left: number, top: number) {
+  const context = hostContext();
+  if (!context?.window || !launcher.value) return;
+  const width = launcher.value.offsetWidth;
+  const height = launcher.value.offsetHeight;
+  launcherPosition.left = Math.max(0, Math.min(left, context.window.innerWidth - width));
+  launcherPosition.top = Math.max(0, Math.min(top, context.window.innerHeight - height));
+}
+function beginLauncherDrag(clientX: number, clientY: number) {
+  const context = hostContext();
+  if (!context?.window) return false;
+  dragDocument = context.document;
+  dragWindow = context.window;
+  if (clearDidDragTimer !== undefined) dragWindow.clearTimeout(clearDidDragTimer);
+  launcherDidDrag.value = false;
+  launcherDragging.value = true;
+  dragStartX = clientX;
+  dragStartY = clientY;
+  dragStartLeft = launcherPosition.left;
+  dragStartTop = launcherPosition.top;
+  return true;
+}
+function moveLauncher(clientX: number, clientY: number) {
+  const deltaX = clientX - dragStartX;
+  const deltaY = clientY - dragStartY;
+  if (!launcherDidDrag.value && Math.hypot(deltaX, deltaY) < 3) return;
+  launcherDidDrag.value = true;
+  clampLauncher(dragStartLeft + deltaX, dragStartTop + deltaY);
+}
+function finishLauncherDrag() {
+  if (launcherDidDrag.value) saveLauncherPosition();
+  launcherDragging.value = false;
+  activeTouchId = undefined;
+  removeLauncherDocumentListeners();
+  if (dragWindow) {
+    clearDidDragTimer = dragWindow.setTimeout(() => {
+      launcherDidDrag.value = false;
+      clearDidDragTimer = undefined;
+    }, 400);
+  }
+}
+function onLauncherMouseMove(event: MouseEvent) {
+  if (!launcherDragging.value) return;
+  event.preventDefault();
+  moveLauncher(event.clientX, event.clientY);
+}
+function onLauncherTouchMove(event: TouchEvent) {
+  const touch = [...event.changedTouches].find(item => item.identifier === activeTouchId);
+  if (!touch || !launcherDragging.value) return;
+  event.preventDefault();
+  moveLauncher(touch.clientX, touch.clientY);
+}
+function removeLauncherDocumentListeners() {
+  dragDocument?.removeEventListener('mousemove', onLauncherMouseMove);
+  dragDocument?.removeEventListener('mouseup', finishLauncherDrag);
+  dragDocument?.removeEventListener('touchmove', onLauncherTouchMove);
+  dragDocument?.removeEventListener('touchend', finishLauncherDrag);
+  dragDocument?.removeEventListener('touchcancel', finishLauncherDrag);
+}
+function startLauncherMouseDrag(event: MouseEvent) {
+  if (event.button !== 0 || !beginLauncherDrag(event.clientX, event.clientY) || !dragDocument) return;
+  dragDocument.addEventListener('mousemove', onLauncherMouseMove);
+  dragDocument.addEventListener('mouseup', finishLauncherDrag, { once: true });
+}
+function startLauncherTouchDrag(event: TouchEvent) {
+  const touch = event.changedTouches[0];
+  if (!touch || !beginLauncherDrag(touch.clientX, touch.clientY) || !dragDocument) return;
+  activeTouchId = touch.identifier;
+  dragDocument.addEventListener('touchmove', onLauncherTouchMove, { passive: false });
+  dragDocument.addEventListener('touchend', finishLauncherDrag, { once: true });
+  dragDocument.addEventListener('touchcancel', finishLauncherDrag, { once: true });
+}
+function normalizeLauncherPosition() {
+  clampLauncher(launcherPosition.left, launcherPosition.top);
+}
 function initLauncherDrag() {
-  if (!launcher.value) return;
-  const button = $(launcher.value);
-  if (button.data('ui-draggable')) button.draggable('destroy');
-  button.draggable({
-    containment: 'window',
-    scroll: false,
-    start: () => (launcherDragging.value = true),
-    stop: (_event, ui) => {
-      launcherPosition.top = ui.position.top;
-      launcherPosition.left = ui.position.left;
-      saveLauncherPosition();
-      window.setTimeout(() => (launcherDragging.value = false), 100);
-    },
-  });
+  void nextTick(normalizeLauncherPosition);
 }
 function destroyLauncherDrag() {
-  if (!launcher.value) return;
-  const button = $(launcher.value);
-  if (button.data('ui-draggable')) button.draggable('destroy');
+  removeLauncherDocumentListeners();
+  dragWindow?.removeEventListener('resize', normalizeLauncherPosition);
+  if (clearDidDragTimer !== undefined) dragWindow?.clearTimeout(clearDidDragTimer);
 }
 function openWorkshop() {
-  if (!launcherDragging.value) collapsed.value = false;
+  if (!launcherDragging.value && !launcherDidDrag.value) collapsed.value = false;
 }
 async function load() {
   busy.value = true;
@@ -201,7 +278,12 @@ function pageHide(e: PageTransitionEvent) {
 }
 onMounted(() => {
   void load();
-  void nextTick(initLauncherDrag);
+  void nextTick(() => {
+    initLauncherDrag();
+    const context = hostContext();
+    dragWindow = context?.window ?? undefined;
+    dragWindow?.addEventListener('resize', normalizeLauncherPosition);
+  });
   window.addEventListener('beforeunload', beforeUnload);
   window.addEventListener('pagehide', pageHide);
 });
