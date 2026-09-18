@@ -10,11 +10,16 @@ export interface RuntimeRoleSnapshot {
   次要角色: Record<string, unknown>;
 }
 
+export function runtimeRoleExists(snapshot: RuntimeRoleSnapshot, type: string, key: string): boolean {
+  if (type === 'user') return Object.keys(snapshot.user ?? {}).length > 0;
+  if (type !== '主要角色' && type !== '次要角色') return false;
+  return Object.prototype.hasOwnProperty.call(snapshot[type], key);
+}
+
 export async function getRuntimeRoles(): Promise<RuntimeRoleSnapshot> {
   await waitGlobalInitialized('Mvu');
-  const messageId = getLastMessageId();
-  if (messageId < 0) throw new Error('当前聊天没有可读取的消息楼层。');
-  const value = klona(Mvu.getMvuData({ type: 'message', message_id: messageId })) as Record<string, any>;
+  if (getLastMessageId() < 0) throw new Error('当前聊天没有可读取的消息楼层。');
+  const value = klona(Mvu.getMvuData({ type: 'message', message_id: -1 })) as Record<string, any>;
   const roles = value.stat_data?.角色;
   if (!roles || typeof roles !== 'object') throw new Error('当前运行数据缺少角色。');
   return {
@@ -30,11 +35,12 @@ export async function addRoleToRuntime(role: TypedCollectionEntry, overwrite = f
   const messageId = getLastMessageId();
   if (messageId < 0) throw new Error('当前聊天没有可写入的消息楼层。');
   const option = { type: 'message' as const, message_id: messageId };
-  const previous = klona(Mvu.getMvuData(option));
+  const previous = klona(Mvu.getMvuData({ type: 'message', message_id: -1 }));
   const statData = (previous as Record<string, any>).stat_data;
   const bucket = statData?.角色?.[role.type];
   if (!bucket || typeof bucket !== 'object') throw new Error(`当前运行数据缺少角色.${role.type}。`);
-  const exists = role.type === 'user' || Object.prototype.hasOwnProperty.call(bucket, role.key);
+  const exists =
+    role.type === 'user' ? Object.keys(bucket).length > 0 : Object.prototype.hasOwnProperty.call(bucket, role.key);
   if (exists && !overwrite) return 'conflict';
   const next = klona(previous) as Record<string, any>;
   const runtimeRole = {

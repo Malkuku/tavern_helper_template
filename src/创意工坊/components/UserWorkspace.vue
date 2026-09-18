@@ -25,28 +25,49 @@
       <label class="toggle"><input v-model="hideExisting" type="checkbox" />隐藏已在运行中的角色</label>
     </div>
     <div class="roles">
-      <article v-for="r in filtered" :key="r.id" class="role-card" :class="{ existing: r.exists }">
+      <article
+        v-for="group in filteredGroups"
+        :key="group.identity"
+        class="role-card"
+        :class="{ existing: group.exists }"
+      >
         <RoleAvatar
-          :src="r.entry.meta?.avatar"
-          :alt="r.title"
-          :seed="r.entry.key"
-          :fallback-style="r.entry.meta?.avatarStyle"
+          :src="group.items[0].entry.meta?.avatar"
+          :alt="group.title"
+          :seed="group.items[0].entry.key"
+          :fallback-style="group.items[0].entry.meta?.avatarStyle"
+          :theme-color="group.items[0].entry.meta?.color"
         />
         <div class="role-copy">
           <div class="role-heading">
-            <strong>{{ r.title }}</strong
-            ><span>{{ r.entry.type }}</span>
+            <strong>{{ group.title }}</strong
+            ><span>{{ group.type }}</span>
           </div>
-          <p>{{ r.summary }}</p>
-          <small>{{ r.entry.author ? `作者：${r.entry.author}` : '未署名角色' }}</small>
+          <p>{{ group.summary }}</p>
+          <small>{{ group.items.length }} 个版本{{ group.exists ? ' · 已在当前故事中' : '' }}</small>
         </div>
         <div class="role-actions">
-          <button @click="previewId = r.id">预览</button>
-          <button :class="{ danger: r.exists }" @click="choose(r.id)">{{ r.exists ? '替换' : '加入' }}</button>
+          <button @click="toggleVersions(group.identity)">
+            {{ expandedIdentity === group.identity ? '收起版本' : '选择版本' }}
+          </button>
+        </div>
+        <div v-if="expandedIdentity === group.identity" class="role-versions">
+          <div v-for="item in group.items" :key="item.id" class="role-version">
+            <span
+              ><strong>{{ item.entry.author || '未署名版本' }}</strong
+              ><small>{{ item.entry.desc || item.summary }}</small></span
+            >
+            <div class="version-actions">
+              <button @click="previewId = item.id">预览</button>
+              <button :class="{ danger: group.exists }" @click="choose(item.id)">
+                {{ group.exists ? '替换此版本' : '加入此版本' }}
+              </button>
+            </div>
+          </div>
         </div>
       </article>
     </div>
-    <div v-if="!filtered.length" class="empty">
+    <div v-if="!filteredGroups.length" class="empty">
       <strong>没有符合条件的角色</strong
       ><span>{{ hideExisting ? '可以取消“隐藏已在运行中的角色”查看全部角色。' : '请调整搜索或角色类型。' }}</span>
     </div>
@@ -121,7 +142,7 @@
 import { computed, onMounted, ref } from 'vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import CharPanel from '../../尘史使徒/UI/components/role/CharPanel.vue';
-import { assetsOf, type WorkshopCategory } from '../assets/model';
+import { assetsOf, roleIdentityOf, type WorkshopCategory } from '../assets/model';
 import {
   createPackage,
   downloadPackage,
@@ -132,7 +153,7 @@ import {
 } from '../assets/package';
 import { assetTitle, previewPackage, workshopCategories, type ImportPreview } from '../assets/presentation';
 import { saveScenarioSource } from '../assets/repository';
-import { addRoleToRuntime, getRuntimeRoles, type RuntimeRoleSnapshot } from '../assets/runtimeRole';
+import { addRoleToRuntime, getRuntimeRoles, runtimeRoleExists, type RuntimeRoleSnapshot } from '../assets/runtimeRole';
 import type { PackageConflictDecision, ScenarioSourceBundle, WorkshopPackage } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 
@@ -141,6 +162,7 @@ const emit = defineEmits<{ changed: []; message: [value: { text: string; error?:
 const query = ref(''),
   type = ref(''),
   hideExisting = ref(true),
+  expandedIdentity = ref(''),
   runtime = ref<RuntimeRoleSnapshot>(),
   previewId = ref(''),
   overwriteId = ref(''),
@@ -150,34 +172,46 @@ const query = ref(''),
   preview = ref<ImportPreview>(),
   conflicts = ref<PackageConflict[]>([]),
   decisions = ref<Record<string, PackageConflictDecision>>({});
-const roles = computed(() =>
-  Object.entries(props.source.registries.角色).map(([id, entry]) => {
-    const title = assetTitle('角色', entry),
-      exists = roleExists(entry.type, entry.key);
+const roleGroups = computed(() => {
+  const groups = new Map<string, { id: string; entry: ScenarioSourceBundle['registries']['角色'][string] }[]>();
+  for (const [id, entry] of Object.entries(props.source.registries.角色)) {
+    const identity = roleIdentityOf(entry);
+    groups.set(identity, [...(groups.get(identity) ?? []), { id, entry }]);
+  }
+  return [...groups.entries()].map(([identity, items]) => {
+    const primary = items[0].entry;
+    const title = assetTitle('角色', primary);
     const summary =
-      entry.type === '次要角色'
-        ? String(entry.data?.简介 || entry.desc || '尚未填写角色简介')
-        : [entry.data?.当前身份, ...arr(entry.data?.外貌概括 ? [entry.data.外貌概括] : entry.data?.外貌).slice(0, 1)]
+      primary.type === '次要角色'
+        ? String(primary.data?.简介 || primary.desc || '尚未填写角色简介')
+        : [
+            primary.data?.当前身份,
+            ...arr(primary.data?.外貌概括 ? [primary.data.外貌概括] : primary.data?.外貌).slice(0, 1),
+          ]
             .filter(Boolean)
             .join(' · ') ||
-          entry.desc ||
+          primary.desc ||
           '尚未填写角色简介';
     return {
-      id,
-      entry,
+      identity,
+      items: items.map(item => ({ ...item, summary })),
+      type: primary.type,
       title,
-      exists,
+      exists: roleExists(primary.type, primary.key),
       summary,
-      terms: `${title} ${entry.key} ${entry.author} ${entry.desc}`.toLowerCase(),
+      terms: items
+        .map(item => `${assetTitle('角色', item.entry)} ${item.entry.key} ${item.entry.author} ${item.entry.desc}`)
+        .join(' ')
+        .toLowerCase(),
     };
-  }),
-);
-const filtered = computed(() =>
-  roles.value.filter(
-    r =>
-      (!hideExisting.value || !r.exists) &&
-      (!type.value || r.entry.type === type.value) &&
-      r.terms.includes(query.value.toLowerCase()),
+  });
+});
+const filteredGroups = computed(() =>
+  roleGroups.value.filter(
+    group =>
+      (!hideExisting.value || !group.exists) &&
+      (!type.value || group.type === type.value) &&
+      group.terms.includes(query.value.toLowerCase()),
   ),
 );
 const overwrite = computed(() => props.source.registries.角色[overwriteId.value]);
@@ -226,10 +260,10 @@ function arr(v: unknown) {
   return Array.isArray(v) ? v.map(String) : [];
 }
 function roleExists(t: string, key: string) {
-  if (!runtime.value) return false;
-  return t === 'user'
-    ? Object.keys(runtime.value.user ?? {}).length > 0
-    : Object.prototype.hasOwnProperty.call(runtime.value[t as '主要角色' | '次要角色'], key);
+  return runtime.value ? runtimeRoleExists(runtime.value, t, key) : false;
+}
+function toggleVersions(identity: string) {
+  expandedIdentity.value = expandedIdentity.value === identity ? '' : identity;
 }
 async function choose(id: string) {
   const role = props.source.registries.角色[id];
@@ -238,7 +272,12 @@ async function choose(id: string) {
     return;
   }
   try {
-    await addRoleToRuntime(role);
+    const result = await addRoleToRuntime(role);
+    if (result === 'conflict') {
+      runtime.value = await getRuntimeRoles();
+      overwriteId.value = id;
+      return;
+    }
     runtime.value = await getRuntimeRoles();
     show('角色已加入当前故事。');
   } catch (error) {
@@ -415,6 +454,37 @@ function show(value: unknown, error = false) {
   display: grid;
   gap: 7px;
 }
+.role-versions {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #363a3d;
+}
+.role-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #111416;
+}
+.role-version > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.role-version small {
+  overflow: hidden;
+  color: #8e8a82;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-actions {
+  display: flex;
+  flex: none;
+  gap: 7px;
+}
 .role-copy {
   min-width: 0;
 }
@@ -524,6 +594,14 @@ dd {
   }
   .role-actions {
     grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+  .role-version {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .version-actions {
+    display: grid;
     grid-template-columns: 1fr 1fr;
   }
   .role-preview {

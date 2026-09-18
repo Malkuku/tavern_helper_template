@@ -9,6 +9,7 @@
             :alt="displayName"
             :seed="displayName"
             :fallback-style="data?.meta?.avatarStyle"
+            :theme-color="data?.meta?.color"
           />
           <div>
             <h2 class="char-name">{{ displayName }}</h2>

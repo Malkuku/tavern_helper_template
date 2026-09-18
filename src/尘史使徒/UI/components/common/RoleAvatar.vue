@@ -1,5 +1,9 @@
 <template>
-  <span class="role-avatar-frame" :class="`fallback-${fallbackIndex}`">
+  <span
+    class="role-avatar-frame"
+    :class="`fallback-${fallbackIndex}`"
+    :style="{ '--avatar-theme': themeColor, '--avatar-theme-ring': `${themeColor}33` }"
+  >
     <img v-if="src && !failed" :src="src" :alt="alt" @error="failed = true" />
     <svg v-else viewBox="0 0 100 100" aria-hidden="true">
       <circle cx="50" cy="50" r="43" />
@@ -29,13 +33,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-const props = withDefaults(defineProps<{ src?: string; alt?: string; seed?: string; fallbackStyle?: string }>(), {
-  src: '',
-  alt: '角色头像',
-  seed: '',
-  fallbackStyle: 'auto',
-});
+const props = withDefaults(
+  defineProps<{ src?: string; alt?: string; seed?: string; fallbackStyle?: string; themeColor?: string }>(),
+  {
+    src: '',
+    alt: '角色头像',
+    seed: '',
+    fallbackStyle: 'auto',
+    themeColor: '#C9B485',
+  },
+);
 const failed = ref(false);
+const themeColor = computed(() => (/^#[0-9a-fA-F]{6}$/.test(props.themeColor) ? props.themeColor : '#C9B485'));
 const fallbackIndex = computed(() => {
   if (/^[0-5]$/.test(props.fallbackStyle)) return Number(props.fallbackStyle);
   let hash = 2166136261;
@@ -59,18 +68,18 @@ watch(
   overflow: hidden;
   color: #c9b485;
   background: radial-gradient(circle at 50% 35%, #343027, #090a0c 72%);
-  border: 1px solid #8a7953;
+  border: 1px solid var(--avatar-theme, #c9b485);
   border-radius: 50%;
   box-shadow:
     0 0 0 3px #0d0f12,
-    0 0 0 4px rgba(201, 180, 133, 0.2);
+    0 0 0 4px var(--avatar-theme-ring, rgba(201, 180, 133, 0.2));
 }
 .role-avatar-frame::after {
   position: absolute;
   inset: 4px;
   pointer-events: none;
   content: '';
-  border: 1px solid rgba(201, 180, 133, 0.25);
+  border: 1px solid var(--avatar-theme-ring, rgba(201, 180, 133, 0.25));
   border-radius: inherit;
 }
 img {

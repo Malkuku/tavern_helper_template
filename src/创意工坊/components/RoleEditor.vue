@@ -15,6 +15,7 @@
         :alt="roleName"
         :seed="entry.key"
         :fallback-style="entry.meta?.avatarStyle"
+        :theme-color="entry.meta?.color"
       />
       <div class="visual-fields">
         <div class="visual-summary">
@@ -41,9 +42,13 @@
                   :class="{ active: !hasAvatar && entry.meta.avatarStyle === option.value }"
                   @click="entry.meta.avatarStyle = option.value"
                 >
-                  <RoleAvatar :src="''" :alt="option.label" :seed="entry.key" :fallback-style="option.value" /><small>{{
-                    option.label
-                  }}</small>
+                  <RoleAvatar
+                    :src="''"
+                    :alt="option.label"
+                    :seed="entry.key"
+                    :fallback-style="option.value"
+                    :theme-color="entry.meta?.color"
+                  /><small>{{ option.label }}</small>
                 </button>
               </div>
             </div>
@@ -53,8 +58,19 @@
                 pattern="#[0-9a-fA-F]{6}"
             /></label>
             <small
-              >图片地址优先保存并显示；默认样式只在没有图片或图片加载失败时使用。主题颜色用于主要角色的特殊对话框。</small
+              >图片地址优先保存并显示；默认样式只在没有图片或图片加载失败时使用。三类角色的主题颜色都会用于特殊对话框。</small
             >
+            <MessageDisplay
+              :display-html="`【${roleName}】「这是一句会随头像与主题颜色即时变化的对话预览。」`"
+              :is-streaming="false"
+              :font-size="16"
+              :role-preview="{
+                name: roleName,
+                avatar: entry.meta.avatar,
+                avatarStyle: entry.meta.avatarStyle,
+                color: entry.meta.color,
+              }"
+            />
           </div>
         </details>
       </div>
@@ -176,6 +192,7 @@
 import { computed, ref, watch, watchEffect } from 'vue';
 import { calculateCharacterAttributes } from '../../尘史使徒/DOC/数值计算';
 import AvatarMediaField from './AvatarMediaField.vue';
+import MessageDisplay from '../../尘史使徒/UI/components/panel/MessageDisplay.vue';
 import ArtLevelEditor from './ArtLevelEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import EntrySetEditor from './EntrySetEditor.vue';
@@ -309,6 +326,8 @@ watchEffect(() => {
 .role-dossier {
   display: grid;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 input[readonly] {
   color: #c8c1b3 !important;
@@ -324,6 +343,8 @@ input[readonly] {
   padding: 20px;
   background: radial-gradient(circle at left, rgba(197, 160, 89, 0.12), transparent 46%), #17191c;
   border: 1px solid rgba(197, 160, 89, 0.28);
+  min-width: 0;
+  max-width: 100%;
 }
 .large-avatar {
   --avatar-size: 92px;
@@ -331,6 +352,7 @@ input[readonly] {
 .visual-fields {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 .visual-fields h3 {
   margin: 0;
@@ -340,6 +362,7 @@ input[readonly] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 .visual-state {
   display: flex;
@@ -371,6 +394,8 @@ input[readonly] {
   box-shadow: 0 0 0 1px #5a5e60;
 }
 .visual-editor {
+  min-width: 0;
+  max-width: 100%;
   border-top: 1px solid #34383a;
 }
 .visual-editor summary {
@@ -381,6 +406,8 @@ input[readonly] {
 .visual-editor-body {
   display: grid;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
   padding-top: 4px;
 }
 .visual-fields small {
@@ -439,9 +466,14 @@ input[readonly] {
 .avatar-style-field {
   display: grid;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 .avatar-options {
   display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   gap: 10px;
   overflow-x: auto;
   padding: 6px;
@@ -464,6 +496,8 @@ input[readonly] {
   font-size: 11px;
 }
 .dossier-panel {
+  min-width: 0;
+  max-width: 100%;
   animation: panel-in 0.18s ease-out;
 }
 @keyframes panel-in {
@@ -566,7 +600,7 @@ h3 {
 fieldset {
   border: 1px solid #393d3f;
 }
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .dossier-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -574,6 +608,25 @@ fieldset {
   .section-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     top: 58px;
+  }
+  .identity-preview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+  .large-avatar {
+    justify-self: center;
+  }
+  .visual-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .visual-state {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .color-field {
+    grid-template-columns: 1fr;
   }
   .grid {
     grid-template-columns: 1fr;

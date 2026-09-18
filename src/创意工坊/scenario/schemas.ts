@@ -46,19 +46,21 @@ export const MapEntrySchema: z.ZodType<MapEntry> = EntryBaseSchema.extend({
   data: JsonObjectSchema,
 }).strict();
 
+const EmbeddedNarrativeEntrySchema = z.object({ key: z.string().min(1), data: JsonObjectSchema }).strict();
+
 const ContentConfigSchema = z
   .object({
     开场文本: z.string(),
-    世界: z.string(),
+    世界: JsonObjectSchema,
     角色: z.array(z.string().min(1)),
     地图: z.string(),
     世界经济: z.array(z.string().min(1)),
     季节与节日: z.array(z.string().min(1)),
     势力: z.array(z.string().min(1)),
     种族: z.array(z.string().min(1)),
-    主线: z.string(),
-    任务: z.array(z.string().min(1)),
-    事件: z.array(z.string().min(1)),
+    主线: JsonObjectSchema,
+    任务: z.array(EmbeddedNarrativeEntrySchema),
+    事件: z.array(EmbeddedNarrativeEntrySchema),
   })
   .strict();
 
@@ -68,8 +70,7 @@ export const ScenarioEntrySchema: z.ZodType<ScenarioEntry> = z
     key: z.string().min(1),
     desc: z.string(),
     可用: z.boolean(),
-    主题: z.string(),
-    图标: z.string(),
+    视觉方案: z.enum(['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启', '破镜']),
     自定义主角: z.boolean(),
     内容配置: ContentConfigSchema,
   })

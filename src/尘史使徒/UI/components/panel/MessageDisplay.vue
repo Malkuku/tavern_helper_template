@@ -12,26 +12,35 @@
 <script setup lang="ts">
 import { ref, nextTick, computed } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { resolveSpeaker } from './speaker';
 
 const props = defineProps<{
   displayHtml: string;
   isStreaming: boolean;
   fontSize: number;
+  rolePreview?: { name: string; avatar?: string; color?: string; avatarStyle?: string };
 }>();
 
 const scrollContainer = ref<HTMLElement | null>(null);
 const statStore = useStatStore();
 
-const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] ?? char);
+const escapeHtml = (value: string) =>
+  value.replace(
+    /[&<>'"]/g,
+    char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] ?? char,
+  );
 const resolveCharacter = (rawName: string) => {
-  const roles = statStore.stat_data?.角色?.主要角色 ?? {};
-  for (const [key, data] of Object.entries(roles) as [string, any][]) {
-    const names = [key, data?.姓名, ...(Array.isArray(data?.名称检索词) ? data.名称检索词 : [])].filter(Boolean).map(String);
-    if (!names.some(name => rawName.includes(name))) continue;
-    const color = /^#[0-9a-fA-F]{6}$/.test(data?.meta?.color) ? data.meta.color : '#C9B485';
-    return { fixedName: String(data?.姓名 || key), avatarUrl: String(data?.meta?.avatar || ''), color };
+  if (props.rolePreview && rawName.trim() === props.rolePreview.name) {
+    const color = props.rolePreview.color ?? '';
+    return {
+      fixedName: props.rolePreview.name,
+      avatarUrl: props.rolePreview.avatar ?? '',
+      color: /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#C9B485',
+      avatarStyle: props.rolePreview.avatarStyle ?? 'auto',
+    };
   }
-  return { fixedName: rawName, avatarUrl: '', color: '#C9B485' };
+  const roleRoot = statStore.stat_data?.角色 ?? {};
+  return resolveSpeaker(roleRoot, rawName, substitudeMacros('{{user}}'));
 };
 
 // 将名字拆解为错落有致的HTML结构
@@ -59,21 +68,27 @@ const formatStaggeredName = (name: string) => {
   return result;
 };
 
+const fallbackAvatarSvg = (style: string, seed: string) => {
+  let index: number;
+  if (/^[0-5]$/.test(style)) index = Number(style);
+  else {
+    let hash = 2166136261;
+    for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    index = (hash >>> 0) % 6;
+  }
+  const paths = [
+    '<path d="M29 78c3-15 11-23 21-23s18 8 21 23M50 22a15 15 0 1 1 0 30 15 15 0 0 1 0-30Z"/><path class="sigil" d="m50 8 7 10-7 5-7-5 7-10Zm0 84-7-10 7-5 7 5-7 10Z"/>',
+    '<path d="M50 14 81 68H19L50 14ZM50 86 19 32h62L50 86Z"/>',
+    '<path d="m61 17 9 9-12 12-6-6 9-15ZM52 32 27 71l3 3 4-3 3 4 4-4 3 3 20-36-12-6ZM24 76l12-4"/>',
+    '<path d="M67 17C46 21 31 39 27 71c13-4 25-13 31-26M30 70l-7 12M37 61l18-2M43 52l17-3M49 42l15-4"/>',
+    '<path d="M15 50s13-19 35-19 35 19 35 19-13 19-35 19S15 50 15 50Zm35-11a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm0 4v14M43 50h14"/>',
+    '<path d="M69 20A34 34 0 1 0 78 69 29 29 0 1 1 69 20ZM29 61l12-5M35 70l9-8"/>',
+  ];
+  return `<svg class="avatar-fallback-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="43"/>${paths[index]}</svg>`;
+};
+
 const processedHtml = computed(() => {
   if (!props.displayHtml) return '';
-
-  const defaultSvg = `
-    <svg class="avatar-fallback-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4" stroke-dasharray="2 4"/>
-      <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-      <polygon points="50,15 80,67 20,67" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>
-      <polygon points="50,85 80,33 20,33" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>
-      <circle cx="50" cy="50" r="23" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/>
-      <circle cx="50" cy="50" r="18" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 2" opacity="0.4"/>
-      <circle cx="50" cy="50" r="4" fill="currentColor" opacity="0.9"/>
-      <circle cx="50" cy="50" r="8" fill="none" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-    </svg>
-  `;
 
   const regex = /【([^】]+)】\s*(?:<q>(.*?)<\/q>|([「『].*?[」』])|<em>\s*\*?(.*?)\*?\s*<\/em>|\*(.*?)\*)/gs;
 
@@ -81,15 +96,26 @@ const processedHtml = computed(() => {
     let content = '';
     let isDialogue = false;
 
-    if (qText !== undefined) { content = qText; isDialogue = true; }
-    else if (quoteText !== undefined) { content = quoteText; isDialogue = true; }
-    else if (emText !== undefined) { content = emText; }
-    else if (starText !== undefined) { content = starText; }
+    if (qText !== undefined) {
+      content = qText;
+      isDialogue = true;
+    } else if (quoteText !== undefined) {
+      content = quoteText;
+      isDialogue = true;
+    } else if (emText !== undefined) {
+      content = emText;
+    } else if (starText !== undefined) {
+      content = starText;
+    }
 
-    content = content.trim().replace(/^([「『"])|([」』"])$/g, '').trim();
+    content = content
+      .trim()
+      .replace(/^([「『"])|([」』"])$/g, '')
+      .trim();
     const charInfo = resolveCharacter(rawName);
     const safeAvatar = escapeHtml(charInfo.avatarUrl);
     const safeName = escapeHtml(charInfo.fixedName);
+    const defaultSvg = fallbackAvatarSvg(charInfo.avatarStyle, charInfo.fixedName);
 
     const avatarHtml = charInfo.avatarUrl
       ? `<img src="${safeAvatar}" class="avatar-img" alt="${safeName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
@@ -99,7 +125,7 @@ const processedHtml = computed(() => {
     const textClass = isDialogue ? 'role-text is-dialogue' : 'role-text is-thought';
 
     return `
-      <span class="role-block">
+      <span class="role-block" style="--role-theme: ${charInfo.color}">
         <span class="role-avatar">${avatarHtml}</span>
         <span class="role-main">
           <span class="role-name-wrapper char-default" style="color: ${charInfo.color}">${formatStaggeredName(charInfo.fixedName)}</span>
@@ -125,11 +151,24 @@ defineExpose({ scrollContainer, scrollToBottom });
 
 <style scoped>
 .message-scroll-area {
-  flex: 1; overflow-y: auto; padding: 20px 0;
-  scrollbar-width: thin; scrollbar-color: var(--c-gold) transparent;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 20px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-gold) transparent;
 }
-.message-paper { max-width: 1024px; margin: 0 auto; padding: 0 30px; }
+.message-paper {
+  width: 100%;
+  min-width: 0;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 0 30px;
+}
 .message-content {
+  min-width: 0;
   line-height: 1.7; /* 从 1.8 稍微收紧 */
   color: var(--c-text-main);
   font-family: 'EB Garamond', 'Noto Serif SC', serif; /* 加入衬线体 */
@@ -139,30 +178,63 @@ defineExpose({ scrollContainer, scrollToBottom });
 /* ================= 基础标签优化 ================= */
 
 .text-body :deep(q) {
-  quotes: none; display: inline; background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(164, 139, 87, 0.15); border-radius: 4px;
-  padding: 2px 6px; margin: 0 2px; color: #fff5e6;
-  font-family: 'EB Garamond', serif; font-style: italic;
-  text-shadow: 0 0 2px rgba(0,0,0,0.5); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  quotes: none;
+  display: inline;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(164, 139, 87, 0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 0 2px;
+  color: #fff5e6;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   transition: all 0.3s ease;
 }
 .text-body :deep(q):hover {
-  background: rgba(164, 139, 87, 0.15); border-color: rgba(164, 139, 87, 0.4);
-  text-shadow: 0 0 5px rgba(164, 139, 87, 0.5); cursor: default;
+  background: rgba(164, 139, 87, 0.15);
+  border-color: rgba(164, 139, 87, 0.4);
+  text-shadow: 0 0 5px rgba(164, 139, 87, 0.5);
+  cursor: default;
 }
-.text-body :deep(q)::before { content: ""; color: var(--c-gold); margin-right: 3px; font-weight: bold; opacity: 0.8; text-shadow: none; }
-.text-body :deep(q)::after { content: ""; color: var(--c-gold); margin-left: 3px; font-weight: bold; opacity: 0.8; text-shadow: none; }
-.text-body :deep(p) { margin-bottom: 1em; text-align: justify; }
-.text-body :deep(em) { color: var(--c-gold); font-style: italic; }
-.text-body :deep(strong) { color: #fff; font-weight: 600; }
+.text-body :deep(q)::before {
+  content: '';
+  color: var(--c-gold);
+  margin-right: 3px;
+  font-weight: bold;
+  opacity: 0.8;
+  text-shadow: none;
+}
+.text-body :deep(q)::after {
+  content: '';
+  color: var(--c-gold);
+  margin-left: 3px;
+  font-weight: bold;
+  opacity: 0.8;
+  text-shadow: none;
+}
+.text-body :deep(p) {
+  margin-bottom: 1em;
+  text-align: justify;
+}
 .text-body :deep(em) {
-  color: var(--c-gold, #C9B485);
+  color: var(--c-gold);
+  font-style: italic;
+}
+.text-body :deep(strong) {
+  color: #fff;
+  font-weight: 600;
+}
+.text-body :deep(em) {
+  color: var(--c-gold, #c9b485);
   font-style: italic;
   text-shadow: 0 0 5px rgba(201, 180, 133, 0.3);
 }
 .text-body :deep(strong) {
-  color: #FFFFFF;
+  color: #ffffff;
   font-weight: 600;
   text-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
   letter-spacing: 1px;
@@ -172,6 +244,8 @@ defineExpose({ scrollContainer, scrollToBottom });
 .text-body :deep(.role-block) {
   display: flex;
   align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
   gap: 16px; /* 从 20px 缩小 */
   margin: 1.2em 0; /* 从 1.8em 缩小，减小气泡间距 */
   padding: 16px 20px; /* 从 20px 24px 缩小，压缩内部上下空间 */
@@ -181,11 +255,15 @@ defineExpose({ scrollContainer, scrollToBottom });
   border-bottom: 1px solid rgba(164, 139, 87, 0.05);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .text-body :deep(.role-block:hover) {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(164, 139, 87, 0.05);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.4),
+    inset 0 0 20px rgba(164, 139, 87, 0.05);
 }
 
 .text-body :deep(.role-avatar) {
@@ -193,21 +271,49 @@ defineExpose({ scrollContainer, scrollToBottom });
   height: 65px; /* 从 72px 缩小 */
   flex-shrink: 0;
   border-radius: 50%;
-  border: 2px solid rgba(164, 139, 87, 0.4);
+  border: 1px solid var(--role-theme, #a48b57);
   background: radial-gradient(circle, rgba(164, 139, 87, 0.15), rgba(0, 0, 0, 0.8));
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 15px rgba(0,0,0,0.6), inset 0 0 10px rgba(164, 139, 87, 0.3);
+  box-shadow:
+    0 0 15px rgba(0, 0, 0, 0.6),
+    0 0 0 2px rgba(13, 15, 18, 0.9),
+    0 0 0 3px var(--role-theme, rgba(164, 139, 87, 0.4));
 }
 
-.text-body :deep(.avatar-img) { width: 100%; height: 100%; object-fit: cover; display: block; }
-.text-body :deep(.avatar-fallback-wrapper) { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--c-gold, #a48b57); }
-.text-body :deep(.avatar-fallback-svg) { width: 65%; height: 65%; display: block; opacity: 0.8; }
+.text-body :deep(.avatar-img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.text-body :deep(.avatar-fallback-wrapper) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-gold, #a48b57);
+}
+.text-body :deep(.avatar-fallback-svg) {
+  width: 65%;
+  height: 65%;
+  display: block;
+  opacity: 0.8;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+}
+.text-body :deep(.avatar-fallback-svg .sigil) {
+  stroke-width: 2;
+  opacity: 0.55;
+}
 
 .text-body :deep(.role-main) {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px; /* 从 10px 缩小，拉近名字和文本的距离 */
@@ -222,7 +328,9 @@ defineExpose({ scrollContainer, scrollToBottom });
   letter-spacing: 1px;
   text-transform: capitalize; /* 英文首字母大写 */
   font-family: 'Georgia', 'Noto Serif SC', serif;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.9); /* 默认阴影，可被下方专属特效覆盖 */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9); /* 默认阴影，可被下方专属特效覆盖 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .text-body :deep(.name-char) {
   display: inline-block;
@@ -258,7 +366,7 @@ defineExpose({ scrollContainer, scrollToBottom });
 
 /* 对话：饱满温暖、悬挂式的华丽引用符号 */
 .text-body :deep(.is-dialogue) {
-  color: #FDF5E6; /* 老旧蕾丝白，极高阅读舒适度 */
+  color: #fdf5e6; /* 老旧蕾丝白，极高阅读舒适度 */
   font-size: 1.08em;
   font-weight: 500;
   line-height: 1.75; /* 从 1.9 缩小 */
@@ -269,7 +377,7 @@ defineExpose({ scrollContainer, scrollToBottom });
 }
 .text-body :deep(.is-dialogue::before) {
   content: '「';
-  color: var(--c-gold, #C9B485);
+  color: var(--role-theme, var(--c-gold, #c9b485));
   font-size: 1.25em;
   font-weight: normal;
   margin-right: 2px;
@@ -278,7 +386,7 @@ defineExpose({ scrollContainer, scrollToBottom });
 }
 .text-body :deep(.is-dialogue::after) {
   content: '」';
-  color: var(--c-gold, #C9B485);
+  color: var(--role-theme, var(--c-gold, #c9b485));
   font-size: 1.25em;
   font-weight: normal;
   margin-left: 2px;
@@ -288,34 +396,102 @@ defineExpose({ scrollContainer, scrollToBottom });
 
 /* 心理描写 */
 .text-body :deep(.is-thought) {
-  color: #A3AAB5;
+  color: #a3aab5;
   font-size: 0.98em;
   font-style: italic;
   line-height: 1.65; /* 从 1.8 缩小 */
   opacity: 0.85;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
   display: block;
   padding-left: 12px;
   border-left: 2px dashed rgba(163, 170, 181, 0.25);
 }
 
 /* ================= 角色专属名称特效 ================= */
-.text-body :deep(.char-aliya) { text-shadow: 0 0 6px rgba(224,224,224,0.4), 0 2px 4px rgba(0,0,0,0.9); }
-.text-body :deep(.char-lilith) { text-shadow: 0 0 10px rgba(211,47,47,0.7), 0 2px 4px rgba(0,0,0,0.9); } /* 血红 */
-.text-body :deep(.char-whitedust) { text-shadow: 0 0 10px rgba(244,244,250,0.6), 0 2px 4px rgba(0,0,0,0.9); letter-spacing: 4px; }
-.text-body :deep(.char-luna) { text-shadow: 0 0 10px rgba(255,215,0,0.5), 0 2px 4px rgba(0,0,0,0.9); }
-.text-body :deep(.char-hill) { text-shadow: 0 0 10px rgba(168,185,204,0.6), 0 2px 4px rgba(0,0,0,0.9); } /* 冷银蓝 */
-.text-body :deep(.char-hyacinth) { text-shadow: 0 0 8px rgba(174,238,238,0.5); }
-.text-body :deep(.char-flora) { text-shadow: 0 0 8px rgba(255,182,193,0.5); }
-.text-body :deep(.char-hecate) { text-shadow: 0 0 8px rgba(255,69,0,0.6); }
-.text-body :deep(.char-kira) { text-shadow: 0 0 8px rgba(169,176,179,0.5); } /* 刃灰 */
-.text-body :deep(.char-elena) { text-shadow: 0 0 10px rgba(171,71,188,0.6); } /* 紫色 */
-.text-body :deep(.char-ashlia) { text-shadow: 0 0 10px rgba(142,36,170,0.7); } /* 黑紫 */
-.text-body :deep(.char-aurora) { text-shadow: 0 0 8px rgba(218,165,32,0.6); }
-.text-body :deep(.char-suri) { text-shadow: 0 0 10px rgba(255,112,67,0.6); } /* 赤金 */
-.text-body :deep(.char-ode) { text-shadow: 0 0 8px rgba(176,141,106,0.6); } /* 咖啡棕 */
-.text-body :deep(.char-default) { text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
+.text-body :deep(.char-aliya) {
+  text-shadow:
+    0 0 6px rgba(224, 224, 224, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+}
+.text-body :deep(.char-lilith) {
+  text-shadow:
+    0 0 10px rgba(211, 47, 47, 0.7),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+} /* 血红 */
+.text-body :deep(.char-whitedust) {
+  text-shadow:
+    0 0 10px rgba(244, 244, 250, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+  letter-spacing: 4px;
+}
+.text-body :deep(.char-luna) {
+  text-shadow:
+    0 0 10px rgba(255, 215, 0, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+}
+.text-body :deep(.char-hill) {
+  text-shadow:
+    0 0 10px rgba(168, 185, 204, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+} /* 冷银蓝 */
+.text-body :deep(.char-hyacinth) {
+  text-shadow: 0 0 8px rgba(174, 238, 238, 0.5);
+}
+.text-body :deep(.char-flora) {
+  text-shadow: 0 0 8px rgba(255, 182, 193, 0.5);
+}
+.text-body :deep(.char-hecate) {
+  text-shadow: 0 0 8px rgba(255, 69, 0, 0.6);
+}
+.text-body :deep(.char-kira) {
+  text-shadow: 0 0 8px rgba(169, 176, 179, 0.5);
+} /* 刃灰 */
+.text-body :deep(.char-elena) {
+  text-shadow: 0 0 10px rgba(171, 71, 188, 0.6);
+} /* 紫色 */
+.text-body :deep(.char-ashlia) {
+  text-shadow: 0 0 10px rgba(142, 36, 170, 0.7);
+} /* 黑紫 */
+.text-body :deep(.char-aurora) {
+  text-shadow: 0 0 8px rgba(218, 165, 32, 0.6);
+}
+.text-body :deep(.char-suri) {
+  text-shadow: 0 0 10px rgba(255, 112, 67, 0.6);
+} /* 赤金 */
+.text-body :deep(.char-ode) {
+  text-shadow: 0 0 8px rgba(176, 141, 106, 0.6);
+} /* 咖啡棕 */
+.text-body :deep(.char-default) {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
 
-.typing-cursor { display: inline-block; color: var(--c-gold); font-weight: bold; animation: blink 1s step-end infinite; }
-@keyframes blink { 50% { opacity: 0; } }
+@media (max-width: 720px) {
+  .message-scroll-area {
+    padding: 8px 0;
+  }
+  .message-paper {
+    padding: 0;
+  }
+  .text-body :deep(.role-block) {
+    gap: 10px;
+    margin: 0.7em 0;
+    padding: 10px;
+  }
+  .text-body :deep(.role-avatar) {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+.typing-cursor {
+  display: inline-block;
+  color: var(--c-gold);
+  font-weight: bold;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
 </style>

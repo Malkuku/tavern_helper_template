@@ -1,12 +1,18 @@
 import { klona } from 'klona';
 
 import type { ScenarioSourceBundle } from '../scenario/types';
-import { scenarioWorldbookEntryNames, parseScenarioSourceEntries, synchronizeAutomaticReferences } from '../scenario/worldbookSource';
+import {
+  scenarioWorldbookEntryNames,
+  parseScenarioSourceEntries,
+  synchronizeAutomaticReferences,
+} from '../scenario/worldbookSource';
 
 function documents(source: ScenarioSourceBundle): Record<keyof typeof scenarioWorldbookEntryNames, unknown> {
   return {
     开场白: { 固定数据: source.fixedData, 开场白: source.scenarios },
-    ...Object.fromEntries(Object.entries(source.registries).map(([category, registry]) => [category, { [category]: registry }])),
+    ...Object.fromEntries(
+      Object.entries(source.registries).map(([category, registry]) => [category, { [category]: registry }]),
+    ),
   } as Record<keyof typeof scenarioWorldbookEntryNames, unknown>;
 }
 
@@ -17,7 +23,10 @@ export async function saveScenarioSource(source: ScenarioSourceBundle): Promise<
   const next = klona(previous);
   synchronizeAutomaticReferences(source);
   const docs = documents(source);
-  for (const [category, name] of Object.entries(scenarioWorldbookEntryNames) as [keyof typeof scenarioWorldbookEntryNames, string][]) {
+  for (const [category, name] of Object.entries(scenarioWorldbookEntryNames) as [
+    keyof typeof scenarioWorldbookEntryNames,
+    string,
+  ][]) {
     const matches = next.filter(entry => entry.name === name);
     if (matches.length !== 1) throw new Error(`世界书配置条目数量异常：${name}`);
     matches[0].content = JSON.stringify(docs[category], null, 2);

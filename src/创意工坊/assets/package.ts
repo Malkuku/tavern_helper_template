@@ -6,8 +6,6 @@ import {
   CollectionEntrySchema,
   MapEntrySchema,
   ScenarioEntrySchema,
-  SingletonEntrySchema,
-  TextEntrySchema,
   TypedCollectionEntrySchema,
 } from '../scenario/schemas';
 import { assetsOf, normalizeScenarioAvailability, type WorkshopCategory } from './model';
@@ -19,20 +17,7 @@ const PackageSchema = z
     version: z.literal(2),
     exportedAt: z.string(),
     assets: z.partialRecord(
-      z.enum([
-        '开场白',
-        '世界',
-        '世界经济',
-        '主线',
-        '事件',
-        '任务',
-        '势力',
-        '地图',
-        '季节与节日',
-        '开场文本',
-        '种族',
-        '角色',
-      ]),
+      z.enum(['开场白', '世界经济', '势力', '地图', '季节与节日', '种族', '角色']),
       z.record(z.string(), z.unknown()),
     ),
   })
@@ -78,8 +63,8 @@ export function expandPackageSelection(
   for (const scenarioId of selected.get('开场白') ?? []) {
     const scenario = source.scenarios[scenarioId];
     if (!scenario) continue;
-    for (const category of ['开场文本', '世界', '地图', '主线'] as const) add(category, scenario.内容配置[category]);
-    for (const category of ['角色', '世界经济', '季节与节日', '势力', '种族', '任务', '事件'] as const) {
+    add('地图', scenario.内容配置.地图);
+    for (const category of ['角色', '世界经济', '季节与节日', '势力', '种族'] as const) {
       for (const id of scenario.内容配置[category]) add(category, id);
     }
   }
@@ -91,15 +76,10 @@ export function parsePackage(text: string): WorkshopPackage {
   if (Object.keys(pkg.assets.地图 ?? {}).length > 1) throw new Error('资产包只能包含一张地图。');
   const schemas: Record<WorkshopCategory, z.ZodType> = {
     开场白: ScenarioEntrySchema,
-    世界: SingletonEntrySchema,
     世界经济: CollectionEntrySchema,
-    主线: SingletonEntrySchema,
-    事件: CollectionEntrySchema,
-    任务: CollectionEntrySchema,
     势力: CollectionEntrySchema,
     地图: MapEntrySchema,
     季节与节日: CollectionEntrySchema,
-    开场文本: TextEntrySchema,
     种族: TypedCollectionEntrySchema,
     角色: TypedCollectionEntrySchema,
   };
@@ -136,9 +116,8 @@ export function assertPackageMapCompatibility(source: ScenarioSourceBundle, pkg:
 
 function rewriteReferences(pkg: WorkshopPackage, remaps: Map<WorkshopCategory, Map<string, string>>): void {
   for (const scenario of Object.values(pkg.assets.开场白 ?? {}) as any[]) {
-    for (const field of ['开场文本', '世界', '地图', '主线'] as const)
-      scenario.内容配置[field] = remaps.get(field)?.get(scenario.内容配置[field]) ?? scenario.内容配置[field];
-    for (const field of ['角色', '世界经济', '季节与节日', '势力', '种族', '任务', '事件'] as const)
+    scenario.内容配置.地图 = remaps.get('地图')?.get(scenario.内容配置.地图) ?? scenario.内容配置.地图;
+    for (const field of ['角色', '世界经济', '季节与节日', '势力', '种族'] as const)
       scenario.内容配置[field] = scenario.内容配置[field].map((id: string) => remaps.get(field)?.get(id) ?? id);
   }
 }

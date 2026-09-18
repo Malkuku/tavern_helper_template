@@ -71,8 +71,23 @@ function assembleTypedCollection(
     referenced.add(id);
     const entry = requireEntry(registry, category, id);
     const bucket = (result[entry.type] ??= {}) as JsonObject;
-    if (Object.hasOwn(bucket, entry.key)) throw new ScenarioDataError('DUPLICATE_KEY', `${category}存在重复 type/key：${entry.type}/${entry.key}`, { category, resourceId: id });
+    if (Object.hasOwn(bucket, entry.key))
+      throw new ScenarioDataError('DUPLICATE_KEY', `${category}存在重复 type/key：${entry.type}/${entry.key}`, {
+        category,
+        resourceId: id,
+      });
     bucket[entry.key] = klona(entry.data);
+  }
+  return result;
+}
+
+function assembleEmbedded(category: '任务' | '事件', entries: { key: string; data: JsonObject }[]): JsonObject {
+  const result: JsonObject = {};
+  for (const entry of entries) {
+    if (Object.hasOwn(result, entry.key)) {
+      throw new ScenarioDataError('DUPLICATE_KEY', `${category}存在重复 key：${entry.key}`, { category });
+    }
+    result[entry.key] = klona(entry.data);
   }
   return result;
 }
@@ -149,25 +164,22 @@ export function assembleScenario(source: ScenarioSourceBundle, scenarioId: strin
   }
 
   const config = scenario.内容配置;
-  const world = requireEntry(source.registries.世界, '世界', config.世界);
-  const mainQuest = requireEntry(source.registries.主线, '主线', config.主线);
   const map = requireEntry(source.registries.地图, '地图', config.地图);
-  const openingText = requireEntry(source.registries.开场文本, '开场文本', config.开场文本);
   const fixedData = klona(source.fixedData);
   const system = z.record(z.string(), z.unknown()).parse(fixedData.system);
 
   const candidate = {
     ...fixedData,
-    世界: klona(world.data),
+    世界: klona(config.世界),
     角色: assembleRoles(config.角色, source.registries.角色),
     地图: klona(map.data),
     世界经济: assembleCollection('世界经济', source.registries.世界经济),
     季节与节日: assembleCollection('季节与节日', source.registries.季节与节日),
     势力: assembleCollection('势力', source.registries.势力),
     种族: assembleTypedCollection('种族', source.registries.种族),
-    主线: klona(mainQuest.data),
-    任务: assembleCollection('任务', source.registries.任务, config.任务),
-    事件: assembleCollection('事件', source.registries.事件, config.事件),
+    主线: klona(config.主线),
+    任务: assembleEmbedded('任务', config.任务),
+    事件: assembleEmbedded('事件', config.事件),
     system: {
       ...system,
       当前剧本: scenario.key,
@@ -187,6 +199,6 @@ export function assembleScenario(source: ScenarioSourceBundle, scenarioId: strin
     scenarioId,
     scenario: klona(scenario),
     statData: parsed.data as RuntimeStatData,
-    openingText: openingText.data,
+    openingText: config.开场文本,
   };
 }

@@ -193,8 +193,15 @@ function setTextField(key: string, value: string) {
 }
 .collection-board > header {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
+}
+.collection-board > header > div,
+.card-grid,
+.create-row {
+  min-width: 0;
+  max-width: 100%;
 }
 .collection-board h3,
 .collection-board p {
@@ -245,6 +252,11 @@ function setTextField(key: string, value: string) {
   display: grid;
   gap: 5px;
   min-width: 0;
+}
+.entry-summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .entry-card small {
   overflow: hidden;
@@ -309,11 +321,18 @@ function setTextField(key: string, value: string) {
 .warning {
   color: #d8a95d;
 }
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .collection-board > header {
     align-items: stretch;
     flex-direction: column;
     gap: 8px;
+  }
+  .collection-board > header > button {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .entry-summary {
     grid-template-columns: auto minmax(0, 1fr);

@@ -28,6 +28,23 @@ Get-Content -Raw -Encoding UTF8 "Spec/AI2AI/索引.md"
 
 不要先用默认编码读取中文文档再解释乱码；如果看到中文乱码，优先检查命令是否缺少 `-Encoding UTF8`。
 
+## 本地验证命令
+
+当前 Windows 环境直接执行 `pnpm <script>` 会先触发 pnpm 的依赖状态检查，并因未审批的依赖构建脚本报
+`ERR_PNPM_IGNORED_BUILDS`。这不是项目脚本的验证结果。
+
+依赖已经安装时，Agent 应直接调用 `node_modules/.bin` 中的本地可执行文件，不要先尝试 `pnpm`，也不要为绕过验证而修改依赖审批或运行 `pnpm approve-builds`。常用命令：
+
+```powershell
+& ".\node_modules\.bin\ts-node.cmd" --project scripts/tsconfig.json --transpile-only scripts/validate-workshop.cts
+& ".\node_modules\.bin\ts-node.cmd" --project scripts/tsconfig.json --transpile-only scripts/validate-scenario-data.cts
+& ".\node_modules\.bin\webpack.cmd" --mode development
+& ".\node_modules\.bin\eslint.cmd" .
+& ".\node_modules\.bin\prettier.cmd" --check <目标文件>
+```
+
+若 `node_modules` 不存在，依赖安装和构建脚本审批属于环境准备问题，应明确报告，不得把 pnpm 门禁误报为代码失败。
+
 
 ## 酒馆助手前端界面或脚本编写
 

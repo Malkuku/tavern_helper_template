@@ -1,15 +1,12 @@
 import { klona } from 'klona';
 
 import { ScenarioEntrySchema } from '../scenario/schemas';
-import type { ReferenceIssue, ResourceCategory, ScenarioSourceBundle } from '../scenario/types';
+import type { ReferenceIssue, ResourceCategory, ScenarioSourceBundle, TypedCollectionEntry } from '../scenario/types';
 
 export type WorkshopCategory = '开场白' | ResourceCategory;
 
 const singleReferences = {
-  开场文本: '开场文本',
-  世界: '世界',
   地图: '地图',
-  主线: '主线',
 } as const;
 const collectionReferences = {
   角色: '角色',
@@ -17,8 +14,6 @@ const collectionReferences = {
   季节与节日: '季节与节日',
   势力: '势力',
   种族: '种族',
-  任务: '任务',
-  事件: '事件',
 } as const;
 
 export function assetsOf(source: ScenarioSourceBundle): Record<WorkshopCategory, Record<string, unknown>> {
@@ -168,12 +163,16 @@ export function cloneSource(source: ScenarioSourceBundle): ScenarioSourceBundle 
   return klona(source);
 }
 
+export function roleIdentityOf(role: Pick<TypedCollectionEntry, 'type' | 'key'>): string {
+  return role.type === 'user' ? 'user' : `${role.type}\u0000${role.key}`;
+}
+
 export function normalizeRoleSelection(ids: string[], roles: ScenarioSourceBundle['registries']['角色']): string[] {
   const winners = new Map<string, { id: string; index: number }>();
   ids.forEach((id, index) => {
     const role = roles[id];
     if (!role) return;
-    const identity = role.type === 'user' ? 'user' : `${role.type}\u0000${role.key}`;
+    const identity = roleIdentityOf(role);
     winners.set(identity, { id, index });
   });
   return [...winners.values()].sort((a, b) => a.index - b.index).map(value => value.id);

@@ -33,8 +33,63 @@ import {
   synchronizeAutomaticReferences,
 } from '../src/创意工坊/scenario/worldbookSource';
 import type { ScenarioSourceBundle } from '../src/创意工坊/scenario/types';
+import { scenarioThemes } from '../src/创意工坊/scenario/themes';
+import { resolveSpeaker } from '../src/尘史使徒/UI/components/panel/speaker';
 
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
+assert.deepEqual(
+  scenarioThemes.map(theme => theme.id),
+  ['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启', '破镜'],
+);
+assert.deepEqual(
+  scenarioThemes.map(theme => theme.className),
+  [
+    'theme-lamp',
+    'theme-forge',
+    'theme-blade',
+    'theme-winter',
+    'theme-heart',
+    'theme-cup',
+    'theme-moth',
+    'theme-key',
+    'theme-broken-mirror',
+  ],
+);
+for (const file of [
+  'src/创意工坊/components/ScenarioEditor.vue',
+  'src/尘史使徒/UI/view/开场设置.vue',
+  'src/尘史使徒/UI/view/设置.vue',
+]) {
+  const sourceText = readFileSync(join(process.cwd(), file), 'utf8');
+  assert.match(sourceText, /ScenarioVisualCard/, `${file} 必须复用共享剧本卡`);
+  assert.doesNotMatch(
+    sourceText,
+    /\.theme-(lamp|forge|blade|winter|heart|cup|moth|key|broken-mirror)\s*\{/,
+    `${file} 不得复制主题样式`,
+  );
+}
+const speakers = {
+  user: { 姓名: '同名', key: 'user', 名称检索词: ['$all'], meta: { color: '#111111' } },
+  主要角色: { 同名: { 姓名: '同名', 名称检索词: ['别名'], meta: { color: '#222222' } } },
+  次要角色: { 小明: { 姓名: '小明', meta: { color: '#333333' } } },
+};
+assert.equal(resolveSpeaker(speakers, '同名', '酒馆用户').color, '#111111', '跨类型同名必须优先 user');
+assert.equal(resolveSpeaker(speakers, '酒馆用户', '酒馆用户').color, '#111111');
+assert.equal(resolveSpeaker(speakers, '小明', '酒馆用户').color, '#333333');
+assert.equal(resolveSpeaker(speakers, '别名', '酒馆用户').color, '#C9B485', '名称检索词不得匹配气泡');
+assert.equal(resolveSpeaker(speakers, '小', '酒馆用户').color, '#C9B485', '姓名子串不得匹配气泡');
+const lunaSpeakers = {
+  主要角色: {
+    露娜: { 姓名: '露娜', meta: { avatar: '/luna.webp', color: '#445566', avatarStyle: '5' } },
+    希尔: { 姓名: '希尔', meta: { avatar: '/stale-hill.webp', color: '#000000', avatarStyle: '0' } },
+  },
+};
+assert.deepEqual(resolveSpeaker(lunaSpeakers, '希尔', ''), {
+  fixedName: '希尔·菲诺尔',
+  avatarUrl: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/头像/希尔.webp',
+  color: '#A8B9CC',
+  avatarStyle: 'auto',
+});
 const entry = { author: 'a', desc: 'd', key: 'k', data: {} };
 const source: ScenarioSourceBundle = {
   fixedData: {},
@@ -44,34 +99,28 @@ const source: ScenarioSourceBundle = {
       key: 's',
       desc: '',
       可用: true,
-      主题: '',
-      图标: '',
+      视觉方案: '灯',
       自定义主角: false,
       内容配置: {
         开场文本: 'text',
-        世界: 'world',
+        世界: { 时间: '午后' },
         角色: ['role'],
         地图: 'map',
         世界经济: [],
         季节与节日: [],
         势力: [],
         种族: [],
-        主线: 'main',
+        主线: { 第一幕: { 描述: '开始', 警惕度: 0, 详细: [], 已交融的魂质: [] } },
         任务: [],
         事件: [],
       },
     },
   },
   registries: {
-    世界: { world: { author: 'a', desc: '', data: {} } },
     世界经济: {},
-    主线: { main: { author: 'a', desc: '', data: {} } },
-    事件: {},
-    任务: {},
     势力: {},
     地图: { map: { author: 'a', desc: '', data: { 城市: { 描述: '城' } } } },
     季节与节日: {},
-    开场文本: { text: { author: 'a', desc: '', data: 'hello' } },
     种族: {},
     角色: { role: { ...entry, type: 'user' } },
   },
@@ -80,14 +129,14 @@ assert.deepEqual(findReferenceIssues(source), []);
 const unavailable = structuredClone(source);
 unavailable.scenarios.s.内容配置 = {
   开场文本: '',
-  世界: '',
+  世界: {},
   角色: [],
   地图: '',
   世界经济: [],
   季节与节日: [],
   势力: [],
   种族: [],
-  主线: '',
+  主线: {},
   任务: [],
   事件: [],
 };
@@ -105,7 +154,7 @@ assert.equal(parsedPackage.version, 2);
 assert.deepEqual(parsedPackage.assets.角色.role.meta, source.registries.角色.role.meta);
 assert.deepEqual(
   Object.keys(parsedPackage.assets).sort(),
-  ['世界', '主线', '地图', '开场文本', '开场白', '角色'].sort(),
+  ['地图', '开场白', '角色'].sort(),
   '选择剧本必须自动包含全部直接依赖',
 );
 const roleOnlyPackage = createPackage(source, { 角色: ['role'] });
@@ -162,13 +211,13 @@ for (const type of roleTypes) {
   assert.ok(role.data.基础数值 && role.data.生命状态 && role.data.技能 && role.data.物品);
 }
 const changed = structuredClone(source);
-changed.registries.世界.world.data = { 时间: '午后' };
+changed.scenarios.s.内容配置.世界 = { 时间: '夜晚' };
 const diff = diffSources(source, changed);
 assert.equal(diff.length, 1);
-assert.equal(diff[0].fields[0].path, 'data.时间');
+assert.equal(diff[0].fields[0].path, '内容配置.世界.时间');
 const preview = previewPackage(target, pkg);
 assert.equal(preview.conflicts, 1);
-assert.equal(preview.identical, 5);
+assert.equal(preview.identical, 2);
 assert.deepEqual(serializeScenarioSource(source), source, '内存结构应无损往返');
 const generatedMainData = defaultRoleData('主要角色');
 delete generatedMainData.当前想法;
@@ -321,6 +370,46 @@ assert.match(roleEditorSource, /id: 'skills'.*基础状态、能力和性相/s, 
 assert.match(roleEditorSource, /<ArtLevelEditor/, '术之等级必须使用固定性相加点组件');
 assert.match(roleEditorSource, /v-model="entry\.meta\.avatar"/, '头像地址必须直接写入 meta.avatar');
 assert.match(roleEditorSource, /hasAvatar \? '图片头像' : '默认头像'/, '图片头像必须优先于默认头像状态');
+assert.match(roleEditorSource, /visual-editor-body[\s\S]*<MessageDisplay/, '对话预览必须收进头像主题展开栏');
+const messageDisplaySource = readFileSync(
+  join(process.cwd(), 'src/尘史使徒/UI/components/panel/MessageDisplay.vue'),
+  'utf8',
+);
+assert.match(messageDisplaySource, /fallbackAvatarSvg\(charInfo\.avatarStyle/, '对话默认头像必须消费 avatarStyle');
+assert.match(messageDisplaySource, /--role-theme/, '头像细环和对话引号必须消费角色主题颜色');
+assert.match(roleEditorSource, /@media \(max-width: 720px\)/, '角色编辑器必须与移动工作区使用同一断点');
+assert.match(
+  roleEditorSource,
+  /\.identity-preview \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/,
+  '移动端角色外观必须切换为可收缩单列',
+);
+const roleCollectionSource = readFileSync(
+  join(process.cwd(), 'src/创意工坊/components/RoleCardCollection.vue'),
+  'utf8',
+);
+assert.match(roleCollectionSource, /@media \(max-width: 720px\)/, '语料集合必须与移动工作区使用同一断点');
+assert.match(roleCollectionSource, /\.entry-summary strong[\s\S]*overflow-wrap: anywhere/, '语料场景名必须允许断行');
+assert.match(messageDisplaySource, /\.role-main\)[\s\S]*min-width: 0/, '移动对话预览内容必须允许收缩');
+const roleAvatarSource = readFileSync(
+  join(process.cwd(), 'src/尘史使徒/UI/components/common/RoleAvatar.vue'),
+  'utf8',
+);
+assert.match(roleAvatarSource, /themeColor/, '共享角色头像必须接收主题颜色');
+assert.match(roleAvatarSource, /border: 1px solid var\(--avatar-theme/, '共享角色头像外框必须使用主题颜色');
+for (const file of [
+  'src/创意工坊/components/DeveloperWorkspace.vue',
+  'src/创意工坊/components/RoleEditor.vue',
+  'src/创意工坊/components/RolePickerDialog.vue',
+  'src/创意工坊/components/ScenarioEditor.vue',
+  'src/创意工坊/components/UserWorkspace.vue',
+  'src/尘史使徒/UI/components/role/CharPanel.vue',
+  'src/尘史使徒/UI/view/角色.vue',
+]) {
+  const sourceText = readFileSync(join(process.cwd(), file), 'utf8');
+  const avatars = sourceText.match(/<RoleAvatar\b[\s\S]*?\/>/g) ?? [];
+  assert.ok(avatars.length, `${file} 应包含共享角色头像`);
+  assert.ok(avatars.every(avatar => avatar.includes(':theme-color=')), `${file} 的每个角色头像都必须传入主题色`);
+}
 const developerWorkspaceSource = readFileSync(
   join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'),
   'utf8',

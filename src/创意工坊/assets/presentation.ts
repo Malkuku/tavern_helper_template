@@ -12,15 +12,10 @@ import { assertPackageMapCompatibility } from './package';
 
 export const workshopCategories: WorkshopCategory[] = [
   '开场白',
-  '世界',
   '世界经济',
-  '主线',
-  '事件',
-  '任务',
   '势力',
   '地图',
   '季节与节日',
-  '开场文本',
   '种族',
   '角色',
 ];
@@ -32,31 +27,24 @@ export function createDefaultAsset(category: WorkshopCategory): any {
       key: '',
       desc: '',
       可用: false,
-      主题: '',
-      图标: '',
+      视觉方案: '灯',
       自定义主角: false,
       内容配置: {
         开场文本: '',
-        世界: '',
+        世界: { 时间: '', 地点: '', 季节: '', 天气: '', 地图索引: '', 危险场景: false },
         角色: [],
         地图: '',
         世界经济: [],
         季节与节日: [],
         势力: [],
         种族: [],
-        主线: '',
+        主线: {},
         任务: [],
         事件: [],
       },
     } satisfies ScenarioEntry;
   if (category === '地图') return { author: '', desc: '', data: {} };
-  if (category === '开场文本') return { author: '', desc: '', data: '' };
-  if (category === '世界')
-    return { author: '', desc: '', data: { 时间: '', 地点: '', 季节: '', 天气: '', 地图索引: '', 危险场景: false } };
   if (category === '世界经济') return collection({ 名称检索词: [], 区域检索词: [], 物价: {}, 平均收入: {} });
-  if (category === '主线') return { author: '', desc: '', data: {} };
-  if (category === '事件') return collection({ 描述: '', 作用: '', 进度: '' });
-  if (category === '任务') return collection({ 描述: '', 目标: '', 阻碍: '', 期望奖励: '', 取得成果: [] });
   if (category === '势力') return collection({ 名称检索词: [], 区域检索词: [], 描述: '' });
   if (category === '季节与节日')
     return collection({ 名称检索词: [], 区域检索词: [], 描述: [], 类型: '季节', 开始日期: '', 截止日期: '' });
@@ -110,16 +98,12 @@ export function defaultRoleData(type: string): JsonObject {
 }
 
 export function assetTitle(category: WorkshopCategory, value: any): string {
-  if (category === '世界')
-    return [value?.data?.地点, value?.data?.时间].filter(Boolean).join(' · ') || value?.desc || '未命名世界';
   if (category === '角色') return value?.data?.姓名 || value?.key || '未命名角色';
   if (category === '地图') return value?.desc || `${countMapNodes(value?.data ?? {})} 个地点`;
-  if (category === '主线') return value?.desc || `${Object.keys(value?.data ?? {}).length} 条主线`;
   return value?.key || value?.desc || `未命名${category}`;
 }
 
 export function assetSummary(category: WorkshopCategory, value: any): string {
-  if (category === '开场文本') return `${String(value?.data ?? '').length} 字`;
   if (category === '种族' || category === '角色') return value?.type || '';
   if (category === '地图') return `${countMapNodes(value?.data ?? {})} 个地点`;
   return value?.desc || '';

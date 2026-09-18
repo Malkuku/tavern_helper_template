@@ -42,6 +42,7 @@
             alt="我"
             seed="user"
             :fallback-style="userData?.meta?.avatarStyle"
+            :theme-color="userData?.meta?.color"
           />
           <span class="name">{{ '我' }}</span>
         </div>
@@ -63,6 +64,7 @@
             :alt="id"
             :seed="id"
             :fallback-style="char.meta?.avatarStyle"
+            :theme-color="char.meta?.color"
           />
           <span class="name">{{ id }}</span>
           <span v-if="!char.在场 && !isOmniscient" class="absent-tag">(离)</span>
@@ -90,6 +92,7 @@
             :alt="id"
             :seed="id"
             :fallback-style="char.meta?.avatarStyle"
+            :theme-color="char.meta?.color"
           />
           <span class="name">{{ id }}</span>
           <span

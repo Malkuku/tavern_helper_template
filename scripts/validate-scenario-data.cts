@@ -9,8 +9,7 @@ import { parseScenarioSourceEntries, scenarioWorldbookEntryNames } from '../src/
 const configDirectory = process.argv[2];
 if (!configDirectory) throw new Error('请传入尘史使徒 Beta 配置目录。');
 
-const readDocument = (filename: string) =>
-  JSON.parse(readFileSync(path.join(configDirectory, filename), 'utf8'));
+const readDocument = (filename: string) => JSON.parse(readFileSync(path.join(configDirectory, filename), 'utf8'));
 
 const source = parseScenarioSourceEntries(
   Object.entries(scenarioWorldbookEntryNames).map(([category, name]) => ({
@@ -19,7 +18,9 @@ const source = parseScenarioSourceEntries(
   })),
 );
 
-const scenarioId = Object.entries(source.scenarios).find(([, scenario]: [string, any]) => scenario.key === '被遗忘者')?.[0];
+const scenarioId = Object.entries(source.scenarios).find(
+  ([, scenario]: [string, any]) => scenario.key === '被遗忘者',
+)?.[0];
 assert.ok(scenarioId, '未找到“被遗忘者”开场白');
 
 const cloneSource = () => structuredClone(source);
@@ -42,9 +43,19 @@ assert.ok(result.openingText.length > 0);
 assert.ok(Object.keys(result.statData.角色.主要角色).length > 0);
 assert.ok(countMapNodes(result.statData.地图) > 0);
 assert.deepEqual(result.statData.任务, {});
+const assembledScenarios = Object.entries(source.scenarios)
+  .filter(([, scenario]) => scenario.可用)
+  .map(([id]) => assembleScenario(source, id));
+assert.equal(Object.keys(source.scenarios).length, 5, '应读取全部 5 个剧本');
+assert.equal(assembledScenarios.length, 3, '应能组装全部 3 个标记为可用的剧本');
+assert.deepEqual(
+  Object.values(source.scenarios).map(item => item.视觉方案),
+  ['破镜', '灯', '杯', '蛾', '冬'],
+  '五个剧本应使用迁移后的视觉方案',
+);
 
 expectCode('RESOURCE_NOT_FOUND', draft => {
-  draft.scenarios[scenarioId].内容配置.世界 = 'missing-world';
+  draft.scenarios[scenarioId].内容配置.地图 = 'missing-map';
 });
 
 {
@@ -109,7 +120,7 @@ async function validateHostRollback() {
 validateHostRollback()
   .then(() => {
     console.info(
-      `剧本数据验证通过：${result.scenario.key}，${Object.keys(result.statData.角色.主要角色).length} 个主要角色，${countMapNodes(result.statData.地图)} 个地图节点；宿主失败回滚通过。`,
+      `剧本数据验证通过：5 个剧本（${assembledScenarios.length} 个可用），${Object.keys(result.statData.角色.主要角色).length} 个主要角色，${countMapNodes(result.statData.地图)} 个地图节点；宿主失败回滚通过。`,
     );
   })
   .catch(error => {

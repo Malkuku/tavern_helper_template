@@ -37,6 +37,7 @@
               :alt="group.title"
               :seed="group.items[0].entry.key"
               :fallback-style="group.items[0].entry.meta?.avatarStyle"
+              :theme-color="group.items[0].entry.meta?.color"
             />
             <span class="asset-copy"
               ><strong :title="group.title">{{ group.title }}</strong
@@ -71,7 +72,7 @@
         >
           <strong>{{ s.title }}</strong
           ><span>{{ s.entry.可用 ? '可玩' : '编辑中' }}</span
-          ><small>{{ s.entry.主题 || '未设主题' }}</small>
+          ><small>{{ s.entry.视觉方案 }}方案</small>
         </button></template
       >
     </aside>
@@ -133,6 +134,7 @@
               :alt="title"
               :seed="entry.key"
               :fallback-style="entry.meta?.avatarStyle"
+              :theme-color="entry.meta?.color"
             />
             <p>
               <b>{{ title }}</b
@@ -375,7 +377,7 @@ const filteredRoleGroups = computed(() =>
 );
 const filteredScenarios = computed(() =>
   scenarios.value.filter(s =>
-    `${s.title} ${s.entry.desc} ${s.entry.主题}`.toLowerCase().includes(query.value.toLowerCase()),
+    `${s.title} ${s.entry.desc} ${s.entry.视觉方案}`.toLowerCase().includes(query.value.toLowerCase()),
   ),
 );
 const entry = computed<any>(() =>
@@ -510,16 +512,6 @@ function importGeneratedJson() {
 }
 function createScenario(id: string) {
   const s = createDefaultAsset('开场白');
-  for (const c of ['世界', '开场文本', '主线'] as const) {
-    const aid = crypto.randomUUID();
-    props.draft.registries[c][aid] = createDefaultAsset(c) as never;
-    s.内容配置[c] = aid;
-  }
-  for (const c of ['任务', '事件'] as const) {
-    const aid = crypto.randomUUID();
-    props.draft.registries[c][aid] = createDefaultAsset(c) as never;
-    s.内容配置[c] = [aid];
-  }
   props.draft.scenarios[id] = s;
 }
 function copyCurrent() {

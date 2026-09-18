@@ -160,11 +160,22 @@ function applyCrop() {
 .media-field {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+.media-field label,
+.media-field small {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .media-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
+}
+.media-actions button {
+  min-width: 0;
 }
 .file-input {
   display: none;
