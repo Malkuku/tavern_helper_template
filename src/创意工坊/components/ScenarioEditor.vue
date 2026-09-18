@@ -2,7 +2,7 @@
 <template>
   <div class="workbench">
     <section class="hero">
-      <div class="hero-icon"><svg :viewBox="themeViewBox" v-html="theme.iconMarkup"></svg></div>
+      <div class="hero-icon"><ScenarioThemeIcon :theme-id="entry.视觉方案" /></div>
       <div class="hero-copy">
         <small>SCENARIO DOSSIER</small><input v-model="entry.key" class="title" placeholder="未命名剧本" /><textarea
           v-model="entry.desc"
@@ -305,11 +305,8 @@ function applyCast(v: string[]) {
 .hero-icon {
   width: 64px;
   height: 64px;
-  color: #cbb477;
-  filter: drop-shadow(0 0 8px currentColor);
-  opacity: 0.85;
 }
-.hero-icon svg {
+.hero-icon :deep(.scenario-theme-icon) {
   width: 100%;
   height: 100%;
 }

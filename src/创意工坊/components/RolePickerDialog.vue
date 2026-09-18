@@ -24,13 +24,16 @@
       </div>
       <div class="picker-body">
         <div class="identity-list">
-          <button
+          <div
             v-for="group in filteredGroups"
             :key="group.identity"
-            type="button"
             class="identity-card"
             :class="{ active: focusedIdentity === group.identity, selected: selectedIdentity(group.identity) }"
-            @click="focusedIdentity = group.identity"
+            role="button"
+            tabindex="0"
+            @click="focusIdentity(group.identity)"
+            @keydown.enter.prevent="focusIdentity(group.identity)"
+            @keydown.space.prevent="focusIdentity(group.identity)"
           >
             <RoleAvatar
               class="avatar"
@@ -45,7 +48,7 @@
               ><small>{{ group.type }} · {{ group.items.length }} 个版本</small><em>{{ group.summary }}</em></span
             >
             <b>{{ selectedIdentity(group.identity) ? '已选' : '选择' }}</b>
-          </button>
+          </div>
           <p v-if="!filteredGroups.length" class="empty">没有符合条件的角色。</p>
         </div>
         <aside v-if="focused" class="detail">
@@ -65,20 +68,23 @@
             </div>
           </div>
           <h4>选择版本</h4>
-          <button
+          <div
             v-for="item in focused.items"
             :key="item.id"
-            type="button"
             class="version-card"
             :class="{ active: selected.includes(item.id) }"
+            role="button"
+            tabindex="0"
             @click="choose(item.id)"
+            @keydown.enter.prevent="choose(item.id)"
+            @keydown.space.prevent="choose(item.id)"
           >
             <span
               ><strong>{{ item.entry.author || '未署名版本' }}</strong
               ><small>{{ item.entry.desc || roleSummary(item.entry) }}</small></span
             >
             <b>{{ selected.includes(item.id) ? '✓ 已选择' : '选择此版本' }}</b>
-          </button>
+          </div>
           <button
             v-if="selectedIdentity(focused.identity) && focused.type !== 'user'"
             type="button"
@@ -161,6 +167,9 @@ function roleSummary(role: TypedCollectionEntry) {
 function selectedIdentity(identity: string) {
   return selected.value.some(id => roleIdentityOf(props.source.registries.角色[id]) === identity);
 }
+function focusIdentity(identity: string) {
+  focusedIdentity.value = identity;
+}
 function choose(id: string) {
   const identity = roleIdentityOf(props.source.registries.角色[id]);
   selected.value = [
@@ -191,10 +200,12 @@ function confirm() {
   backdrop-filter: blur(10px);
 }
 .picker {
+  container-type: inline-size;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  width: min(1180px, 100%);
-  height: min(88dvh, 850px);
+  width: min(1280px, 100%);
+  height: min(92dvh, 900px);
+  min-width: 0;
   overflow: hidden;
   color: #eee7d8;
   background: #111416;
@@ -224,7 +235,8 @@ function confirm() {
   font-size: 24px;
 }
 .toolbar input {
-  max-width: 420px;
+  min-width: 0;
+  max-width: 480px;
 }
 .types {
   display: flex;
@@ -237,8 +249,10 @@ function confirm() {
 }
 .picker-body {
   display: grid;
-  grid-template-columns: minmax(390px, 0.9fr) minmax(480px, 1.1fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 .identity-list {
   display: grid;
@@ -247,24 +261,36 @@ function confirm() {
   overflow: auto;
   padding: 14px;
   border-right: 1px solid #34383a;
+  min-width: 0;
 }
 .identity-card {
-  display: grid !important;
+  display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 13px;
   align-items: center;
-  text-align: left !important;
-  background: #181c1e !important;
+  box-sizing: border-box;
+  border: 1px solid #565a5b;
+  border-radius: 3px;
+  color: #eee8d9;
+  background: #181c1e;
   min-width: 0;
   min-height: 82px;
-  padding: 12px 14px !important;
+  height: auto;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
 }
 .identity-card.active {
-  border-color: #cbb477 !important;
-  background: #22241f !important;
+  border-color: #cbb477;
+  background: #22241f;
 }
 .identity-card.selected {
   box-shadow: inset 3px 0 #72b58a;
+}
+.identity-card:focus-visible,
+.version-card:focus-visible {
+  outline: 2px solid #cbb477;
+  outline-offset: 2px;
 }
 .identity-card > span {
   display: grid;
@@ -287,6 +313,7 @@ function confirm() {
 }
 .detail {
   overflow: auto;
+  min-width: 0;
   padding: 24px;
   background: radial-gradient(circle at 80% 0, rgba(203, 180, 119, 0.1), transparent 35%);
 }
@@ -320,14 +347,23 @@ function confirm() {
   color: #cbb477;
 }
 .version-card {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  height: auto;
   margin: 8px 0;
-  padding: 14px !important;
-  text-align: left !important;
+  padding: 14px;
+  border: 1px solid #565a5b;
+  border-radius: 3px;
+  color: #eee8d9;
+  background: #181c1e;
+  text-align: left;
+  cursor: pointer;
 }
 .version-card span {
   display: grid;
@@ -338,8 +374,8 @@ function confirm() {
   color: #aaa;
 }
 .version-card.active {
-  border-color: #72b58a !important;
-  background: #1e2b24 !important;
+  border-color: #72b58a;
+  background: #1e2b24;
 }
 .version-card > b {
   align-self: center;
@@ -350,6 +386,8 @@ function confirm() {
   color: #efb0a7 !important;
 }
 .picker > footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   border-top: 1px solid #34383a;
   border-bottom: 0;
 }
@@ -360,7 +398,7 @@ function confirm() {
   margin-right: auto;
 }
 .selection small {
-  max-width: 600px;
+  max-width: 100%;
   overflow: hidden;
   color: #aaa;
   text-overflow: ellipsis;
@@ -368,6 +406,19 @@ function confirm() {
 }
 .empty {
   color: #9d9689;
+}
+@container (max-width: 960px) {
+  .picker-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(190px, 40%) minmax(0, 1fr);
+  }
+  .identity-list {
+    border-right: 0;
+    border-bottom: 1px solid #34383a;
+  }
+  .detail {
+    border-top: 0;
+  }
 }
 @media (max-width: 920px) {
   .picker-backdrop {
@@ -383,16 +434,18 @@ function confirm() {
     flex-direction: column;
   }
   .picker-body {
-    display: block;
-    overflow: auto;
+    display: grid;
+    grid-template-rows: minmax(180px, 38%) minmax(0, 1fr);
+    overflow: hidden;
   }
   .identity-list {
-    overflow: visible;
+    overflow: auto;
     border-right: 0;
+    border-bottom: 1px solid #34383a;
   }
   .detail {
-    overflow: visible;
-    border-top: 1px solid #34383a;
+    overflow: auto;
+    border-top: 0;
   }
   .identity-card {
     grid-template-columns: auto minmax(0, 1fr);
@@ -408,10 +461,35 @@ function confirm() {
     justify-self: start;
   }
   .picker > footer {
+    grid-template-columns: minmax(0, 1fr) auto auto;
     padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
   .selection small {
-    max-width: 180px;
+    max-width: 100%;
+  }
+}
+@media (max-width: 620px) {
+  .picker > header,
+  .toolbar,
+  .picker > footer {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .picker > footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .picker > footer .selection {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .picker > footer > button {
+    width: 100%;
+  }
+  .portrait {
+    align-items: flex-start;
+  }
+  .detail-avatar {
+    --avatar-size: 72px;
   }
 }
 </style>

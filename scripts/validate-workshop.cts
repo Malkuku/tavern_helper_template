@@ -88,6 +88,11 @@ assert.match(scenarioEditorSource, /（当前）/, '剧本双态选择必须用�
 assert.match(scenarioEditorSource, /<CharPanel[^>]+mode="view"/, '剧本角色阵容必须复用只读角色档案预览');
 assert.match(
   scenarioEditorSource,
+  /class="hero-icon"><ScenarioThemeIcon :theme-id="entry\.视觉方案"/,
+  '剧本标题区必须复用共享主题图标的真实配色',
+);
+assert.match(
+  scenarioEditorSource,
   /role\.entry\.author[\s\S]+role\.entry\.desc/,
   '剧本角色阵容副字段必须使用作者与素材说明',
 );
@@ -99,6 +104,25 @@ assert.match(mainlineComposerSource, /klona\(toRaw\(props\.modelValue\)\)/, '主
 assert.doesNotMatch(mainlineComposerSource, /structuredClone/, '主线编辑器不得直接 structuredClone Vue 响应式值');
 const jsonBlockEditorSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/JsonBlockEditor.vue'), 'utf8');
 assert.doesNotMatch(jsonBlockEditorSource, /<button(?![^>]*type="button")/, 'JSON 编辑操作不得触发宿主表单提交');
+const rolePickerSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/RolePickerDialog.vue'), 'utf8');
+assert.match(rolePickerSource, /@container \(max-width: 960px\)/, '角色阵容选择器必须按弹窗实际宽度重排');
+assert.match(
+  rolePickerSource,
+  /grid-template-rows: minmax\(190px, 40%\) minmax\(0, 1fr\)/,
+  '中等宽度下身份列表与角色详情必须各自保有空间',
+);
+assert.doesNotMatch(
+  rolePickerSource,
+  /<button[^>]*class="identity-card"/,
+  '角色身份卡不得使用会被宿主样式压缩的原生按钮',
+);
+assert.doesNotMatch(
+  rolePickerSource,
+  /<button[^>]*class="version-card"/,
+  '角色版本卡不得使用会被宿主样式压缩的原生按钮',
+);
+assert.match(rolePickerSource, /class="identity-card"[\s\S]{0,180}role="button"/, '角色身份卡必须保留可访问交互语义');
+assert.match(rolePickerSource, /class="version-card"[\s\S]{0,180}role="button"/, '角色版本卡必须保留可访问交互语义');
 const speakers = {
   user: { 姓名: '同名', key: 'user', 名称检索词: ['$all'], meta: { color: '#111111' } },
   主要角色: { 同名: { 姓名: '同名', 名称检索词: ['别名'], meta: { color: '#222222' } } },
