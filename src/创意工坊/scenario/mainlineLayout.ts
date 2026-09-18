@@ -10,6 +10,7 @@ export interface MainlineBlock {
   children?: MainlineBlock[];
 }
 export interface MainlineLayout {
+  mode: 'preset' | 'custom';
   blocks: MainlineBlock[];
 }
 export interface MainlineMeta extends JsonObject {
@@ -28,7 +29,15 @@ export const mainlineBlockCatalog: Record<MainlineBlockType, { label: string; va
 };
 
 export function isMainlineMeta(value: unknown): value is MainlineMeta {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value) && (value as MainlineMeta).version === 1);
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as MainlineMeta).version === 1 &&
+    (value as MainlineMeta).layouts &&
+    typeof (value as MainlineMeta).layouts === 'object' &&
+    !Array.isArray((value as MainlineMeta).layouts),
+  );
 }
 
 export function mainlineEntries(mainline: JsonObject) {
@@ -50,7 +59,7 @@ export function defaultMainlineLayout(data: unknown): MainlineLayout {
   const blocks = [createMainlineBlock('title', ['$title'])];
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     blocks.push(createMainlineBlock('text', ['$value']));
-    return { blocks };
+    return { mode: 'preset', blocks };
   }
   for (const [key, value] of Object.entries(data)) {
     const type: MainlineBlockType = Array.isArray(value)
@@ -62,12 +71,20 @@ export function defaultMainlineLayout(data: unknown): MainlineLayout {
         : 'text';
     blocks.push(createMainlineBlock(type, [key], key));
   }
-  return { blocks };
+  return { mode: 'preset', blocks };
 }
 
 export function ensureMainlineMeta(mainline: JsonObject): MainlineMeta {
   const current = isMainlineMeta(mainline.meta) ? mainline.meta : { version: 1 as const, layouts: {} };
-  for (const [key, data] of mainlineEntries(mainline)) current.layouts[key] ??= defaultMainlineLayout(data);
+  for (const [key, data] of mainlineEntries(mainline)) {
+    const layout = current.layouts[key];
+    if (!layout || typeof layout !== 'object' || !Array.isArray(layout.blocks)) {
+      current.layouts[key] = defaultMainlineLayout(data);
+    } else if (layout.mode !== 'custom' && layout.mode !== 'preset') {
+      // 旧版布局没有模式标记；保守迁移为预设视觉，避免仅打开编辑器就改变玩家界面。
+      layout.mode = 'preset';
+    }
+  }
   for (const key of Object.keys(current.layouts)) if (!(key in mainline)) delete current.layouts[key];
   mainline.meta = current;
   return current;

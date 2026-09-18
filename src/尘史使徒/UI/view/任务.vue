@@ -128,7 +128,11 @@
             :key="quest.title"
             :title="quest.title"
             :data="quest"
-            :blocks="questStore.mainlineMeta?.layouts[quest.title]?.blocks"
+            :blocks="
+              questStore.mainlineMeta?.layouts[quest.title]?.mode === 'custom'
+                ? questStore.mainlineMeta.layouts[quest.title].blocks
+                : undefined
+            "
           />
         </div>
 

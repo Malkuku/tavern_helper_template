@@ -28,10 +28,16 @@
             <small>CANVAS</small><input :value="activeEntry" aria-label="主线名称" @change="renameEntry($event)" />
           </div>
           <div>
+            <button v-if="activeLayout.mode === 'preset'" @click="setLayoutMode('custom')">启用自定义布局</button>
+            <button v-else @click="setLayoutMode('preset')">使用原版视觉</button>
             <button @click="copyEntry">复制主线</button><button class="danger" @click="removeEntry">删除主线</button>
           </div>
         </header>
-        <div class="canvas-surface">
+        <p v-if="activeLayout.mode === 'preset'" class="preset-notice">当前为玩家实际看到的原版专用视觉。</p>
+        <div v-if="activeLayout.mode === 'preset'" class="preset-preview">
+          <MainQuestCard :title="activeEntry" :data="previewData" />
+        </div>
+        <div v-else class="canvas-surface">
           <MainlineCanvasNode
             v-for="(block, index) in activeLayout.blocks"
             :key="block.id"
@@ -50,7 +56,8 @@
         </div>
       </main>
       <aside class="inspector">
-        <template v-if="selectedBlock"
+        <p v-if="activeLayout.mode === 'preset'" class="empty">启用自定义布局后可编辑组件</p>
+        <template v-else-if="selectedBlock"
           ><h5>组件设置</h5>
           <label>类型<input :value="mainlineBlockCatalog[selectedBlock.type].label" readonly /></label
           ><label v-if="selectedBlock.type !== 'divider' && selectedBlock.type !== 'title'"
@@ -82,7 +89,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, toRaw, watch } from 'vue';
 import type { JsonObject } from '../scenario/types';
 import type { MainlineBlock, MainlineBlockType, MainlineLayout } from '../scenario/mainlineLayout';
 import {
@@ -95,6 +102,7 @@ import {
 } from '../scenario/mainlineLayout';
 import JsonBlockEditor from './JsonBlockEditor.vue';
 import MainlineCanvasNode from './MainlineCanvasNode.vue';
+import MainQuestCard from '../../尘史使徒/UI/components/task/MainQuestCard.vue';
 const props = defineProps<{ modelValue: JsonObject }>(),
   emit = defineEmits<{ 'update:modelValue': [JsonObject] }>(),
   activeEntry = ref(''),
@@ -102,7 +110,15 @@ const props = defineProps<{ modelValue: JsonObject }>(),
 const entries = computed(() => mainlineEntries(props.modelValue)),
   meta = computed(() => (isMainlineMeta(props.modelValue.meta) ? props.modelValue.meta : null)),
   activeData = computed(() => props.modelValue[activeEntry.value]),
-  activeLayout = computed<MainlineLayout>(() => meta.value?.layouts[activeEntry.value] ?? { blocks: [] }),
+  previewData = computed<Record<string, unknown>>(() => {
+    const value = activeData.value;
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : { 描述: value == null ? '' : String(value) };
+  }),
+  activeLayout = computed<MainlineLayout>(
+    () => meta.value?.layouts[activeEntry.value] ?? { mode: 'preset', blocks: [] },
+  ),
   editableData = computed(() => {
     const value = activeData.value;
     return value && typeof value === 'object' ? (value as Record<string, unknown>) : { 值: value };
@@ -110,7 +126,7 @@ const entries = computed(() => mainlineEntries(props.modelValue)),
   sourceOptions = computed(() => flattenMainlineSources(activeData.value)),
   selectedBlock = computed(() => findBlock(activeLayout.value.blocks, selectedBlockId.value));
 onMounted(() => {
-  const next = structuredClone(props.modelValue);
+  const next = cloneModel();
   ensureMainlineMeta(next);
   emit('update:modelValue', next);
   activeEntry.value = mainlineEntries(next)[0]?.[0] ?? '';
@@ -119,12 +135,23 @@ watch(entries, value => {
   if (activeEntry.value && !value.some(([key]) => key === activeEntry.value)) activeEntry.value = value[0]?.[0] ?? '';
 });
 function commit(mutator: (draft: JsonObject) => void) {
-  const draft = structuredClone(props.modelValue);
+  const draft = cloneModel();
   const nextMeta = ensureMainlineMeta(draft);
   mutator(draft);
   ensureMainlineMeta(draft);
   if (!draft.meta) draft.meta = nextMeta;
   emit('update:modelValue', draft);
+}
+function cloneModel(): JsonObject {
+  return structuredClone(toRaw(props.modelValue));
+}
+function setLayoutMode(mode: MainlineLayout['mode']) {
+  commit(d => {
+    ensureMainlineMeta(d).layouts[activeEntry.value].mode = mode;
+  });
+}
+function markCustom(layout: MainlineLayout) {
+  layout.mode = 'custom';
 }
 function selectEntry(key: string) {
   activeEntry.value = key;
@@ -187,6 +214,7 @@ function addBlock(type: MainlineBlockType) {
   commit(d => {
     const layout = ensureMainlineMeta(d).layouts[activeEntry.value],
       block = createMainlineBlock(type, type === 'title' ? ['$title'] : undefined);
+    markCustom(layout);
     const selected = findBlock(layout.blocks, selectedBlockId.value);
     if (selected?.type === 'container') selected.children!.push(block);
     else layout.blocks.push(block);
@@ -206,24 +234,32 @@ function findBlock(blocks: MainlineBlock[], id: string): MainlineBlock | undefin
 }
 function moveBlock(id: string, delta: number) {
   commit(d => {
-    const found = locate(ensureMainlineMeta(d).layouts[activeEntry.value].blocks, id);
+    const layout = ensureMainlineMeta(d).layouts[activeEntry.value],
+      found = locate(layout.blocks, id);
     if (!found) return;
     const target = found.index + delta;
     if (target < 0 || target >= found.list.length) return;
+    markCustom(layout);
     [found.list[found.index], found.list[target]] = [found.list[target], found.list[found.index]];
   });
 }
 function removeBlock(id: string) {
   commit(d => {
-    const found = locate(ensureMainlineMeta(d).layouts[activeEntry.value].blocks, id);
-    if (found) found.list.splice(found.index, 1);
+    const layout = ensureMainlineMeta(d).layouts[activeEntry.value],
+      found = locate(layout.blocks, id);
+    if (found) {
+      markCustom(layout);
+      found.list.splice(found.index, 1);
+    }
   });
   if (selectedBlockId.value === id) selectedBlockId.value = '';
 }
 function copyBlock(id: string) {
   commit(d => {
-    const found = locate(ensureMainlineMeta(d).layouts[activeEntry.value].blocks, id);
+    const layout = ensureMainlineMeta(d).layouts[activeEntry.value],
+      found = locate(layout.blocks, id);
     if (!found) return;
+    markCustom(layout);
     const copy = structuredClone(found.list[found.index]);
     regenerateIds([copy]);
     found.list.splice(found.index + 1, 0, copy);
@@ -241,8 +277,12 @@ function sourceKey(path?: string[]) {
 }
 function updateSelected(mutator: (block: MainlineBlock) => void) {
   commit(d => {
-    const block = findBlock(ensureMainlineMeta(d).layouts[activeEntry.value].blocks, selectedBlockId.value);
-    if (block) mutator(block);
+    const layout = ensureMainlineMeta(d).layouts[activeEntry.value],
+      block = findBlock(layout.blocks, selectedBlockId.value);
+    if (block) {
+      markCustom(layout);
+      mutator(block);
+    }
   });
 }
 function changeLabel(event: Event) {
@@ -383,6 +423,18 @@ function componentIcon(type: string) {
   min-height: 350px;
   padding: 16px;
   background: radial-gradient(circle at 50% 0, rgba(197, 160, 89, 0.055), transparent 45%);
+}
+.preset-notice {
+  margin: 0;
+  padding: 8px 12px;
+  color: #cbb477;
+  background: rgba(197, 160, 89, 0.08);
+  border-bottom: 1px solid rgba(197, 160, 89, 0.2);
+}
+.preset-preview {
+  min-height: 350px;
+  padding: 16px;
+  background: #0e1011;
 }
 .inspector label {
   display: grid;
