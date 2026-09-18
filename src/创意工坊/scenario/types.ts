@@ -66,7 +66,21 @@ export interface ScenarioEntry {
   内容配置: ScenarioContent;
 }
 
-export type ScenarioThemeId = '灯' | '铸' | '刃' | '冬' | '心' | '杯' | '蛾' | '启' | '破镜';
+export type ScenarioThemeId =
+  | '灯'
+  | '铸'
+  | '刃'
+  | '冬'
+  | '心'
+  | '杯'
+  | '蛾'
+  | '启'
+  | '破镜'
+  | '秘月'
+  | '六芒星'
+  | '蠕虫'
+  | '林地'
+  | '白骨门';
 
 export interface ScenarioSourceBundle {
   fixedData: JsonObject;

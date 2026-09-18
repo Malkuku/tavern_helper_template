@@ -3,7 +3,7 @@
     <div class="art-bg-effect"></div>
     <div class="card-content">
       <div class="scenario-icon-wrapper">
-        <ScenarioThemeIcon :theme-id="themeId" :available="available" />
+        <ScenarioThemeIcon :theme-id="themeId" />
       </div>
       <h2 class="scenario-title art-name">{{ name }}</h2>
       <div v-if="customProtagonist" class="scenario-tags"><span class="tag">自定义主角</span></div>
@@ -31,7 +31,6 @@ const props = withDefaults(
     compact?: boolean;
     interactive?: boolean;
     customProtagonist?: boolean;
-    available?: boolean;
   }>(),
   { description: '', active: false, expanded: false, compact: false, interactive: false, customProtagonist: false },
 );
@@ -315,6 +314,26 @@ const theme = computed(() => scenarioThemeById[props.themeId]);
 .theme-broken-mirror :deep(.scenario-theme-icon > svg) {
   animation: broken-shake 5s infinite;
 }
+.theme-secret-moon {
+  --theme-color: #9aa7dc;
+  --theme-glow: rgba(125, 145, 220, 0.4);
+}
+.theme-hexagram {
+  --theme-color: #dcc37a;
+  --theme-glow: rgba(220, 195, 122, 0.38);
+}
+.theme-worm {
+  --theme-color: #a98272;
+  --theme-glow: rgba(137, 87, 70, 0.4);
+}
+.theme-woodland {
+  --theme-color: #74a276;
+  --theme-glow: rgba(83, 142, 89, 0.38);
+}
+.theme-bone-gate {
+  --theme-color: #d8d1bd;
+  --theme-glow: rgba(216, 209, 189, 0.3);
+}
 :global(.scenario-layout.theme-lamp) {
   --theme-color: #ffd700;
   --theme-glow: rgba(255, 215, 0, 0.3);
@@ -350,6 +369,26 @@ const theme = computed(() => scenarioThemeById[props.themeId]);
 :global(.scenario-layout.theme-broken-mirror) {
   --theme-color: #c5a059;
   --theme-glow: rgba(197, 160, 89, 0.2);
+}
+:global(.scenario-layout.theme-secret-moon) {
+  --theme-color: #9aa7dc;
+  --theme-glow: rgba(125, 145, 220, 0.4);
+}
+:global(.scenario-layout.theme-hexagram) {
+  --theme-color: #dcc37a;
+  --theme-glow: rgba(220, 195, 122, 0.38);
+}
+:global(.scenario-layout.theme-worm) {
+  --theme-color: #a98272;
+  --theme-glow: rgba(137, 87, 70, 0.4);
+}
+:global(.scenario-layout.theme-woodland) {
+  --theme-color: #74a276;
+  --theme-glow: rgba(83, 142, 89, 0.38);
+}
+:global(.scenario-layout.theme-bone-gate) {
+  --theme-color: #d8d1bd;
+  --theme-glow: rgba(216, 209, 189, 0.3);
 }
 :global(.scenario-layout.theme-moth .title) {
   animation: moth-glitch 2s infinite steps(1);

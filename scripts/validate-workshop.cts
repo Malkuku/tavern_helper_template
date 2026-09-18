@@ -39,7 +39,7 @@ import { resolveSpeaker } from '../src/尘史使徒/UI/components/panel/speaker'
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
 assert.deepEqual(
   scenarioThemes.map(theme => theme.id),
-  ['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启', '破镜'],
+  ['灯', '铸', '刃', '冬', '心', '杯', '蛾', '启', '破镜', '秘月', '六芒星', '蠕虫', '林地', '白骨门'],
 );
 assert.deepEqual(
   scenarioThemes.map(theme => theme.className),
@@ -53,6 +53,11 @@ assert.deepEqual(
     'theme-moth',
     'theme-key',
     'theme-broken-mirror',
+    'theme-secret-moon',
+    'theme-hexagram',
+    'theme-worm',
+    'theme-woodland',
+    'theme-bone-gate',
   ],
 );
 for (const file of [
@@ -68,6 +73,24 @@ for (const file of [
     `${file} 不得复制主题样式`,
   );
 }
+const themeIconSource = readFileSync(
+  join(process.cwd(), 'src/尘史使徒/UI/components/scenario/ScenarioThemeIcon.vue'),
+  'utf8',
+);
+assert.doesNotMatch(themeIconSource, /available|availability/, '共享主题图标不得携带可玩状态徽标');
+const workspaceSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'), 'utf8');
+assert.match(workspaceSource, /scenario-availability/, '剧本资源侧栏必须展示可玩状态徽标');
+assert.doesNotMatch(workspaceSource, /<CharPanel[^>]+mode="view"/, '角色资源侧栏不得错误承载阵容预览');
+const scenarioEditorSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/ScenarioEditor.vue'), 'utf8');
+assert.doesNotMatch(scenarioEditorSource, /type="checkbox"/, '剧本布尔设置不得退回原生勾选框');
+assert.match(scenarioEditorSource, /aria-pressed/, '剧本双态选择必须暴露明确的选中状态');
+assert.match(scenarioEditorSource, /（当前）/, '剧本双态选择必须用文字标明当前值');
+assert.match(scenarioEditorSource, /<CharPanel[^>]+mode="view"/, '剧本角色阵容必须复用只读角色档案预览');
+assert.match(
+  scenarioEditorSource,
+  /role\.entry\.author[\s\S]+role\.entry\.desc/,
+  '剧本角色阵容副字段必须使用作者与素材说明',
+);
 const speakers = {
   user: { 姓名: '同名', key: 'user', 名称检索词: ['$all'], meta: { color: '#111111' } },
   主要角色: { 同名: { 姓名: '同名', 名称检索词: ['别名'], meta: { color: '#222222' } } },

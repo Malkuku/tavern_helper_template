@@ -1,4 +1,24 @@
 export const ScenarioIconPaths: Record<string, string> = {
+  'secret-moon': `
+    <path fill="currentColor" opacity=".14" d="M43 8a24 24 0 102 44A20 20 0 0143 8z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2.4" d="M43 8a24 24 0 102 44A20 20 0 0143 8zM18 20l3 5 5 3-5 3-3 5-3-5-5-3 5-3z"/>
+  `,
+  hexagram: `
+    <path fill="currentColor" opacity=".1" d="M32 7l22 38H10zM32 57L10 19h44z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2.4" d="M32 7l22 38H10zM32 57L10 19h44z"/><circle cx="32" cy="32" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
+  `,
+  worm: `
+    <path fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" d="M10 45c5-20 13 10 20-10S43 14 53 27 48 52 34 49"/>
+    <circle cx="13" cy="42" r="2" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.4" d="M22 39l-5-6M31 34l-5-7M42 29l4-7M46 40l7 2"/>
+  `,
+  woodland: `
+    <path fill="currentColor" opacity=".12" d="M32 5L17 27h8L12 47h16v10h8V47h16L39 27h8z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" d="M32 5L17 27h8L12 47h16v10h8V47h16L39 27h8zM32 18v29M22 35l10 8 10-8"/>
+  `,
+  'bone-gate': `
+    <path fill="none" stroke="currentColor" stroke-width="3" d="M14 56V25C14 12 22 6 32 6s18 6 18 19v31M23 56V27c0-7 4-11 9-11s9 4 9 11v29"/>
+    <path fill="currentColor" d="M8 51h48v6H8zM18 12l-7-5M46 12l7-5M20 37l-8 5M44 37l8 5"/><circle cx="32" cy="30" r="4" fill="none" stroke="currentColor" stroke-width="2"/>
+  `,
   'broken-mirror': `
     <path fill="none" stroke="currentColor" stroke-width="3" d="M16 8 H48 V56 H16 Z"/>
     <path fill="currentColor" d="M16 8 L30 20 L25 35 L40 30 L48 56 L48 8 Z" opacity="0.3"/>

@@ -71,11 +71,17 @@
           @click="selectAsset(s.id)"
         >
           <span class="scenario-asset-icon" aria-hidden="true"
-            ><ScenarioThemeIcon :theme-id="s.entry.视觉方案" :available="s.entry.可用"
-          /></span>
+            ><ScenarioThemeIcon :theme-id="s.entry.视觉方案" />
+            <span class="scenario-availability" :class="{ ready: s.entry.可用 }">
+              <svg viewBox="0 0 24 24">
+                <path v-if="s.entry.可用" d="M5 12l4 4L19 6" />
+                <path v-else d="M12 7v6M12 17v.01" />
+                <circle cx="12" cy="12" r="9" />
+              </svg> </span
+          ></span>
           <span class="asset-copy"
             ><strong :title="s.title">{{ s.title }}</strong
-            ><small>{{ s.entry.视觉方案 }}方案</small></span
+            ><small :title="s.entry.desc || undefined">{{ s.entry.desc || '暂无剧本简介' }}</small></span
           ><span class="scenario-state-label">{{ s.entry.可用 ? '可玩' : '编辑中' }}</span>
         </button></template
       >
@@ -631,10 +637,38 @@ function format(v: unknown) {
   z-index: 1;
 }
 .scenario-asset-icon {
+  position: relative;
   display: grid !important;
   width: 38px;
   height: 38px;
   place-items: center;
+}
+.scenario-availability {
+  position: absolute !important;
+  right: -5px;
+  bottom: -4px;
+  display: grid !important;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  box-sizing: border-box;
+  place-items: center;
+  color: #ce896b !important;
+  background: #15181a;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.scenario-availability.ready {
+  color: #7db38a !important;
+}
+.scenario-availability svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .scenario-state-label {
   position: absolute !important;

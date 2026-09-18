@@ -237,7 +237,7 @@ function confirm() {
 }
 .picker-body {
   display: grid;
-  grid-template-columns: minmax(340px, 0.9fr) minmax(420px, 1.1fr);
+  grid-template-columns: minmax(390px, 0.9fr) minmax(480px, 1.1fr);
   min-height: 0;
 }
 .identity-list {
@@ -255,6 +255,9 @@ function confirm() {
   align-items: center;
   text-align: left !important;
   background: #181c1e !important;
+  min-width: 0;
+  min-height: 82px;
+  padding: 12px 14px !important;
 }
 .identity-card.active {
   border-color: #cbb477 !important;
@@ -276,6 +279,9 @@ function confirm() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.identity-card > b {
+  white-space: nowrap;
+}
 .avatar {
   --avatar-size: 54px;
 }
@@ -289,6 +295,13 @@ function confirm() {
   align-items: center;
   gap: 18px;
   margin-bottom: 24px;
+}
+.portrait > div {
+  min-width: 0;
+}
+.portrait span,
+.version-card small {
+  overflow-wrap: anywhere;
 }
 .portrait h3,
 .portrait p {
@@ -307,7 +320,8 @@ function confirm() {
   color: #cbb477;
 }
 .version-card {
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   width: 100%;
@@ -318,6 +332,7 @@ function confirm() {
 .version-card span {
   display: grid;
   gap: 5px;
+  min-width: 0;
 }
 .version-card small {
   color: #aaa;
@@ -325,6 +340,10 @@ function confirm() {
 .version-card.active {
   border-color: #72b58a !important;
   background: #1e2b24 !important;
+}
+.version-card > b {
+  align-self: center;
+  white-space: nowrap;
 }
 .remove {
   margin-top: 18px;
@@ -350,7 +369,7 @@ function confirm() {
 .empty {
   color: #9d9689;
 }
-@media (max-width: 760px) {
+@media (max-width: 920px) {
   .picker-backdrop {
     align-items: stretch;
     padding: 0;
@@ -374,6 +393,19 @@ function confirm() {
   .detail {
     overflow: visible;
     border-top: 1px solid #34383a;
+  }
+  .identity-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .identity-card > b {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .version-card {
+    grid-template-columns: 1fr;
+  }
+  .version-card > b {
+    justify-self: start;
   }
   .picker > footer {
     padding-bottom: calc(14px + env(safe-area-inset-bottom));
