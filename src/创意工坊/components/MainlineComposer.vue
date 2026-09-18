@@ -89,6 +89,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { klona } from 'klona';
 import { computed, onMounted, ref, toRaw, watch } from 'vue';
 import type { JsonObject } from '../scenario/types';
 import type { MainlineBlock, MainlineBlockType, MainlineLayout } from '../scenario/mainlineLayout';
@@ -143,7 +144,7 @@ function commit(mutator: (draft: JsonObject) => void) {
   emit('update:modelValue', draft);
 }
 function cloneModel(): JsonObject {
-  return structuredClone(toRaw(props.modelValue));
+  return klona(toRaw(props.modelValue));
 }
 function setLayoutMode(mode: MainlineLayout['mode']) {
   commit(d => {
@@ -194,9 +195,9 @@ function renameEntry(event: Event) {
 function copyEntry() {
   const key = unique(`${activeEntry.value}副本`);
   commit(d => {
-    d[key] = structuredClone(d[activeEntry.value]);
+    d[key] = klona(d[activeEntry.value]);
     const m = ensureMainlineMeta(d);
-    m.layouts[key] = structuredClone(m.layouts[activeEntry.value]);
+    m.layouts[key] = klona(m.layouts[activeEntry.value]);
     regenerateIds(m.layouts[key].blocks);
   });
   activeEntry.value = key;
@@ -260,7 +261,7 @@ function copyBlock(id: string) {
       found = locate(layout.blocks, id);
     if (!found) return;
     markCustom(layout);
-    const copy = structuredClone(found.list[found.index]);
+    const copy = klona(found.list[found.index]);
     regenerateIds([copy]);
     found.list.splice(found.index + 1, 0, copy);
     selectedBlockId.value = copy.id;

@@ -91,6 +91,14 @@ assert.match(
   /role\.entry\.author[\s\S]+role\.entry\.desc/,
   '剧本角色阵容副字段必须使用作者与素材说明',
 );
+const mainlineComposerSource = readFileSync(
+  join(process.cwd(), 'src/创意工坊/components/MainlineComposer.vue'),
+  'utf8',
+);
+assert.match(mainlineComposerSource, /klona\(toRaw\(props\.modelValue\)\)/, '主线更新必须安全克隆 Vue 响应式数据');
+assert.doesNotMatch(mainlineComposerSource, /structuredClone/, '主线编辑器不得直接 structuredClone Vue 响应式值');
+const jsonBlockEditorSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/JsonBlockEditor.vue'), 'utf8');
+assert.doesNotMatch(jsonBlockEditorSource, /<button(?![^>]*type="button")/, 'JSON 编辑操作不得触发宿主表单提交');
 const speakers = {
   user: { 姓名: '同名', key: 'user', 名称检索词: ['$all'], meta: { color: '#111111' } },
   主要角色: { 同名: { 姓名: '同名', 名称检索词: ['别名'], meta: { color: '#222222' } } },

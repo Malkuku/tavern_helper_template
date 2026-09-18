@@ -11,9 +11,9 @@
             <option value="object">分组</option>
             <option value="array">列表</option>
           </select>
-          <button :disabled="index === 0" @click="moveKey(key, -1)">↑</button>
-          <button :disabled="index === objectEntries.length - 1" @click="moveKey(key, 1)">↓</button>
-          <button class="danger" @click="removeKey(key)">×</button>
+          <button type="button" :disabled="index === 0" @click="moveKey(key, -1)">↑</button>
+          <button type="button" :disabled="index === objectEntries.length - 1" @click="moveKey(key, 1)">↓</button>
+          <button type="button" class="danger" @click="removeKey(key)">×</button>
         </div>
         <JsonBlockEditor
           v-if="isContainer(value)"
@@ -39,7 +39,7 @@
           }}</label
         >
       </div>
-      <button class="add" @click="addKey">＋ 添加字段</button>
+      <button type="button" class="add" @click="addKey">＋ 添加字段</button>
     </template>
     <template v-else>
       <div v-for="(value, index) in arrayValue" :key="index" class="field-block array-item">
@@ -51,9 +51,9 @@
             <option value="boolean">开关</option>
             <option value="object">分组</option>
             <option value="array">列表</option></select
-          ><button :disabled="index === 0" @click="moveArray(index, -1)">↑</button
-          ><button :disabled="index === arrayValue.length - 1" @click="moveArray(index, 1)">↓</button
-          ><button class="danger" @click="removeArray(index)">×</button>
+          ><button type="button" :disabled="index === 0" @click="moveArray(index, -1)">↑</button
+          ><button type="button" :disabled="index === arrayValue.length - 1" @click="moveArray(index, 1)">↓</button
+          ><button type="button" class="danger" @click="removeArray(index)">×</button>
         </div>
         <JsonBlockEditor
           v-if="isContainer(value)"
@@ -79,7 +79,7 @@
           }}</label
         >
       </div>
-      <button class="add" @click="addArray">＋ 添加条目</button>
+      <button type="button" class="add" @click="addArray">＋ 添加条目</button>
     </template>
   </div>
 </template>
