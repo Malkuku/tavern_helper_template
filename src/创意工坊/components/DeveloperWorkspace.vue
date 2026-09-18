@@ -66,13 +66,17 @@
         ><button
           v-for="s in filteredScenarios"
           :key="s.id"
-          class="asset"
+          class="asset scenario-asset"
           :class="{ active: selectedId === s.id }"
           @click="selectAsset(s.id)"
         >
-          <strong>{{ s.title }}</strong
-          ><span>{{ s.entry.可用 ? '可玩' : '编辑中' }}</span
-          ><small>{{ s.entry.视觉方案 }}方案</small>
+          <span class="scenario-asset-icon" aria-hidden="true"
+            ><ScenarioThemeIcon :theme-id="s.entry.视觉方案" :available="s.entry.可用"
+          /></span>
+          <span class="asset-copy"
+            ><strong :title="s.title">{{ s.title }}</strong
+            ><small>{{ s.entry.视觉方案 }}方案</small></span
+          ><span class="scenario-state-label">{{ s.entry.可用 ? '可玩' : '编辑中' }}</span>
         </button></template
       >
     </aside>
@@ -283,6 +287,7 @@ import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import ScenarioEditor from './ScenarioEditor.vue';
+import ScenarioThemeIcon from '../../尘史使徒/UI/components/scenario/ScenarioThemeIcon.vue';
 const props = defineProps<{ source: ScenarioSourceBundle; draft: ScenarioSourceBundle }>();
 defineEmits<{ save: []; requestReload: [] }>();
 const domain = ref<'角色' | '剧本'>('剧本'),
@@ -613,6 +618,30 @@ function format(v: unknown) {
   gap: 11px;
   align-items: center;
   text-align: left;
+}
+.scenario-asset {
+  grid-template-columns: 42px minmax(0, 1fr);
+  width: 100%;
+  min-height: 70px;
+  overflow: hidden;
+  position: relative;
+}
+.scenario-asset > * {
+  position: relative;
+  z-index: 1;
+}
+.scenario-asset-icon {
+  display: grid !important;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+}
+.scenario-state-label {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .role-group {
   display: grid;

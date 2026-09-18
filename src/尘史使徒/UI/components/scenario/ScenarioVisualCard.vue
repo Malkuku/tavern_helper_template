@@ -3,9 +3,7 @@
     <div class="art-bg-effect"></div>
     <div class="card-content">
       <div class="scenario-icon-wrapper">
-        <!-- 图标来自共享 ScenarioIconPaths 白名单。 -->
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <svg :viewBox="iconViewBox" class="scenario-svg" v-html="theme.iconMarkup"></svg>
+        <ScenarioThemeIcon :theme-id="themeId" :available="available" />
       </div>
       <h2 class="scenario-title art-name">{{ name }}</h2>
       <div v-if="customProtagonist" class="scenario-tags"><span class="tag">自定义主角</span></div>
@@ -21,6 +19,7 @@
 import { computed } from 'vue';
 import { scenarioThemeById } from '../../../../创意工坊/scenario/themes';
 import type { ScenarioThemeId } from '../../../../创意工坊/scenario/types';
+import ScenarioThemeIcon from './ScenarioThemeIcon.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -32,13 +31,11 @@ const props = withDefaults(
     compact?: boolean;
     interactive?: boolean;
     customProtagonist?: boolean;
+    available?: boolean;
   }>(),
   { description: '', active: false, expanded: false, compact: false, interactive: false, customProtagonist: false },
 );
 const theme = computed(() => scenarioThemeById[props.themeId]);
-const iconViewBox = computed(() =>
-  ['forge', 'edge', 'heart', 'knock'].includes(theme.value.iconKey) ? '0 0 24 24' : '0 0 64 64',
-);
 </script>
 
 <style scoped>
@@ -89,13 +86,10 @@ const iconViewBox = computed(() =>
   color: var(--theme-color, var(--c-gold));
   filter: drop-shadow(0 0 5px var(--theme-glow, transparent));
   transition: transform 0.3s;
+  position: relative;
 }
 .scenario-card.interactive:hover .scenario-icon-wrapper {
   transform: scale(1.1);
-}
-.scenario-svg {
-  width: 100%;
-  height: 100%;
 }
 .scenario-title {
   font-family: var(--font-title);
@@ -318,7 +312,7 @@ const iconViewBox = computed(() =>
   background-size: 20px 20px;
   opacity: 0.3;
 }
-.theme-broken-mirror .scenario-svg {
+.theme-broken-mirror :deep(.scenario-theme-icon > svg) {
   animation: broken-shake 5s infinite;
 }
 :global(.scenario-layout.theme-lamp) {

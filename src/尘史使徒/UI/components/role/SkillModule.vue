@@ -324,12 +324,17 @@ textarea.edit-control {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .skill-title-group {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
 /* SVG 图标容器 */
@@ -349,12 +354,20 @@ textarea.edit-control {
   color: #e8e8e8;
   letter-spacing: 1px;
   font-weight: 500;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .skill-meta {
   display: flex;
   gap: 6px;
   font-size: 0.75rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .skill-level-badge {

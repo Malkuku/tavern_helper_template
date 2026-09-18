@@ -8,10 +8,13 @@
 
     <!-- 内容区：描述 -->
     <div class="card-body">
-      <p class="description">{{ data.描述 }}</p>
-
-      <!-- 动态组件分发 -->
-      <component :is="activeLayout" :data="data" />
+      <template v-if="blocks?.length"
+        ><MainlineBlockRenderer v-for="block in blocks" :key="block.id" :block="block" :data="data" :title="title"
+      /></template>
+      <template v-else
+        ><p class="description">{{ data.描述 }}</p>
+        <component :is="activeLayout" :data="data"
+      /></template>
     </div>
   </div>
 </template>
@@ -23,10 +26,12 @@ import LayoutSouls from '@/尘史使徒/UI/components/task/LayoutSouls.vue';
 import LayoutGlow from '@/尘史使徒/UI/components/task/LayoutGlow.vue';
 import LayoutDefault from '@/尘史使徒/UI/components/task/LayoutDefault.vue';
 import LayoutMemory from '@/尘史使徒/UI/components/task/LayoutMemory.vue';
+import MainlineBlockRenderer from '@/尘史使徒/UI/components/task/MainlineBlockRenderer.vue';
 
 const props = defineProps({
   title: String,
-  data: Object
+  data: Object,
+  blocks: { type: Array, default: undefined },
 });
 
 // 逻辑判断
@@ -74,14 +79,39 @@ const typeLabel = computed(() => {
   overflow: hidden;
   transition: all 0.3s ease;
 }
-.card-header { margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
-.quest-type-label { font-size: 0.7rem; letter-spacing: 3px; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase; }
-.quest-title { font-family: serif; font-size: 1.8rem; color: #eee; margin: 0; }
-.description { font-size: 1.05rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; font-style: italic; }
+.card-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+.quest-type-label {
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  opacity: 0.7;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+.quest-title {
+  font-family: serif;
+  font-size: 1.8rem;
+  color: #eee;
+  margin: 0;
+}
+.description {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #ccc;
+  margin-bottom: 20px;
+  font-style: italic;
+}
 
 /* 类型样式修饰 */
-.type-stealth { border-left: 4px solid #d32f2f; }
-.type-power { border-left: 4px solid #9c27b0; }
+.type-stealth {
+  border-left: 4px solid #d32f2f;
+}
+.type-power {
+  border-left: 4px solid #9c27b0;
+}
 
 /* 辉光样式 */
 .type-glow {
@@ -89,15 +119,21 @@ const typeLabel = computed(() => {
   background: linear-gradient(160deg, rgba(30, 25, 10, 0.95), rgba(10, 10, 10, 0.98));
   box-shadow: 0 0 20px rgba(252, 211, 77, 0.05);
 }
-.type-glow .quest-title { color: #fde68a; text-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
-.type-glow .quest-type-label { color: #fcd34d; }
+.type-glow .quest-title {
+  color: #fde68a;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+}
+.type-glow .quest-type-label {
+  color: #fcd34d;
+}
 
 /* 新增：记忆/道路样式 (金色碎玻璃) */
 .type-memory {
   border-left: 4px solid #c5a059; /* 古铜金 */
   /* 背景模拟深邃的黑暗中有微弱的金光 */
-  background: radial-gradient(circle at 90% 10%, rgba(197, 160, 89, 0.08), transparent 40%),
-  linear-gradient(180deg, rgba(15, 14, 11, 0.95), rgba(25, 23, 18, 0.98));
+  background:
+    radial-gradient(circle at 90% 10%, rgba(197, 160, 89, 0.08), transparent 40%),
+    linear-gradient(180deg, rgba(15, 14, 11, 0.95), rgba(25, 23, 18, 0.98));
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   /* 给整个卡片加一个微弱的金色边框光晕 */
   border-right: 1px solid rgba(197, 160, 89, 0.1);
@@ -107,7 +143,9 @@ const typeLabel = computed(() => {
 .type-memory .quest-title {
   color: #e6cfa0;
   /* 文字破碎感阴影 */
-  text-shadow: 2px 2px 0px rgba(0,0,0,0.8), -1px -1px 0 rgba(197, 160, 89, 0.3);
+  text-shadow:
+    2px 2px 0px rgba(0, 0, 0, 0.8),
+    -1px -1px 0 rgba(197, 160, 89, 0.3);
 }
 
 .type-memory .quest-type-label {

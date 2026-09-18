@@ -390,10 +390,7 @@ const roleCollectionSource = readFileSync(
 assert.match(roleCollectionSource, /@media \(max-width: 720px\)/, '语料集合必须与移动工作区使用同一断点');
 assert.match(roleCollectionSource, /\.entry-summary strong[\s\S]*overflow-wrap: anywhere/, '语料场景名必须允许断行');
 assert.match(messageDisplaySource, /\.role-main\)[\s\S]*min-width: 0/, '移动对话预览内容必须允许收缩');
-const roleAvatarSource = readFileSync(
-  join(process.cwd(), 'src/尘史使徒/UI/components/common/RoleAvatar.vue'),
-  'utf8',
-);
+const roleAvatarSource = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/common/RoleAvatar.vue'), 'utf8');
 assert.match(roleAvatarSource, /themeColor/, '共享角色头像必须接收主题颜色');
 assert.match(roleAvatarSource, /border: 1px solid var\(--avatar-theme/, '共享角色头像外框必须使用主题颜色');
 for (const file of [
@@ -408,7 +405,10 @@ for (const file of [
   const sourceText = readFileSync(join(process.cwd(), file), 'utf8');
   const avatars = sourceText.match(/<RoleAvatar\b[\s\S]*?\/>/g) ?? [];
   assert.ok(avatars.length, `${file} 应包含共享角色头像`);
-  assert.ok(avatars.every(avatar => avatar.includes(':theme-color=')), `${file} 的每个角色头像都必须传入主题色`);
+  assert.ok(
+    avatars.every(avatar => avatar.includes(':theme-color=')),
+    `${file} 的每个角色头像都必须传入主题色`,
+  );
 }
 const developerWorkspaceSource = readFileSync(
   join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'),

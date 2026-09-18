@@ -2,104 +2,127 @@
 <template>
   <div class="workbench">
     <section class="hero">
-      <div>
+      <div class="hero-icon"><svg :viewBox="themeViewBox" v-html="theme.iconMarkup"></svg></div>
+      <div class="hero-copy">
         <small>SCENARIO DOSSIER</small><input v-model="entry.key" class="title" placeholder="未命名剧本" /><textarea
           v-model="entry.desc"
           placeholder="故事的核心冲突"
         />
         <p>{{ theme.name }} · {{ theme.tagline }} · {{ cast.length }} 名角色</p>
       </div>
-      <label
-        ><input v-model="entry.可用" type="checkbox" :disabled="!playable" />{{
-          playable ? '可发布' : '尚未就绪'
-        }}</label
+      <button
+        class="publish-state"
+        :class="{ ready: playable && entry.可用 }"
+        :disabled="!playable"
+        @click="entry.可用 = !entry.可用"
       >
-    </section>
-    <nav>
-      <button v-for="item in tabs" :key="item.id" :class="{ active: tab === item.id }" @click="tab = item.id">
-        {{ item.label }}<small>{{ item.note }}</small>
+        <svg viewBox="0 0 24 24">
+          <path v-if="playable && entry.可用" d="M5 12l4 4L19 6" />
+          <path v-else d="M12 7v6M12 17v.01" />
+          <circle cx="12" cy="12" r="9" /></svg
+        ><span>{{ playable ? (entry.可用 ? '已启用' : '可启用') : '尚未就绪' }}</span>
       </button>
-    </nav>
-    <section v-if="tab === 'overview'" class="panel">
-      <h3>剧本概览与视觉方案</h3>
-      <label>作者<input v-model="entry.author" /></label
-      ><label><input v-model="entry.自定义主角" type="checkbox" />允许玩家自定义主角</label>
-      <div class="themes">
-        <ScenarioVisualCard
-          v-for="option in scenarioThemes"
-          :key="option.id"
-          :theme-id="option.id"
-          :name="option.name"
-          :active="entry.视觉方案 === option.id"
-          compact
-          interactive
-          @click="entry.视觉方案 = option.id"
-        />
-      </div>
-      <ScenarioVisualCard
-        :theme-id="entry.视觉方案"
-        :name="entry.key || '未命名剧本'"
-        :description="entry.desc || '剧本说明将在这里呈现。'"
-        :custom-protagonist="entry.自定义主角"
-        active
-        expanded
-      />
     </section>
-    <section v-else-if="tab === 'cast'" class="panel">
-      <header>
-        <h3>角色阵容</h3>
-        <button @click="pickerOpen = true">选择角色</button>
-      </header>
-      <div class="cast">
-        <article v-for="role in cast" :key="role.id">
-          <RoleAvatar
-            :src="role.entry.meta?.avatar"
-            :alt="role.title"
-            :seed="role.entry.key"
-            :fallback-style="role.entry.meta?.avatarStyle"
-            :theme-color="role.entry.meta?.color"
-          />
-          <div>
-            <b>{{ role.title }}</b
-            ><small>{{ role.entry.type }} · {{ role.entry.author || '未署名' }}</small>
+    <div class="workbench-body">
+      <nav aria-label="剧本分区">
+        <button v-for="item in tabs" :key="item.id" :class="{ active: tab === item.id }" @click="tab = item.id">
+          <span class="tab-icon"><svg :viewBox="item.iconViewBox || '0 0 24 24'" v-html="item.icon"></svg></span
+          ><span class="tab-copy"
+            ><b>{{ item.label }}</b
+            ><small>{{ item.note }}</small></span
+          ><span class="tab-state" :class="{ done: item.done }"></span>
+        </button>
+      </nav>
+      <main class="workspace">
+        <section v-if="tab === 'overview'" class="panel">
+          <header>
+            <div>
+              <small>IDENTITY & VISUAL</small>
+              <h3>剧本概览</h3>
+            </div>
+          </header>
+          <div class="meta-fields">
+            <label>作者<input v-model="entry.author" /></label
+            ><label class="check"><input v-model="entry.自定义主角" type="checkbox" />允许玩家自定义主角</label>
           </div>
-          <button @click="removeRole(role.id)">×</button>
-        </article>
-      </div>
-      <p v-if="!hasUser" class="warning">阵容中需要选择一名主角。</p>
-    </section>
-    <section v-else-if="tab === 'world'" class="panel">
-      <header>
-        <h3>初始世界</h3>
-        <button @click="mapOpen = true">从地图选择地点</button>
-      </header>
-      <div class="fields">
-        <label v-for="field in worldFields" :key="field"
-          >{{ field }}<input v-model="entry.内容配置.世界[field]" /></label
-        ><label>地图索引<input v-model="entry.内容配置.世界.地图索引" readonly /></label
-        ><label><input v-model="entry.内容配置.世界.危险场景" type="checkbox" />危险场景</label>
-      </div>
-    </section>
-    <section v-else class="panel">
-      <header>
-        <div>
-          <h3>内嵌叙事骨架</h3>
-          <small>内容只属于当前剧本</small>
-        </div>
-      </header>
-      <label>开场文本<textarea v-model="entry.内容配置.开场文本" rows="10" /></label
-      ><EntrySetEditor
-        v-model="entry.内容配置.主线"
-        label="主线阶段"
-        :create="() => ({ 描述: '', 警惕度: 0, 详细: [], 已交融的魂质: [] })"
-        ><template #entry="slot"
-          ><label>描述<textarea v-model="slot.entry.描述" /></label
-          ><label>警惕度<input v-model.number="slot.entry.警惕度" type="number" /></label></template></EntrySetEditor
-      ><EmbeddedNarrativeList v-model="entry.内容配置.任务" kind="任务" /><EmbeddedNarrativeList
-        v-model="entry.内容配置.事件"
-        kind="事件"
-      />
-    </section>
+          <div class="themes">
+            <ScenarioVisualCard
+              v-for="option in scenarioThemes"
+              :key="option.id"
+              :theme-id="option.id"
+              :name="option.name"
+              :active="entry.视觉方案 === option.id"
+              compact
+              interactive
+              @click="entry.视觉方案 = option.id"
+            />
+          </div>
+          <ScenarioVisualCard
+            :theme-id="entry.视觉方案"
+            :name="entry.key || '未命名剧本'"
+            :description="entry.desc || '剧本说明将在这里呈现。'"
+            :custom-protagonist="entry.自定义主角"
+            active
+            expanded
+          />
+        </section>
+        <section v-else-if="tab === 'cast'" class="panel">
+          <header>
+            <div>
+              <small>CAST ASSEMBLY</small>
+              <h3>角色阵容</h3>
+            </div>
+            <button @click="pickerOpen = true">选择角色</button>
+          </header>
+          <div class="cast">
+            <article v-for="role in cast" :key="role.id">
+              <RoleAvatar
+                :src="role.entry.meta?.avatar"
+                :alt="role.title"
+                :seed="role.entry.key"
+                :fallback-style="role.entry.meta?.avatarStyle"
+                :theme-color="role.entry.meta?.color"
+              />
+              <div>
+                <b>{{ role.title }}</b
+                ><small>{{ role.entry.type }} · {{ role.entry.author || '未署名' }}</small>
+              </div>
+              <button @click="removeRole(role.id)">×</button>
+            </article>
+          </div>
+          <p v-if="!hasUser" class="warning">阵容中需要选择一名主角。</p>
+        </section>
+        <section v-else-if="tab === 'world'" class="panel">
+          <header>
+            <div>
+              <small>INITIAL WORLD</small>
+              <h3>初始世界</h3>
+            </div>
+            <button @click="mapOpen = true">从地图选择地点</button>
+          </header>
+          <div class="fields">
+            <label v-for="field in worldFields" :key="field"
+              >{{ field }}<input v-model="entry.内容配置.世界[field]" /></label
+            ><label>地图索引<input v-model="entry.内容配置.世界.地图索引" readonly /></label
+            ><label class="check"><input v-model="entry.内容配置.世界.危险场景" type="checkbox" />危险场景</label>
+          </div>
+        </section>
+        <section v-else class="panel story">
+          <header>
+            <div>
+              <small>NARRATIVE SYSTEM</small>
+              <h3>叙事编排</h3>
+              <p>主线使用自由结构；任务与事件沿用玩家实际看到的卡片。</p>
+            </div>
+          </header>
+          <label class="opening">开场文本<textarea v-model="entry.内容配置.开场文本" rows="8" /></label
+          ><MainlineComposer v-model="entry.内容配置.主线" /><EmbeddedNarrativeList
+            v-model="entry.内容配置.任务"
+            kind="任务"
+          /><EmbeddedNarrativeList v-model="entry.内容配置.事件" kind="事件" />
+        </section>
+      </main>
+    </div>
   </div>
   <RolePickerDialog
     :open="pickerOpen"
@@ -107,8 +130,7 @@
     :source="source"
     @cancel="pickerOpen = false"
     @update:model-value="applyCast"
-  />
-  <MapLocationPicker
+  /><MapLocationPicker
     :open="mapOpen"
     :map="mapData"
     @close="mapOpen = false"
@@ -123,9 +145,10 @@ import ScenarioVisualCard from '../../尘史使徒/UI/components/scenario/Scenar
 import { normalizeRoleSelection } from '../assets/model';
 import { assetTitle } from '../assets/presentation';
 import { scenarioThemeById, scenarioThemes } from '../scenario/themes';
+import { mainlineEntries } from '../scenario/mainlineLayout';
 import type { ScenarioSourceBundle } from '../scenario/types';
 import EmbeddedNarrativeList from './EmbeddedNarrativeList.vue';
-import EntrySetEditor from './EntrySetEditor.vue';
+import MainlineComposer from './MainlineComposer.vue';
 import MapLocationPicker from './MapLocationPicker.vue';
 import RolePickerDialog from './RolePickerDialog.vue';
 const props = defineProps<{ entry: any; source: ScenarioSourceBundle }>(),
@@ -134,6 +157,9 @@ const props = defineProps<{ entry: any; source: ScenarioSourceBundle }>(),
   mapOpen = ref(false),
   worldFields = ['时间', '地点', '季节', '天气'];
 const theme = computed(() => scenarioThemeById[props.entry.视觉方案]),
+  themeViewBox = computed(() =>
+    ['forge', 'edge', 'heart', 'knock'].includes(theme.value.iconKey) ? '0 0 24 24' : '0 0 64 64',
+  ),
   mapData = computed<Record<string, any>>(() => Object.values(props.source.registries.地图)[0]?.data ?? {}),
   cast = computed(() =>
     props.entry.内容配置.角色
@@ -145,14 +171,42 @@ const theme = computed(() => scenarioThemeById[props.entry.视觉方案]),
       .filter((x: any) => x.entry),
   ),
   hasUser = computed(() => cast.value.some((x: any) => x.entry.type === 'user')),
-  playable = computed(
-    () => hasUser.value && props.entry.内容配置.开场文本.trim() && Object.keys(props.entry.内容配置.主线).length,
+  playable = computed(() =>
+    Boolean(hasUser.value && props.entry.内容配置.开场文本.trim() && mainlineEntries(props.entry.内容配置.主线).length),
   ),
   tabs = computed(() => [
-    { id: 'overview', label: '概览', note: `${theme.value.name}方案` },
-    { id: 'cast', label: '阵容', note: `${cast.value.length} 名` },
-    { id: 'world', label: '世界', note: props.entry.内容配置.世界.地点 || '待设置' },
-    { id: 'story', label: '叙事', note: `${props.entry.内容配置.任务.length} 项任务` },
+    {
+      id: 'overview',
+      label: '概览',
+      note: `${theme.value.name} · ${theme.value.tagline}`,
+      done: Boolean(props.entry.key && props.entry.desc),
+      icon: theme.value.iconMarkup,
+      iconViewBox: themeViewBox.value,
+    },
+    {
+      id: 'cast',
+      label: '角色阵容',
+      note: `${cast.value.length} 名角色`,
+      done: hasUser.value,
+      iconViewBox: '0 0 24 24',
+      icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-7 6-7s6 3 6 7M16 7h5M18.5 4.5v5"/>',
+    },
+    {
+      id: 'world',
+      label: '初始世界',
+      note: props.entry.内容配置.世界.地点 || '待设置地点',
+      done: Boolean(props.entry.内容配置.世界.地点),
+      iconViewBox: '0 0 24 24',
+      icon: '<circle cx="12" cy="12" r="9"/><path d="M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9M3 12h18"/>',
+    },
+    {
+      id: 'story',
+      label: '叙事编排',
+      note: `${mainlineEntries(props.entry.内容配置.主线).length} 主线 · ${props.entry.内容配置.任务.length} 任务 · ${props.entry.内容配置.事件.length} 事件`,
+      done: Boolean(props.entry.内容配置.开场文本.trim() && mainlineEntries(props.entry.内容配置.主线).length),
+      iconViewBox: '0 0 24 24',
+      icon: '<path d="M5 4v16M5 7h7l3 3h5M5 16h6l3-3h5"/><circle cx="19" cy="10" r="2"/><circle cx="19" cy="13" r="2"/>',
+    },
   ]);
 onMounted(
   () => (props.entry.内容配置.角色 = normalizeRoleSelection(props.entry.内容配置.角色, props.source.registries.角色)),
@@ -179,10 +233,22 @@ function applyCast(v: string[]) {
 }
 .hero {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
   gap: 16px;
+  align-items: center;
 }
-.hero div {
+.hero-icon {
+  width: 64px;
+  height: 64px;
+  color: #cbb477;
+  filter: drop-shadow(0 0 8px currentColor);
+  opacity: 0.85;
+}
+.hero-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.hero-copy {
   min-width: 0;
 }
 .hero input,
@@ -190,34 +256,111 @@ function applyCast(v: string[]) {
 .panel textarea {
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
 }
 .title {
   font-size: 24px;
 }
+.publish-state {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 92px;
+  color: #c47f63;
+}
+.publish-state.ready {
+  color: #8db78d;
+}
+.publish-state svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.workbench-body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.workspace {
+  min-width: 0;
+}
 .workbench nav {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+  position: sticky;
+  top: 8px;
 }
 .workbench nav button {
   display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 8px;
+  align-items: center;
+  text-align: left;
+  gap: 9px;
+  padding: 12px;
 }
-.workbench nav .active {
+.workbench nav button.active {
   border-color: #cbb477;
   color: #cbb477;
+  background: rgba(203, 180, 119, 0.07);
+}
+.tab-icon {
+  width: 28px;
+  height: 28px;
+  color: #83878b;
+}
+.tab-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+.tab-copy {
+  display: grid;
+  min-width: 0;
+}
+.tab-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab-state {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #72483b;
+}
+.tab-state.done {
+  background: #718f70;
+  box-shadow: 0 0 7px #718f70;
 }
 .panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 .panel header {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
+}
+.panel header h3 {
+  margin: 2px 0;
+}
+.panel header small {
+  color: #cbb477;
+  letter-spacing: 0.14em;
+}
+.panel header p {
+  color: #888;
+  margin: 4px 0;
 }
 .themes,
 .cast {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
 }
 .cast article {
@@ -225,33 +368,63 @@ function applyCast(v: string[]) {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+  padding: 9px;
+  background: #151719;
 }
 .cast article > div {
   display: grid;
+  min-width: 0;
 }
-.fields {
+.fields,
+.meta-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .fields label,
-.panel > label {
+.meta-fields label,
+.opening {
   display: grid;
   gap: 5px;
+}
+.check {
+  display: flex !important;
+  align-items: center;
 }
 .warning {
   color: #e3ad66;
 }
+.story > :not(header) {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
 @media (max-width: 700px) {
   .hero {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 54px minmax(0, 1fr);
   }
-  .hero > label {
+  .hero-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .publish-state {
     grid-column: 1/-1;
+    display: flex;
+    justify-content: center;
   }
-  .workbench nav,
-  .fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .workbench-body {
+    grid-template-columns: 1fr;
+  }
+  .workbench nav {
+    display: flex;
+    overflow-x: auto;
+    position: static;
+  }
+  .workbench nav button {
+    flex: 0 0 170px;
+  }
+  .fields,
+  .meta-fields {
+    grid-template-columns: 1fr;
   }
   .panel {
     padding: 11px;

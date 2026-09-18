@@ -4,7 +4,17 @@
       <h4>{{ kind }}</h4>
       <button @click="add">＋ 新增</button>
     </header>
-    <article v-for="(item, i) in modelValue" :key="i">
+    <NarrativeEntryCard
+      v-for="(item, i) in modelValue"
+      :key="i"
+      :title="item.key"
+      :data="item.data"
+      :kind="kind"
+      :editing="active === i"
+    >
+      <template #actions
+        ><button @click="active = active === i ? -1 : i">{{ active === i ? '完成' : '编辑' }}</button></template
+      >
       <input v-model="item.key" :placeholder="`${kind}名称`" /><textarea
         v-model="item.data.描述"
         placeholder="描述"
@@ -16,18 +26,21 @@
       ><template v-else>
         <textarea v-model="item.data.作用" placeholder="作用" /><input v-model="item.data.进度" placeholder="进度"
       /></template>
-      <div>
+      <div class="actions">
         <button :disabled="i === 0" @click="move(i, -1)">上移</button
         ><button :disabled="i === modelValue.length - 1" @click="move(i, 1)">下移</button
         ><button @click="copy(i)">复制</button><button @click="remove(i)">删除</button>
       </div>
-    </article>
+    </NarrativeEntryCard>
   </section>
 </template>
 <script setup lang="ts">
+import { ref } from 'vue';
+import NarrativeEntryCard from '../../尘史使徒/UI/components/task/NarrativeEntryCard.vue';
 import type { EmbeddedNarrativeEntry } from '../scenario/types';
 const p = defineProps<{ modelValue: EmbeddedNarrativeEntry[]; kind: '任务' | '事件' }>(),
   e = defineEmits<{ 'update:modelValue': [EmbeddedNarrativeEntry[]] }>(),
+  active = ref(-1),
   fresh = () => ({
     key: '',
     data:
@@ -65,31 +78,17 @@ function move(i: number, d: number) {
   display: flex;
   justify-content: space-between;
 }
-.list article {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  padding: 10px;
-  background: #151719;
-}
 .list input,
 .list textarea {
   min-width: 0;
   width: 100%;
   max-width: 100%;
 }
-.list article div {
-  grid-column: 1/-1;
+.actions {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
 }
 @media (max-width: 700px) {
-  .list article {
-    grid-template-columns: 1fr;
-  }
-  .list article div {
-    grid-column: auto;
-  }
 }
 </style>

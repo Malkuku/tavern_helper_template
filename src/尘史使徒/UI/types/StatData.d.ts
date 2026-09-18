@@ -8,7 +8,7 @@ export interface StatData {
   "季节与节日": Record<string, TimeEventData>;
   "势力": Record<string, FactionData>;
   "种族": Record<string, Record<string, string[]>>;
-  "主线": Record<string, MainQuestData>;
+  "主线": Record<string, MainQuestData | MainlineMetaData>;
   "任务": Record<string, TaskData>;
   "事件": Record<string, EventData>;
   "术": Record<string, Record<string, string>>;
@@ -238,10 +238,16 @@ export interface FactionData {
  * 主线任务
  */
 export interface MainQuestData {
-  "描述": string;
+  [key: string]: unknown;
+  "描述"?: string;
   "警惕度"?: number;
   "详细"?: string[];
   "已交融的魂质"?: string[];
+}
+
+export interface MainlineMetaData {
+  version: 1;
+  layouts: Record<string, unknown>;
 }
 
 /**

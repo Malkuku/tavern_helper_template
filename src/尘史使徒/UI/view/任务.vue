@@ -45,7 +45,6 @@
 
     <div class="quest-content">
       <transition name="fade-slide" mode="out-in">
-
         <!-- 0. 布告栏面板 (最终优化版) -->
         <div v-if="currentTab === 'board'" class="panel-board" key="board">
           <div class="board-grid">
@@ -55,7 +54,7 @@
               class="task-card board-card"
               :class="{
                 'is-selected': selectedQuests.has(name),
-                'is-sealed': isSubmitting && selectedQuests.has(name)
+                'is-sealed': isSubmitting && selectedQuests.has(name),
               }"
               @click="!isSubmitting && toggleQuest(name)"
             >
@@ -124,47 +123,29 @@
         <!-- 1. 主线任务 -->
         <div v-else-if="currentTab === 'main'" class="panel-main" key="main">
           <div v-if="filteredMainQuests.length === 0" class="empty-state">暂无主线指引</div>
-          <MainQuestCard v-for="quest in filteredMainQuests" :key="quest.title" :title="quest.title" :data="quest" />
+          <MainQuestCard
+            v-for="quest in filteredMainQuests"
+            :key="quest.title"
+            :title="quest.title"
+            :data="quest"
+            :blocks="questStore.mainlineMeta?.layouts[quest.title]?.blocks"
+          />
         </div>
 
         <!-- 2. 委托任务 -->
         <div v-else-if="currentTab === 'tasks'" key="tasks" class="panel-tasks">
           <div v-if="filteredTasks.length === 0" class="empty-state">暂无进行中的委托</div>
           <div class="task-grid">
-            <div
+            <NarrativeEntryCard
               v-for="task in filteredTasks"
               :key="task.title"
-              class="task-card"
-              :class="{ 'shake-anim': isEditMode }"
+              :title="task.title"
+              :data="task"
+              kind="任务"
+              ><template v-if="isEditMode" #actions
+                ><button class="card-delete-btn" title="放弃委托" @click.stop="handleDelete(task)">×</button></template
+              ></NarrativeEntryCard
             >
-              <!-- 删除按钮 (编辑模式) -->
-              <transition name="scale-in">
-                <button
-                  v-if="isEditMode"
-                  class="card-delete-btn"
-                  @click.stop="handleDelete(task)"
-                  title="放弃委托"
-                >
-                  ×
-                </button>
-              </transition>
-
-              <div class="task-header">
-                <h3>{{ task.title }}</h3>
-                <div class="decoration-line"></div>
-              </div>
-              <div class="task-body">
-                <p class="desc">{{ task.描述 }}</p>
-                <div class="task-meta">
-                  <div class="meta-row"><span class="icon">🎯</span><span class="label">目标:</span><span class="value">{{ task.目标 }}</span></div>
-                  <div class="meta-row" v-if="task.阻碍"><span class="icon">⚔</span><span class="label">阻碍:</span><span class="value">{{ task.阻碍 }}</span></div>
-                  <div class="meta-row reward" v-if="task.期望奖励"><span class="icon">💰</span><span class="label">报酬:</span><span class="value">{{ task.期望奖励 }}</span></div>
-                </div>
-                <div v-if="task.取得成果?.length" class="achievements">
-                  <div v-for="(ach, idx) in task.取得成果" :key="idx" class="ach-item">✓ {{ ach }}</div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -172,28 +153,18 @@
         <div v-else-if="currentTab === 'events'" class="panel-events" key="events">
           <div v-if="filteredEvents.length === 0" class="empty-state">无特殊事件</div>
           <div class="event-list">
-            <div v-for="evt in filteredEvents" :key="evt.title" class="event-row">
-              <div class="event-info">
-                <h3>{{ evt.title }}</h3>
-                <p>{{ evt.描述 }}</p>
-                <div class="effect" v-if="evt.作用"><span class="label">影响:</span> {{ evt.作用 }}</div>
-              </div>
-              <div class="event-progress">
-                <div class="progress-text"><span>进度</span><span>{{ evt.进度 }}</span></div>
-              </div>
-
-              <!-- 删除按钮 (编辑模式) -->
-              <transition name="fade">
-                <div v-if="isEditMode" class="event-actions">
-                  <button class="row-delete-btn" @click.stop="handleDelete(evt)">
-                    删除
-                  </button>
-                </div>
-              </transition>
-            </div>
+            <NarrativeEntryCard
+              v-for="evt in filteredEvents"
+              :key="evt.title"
+              :title="evt.title"
+              :data="evt"
+              kind="事件"
+              ><template v-if="isEditMode" #actions
+                ><button class="row-delete-btn" @click.stop="handleDelete(evt)">删除</button></template
+              ></NarrativeEntryCard
+            >
           </div>
         </div>
-
       </transition>
     </div>
   </div>
@@ -205,6 +176,7 @@ import { useRouter } from 'vue-router';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import MainQuestCard from '@/尘史使徒/UI/components/task/MainQuestCard.vue';
+import NarrativeEntryCard from '@/尘史使徒/UI/components/task/NarrativeEntryCard.vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
 
 const router = useRouter();
@@ -219,7 +191,7 @@ const hasBoardData = computed(() => questStore.hasBoardData);
 const currentTab = ref(hasBoardData.value ? 'board' : 'main');
 
 // 监听新任务，自动切到布告栏
-watch(hasBoardData, (val) => {
+watch(hasBoardData, val => {
   if (val) currentTab.value = 'board';
 });
 
@@ -274,8 +246,8 @@ const handleDelete = async (object: any) => {
   // 使用空对象 {} 标记删除
   const payload = {
     [rootKey]: {
-      [object.title]: {}
-    }
+      [object.title]: {},
+    },
   };
 
   try {
@@ -283,11 +255,10 @@ const handleDelete = async (object: any) => {
     // 使用 MvuUtil 的差分更新方法删除任务
     const diffPayload = {
       [rootKey]: {
-        [object.title]: null  // null 表示删除该字段
-      }
+        [object.title]: null, // null 表示删除该字段
+      },
     };
     await MvuUtil.updateMvuDataByDiff(diffPayload);
-
   } catch (e) {
     console.error('删除失败', e);
   }
@@ -298,7 +269,8 @@ const selectedQuests = ref<Set<string>>(new Set());
 const isSubmitting = ref(false);
 
 const toggleQuest = (name: string) => {
-  selectedQuests.value.has(name) ? selectedQuests.value.delete(name) : selectedQuests.value.add(name);
+  if (selectedQuests.value.has(name)) selectedQuests.value.delete(name);
+  else selectedQuests.value.add(name);
 };
 
 const confirmQuests = async () => {
@@ -335,7 +307,6 @@ ${jsonStr}
 
     // 3. 跳转回正文页面 (假设路由路径为 /选项)
     await router.push('/选项');
-
   } catch (e) {
     console.error('委托提交失败', e);
   } finally {
@@ -401,7 +372,7 @@ ${jsonStr}
   justify-content: space-between; /* 两端对齐，容纳编辑按钮 */
   align-items: center;
   margin-bottom: 30px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-right: 10px;
 }
 
@@ -427,7 +398,7 @@ ${jsonStr}
 
 .tab-btn:hover {
   color: var(--c-text-main);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .tab-btn.active {
@@ -458,14 +429,26 @@ ${jsonStr}
 }
 
 @keyframes pulse-dot {
-  0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(168, 50, 50, 0.7); }
-  70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(168, 50, 50, 0); }
-  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(168, 50, 50, 0); }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(168, 50, 50, 0.7);
+  }
+  70% {
+    transform: scale(1.1);
+    opacity: 0.8;
+    box-shadow: 0 0 0 6px rgba(168, 50, 50, 0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(168, 50, 50, 0);
+  }
 }
 
 .tab-count {
   font-size: 0.8rem;
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: sans-serif;
@@ -554,13 +537,13 @@ ${jsonStr}
   transform: translateY(-4px);
   border-color: rgba(212, 175, 55, 0.3);
   background: rgba(20, 20, 20, 0.95);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 /* 选中状态 */
 .board-card.is-selected {
   border-color: var(--c-gold);
-  background: linear-gradient(160deg, rgba(20,20,20,0.95) 0%, rgba(35,30,15,0.95) 100%);
+  background: linear-gradient(160deg, rgba(20, 20, 20, 0.95) 0%, rgba(35, 30, 15, 0.95) 100%);
   box-shadow: 0 5px 25px rgba(212, 175, 55, 0.15);
 }
 
@@ -588,7 +571,7 @@ ${jsonStr}
   justify-content: space-between;
   align-items: flex-start;
   padding: 20px 20px 15px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .quest-title {
@@ -605,7 +588,7 @@ ${jsonStr}
 .status-checkbox {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -615,7 +598,7 @@ ${jsonStr}
 }
 
 .board-card:hover .status-checkbox {
-  border-color: rgba(255,255,255,0.5);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .board-card.is-selected .status-checkbox {
@@ -647,7 +630,7 @@ ${jsonStr}
 
 .info-label {
   font-size: 0.7rem;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
@@ -715,7 +698,7 @@ ${jsonStr}
 }
 
 .board-card.is-selected .reward-label {
-  color: rgba(0,0,0,0.6);
+  color: rgba(0, 0, 0, 0.6);
   opacity: 1;
 }
 
@@ -728,7 +711,10 @@ ${jsonStr}
 /* 选中流光 */
 .card-glow {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   pointer-events: none;
   box-shadow: inset 0 0 0 1px var(--c-gold);
   z-index: 1;
@@ -742,17 +728,35 @@ ${jsonStr}
 }
 
 @keyframes contract-burn {
-  0% { transform: scale(1); filter: brightness(1); border-color: var(--c-gold); }
-  40% { transform: scale(0.98); filter: brightness(2) sepia(1); background: var(--c-gold); }
-  100% { transform: scale(0.9); opacity: 0; filter: blur(10px); }
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    border-color: var(--c-gold);
+  }
+  40% {
+    transform: scale(0.98);
+    filter: brightness(2) sepia(1);
+    background: var(--c-gold);
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0;
+    filter: blur(10px);
+  }
 }
 
 @keyframes scale-in {
-  from { transform: scale(0); }
-  to { transform: scale(1); }
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
-.scale-in-enter-active { animation: scale-in 0.2s; }
+.scale-in-enter-active {
+  animation: scale-in 0.2s;
+}
 
 /* =========================================
    Signature Bar (底部签署栏)
@@ -833,20 +837,21 @@ ${jsonStr}
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transform: skewX(-20deg);
   animation: shine 3s infinite;
 }
 
 @keyframes shine {
-  0% { left: -100%; }
-  20% { left: 200%; }
-  100% { left: 200%; }
+  0% {
+    left: -100%;
+  }
+  20% {
+    left: 200%;
+  }
+  100% {
+    left: 200%;
+  }
 }
 
 /* --- Task Grid (通用) --- */
@@ -860,7 +865,9 @@ ${jsonStr}
   background: var(--c-card-bg);
   border: 1px solid var(--c-border);
   padding: 20px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   display: flex;
   flex-direction: column;
   position: relative; /* For delete btn */
@@ -868,7 +875,7 @@ ${jsonStr}
 
 .task-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   border-color: var(--c-gold);
 }
 
@@ -900,15 +907,26 @@ ${jsonStr}
   font-size: 0.9rem;
 }
 
-.meta-row .icon { margin-right: 8px; width: 15px; text-align: center; }
-.meta-row .label { color: var(--c-text-dim); margin-right: 5px; }
-.meta-row .value { color: var(--c-text-main); }
-.meta-row.reward .value { color: var(--c-gold); }
+.meta-row .icon {
+  margin-right: 8px;
+  width: 15px;
+  text-align: center;
+}
+.meta-row .label {
+  color: var(--c-text-dim);
+  margin-right: 5px;
+}
+.meta-row .value {
+  color: var(--c-text-main);
+}
+.meta-row.reward .value {
+  color: var(--c-gold);
+}
 
 .achievements {
   margin-top: 15px;
   padding-top: 10px;
-  border-top: 1px dashed rgba(255,255,255,0.1);
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 .ach-item {
@@ -934,7 +952,7 @@ ${jsonStr}
   align-items: center;
   justify-content: center;
   z-index: 10;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
   transition: transform 0.2s;
 }
 
@@ -948,7 +966,7 @@ ${jsonStr}
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid transparent;
   border-bottom: 1px solid var(--c-border);
   padding: 20px;
@@ -1073,7 +1091,8 @@ ${jsonStr}
   }
 
   /* 5. 列表与卡片调整 */
-  .board-grid, .task-grid {
+  .board-grid,
+  .task-grid {
     grid-template-columns: 1fr; /* 强制单列 */
     gap: 15px;
   }
@@ -1149,20 +1168,32 @@ ${jsonStr}
   transform: translate(-50%, 20px);
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.3s;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
 /* Shake Animation for Edit Mode */
 @keyframes shake {
-  0% { transform: rotate(0deg); }
-  25% { transform: rotate(0.5deg); }
-  50% { transform: rotate(0deg); }
-  75% { transform: rotate(-0.5deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(0.5deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-0.5deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 .shake-anim {
