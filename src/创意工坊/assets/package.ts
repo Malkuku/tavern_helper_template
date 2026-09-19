@@ -73,7 +73,6 @@ export function expandPackageSelection(
 
 export function parsePackage(text: string): WorkshopPackage {
   const pkg = PackageSchema.parse(JSON.parse(text)) as WorkshopPackage;
-  if (Object.keys(pkg.assets.地图 ?? {}).length > 1) throw new Error('资产包只能包含一张地图。');
   const schemas: Record<WorkshopCategory, z.ZodType> = {
     开场白: ScenarioEntrySchema,
     世界经济: CollectionEntrySchema,
@@ -99,7 +98,6 @@ export function parseScenarioJson(text: string): ScenarioEntry {
 }
 
 export function listConflicts(source: ScenarioSourceBundle, pkg: WorkshopPackage): PackageConflict[] {
-  assertPackageMapCompatibility(source, pkg);
   const current = assetsOf(source);
   const conflicts: PackageConflict[] = [];
   for (const [category, entries] of Object.entries(pkg.assets) as [WorkshopCategory, Record<string, unknown>][]) {
@@ -113,13 +111,16 @@ export function listConflicts(source: ScenarioSourceBundle, pkg: WorkshopPackage
 }
 
 export function assertPackageMapCompatibility(source: ScenarioSourceBundle, pkg: WorkshopPackage): void {
-  const currentIds = new Set(Object.keys(source.registries.地图));
-  const incomingIds = Object.keys(pkg.assets.地图 ?? {});
-  const resultingIds = new Set([...currentIds, ...incomingIds]);
-  if (resultingIds.size > 1) {
-    throw new Error(
-      `资产包会使项目出现 ${resultingIds.size} 张地图；项目只允许唯一地图。请仅覆盖现有地图 UUID，或先移除包内地图。`,
-    );
+  void source;
+  void pkg;
+}
+
+export function parseMapJson(text: string) {
+  try {
+    return MapEntrySchema.parse(JSON.parse(text));
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error('地图 JSON 语法无效，请检查逗号、引号和括号。');
+    throw new Error('文件不是有效的完整地图 JSON，或包含不安全的 SVG。');
   }
 }
 
@@ -190,6 +191,15 @@ export function downloadScenarioJson(scenario: ScenarioEntry): void {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${scenario.key || '未命名剧本'}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export function downloadMapJson(map: import('../scenario/types').MapEntry, name = '地图'): void {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(map, null, 2)], { type: 'application/json;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${name}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -16,6 +16,7 @@ import {
   expandPackageSelection,
   listConflicts,
   mergePackage,
+  parseMapJson,
   parsePackage,
   parseScenarioJson,
 } from '../src/创意工坊/assets/package';
@@ -40,6 +41,7 @@ import {
   synchronizeAutomaticReferences,
 } from '../src/创意工坊/scenario/worldbookSource';
 import type { ScenarioSourceBundle } from '../src/创意工坊/scenario/types';
+import { renderMapSvg, sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import { scenarioThemes } from '../src/创意工坊/scenario/themes';
 import { resolveSpeaker } from '../src/尘史使徒/UI/components/panel/speaker';
 
@@ -184,6 +186,8 @@ assert.deepEqual(resolveSpeaker(lunaSpeakers, '希尔', ''), {
   avatarStyle: 'auto',
 });
 const entry = { author: 'a', desc: 'd', key: 'k', data: {} };
+const safeMapSvg =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21V9l9-6 9 6v12Z"/></svg>';
 const source: ScenarioSourceBundle = {
   fixedData: {},
   scenarios: {
@@ -196,7 +200,7 @@ const source: ScenarioSourceBundle = {
       自定义主角: false,
       内容配置: {
         开场文本: 'text',
-        世界: { 时间: '午后' },
+        世界: { 时间: '午后', 地图索引: '城市' },
         角色: ['role'],
         地图: 'map',
         世界经济: [],
@@ -212,13 +216,81 @@ const source: ScenarioSourceBundle = {
   registries: {
     世界经济: {},
     势力: {},
-    地图: { map: { author: 'a', desc: '', data: { 城市: { 描述: '城' } } } },
+    地图: {
+      map: {
+        author: 'a',
+        desc: '',
+        data: { 城市: { 描述: '城', 详情: [], 图标: safeMapSvg, 方位: { x: [0, 0], y: [0, 0], z: [0, 0] } } },
+      },
+    },
     季节与节日: {},
     种族: {},
     角色: { role: { ...entry, type: 'user' } },
   },
 };
 assert.deepEqual(findReferenceIssues(source), []);
+assert.equal(sanitizeMapSvg(`  ${safeMapSvg}  `), safeMapSvg, '合法 SVG 应净化并保留完整标记');
+const multicolorSvg =
+  '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#243B55" stroke="#D4AF37"/><path d="M7 13l3 3 7-8" stroke="#F7E7A9" stroke-width="2"/></svg>';
+assert.equal(sanitizeMapSvg(multicolorSvg), multicolorSvg, '安全的多色 SVG 必须保持原始 JSON 表示');
+const renderedMulticolorSvg = renderMapSvg(multicolorSvg);
+assert.match(renderedMulticolorSvg, /fill:#243B55 !important/, '节点填色必须以内联 important 抵抗宿主样式');
+assert.match(renderedMulticolorSvg, /stroke:#D4AF37 !important/, '节点描边色必须以内联 important 抵抗宿主样式');
+assert.match(renderedMulticolorSvg, /stroke:#F7E7A9 !important/, '不同图形元素必须允许各自着色');
+assert.throws(
+  () => sanitizeMapSvg('<svg viewBox="0 0 24 24"><path fill="url(https://evil.example/a)" d="M0 0"/></svg>'),
+  '颜色属性不得借 URL 绕过外部资源限制',
+);
+for (const maliciousSvg of [
+  '<svg viewBox="0 0 24 24"><script>alert(1)</script></svg>',
+  '<svg viewBox="0 0 24 24" onload="alert(1)"><path d="M0 0"/></svg>',
+  '<svg viewBox="0 0 24 24"><foreignObject><div>bad</div></foreignObject></svg>',
+  '<svg viewBox="0 0 24 24"><image href="https://evil.example/a.svg"/></svg>',
+  '<svg viewBox="0 0 24 24"><path style="fill:url(javascript:alert(1))" d="M0 0"/></svg>',
+]) {
+  assert.throws(() => sanitizeMapSvg(maliciousSvg), '恶意 SVG 必须被安全边界拒绝');
+  assert.throws(
+    () =>
+      parseMapJson(
+        JSON.stringify({
+          author: 'x',
+          desc: 'bad',
+          data: { 恶意节点: { 描述: '', 详情: [], 图标: maliciousSvg, 方位: { x: [], y: [], z: [] } } },
+        }),
+      ),
+    /不安全的 SVG/,
+    '恶意 SVG 地图导入必须失败',
+  );
+}
+const mapRoundTrip = parseMapJson(JSON.stringify(source.registries.地图.map));
+assert.deepEqual(mapRoundTrip, source.registries.地图.map, '完整 MapEntry JSON 必须无损往返');
+assert.throws(
+  () =>
+    parseMapJson(
+      JSON.stringify({
+        author: 'x',
+        desc: '',
+        data: { 城市: { 描述: '', 详情: [], 图标: 'city', 方位: { x: [], y: [], z: [] } } },
+      }),
+    ),
+  /不安全的 SVG/,
+  '旧图标枚举不得继续作为地图输入',
+);
+const sharedMapExplorer = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/map/MapExplorer.vue'), 'utf8');
+for (const consumer of [
+  'src/尘史使徒/UI/view/世界信息.vue',
+  'src/创意工坊/components/MapLocationPicker.vue',
+  'src/创意工坊/components/MapAssetEditor.vue',
+]) {
+  assert.match(readFileSync(join(process.cwd(), consumer), 'utf8'), /MapExplorer/, `${consumer} 必须复用共享地图入口`);
+}
+assert.match(sharedMapExplorer, /mode === 'selection'/, '共享地图必须提供地点选择模式');
+assert.match(sharedMapExplorer, /mode === 'gameplay'/, '共享地图必须提供运行时模式');
+assert.equal(
+  existsSync(join(process.cwd(), 'src/尘史使徒/UI/composables/map/useIconSystem.ts')),
+  false,
+  '旧图标枚举实现必须退出',
+);
 const unavailable = structuredClone(source);
 unavailable.scenarios.s.内容配置 = {
   开场文本: '',
@@ -295,6 +367,31 @@ const merged = mergePackage(target, pkg, { '角色:role': 'copy' });
 const copied = Object.keys(merged.registries.角色).find(id => id !== 'role');
 assert.ok(copied);
 assert.deepEqual(merged.scenarios.s.内容配置.角色, [copied]);
+
+const secondMapSource = structuredClone(source);
+secondMapSource.registries.地图.other = {
+  author: 'b',
+  desc: '另一张地图',
+  data: { 荒原: { 描述: '荒原', 详情: [], 图标: safeMapSvg, 方位: { x: [1, 1], y: [1, 1], z: [0, 0] } } },
+};
+secondMapSource.scenarios.s.内容配置.地图 = 'other';
+secondMapSource.scenarios.s.内容配置.世界.地图索引 = '荒原';
+assert.deepEqual(findReferenceIssues(secondMapSource), [], '多地图注册表必须允许剧本显式绑定任意有效地图');
+secondMapSource.scenarios.s.内容配置.地图 = 'map';
+assert.ok(
+  findReferenceIssues(secondMapSource).some(issue => issue.field === '世界.地图索引'),
+  '更换地图后不得静默保留无效初始地点并宣称可玩',
+);
+normalizeScenarioAvailability(secondMapSource);
+assert.equal(secondMapSource.scenarios.s.可用, false, '初始地点不属于所选地图时必须标记为不可玩');
+
+const mapConflictTarget = structuredClone(source);
+mapConflictTarget.registries.地图.map.desc = '本地冲突地图';
+const remappedPackage = mergePackage(mapConflictTarget, pkg, { '地图:map': 'copy' });
+const copiedMapId = Object.keys(remappedPackage.registries.地图).find(id => id !== 'map');
+assert.ok(copiedMapId, '地图冲突选择复制时必须创建新 UUID');
+assert.equal(remappedPackage.scenarios.s.内容配置.地图, copiedMapId, '地图复制后剧本单例引用必须重映射');
+assert.equal(remappedPackage.scenarios.s.内容配置.世界.地图索引, '城市', '重映射不得篡改有效初始地点');
 
 for (const category of workshopCategories) {
   const value = createDefaultAsset(category);

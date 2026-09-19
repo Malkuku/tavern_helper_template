@@ -8,6 +8,7 @@ import type {
   TextEntry,
   TypedCollectionEntry,
 } from './types';
+import { sanitizeMapSvg } from './map';
 
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 const EntryBaseSchema = z.object({
@@ -40,10 +41,6 @@ export const TypedCollectionEntrySchema: z.ZodType<TypedCollectionEntry> = Entry
     .strict()
     .optional(),
   data: z.unknown(),
-}).strict();
-
-export const MapEntrySchema: z.ZodType<MapEntry> = EntryBaseSchema.extend({
-  data: JsonObjectSchema,
 }).strict();
 
 const EmbeddedNarrativeEntrySchema = z.object({ key: z.string().min(1), data: JsonObjectSchema }).strict();
@@ -97,7 +94,14 @@ const MapNodeSchema: z.ZodType<Record<string, unknown>> = z.lazy(() =>
       名称检索词: z.array(z.string()).optional(),
       描述: z.string(),
       详情: z.array(z.string()),
-      图标: z.string(),
+      图标: z.string().refine(value => {
+        try {
+          sanitizeMapSvg(value);
+          return true;
+        } catch {
+          return false;
+        }
+      }, '图标必须是安全的完整 SVG'),
       方位: z.object({
         x: z.array(z.number()),
         y: z.array(z.number()),
@@ -107,6 +111,10 @@ const MapNodeSchema: z.ZodType<Record<string, unknown>> = z.lazy(() =>
     })
     .passthrough(),
 );
+
+export const MapEntrySchema: z.ZodType<MapEntry> = EntryBaseSchema.extend({
+  data: z.record(z.string(), MapNodeSchema),
+}).strict();
 
 export const RuntimeStatDataSchema = z
   .object({

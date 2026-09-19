@@ -16,6 +16,7 @@ import type { ScenarioSourceBundle, WorkshopPackage } from '../src/创意工坊/
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
 
 const baseEntry = { author: 'acceptance', desc: 'asset', key: 'key', data: { value: 1 } };
+const mapIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21V9l9-6 9 6v12Z"/></svg>';
 function fixture(): ScenarioSourceBundle {
   return {
     fixedData: {},
@@ -29,7 +30,7 @@ function fixture(): ScenarioSourceBundle {
         自定义主角: false,
         内容配置: {
           开场文本: 'opening',
-          世界: {},
+          世界: { 地图索引: '艾斯特拉' },
           角色: ['role'],
           地图: 'map',
           世界经济: [],
@@ -45,7 +46,13 @@ function fixture(): ScenarioSourceBundle {
     registries: {
       世界经济: {},
       势力: {},
-      地图: { map: { author: 'acceptance', desc: '', data: { 艾斯特拉: { 描述: '城市' } } } },
+      地图: {
+        map: {
+          author: 'acceptance',
+          desc: '',
+          data: { 艾斯特拉: { 描述: '城市', 详情: [], 图标: mapIcon, 方位: { x: [0], y: [0], z: [0] } } },
+        },
+      },
       季节与节日: {},
       种族: {},
       角色: { role: { ...baseEntry, type: 'user' } },
@@ -88,10 +95,20 @@ async function testPackageAndReferences(): Promise<void> {
     format: 'dust-history-workshop-package',
     version: 2,
     exportedAt: new Date().toISOString(),
-    assets: { 地图: { another: { author: '', desc: '', data: {} } } },
+    assets: {
+      地图: {
+        another: {
+          author: '',
+          desc: '',
+          data: { 荒原: { 描述: '荒原', 详情: [], 图标: mapIcon, 方位: { x: [1], y: [1], z: [0] } } },
+        },
+      },
+    },
   };
-  assert.throws(() => listConflicts(source, secondMapPackage), /只允许唯一地图/);
-  assert.throws(() => mergePackage(source, secondMapPackage, {}), /只允许唯一地图/);
+  assert.deepEqual(listConflicts(source, secondMapPackage), [], '新增第二地图不应制造冲突');
+  const withSecondMap = mergePackage(source, secondMapPackage, {});
+  assert.deepEqual(Object.keys(withSecondMap.registries.地图).sort(), ['another', 'map'], '资产包必须允许导入第二地图');
+  assert.equal(withSecondMap.scenarios.scenario.内容配置.地图, 'map', '导入无关地图不得改写现有剧本绑定');
 
   const target = fixture();
   target.registries.角色.role.data = { target: true };

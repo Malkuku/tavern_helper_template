@@ -4,7 +4,9 @@
       <button :class="{ active: domain === '剧本' }" @click="pickDomain('剧本')">
         剧本 <small>{{ scenarios.length }}</small></button
       ><button :class="{ active: domain === '角色' }" @click="pickDomain('角色')">
-        角色 <small>{{ roleGroups.length }}</small>
+        角色 <small>{{ roleGroups.length }}</small></button
+      ><button :class="{ active: domain === '地图' }" @click="pickDomain('地图')">
+        地图 <small>{{ maps.length }}</small>
       </button>
     </nav>
     <aside class="catalog mobile-catalog">
@@ -62,6 +64,19 @@
             </button>
           </div>
         </div></template
+      ><template v-else-if="domain === '地图'"
+        ><button
+          v-for="m in filteredMaps"
+          :key="m.id"
+          class="asset"
+          :class="{ active: selectedId === m.id }"
+          @click="selectAsset(m.id)"
+        >
+          <span class="asset-copy"
+            ><strong>{{ m.title }}</strong
+            ><small>{{ m.entry.author || '未署名' }}</small></span
+          >
+        </button></template
       ><template v-else
         ><button
           v-for="s in filteredScenarios"
@@ -96,7 +111,7 @@
         <div class="entry-actions">
           <button v-if="domain === '角色'" @click="openRoleAssistant(selectedId)">✦ AI 修改</button
           ><button @click="copyCurrent">复制</button
-          ><span v-if="domain === '剧本'" class="scenario-json-actions"
+          ><span v-if="domain === '剧本' || domain === '地图'" class="scenario-json-actions"
             ><button type="button" @click="scenarioImportInput?.click()">导入 JSON</button
             ><button @click="exportOpen = true">导出 JSON</button
             ><input
@@ -116,7 +131,11 @@
           :role-options="roleOptions"
           :dirty-sections="roleDirtySections"
           @request-type-change="pendingRoleType = $event" /></template
-      ><ScenarioEditor v-else-if="entry" :entry="entry" :source="draft" />
+      ><MapAssetEditor v-else-if="domain === '地图' && entry" :entry="entry" /><ScenarioEditor
+        v-else-if="entry"
+        :entry="entry"
+        :source="draft"
+      />
       <div v-else class="empty">选择或新建一项{{ domain }}</div>
     </main>
     <aside class="status mobile-status">
@@ -273,7 +292,7 @@
       >
     </AppDialog>
     <AppDialog :open="exportOpen" title="导出预览" @cancel="exportOpen = false"
-      ><p v-if="domain === '剧本'">将导出剧本“{{ title }}”的纯 JSON，可再次导入工坊编辑。</p>
+      ><p v-if="domain === '剧本' || domain === '地图'">将导出“{{ title }}”的完整 JSON，可再次导入工坊编辑。</p>
       <p v-else>将导出角色“{{ title }}”及其资产包装信息。</p>
       <template #actions><button class="primary" @click="confirmExport">下载</button></template></AppDialog
     ><AppDialog :open="!!pendingScenarioImport" title="覆盖当前剧本" @cancel="pendingScenarioImport = undefined">
@@ -299,7 +318,14 @@
 import { klona } from 'klona';
 import { computed, reactive, ref } from 'vue';
 import { deleteAsset, findReferenceIssues, findReferencesTo } from '../assets/model';
-import { createPackage, downloadPackage, downloadScenarioJson, parseScenarioJson } from '../assets/package';
+import {
+  createPackage,
+  downloadMapJson,
+  downloadPackage,
+  downloadScenarioJson,
+  parseMapJson,
+  parseScenarioJson,
+} from '../assets/package';
 import { assetTitle, createDefaultAsset, defaultRoleData, diffSources } from '../assets/presentation';
 import {
   buildDownloadableRolePrompt,
@@ -308,19 +334,20 @@ import {
   roleToRuntimeJson,
   type GeneratedRoleType,
 } from '../assets/roleGenerator';
-import type { ReferenceIssue, ScenarioEntry, ScenarioSourceBundle } from '../scenario/types';
+import type { ReferenceIssue, ScenarioSourceBundle } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import ScenarioEditor from './ScenarioEditor.vue';
 import ScenarioThemeIcon from '../../尘史使徒/UI/components/scenario/ScenarioThemeIcon.vue';
+import MapAssetEditor from './MapAssetEditor.vue';
 const props = defineProps<{ source: ScenarioSourceBundle; draft: ScenarioSourceBundle }>();
 const emit = defineEmits<{
   save: [];
   requestReload: [];
   message: [value: { text: string; error?: boolean }];
 }>();
-const domain = ref<'角色' | '剧本'>('剧本'),
+const domain = ref<'角色' | '剧本' | '地图'>('剧本'),
   selectedId = ref(''),
   query = ref(''),
   roleType = ref(''),
@@ -341,7 +368,7 @@ const domain = ref<'角色' | '剧本'>('剧本'),
   generatorError = ref(''),
   preparingPrompt = ref(false),
   scenarioImportInput = ref<HTMLInputElement>(),
-  pendingScenarioImport = ref<{ targetId: string; value: ScenarioEntry }>(),
+  pendingScenarioImport = ref<{ targetId: string; value: any }>(),
   expandedGroups = reactive(new Set<string>());
 const changes = computed(() => diffSources(props.source, props.draft)),
   issues = computed(() => findReferenceIssues(props.draft));
@@ -361,6 +388,14 @@ const roleDirtySections = computed(() => {
 });
 const scenarios = computed(() =>
   Object.entries(props.draft.scenarios).map(([id, entry]) => ({ id, entry, title: assetTitle('开场白', entry) })),
+);
+const maps = computed(() =>
+  Object.entries(props.draft.registries.地图).map(([id, entry]) => ({ id, entry, title: assetTitle('地图', entry) })),
+);
+const filteredMaps = computed(() =>
+  maps.value.filter(m =>
+    `${m.title} ${m.entry.author} ${m.entry.desc}`.toLowerCase().includes(query.value.toLowerCase()),
+  ),
 );
 const roles = computed(() => {
   const all = Object.entries(props.draft.registries.角色);
@@ -418,9 +453,17 @@ const filteredScenarios = computed(() =>
   ),
 );
 const entry = computed<any>(() =>
-  domain.value === '角色' ? props.draft.registries.角色[selectedId.value] : props.draft.scenarios[selectedId.value],
+  domain.value === '角色'
+    ? props.draft.registries.角色[selectedId.value]
+    : domain.value === '地图'
+      ? props.draft.registries.地图[selectedId.value]
+      : props.draft.scenarios[selectedId.value],
 );
-const title = computed(() => (entry.value ? assetTitle(domain.value === '角色' ? '角色' : '开场白', entry.value) : ''));
+const title = computed(() =>
+  entry.value
+    ? assetTitle(domain.value === '角色' ? '角色' : domain.value === '地图' ? '地图' : '开场白', entry.value)
+    : '',
+);
 const variants = computed(() =>
   entry.value && domain.value === '角色'
     ? roles.value.filter(r => r.entry.type === entry.value.type && r.entry.key === entry.value.key)
@@ -462,7 +505,7 @@ function versionSummary(id: string) {
 function scenarioTitle(id: string) {
   return assetTitle('开场白', props.draft.scenarios[id]);
 }
-function pickDomain(v: '角色' | '剧本') {
+function pickDomain(v: '角色' | '剧本' | '地图') {
   domain.value = v;
   selectedId.value = '';
   mobilePane.value = 'catalog';
@@ -471,6 +514,7 @@ function pickDomain(v: '角色' | '剧本') {
 function createCurrent() {
   const id = crypto.randomUUID();
   if (domain.value === '角色') props.draft.registries.角色[id] = createDefaultAsset('角色');
+  else if (domain.value === '地图') props.draft.registries.地图[id] = createDefaultAsset('地图');
   else createScenario(id);
   selectedId.value = id;
   mobilePane.value = 'editor';
@@ -555,8 +599,9 @@ function copyCurrent() {
   if (!entry.value) return;
   const id = crypto.randomUUID(),
     v = klona(entry.value);
-  v.key = `${v.key || title.value}副本`;
+  if (domain.value !== '地图') v.key = `${v.key || title.value}副本`;
   if (domain.value === '角色') props.draft.registries.角色[id] = v;
+  else if (domain.value === '地图') props.draft.registries.地图[id] = v;
   else {
     v.可用 = false;
     props.draft.scenarios[id] = v;
@@ -568,10 +613,12 @@ async function importScenarioFile(event: Event) {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    if (!selectedId.value || !props.draft.scenarios[selectedId.value]) throw new Error('请先选择要覆盖的剧本。');
+    const target =
+      domain.value === '地图' ? props.draft.registries.地图[selectedId.value] : props.draft.scenarios[selectedId.value];
+    if (!selectedId.value || !target) throw new Error(`请先选择要覆盖的${domain.value}。`);
     pendingScenarioImport.value = {
       targetId: selectedId.value,
-      value: parseScenarioJson(await file.text()),
+      value: domain.value === '地图' ? parseMapJson(await file.text()) : parseScenarioJson(await file.text()),
     };
   } catch (error) {
     emit('message', { text: error instanceof Error ? error.message : String(error), error: true });
@@ -582,29 +629,37 @@ async function importScenarioFile(event: Event) {
 function confirmScenarioImport() {
   const pending = pendingScenarioImport.value;
   if (!pending) return;
-  if (!props.draft.scenarios[pending.targetId]) {
+  const targetExists =
+    domain.value === '地图' ? props.draft.registries.地图[pending.targetId] : props.draft.scenarios[pending.targetId];
+  if (!targetExists) {
     pendingScenarioImport.value = undefined;
     emit('message', { text: '目标剧本已不存在，未执行覆盖。', error: true });
     return;
   }
-  props.draft.scenarios[pending.targetId] = pending.value;
+  if (domain.value === '地图') props.draft.registries.地图[pending.targetId] = pending.value as any;
+  else props.draft.scenarios[pending.targetId] = pending.value;
   selectedId.value = pending.targetId;
   mobilePane.value = 'editor';
   pendingScenarioImport.value = undefined;
   emit('message', { text: '剧本 JSON 已覆盖当前草稿，保存前可继续检查和编辑。' });
 }
 function askDelete() {
-  deleteImpacts.value = domain.value === '角色' ? findReferencesTo(props.draft, '角色', selectedId.value) : [];
+  deleteImpacts.value =
+    domain.value === '角色' || domain.value === '地图'
+      ? findReferencesTo(props.draft, domain.value, selectedId.value)
+      : [];
   deleteOpen.value = true;
 }
 function confirmDelete() {
   if (domain.value === '角色') deleteAsset(props.draft, '角色', selectedId.value, true);
+  else if (domain.value === '地图') deleteAsset(props.draft, '地图', selectedId.value, true);
   else delete props.draft.scenarios[selectedId.value];
   selectedId.value = '';
   deleteOpen.value = false;
 }
 function confirmExport() {
   if (domain.value === '剧本') downloadScenarioJson(entry.value);
+  else if (domain.value === '地图') downloadMapJson(entry.value, title.value);
   else downloadPackage(createPackage(props.draft, { 角色: [selectedId.value] }), title.value);
   exportOpen.value = false;
 }

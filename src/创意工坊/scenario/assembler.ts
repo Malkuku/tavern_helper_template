@@ -2,6 +2,7 @@ import { klona } from 'klona';
 import { z } from 'zod';
 
 import { ScenarioDataError } from './errors';
+import { mapContainsLocation } from './map';
 import { RuntimeStatDataSchema } from './schemas';
 import type {
   AssemblyResult,
@@ -165,6 +166,13 @@ export function assembleScenario(source: ScenarioSourceBundle, scenarioId: strin
 
   const config = scenario.内容配置;
   const map = requireEntry(source.registries.地图, '地图', config.地图);
+  const initialLocation = String(config.世界.地图索引 ?? '');
+  if (!mapContainsLocation(map, initialLocation)) {
+    throw new ScenarioDataError('INVALID_MAP_LOCATION', `初始地图索引“${initialLocation || '（空）'}”不在所选地图中。`, {
+      category: '地图',
+      resourceId: config.地图,
+    });
+  }
   const fixedData = klona(source.fixedData);
   const system = z.record(z.string(), z.unknown()).parse(fixedData.system);
 

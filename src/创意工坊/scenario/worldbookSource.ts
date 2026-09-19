@@ -83,13 +83,6 @@ export function parseScenarioSourceEntries(entries: ConfigEntry[]): ScenarioSour
     .strict()
     .parse(rawMaps);
   const maps = z.record(z.string(), MapEntrySchema).parse(mapDocument.地图);
-  if (Object.keys(maps).length !== 1) {
-    throw new ScenarioDataError(
-      'INVALID_DOCUMENT',
-      `地图配置必须且只能包含一张地图，当前为 ${Object.keys(maps).length} 张。`,
-      { category: '地图' },
-    );
-  }
 
   const result: ScenarioSourceBundle = {
     fixedData: openingResult.data.固定数据,
@@ -108,13 +101,11 @@ export function parseScenarioSourceEntries(entries: ConfigEntry[]): ScenarioSour
 }
 
 export function synchronizeAutomaticReferences(source: ScenarioSourceBundle): void {
-  const onlyMap = Object.keys(source.registries.地图);
   for (const scenario of Object.values(source.scenarios)) {
     scenario.内容配置.世界经济 = Object.keys(source.registries.世界经济);
     scenario.内容配置['季节与节日'] = Object.keys(source.registries['季节与节日']);
     scenario.内容配置.势力 = Object.keys(source.registries.势力);
     scenario.内容配置.种族 = Object.keys(source.registries.种族);
-    if (onlyMap.length === 1) scenario.内容配置.地图 = onlyMap[0];
   }
 }
 

@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { assembleScenario } from '../src/创意工坊/scenario/assembler';
 import { applyScenarioToLatestMessage } from '../src/创意工坊/scenario/hostAdapter';
+import { sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import { parseScenarioSourceEntries, scenarioWorldbookEntryNames } from '../src/创意工坊/scenario/worldbookSource';
 
 const configDirectory = process.argv[2];
@@ -26,6 +27,8 @@ assert.ok(scenarioId, '未找到“被遗忘者”开场白');
 const cloneSource = () => structuredClone(source);
 const countMapNodes = (nodes: Record<string, any>): number =>
   Object.values(nodes).reduce((total, node) => total + 1 + countMapNodes(node.子地图 ?? {}), 0);
+const collectMapNodes = (nodes: Record<string, any>): any[] =>
+  Object.values(nodes).flatMap((node: any) => [node, ...collectMapNodes(node.子地图 ?? {})]);
 const expectCode = (expectedCode: string, mutate: (draft: any) => void) => {
   const draft = cloneSource();
   mutate(draft);
@@ -42,6 +45,20 @@ assert.equal(result.statData.system.当前剧本, '被遗忘者');
 assert.ok(result.openingText.length > 0);
 assert.ok(Object.keys(result.statData.角色.主要角色).length > 0);
 assert.ok(countMapNodes(result.statData.地图) > 0);
+assert.equal(countMapNodes(result.statData.地图), 52, 'Beta 存量地图必须完整迁移 52 个节点');
+for (const node of collectMapNodes(result.statData.地图)) {
+  assert.equal(sanitizeMapSvg(node.图标), node.图标.trim(), 'Beta 每个地图节点都必须携带安全的完整 SVG');
+}
+assert.match(
+  (result.statData.地图 as any).泰拉大陆.图标,
+  /M2 22h20L12 2 2 22zm5-5l5-10 5 10H7z/,
+  'Beta 迁移必须保留原“高山”图标 path，不得擅自重画',
+);
+assert.match(
+  (result.statData.地图 as any).泰拉大陆.子地图.埃布尔王国.图标,
+  /M2 18h20M4 14l3-8 5 5 5-5 3 8H4z/,
+  'Beta 迁移必须保留原“王国”图标 path，不得擅自重画',
+);
 assert.deepEqual(result.statData.任务, {});
 const assembledScenarios = Object.entries(source.scenarios)
   .filter(([, scenario]) => scenario.可用)
@@ -57,6 +74,35 @@ assert.deepEqual(
 expectCode('RESOURCE_NOT_FOUND', draft => {
   draft.scenarios[scenarioId].内容配置.地图 = 'missing-map';
 });
+expectCode('RESOURCE_NOT_FOUND', draft => {
+  draft.scenarios[scenarioId].内容配置.地图 = '';
+});
+expectCode('INVALID_MAP_LOCATION', draft => {
+  draft.scenarios[scenarioId].内容配置.世界.地图索引 = '不存在的初始地点';
+});
+
+{
+  const draft = cloneSource();
+  const originalMapId = draft.scenarios[scenarioId].内容配置.地图;
+  const secondMapId = 'independent-second-map';
+  draft.registries.地图[secondMapId] = structuredClone(draft.registries.地图[originalMapId]);
+  draft.registries.地图[secondMapId].desc = '独立第二地图';
+  draft.scenarios[scenarioId].内容配置.地图 = secondMapId;
+  assert.equal(
+    assembleScenario(draft, scenarioId).scenario.内容配置.地图,
+    secondMapId,
+    '组装器必须按显式 UUID 绑定第二地图',
+  );
+}
+
+const worldEditIni = readFileSync(path.join(configDirectory, '..', '更新规则', '（配置1）世界编辑任务.ini'), 'utf8');
+assert.match(worldEditIni, /完整 SVG 字符串/, '世界编辑规则必须要求完整 SVG');
+assert.match(worldEditIni, /SVG 安全子集/, '世界编辑规则必须声明 SVG 安全子集');
+assert.doesNotMatch(
+  worldEditIni,
+  /MapIcon|图标[^\r\n]*(?:earth|kingdom|city|village|building|shop|palace|academy|dungeon|forest)/i,
+  '世界编辑规则不得保留旧图标枚举契约',
+);
 
 {
   const draft = cloneSource();

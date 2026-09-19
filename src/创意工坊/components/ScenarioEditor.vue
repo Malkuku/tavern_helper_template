@@ -127,6 +127,12 @@
             <button @click="mapOpen = true">从地图选择地点</button>
           </header>
           <div class="fields">
+            <label
+              >绑定地图<select v-model="entry.内容配置.地图">
+                <option value="">请选择地图</option>
+                <option v-for="option in mapOptions" :key="option.id" :value="option.id">{{ option.label }}</option>
+              </select></label
+            >
             <label v-for="field in worldFields" :key="field"
               >{{ field }}<input v-model="entry.内容配置.世界[field]" /></label
             ><label>地图索引<input v-model="entry.内容配置.世界.地图索引" readonly /></label>
@@ -204,6 +210,7 @@ import { normalizeRoleSelection } from '../assets/model';
 import { assetTitle } from '../assets/presentation';
 import { scenarioThemeById, scenarioThemes } from '../scenario/themes';
 import { mainlineEntries } from '../scenario/mainlineLayout';
+import { mapContainsLocation } from '../scenario/map';
 import type { ScenarioSourceBundle } from '../scenario/types';
 import EmbeddedNarrativeList from './EmbeddedNarrativeList.vue';
 import AppDialog from './AppDialog.vue';
@@ -220,7 +227,10 @@ const theme = computed(() => scenarioThemeById[props.entry.视觉方案]),
   themeViewBox = computed(() =>
     ['forge', 'edge', 'heart', 'knock'].includes(theme.value.iconKey) ? '0 0 24 24' : '0 0 64 64',
   ),
-  mapData = computed<Record<string, any>>(() => Object.values(props.source.registries.地图)[0]?.data ?? {}),
+  mapOptions = computed(() =>
+    Object.entries(props.source.registries.地图).map(([id, map]) => ({ id, label: map.desc || id })),
+  ),
+  mapData = computed<Record<string, any>>(() => props.source.registries.地图[props.entry.内容配置.地图]?.data ?? {}),
   cast = computed(() =>
     props.entry.内容配置.角色
       .map((id: string) => ({
@@ -237,7 +247,17 @@ const theme = computed(() => scenarioThemeById[props.entry.视觉方案]),
     () => ({ user: 'user', 主要角色: 'main', 次要角色: 'minor' })[previewRole.value?.type ?? ''] ?? 'main',
   ),
   playable = computed(() =>
-    Boolean(hasUser.value && props.entry.内容配置.开场文本.trim() && mainlineEntries(props.entry.内容配置.主线).length),
+    Boolean(
+      hasUser.value &&
+      props.entry.内容配置.地图 &&
+      props.source.registries.地图[props.entry.内容配置.地图] &&
+      mapContainsLocation(
+        props.source.registries.地图[props.entry.内容配置.地图],
+        String(props.entry.内容配置.世界.地图索引 ?? ''),
+      ) &&
+      props.entry.内容配置.开场文本.trim() &&
+      mainlineEntries(props.entry.内容配置.主线).length,
+    ),
   ),
   tabs = computed(() => [
     {

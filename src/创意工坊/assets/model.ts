@@ -2,6 +2,7 @@ import { klona } from 'klona';
 
 import { ScenarioEntrySchema } from '../scenario/schemas';
 import type { ReferenceIssue, ResourceCategory, ScenarioSourceBundle, TypedCollectionEntry } from '../scenario/types';
+import { mapContainsLocation } from '../scenario/map';
 
 export type WorkshopCategory = '开场白' | ResourceCategory;
 
@@ -68,6 +69,17 @@ export function findReferenceIssues(source: ScenarioSourceBundle): ReferenceIssu
       if (!targetId || !source.registries[category][targetId]) {
         issues.push({ ownerCategory: '开场白', ownerId, field, targetCategory: category, targetId });
       }
+    }
+    const selectedMap = source.registries.地图[scenario.内容配置.地图];
+    const location = String(scenario.内容配置.世界.地图索引 ?? '');
+    if (selectedMap && !mapContainsLocation(selectedMap, location)) {
+      issues.push({
+        ownerCategory: '开场白',
+        ownerId,
+        field: '世界.地图索引',
+        targetCategory: '地图',
+        targetId: scenario.内容配置.地图,
+      });
     }
     for (const [field, category] of Object.entries(collectionReferences) as [
       keyof typeof collectionReferences,
