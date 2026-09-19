@@ -277,15 +277,64 @@ assert.throws(
   '旧图标枚举不得继续作为地图输入',
 );
 const sharedMapExplorer = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/map/MapExplorer.vue'), 'utf8');
+const sharedMapIcon = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/map/MapSvgIcon.vue'), 'utf8');
+const fullscreenMapDialog = readFileSync(
+  join(process.cwd(), 'src/尘史使徒/UI/components/map/MapFullscreenDialog.vue'),
+  'utf8',
+);
+assert.match(
+  readFileSync(join(process.cwd(), 'src/尘史使徒/UI/view/世界信息.vue'), 'utf8'),
+  /MapExplorer/,
+  '尘史运行时必须复用共享地图入口',
+);
 for (const consumer of [
-  'src/尘史使徒/UI/view/世界信息.vue',
   'src/创意工坊/components/MapLocationPicker.vue',
   'src/创意工坊/components/MapAssetEditor.vue',
 ]) {
-  assert.match(readFileSync(join(process.cwd(), consumer), 'utf8'), /MapExplorer/, `${consumer} 必须复用共享地图入口`);
+  assert.match(
+    readFileSync(join(process.cwd(), consumer), 'utf8'),
+    /MapFullscreenDialog/,
+    `${consumer} 必须通过共享全屏地图入口预览`,
+  );
 }
+assert.doesNotMatch(fullscreenMapDialog, /<Teleport\b/, '全屏地图必须沿用工坊现有的当前 Vue 树挂载方式');
+assert.match(fullscreenMapDialog, /position: fixed !important/, '全屏地图必须覆盖完整视口');
+assert.match(fullscreenMapDialog, /width: 100vw !important/, '全屏地图必须使用完整视口宽度');
+assert.match(fullscreenMapDialog, /height: 100dvh !important/, '全屏地图必须使用完整视口高度');
 assert.match(sharedMapExplorer, /mode === 'selection'/, '共享地图必须提供地点选择模式');
 assert.match(sharedMapExplorer, /mode === 'gameplay'/, '共享地图必须提供运行时模式');
+assert.doesNotMatch(sharedMapExplorer, /class="icon"/, '地图节点不得使用易被宿主污染的通用 icon 类');
+assert.doesNotMatch(sharedMapExplorer, /\.node span\s*\{/, '节点标签样式不得误伤 SVG 图标容器');
+assert.match(sharedMapExplorer, /\.node > \.node-label\s*\{/, '节点标签必须使用明确的直系类边界');
+assert.match(sharedMapExplorer, /iconSize\?: number/, '共享地图必须允许调整节点图标尺寸');
+assert.match(
+  sharedMapExplorer,
+  /iconShape\?: 'none' \| 'circle' \| 'rounded' \| 'square'/,
+  '共享地图必须允许调整节点图标外形',
+);
+assert.match(sharedMapIcon, /fill: inherit !important/, '子图形必须继承已校验的 SVG 填充色并抵抗宿主覆盖');
+assert.match(sharedMapIcon, /stroke: inherit !important/, '子图形必须继承已校验的 SVG 描边色并抵抗宿主覆盖');
+for (const [selector, rulePattern] of [
+  [
+    '.search > button',
+    /\.search > button\s*\{[^}]*color:[^;}]+!important[^}]*background:[^;}]+!important[^}]*border:[^;}]+!important/s,
+  ],
+  ['.detail', /\.detail\s*\{[^}]*color:[^;}]+!important[^}]*background:[^;}]+!important[^}]*border:[^;}]+!important/s],
+  [
+    '.detail footer button',
+    /\.detail footer button\s*\{[^}]*color:[^;}]+!important[^}]*background:[^;}]+!important[^}]*border:[^;}]+!important/s,
+  ],
+  [
+    '.detail .primary',
+    /\.detail \.primary\s*\{[^}]*color:[^;}]+!important[^}]*background:[^;}]+!important[^}]*border-color:[^;}]+!important/s,
+  ],
+  [
+    '.detail .danger',
+    /\.detail \.danger\s*\{[^}]*color:[^;}]+!important[^}]*background:[^;}]+!important[^}]*border-color:[^;}]+!important/s,
+  ],
+] as const) {
+  assert.match(sharedMapExplorer, rulePattern, `${selector} 的关键颜色必须抵抗宿主样式覆盖`);
+}
 assert.equal(
   existsSync(join(process.cwd(), 'src/尘史使徒/UI/composables/map/useIconSystem.ts')),
   false,

@@ -20,4 +20,8 @@ const safeSvg = computed(() => {
   max-width: none !important;
   max-height: none !important;
 }
+.map-svg-icon :deep(svg *) {
+  fill: inherit !important;
+  stroke: inherit !important;
+}
 </style>

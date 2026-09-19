@@ -23,8 +23,10 @@
           :style="nodeStyle(node)"
           @click.stop="focus = node"
         >
-          <div class="icon" :class="sizeClass"><MapSvgIcon :svg="node.icon" /></div>
-          <span>{{ node.name }}</span
+          <div class="map-node-icon" :class="[`size-${sizeClass}`, `shape-${iconShape}`]" :style="iconStyle">
+            <MapSvgIcon :svg="node.icon" />
+          </div>
+          <span class="node-label">{{ node.name }}</span
           ><i v-if="node.name === currentLocation">YOU</i>
         </div>
       </div>
@@ -93,10 +95,21 @@ type NodeView = {
   hasChildren: boolean;
   originalData: Record<string, any>;
 };
-const props = withDefaults(defineProps<{ map: Record<string, any>; mode?: Mode; currentLocation?: string }>(), {
-  mode: 'preview',
-  currentLocation: '',
-});
+const props = withDefaults(
+  defineProps<{
+    map: Record<string, any>;
+    mode?: Mode;
+    currentLocation?: string;
+    iconSize?: number;
+    iconShape?: 'none' | 'circle' | 'rounded' | 'square';
+  }>(),
+  {
+    mode: 'preview',
+    currentLocation: '',
+    iconSize: undefined,
+    iconShape: 'none',
+  },
+);
 defineEmits<{ select: [name: string]; travel: [name: string]; delete: [name: string, path: string[]] }>();
 const viewport = ref<HTMLElement>(),
   trail = ref<Crumb[]>([]),
@@ -167,7 +180,14 @@ const results = computed(() =>
 );
 const translateStyle = computed(() => ({ '--map-translate': `translate(${transform.x}px,${transform.y}px)` })),
   gridStyle = computed(() => ({ '--map-grid-size': `${100 * transform.k}px ${100 * transform.k}px` })),
-  sizeClass = computed(() => (baseScale.value > 40 ? 'large' : baseScale.value < 2 ? 'small' : 'medium'));
+  sizeClass = computed(() => (baseScale.value > 40 ? 'large' : baseScale.value < 2 ? 'small' : 'medium')),
+  iconStyle = computed(() =>
+    props.iconSize
+      ? {
+          '--map-icon-size': `${Math.max(16, Math.min(props.iconSize, 160))}px`,
+        }
+      : undefined,
+  );
 const nodeStyle = (n: NodeView) => {
   const scale = baseScale.value * transform.k;
   return {
@@ -320,31 +340,50 @@ watch(() => [props.map, props.currentLocation], init);
   z-index: var(--map-node-z) !important;
   cursor: pointer;
 }
-.icon {
-  display: block !important;
+.map-node-icon {
+  display: grid !important;
+  place-items: center !important;
   flex: 0 0 auto !important;
+  width: var(--map-icon-size) !important;
+  height: var(--map-icon-size) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   color: #c5a059 !important;
 }
-.small {
-  width: 24px !important;
-  height: 24px !important;
+.size-small {
+  --map-icon-size: 30px;
 }
-.medium {
-  width: 32px !important;
-  height: 32px !important;
+.size-medium {
+  --map-icon-size: 40px;
 }
-.large {
-  width: 48px !important;
-  height: 48px !important;
+.size-large {
+  --map-icon-size: 56px;
 }
-.node span {
+.map-node-icon.shape-circle,
+.map-node-icon.shape-rounded,
+.map-node-icon.shape-square {
+  padding: 15% !important;
+  background: #14161ccc !important;
+  border: 1px solid currentColor !important;
+}
+.map-node-icon.shape-circle {
+  border-radius: 50% !important;
+}
+.map-node-icon.shape-rounded {
+  border-radius: 22% !important;
+}
+.node > .node-label {
   margin-top: 5px;
   padding: 2px 6px;
   background: #000a;
   color: #aaa;
   border-radius: 4px;
 }
-.here span {
+.here > .node-label {
   color: #c5a059;
   border: 1px solid;
 }
@@ -378,24 +417,37 @@ watch(() => [props.map, props.currentLocation], init);
   color: #555;
 }
 .search {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  display: grid;
-  justify-items: end;
+  position: absolute !important;
+  top: 20px !important;
+  right: 20px !important;
+  display: grid !important;
+  justify-items: end !important;
+}
+.search > button {
+  padding: 8px 12px !important;
+  color: #c5a059 !important;
+  background: #14161cf5 !important;
+  border: 1px solid #594d31 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font: inherit !important;
+  cursor: pointer !important;
 }
 .search > div {
-  display: grid;
-  width: 240px;
-  padding: 8px;
-  background: #14161cf5;
+  display: grid !important;
+  width: 240px !important;
+  padding: 8px !important;
+  background: #14161cf5 !important;
 }
 .search > div button {
-  display: grid;
-  text-align: left;
+  display: grid !important;
+  color: #ddd !important;
+  background: transparent !important;
+  border: 0 !important;
+  text-align: left !important;
 }
 .search small {
-  color: #777;
+  color: #999 !important;
 }
 .back {
   position: absolute;
@@ -407,21 +459,26 @@ watch(() => [props.map, props.currentLocation], init);
   padding: 10px 18px;
 }
 .detail {
-  position: absolute;
-  top: 20%;
-  right: 30px;
-  width: 300px;
-  padding: 16px;
-  background: #14161cf5;
-  border: 1px solid #444;
-  border-top: 3px solid #c5a059;
-  box-shadow: 0 10px 30px #000;
+  position: absolute !important;
+  top: 20% !important;
+  right: 30px !important;
+  width: 300px !important;
+  padding: 16px !important;
+  color: #ddd !important;
+  background: #14161cf5 !important;
+  border: 1px solid #444 !important;
+  border-top: 3px solid #c5a059 !important;
+  box-shadow: 0 10px 30px #000 !important;
+}
+.detail p,
+.detail li {
+  color: #ddd !important;
 }
 .detail h3 {
-  color: #c5a059;
+  color: #c5a059 !important;
 }
 .detail small {
-  color: #666;
+  color: #888 !important;
 }
 .detail footer {
   display: flex;
@@ -429,29 +486,43 @@ watch(() => [props.map, props.currentLocation], init);
   flex-wrap: wrap;
 }
 .detail footer button {
-  flex: 1;
-  padding: 8px;
+  flex: 1 !important;
+  padding: 8px !important;
+  color: #ddd !important;
+  background: #1d2128 !important;
+  border: 1px solid #555 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font: inherit !important;
 }
 .detail .primary {
-  background: #c5a059;
-  color: #111;
+  color: #111 !important;
+  background: #c5a059 !important;
+  border-color: #c5a059 !important;
 }
 .detail .danger {
-  color: #b85c67;
-  border-color: #b85c67;
+  color: #d77a85 !important;
+  background: #1d2128 !important;
+  border-color: #b85c67 !important;
 }
 .close {
-  position: absolute;
-  right: 8px;
-  top: 8px;
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  min-width: 30px !important;
+  padding: 3px 7px !important;
+  color: #ddd !important;
+  background: transparent !important;
+  border: 1px solid #555 !important;
+  border-radius: 0 !important;
 }
 @media (max-width: 700px) {
   .detail {
-    top: auto;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    box-sizing: border-box;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
   .overlay {
     padding: 10px;
