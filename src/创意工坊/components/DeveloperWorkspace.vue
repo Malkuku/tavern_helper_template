@@ -93,9 +93,19 @@
           <small>{{ domain }}</small>
           <h2>{{ title }}</h2>
         </div>
-        <div>
+        <div class="entry-actions">
           <button v-if="domain === '角色'" @click="openRoleAssistant(selectedId)">✦ AI 修改</button
-          ><button @click="copyCurrent">复制</button><button @click="exportOpen = true">导出</button
+          ><button @click="copyCurrent">复制</button
+          ><span v-if="domain === '剧本'" class="scenario-json-actions"
+            ><button type="button" @click="scenarioImportInput?.click()">导入 JSON</button
+            ><button @click="exportOpen = true">导出 JSON</button
+            ><input
+              ref="scenarioImportInput"
+              class="scenario-import-input"
+              type="file"
+              accept="application/json,.json"
+              @change="importScenarioFile" /></span
+          ><button v-else @click="exportOpen = true">导出</button
           ><button class="danger" @click="askDelete">删除</button>
         </div>
       </header>
@@ -263,8 +273,18 @@
       >
     </AppDialog>
     <AppDialog :open="exportOpen" title="导出预览" @cancel="exportOpen = false"
-      ><p>将导出{{ domain }}“{{ title }}”。</p>
+      ><p v-if="domain === '剧本'">将导出剧本“{{ title }}”的纯 JSON，可再次导入工坊编辑。</p>
+      <p v-else>将导出角色“{{ title }}”及其资产包装信息。</p>
       <template #actions><button class="primary" @click="confirmExport">下载</button></template></AppDialog
+    ><AppDialog :open="!!pendingScenarioImport" title="覆盖当前剧本" @cancel="pendingScenarioImport = undefined">
+      <p v-if="pendingScenarioImport">
+        将用“{{ pendingScenarioImport.value.key }}”完整覆盖当前剧本“{{
+          scenarioTitle(pendingScenarioImport.targetId)
+        }}”。当前 UUID 保持不变，未保存内容将被替换。
+      </p>
+      <template #actions
+        ><button class="danger" @click="confirmScenarioImport">确认覆盖草稿</button></template
+      > </AppDialog
     ><AppDialog :open="deleteOpen" title="删除确认" @cancel="deleteOpen = false"
       ><p>{{ deleteImpacts.length ? `将清理${deleteImpacts.length}处剧本引用并禁用相关剧本。` : '该项未被引用。' }}</p>
       <template #actions><button class="danger" @click="confirmDelete">确认删除</button></template></AppDialog
@@ -279,7 +299,7 @@
 import { klona } from 'klona';
 import { computed, reactive, ref } from 'vue';
 import { deleteAsset, findReferenceIssues, findReferencesTo } from '../assets/model';
-import { createPackage, downloadPackage } from '../assets/package';
+import { createPackage, downloadPackage, downloadScenarioJson, parseScenarioJson } from '../assets/package';
 import { assetTitle, createDefaultAsset, defaultRoleData, diffSources } from '../assets/presentation';
 import {
   buildDownloadableRolePrompt,
@@ -288,14 +308,18 @@ import {
   roleToRuntimeJson,
   type GeneratedRoleType,
 } from '../assets/roleGenerator';
-import type { ReferenceIssue, ScenarioSourceBundle } from '../scenario/types';
+import type { ReferenceIssue, ScenarioEntry, ScenarioSourceBundle } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import ScenarioEditor from './ScenarioEditor.vue';
 import ScenarioThemeIcon from '../../尘史使徒/UI/components/scenario/ScenarioThemeIcon.vue';
 const props = defineProps<{ source: ScenarioSourceBundle; draft: ScenarioSourceBundle }>();
-defineEmits<{ save: []; requestReload: [] }>();
+const emit = defineEmits<{
+  save: [];
+  requestReload: [];
+  message: [value: { text: string; error?: boolean }];
+}>();
 const domain = ref<'角色' | '剧本'>('剧本'),
   selectedId = ref(''),
   query = ref(''),
@@ -316,6 +340,8 @@ const domain = ref<'角色' | '剧本'>('剧本'),
   generatorJson = ref(''),
   generatorError = ref(''),
   preparingPrompt = ref(false),
+  scenarioImportInput = ref<HTMLInputElement>(),
+  pendingScenarioImport = ref<{ targetId: string; value: ScenarioEntry }>(),
   expandedGroups = reactive(new Set<string>());
 const changes = computed(() => diffSources(props.source, props.draft)),
   issues = computed(() => findReferenceIssues(props.draft));
@@ -537,6 +563,36 @@ function copyCurrent() {
   }
   selectedId.value = id;
 }
+async function importScenarioFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    if (!selectedId.value || !props.draft.scenarios[selectedId.value]) throw new Error('请先选择要覆盖的剧本。');
+    pendingScenarioImport.value = {
+      targetId: selectedId.value,
+      value: parseScenarioJson(await file.text()),
+    };
+  } catch (error) {
+    emit('message', { text: error instanceof Error ? error.message : String(error), error: true });
+  } finally {
+    input.value = '';
+  }
+}
+function confirmScenarioImport() {
+  const pending = pendingScenarioImport.value;
+  if (!pending) return;
+  if (!props.draft.scenarios[pending.targetId]) {
+    pendingScenarioImport.value = undefined;
+    emit('message', { text: '目标剧本已不存在，未执行覆盖。', error: true });
+    return;
+  }
+  props.draft.scenarios[pending.targetId] = pending.value;
+  selectedId.value = pending.targetId;
+  mobilePane.value = 'editor';
+  pendingScenarioImport.value = undefined;
+  emit('message', { text: '剧本 JSON 已覆盖当前草稿，保存前可继续检查和编辑。' });
+}
 function askDelete() {
   deleteImpacts.value = domain.value === '角色' ? findReferencesTo(props.draft, '角色', selectedId.value) : [];
   deleteOpen.value = true;
@@ -548,8 +604,8 @@ function confirmDelete() {
   deleteOpen.value = false;
 }
 function confirmExport() {
-  const c = domain.value === '角色' ? '角色' : '开场白';
-  downloadPackage(createPackage(props.draft, { [c]: [selectedId.value] }), title.value);
+  if (domain.value === '剧本') downloadScenarioJson(entry.value);
+  else downloadPackage(createPackage(props.draft, { 角色: [selectedId.value] }), title.value);
   exportOpen.value = false;
 }
 function confirmRoleType() {
@@ -889,6 +945,26 @@ function format(v: unknown) {
   color: #f1c2bc;
   background: rgba(121, 43, 36, 0.28);
   border-left: 3px solid #d47569;
+}
+.scenario-import-input {
+  display: none;
+}
+.scenario-json-actions {
+  display: inline-flex !important;
+  gap: 4px;
+  padding: 3px;
+  background: #101214;
+  border: 1px solid #3f4446;
+}
+.entry-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.scenario-json-actions button {
+  min-height: 30px;
 }
 @media (max-width: 1100px) {
   .studio {

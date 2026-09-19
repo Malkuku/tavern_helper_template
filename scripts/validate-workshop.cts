@@ -11,7 +11,14 @@ import {
   normalizeScenarioAvailability,
   syncRoleVitalsToMaximum,
 } from '../src/创意工坊/assets/model';
-import { createPackage, listConflicts, mergePackage, parsePackage } from '../src/创意工坊/assets/package';
+import {
+  createPackage,
+  expandPackageSelection,
+  listConflicts,
+  mergePackage,
+  parsePackage,
+  parseScenarioJson,
+} from '../src/创意工坊/assets/package';
 import {
   createDefaultAsset,
   defaultRoleData,
@@ -81,6 +88,37 @@ assert.doesNotMatch(themeIconSource, /available|availability/, '共享主题图�
 const workspaceSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'), 'utf8');
 assert.match(workspaceSource, /scenario-availability/, '剧本资源侧栏必须展示可玩状态徽标');
 assert.doesNotMatch(workspaceSource, /<CharPanel[^>]+mode="view"/, '角色资源侧栏不得错误承载阵容预览');
+assert.match(workspaceSource, /parseScenarioJson\(await file\.text\(\)\)/, '剧本工作台必须支持纯 JSON 导入');
+assert.match(workspaceSource, /downloadScenarioJson\(entry\.value\)/, '剧本工作台必须以纯 JSON 导出当前剧本');
+assert.match(
+  workspaceSource,
+  /class="entry-actions"[\s\S]{0,500}class="scenario-json-actions"/,
+  '覆盖导入必须位于当前剧本对象操作区',
+);
+assert.match(workspaceSource, />导入 JSON<\/button[\s\S]{0,100}>导出 JSON<\/button/, 'JSON 往返入口必须使用同级按钮');
+assert.doesNotMatch(workspaceSource, /覆盖导入 JSON/, '覆盖风险应在确认弹窗说明，不应塞进入口名称');
+assert.doesNotMatch(
+  workspaceSource.match(/<div class="catalog-actions">[\s\S]+?<\/div>/)?.[0] ?? '',
+  /importScenarioFile|覆盖导入/,
+  '资源目录的新建区不得混入覆盖导入',
+);
+assert.match(
+  workspaceSource,
+  /props\.draft\.scenarios\[pending\.targetId\] = pending\.value/,
+  '剧本 JSON 导入必须覆盖当前 UUID 对应的草稿',
+);
+assert.doesNotMatch(
+  workspaceSource.match(/async function importScenarioFile[\s\S]+?function confirmScenarioImport/)?.[0] ?? '',
+  /crypto\.randomUUID/,
+  '覆盖导入不得创建新的剧本 UUID',
+);
+const userWorkspaceSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/UserWorkspace.vue'), 'utf8');
+assert.match(
+  userWorkspaceSource,
+  /expandPackageSelection\(props\.source, selectedAssets\(\)\)/,
+  '导出选择器必须投影权威依赖闭包',
+);
+assert.match(userWorkspaceSource, /随剧本关联/, '自动依赖必须向用户显示关联状态');
 const scenarioEditorSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/ScenarioEditor.vue'), 'utf8');
 assert.doesNotMatch(scenarioEditorSource, /type="checkbox"/, '剧本布尔设置不得退回原生勾选框');
 assert.match(scenarioEditorSource, /aria-pressed/, '剧本双态选择必须暴露明确的选中状态');
@@ -204,6 +242,11 @@ deleteAsset(blocked, '角色', 'role', true);
 assert.deepEqual(blocked.scenarios.s.内容配置.角色, []);
 source.registries.角色.role.meta = { avatar: '/user/files/role.webp', color: '#AABBCC', avatarStyle: '4' };
 const pkg = createPackage(source, { 开场白: ['s'], 角色: ['role'] });
+assert.deepEqual(expandPackageSelection(source, { 开场白: ['s'] }), {
+  开场白: ['s'],
+  地图: ['map'],
+  角色: ['role'],
+});
 const parsedPackage = parsePackage(JSON.stringify(pkg));
 assert.equal(parsedPackage.version, 2);
 assert.deepEqual(parsedPackage.assets.角色.role.meta, source.registries.角色.role.meta);
@@ -214,6 +257,8 @@ assert.deepEqual(
 );
 const roleOnlyPackage = createPackage(source, { 角色: ['role'] });
 assert.deepEqual(Object.keys(roleOnlyPackage.assets), ['角色'], '独立选择资源不应夹带未引用资产');
+assert.deepEqual(parseScenarioJson(JSON.stringify(source.scenarios.s)), source.scenarios.s, '纯剧本 JSON 应无损解析');
+assert.throws(() => parseScenarioJson(JSON.stringify(pkg)), /完整剧本 JSON/, '资产包不得冒充纯剧本 JSON 导入');
 const legacyPackage = {
   format: 'dust-history-workshop-package',
   version: 1,

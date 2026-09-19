@@ -1,7 +1,7 @@
 import { klona } from 'klona';
 import { z } from 'zod';
 
-import type { PackageConflictDecision, ScenarioSourceBundle, WorkshopPackage } from '../scenario/types';
+import type { PackageConflictDecision, ScenarioEntry, ScenarioSourceBundle, WorkshopPackage } from '../scenario/types';
 import {
   CollectionEntrySchema,
   MapEntrySchema,
@@ -89,6 +89,15 @@ export function parsePackage(text: string): WorkshopPackage {
   return pkg;
 }
 
+export function parseScenarioJson(text: string): ScenarioEntry {
+  try {
+    return ScenarioEntrySchema.parse(JSON.parse(text));
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error('剧本 JSON 语法无效，请检查逗号、引号和括号。');
+    throw new Error('文件不是有效的完整剧本 JSON。');
+  }
+}
+
 export function listConflicts(source: ScenarioSourceBundle, pkg: WorkshopPackage): PackageConflict[] {
   assertPackageMapCompatibility(source, pkg);
   const current = assetsOf(source);
@@ -170,6 +179,17 @@ export function downloadPackage(pkg: WorkshopPackage, name = '尘史创意工坊
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${name}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export function downloadScenarioJson(scenario: ScenarioEntry): void {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(scenario, null, 2)], { type: 'application/json;charset=utf-8' }),
+  );
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${scenario.key || '未命名剧本'}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }

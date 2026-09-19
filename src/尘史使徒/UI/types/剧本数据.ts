@@ -30,10 +30,12 @@ export const ScenarioIconPaths: Record<string, string> = {
     <ellipse cx="32" cy="12" rx="12" ry="3" fill="rgba(255,0,0,0.3)"/>
   `,
   lamp: `
-    <path fill="none" stroke="currentColor" stroke-width="3" d="M22 16 L18 48 L46 48 L42 16 Z"/>
-    <path fill="none" stroke="currentColor" stroke-width="3" d="M22 16 L32 6 L42 16"/>
-    <circle cx="32" cy="32" r="6" fill="currentColor" opacity="0.8"/>
-    <line x1="32" y1="6" x2="32" y2="2" stroke="currentColor" stroke-width="3"/>
+    <path fill="currentColor" opacity=".1" d="M32 3l5 9 10 5-10 5-5 10-5-10-10-5 10-5z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M24 17h16l4 34H20l4-34zm2 0c0-5 2-9 6-12 4 3 6 7 6 12M17 51h30M25 57h14"/>
+    <path fill="currentColor" opacity=".28" d="M24 22h16l2.8 25H21.2z"/>
+    <path fill="currentColor" d="M32 42c-5 0-8-3.4-8-7.6 0-4.8 4.2-8.9 8-14.4 3.8 5.5 8 9.6 8 14.4 0 4.2-3 7.6-8 7.6z"/>
+    <path fill="#0b0d0e" opacity=".72" d="M32 38c-2.1 0-3.5-1.5-3.5-3.4 0-2 1.5-4 3.5-6.8 2 2.8 3.5 4.8 3.5 6.8 0 1.9-1.4 3.4-3.5 3.4z"/>
+    <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M11 28h6M47 28h6M14 15l5 3M50 15l-5 3M14 41l4-2M50 41l-4-2"/>
   `,
   moth: `
     <path fill="none" stroke="currentColor" stroke-width="2" d="M32 32 L32 2 M32 32 L60 18 M32 32 L54 56 M32 32 L10 56 M32 32 L4 18"/>
@@ -41,10 +43,12 @@ export const ScenarioIconPaths: Record<string, string> = {
     <circle cx="32" cy="32" r="4" fill="currentColor"/>
   `,
   winter: `
-    <rect x="18" y="14" width="28" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="3"/>
-    <path fill="none" stroke="currentColor" stroke-width="3" d="M18 24 H46 M28 14 V10 C28 8 36 8 36 10 V14"/>
-    <rect x="22" y="32" width="8" height="10" fill="currentColor" opacity="0.5"/>
-    <rect x="34" y="32" width="8" height="10" fill="currentColor" opacity="0.5"/>
+    <path fill="currentColor" opacity=".09" d="M7 43l16-17 9 9 8-8 17 16v13H7z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 51c10-5 18-4 27 0s17 5 27 0M8 43l15-17 9 9 8-8 16 16M42 45V34h9v14"/>
+    <path fill="currentColor" d="M46 39h3v5h-3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10 51c9-2 14-1 19 2 5 3 10 5 20 3"/>
+    <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M17 14v6M14 17h6M32 7v7M28.5 10.5h7M50 14v6M47 17h6"/>
+    <circle cx="47.5" cy="41.5" r="6" fill="currentColor" opacity=".1"/>
   `,
   forge: `<path fill="currentColor" opacity=".22" d="M12 2c5 5 8 8 8 13a8 8 0 01-16 0c0-3 1-6 4-9 0 3 1 5 3 6-1-4 0-7 1-10z"/><path fill="none" stroke="currentColor" stroke-width="1.4" d="M12 2c5 5 8 8 8 13a8 8 0 01-16 0c0-3 1-6 4-9 0 3 1 5 3 6-1-4 0-7 1-10zM12 11c2 2 3 4 3 6a3 3 0 01-6 0c0-2 1-4 3-6z"/><path stroke="currentColor" d="M3 21h18M6 23h12"/>`,
   edge: `<path fill="currentColor" opacity=".18" d="M4 18L16.8 3.2 21 7.4 6.2 20H4z"/><path fill="none" stroke="currentColor" stroke-width="1.35" d="M4 18L16.8 3.2 21 7.4 6.2 20H4v-2zM14.8 5.5l3.9 3.9M4 13l7 7M8 15l2 2"/><circle cx="17.8" cy="6.3" r="1.2" fill="currentColor"/>`,

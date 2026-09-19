@@ -54,6 +54,7 @@
           :source="source"
           :draft="draft"
           @save="save"
+          @message="showMessage"
           @request-reload="requestLoss('放弃草稿', load)"
       /></template>
     </main>

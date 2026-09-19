@@ -101,22 +101,53 @@
       >
     </AppDialog>
     <AppDialog :open="exportOpen" title="选择导出资产" @cancel="exportOpen = false">
-      <p class="export-hint">可按分类或具体资产选择。选中剧本时，其引用的角色与叙事资源会自动包含。</p>
+      <div class="export-intro">
+        <span class="export-mark" aria-hidden="true">⇩</span>
+        <div>
+          <strong>组装一个可迁移的资产包</strong>
+          <p>选择剧本后，角色、地图及共享资源会作为依赖自动勾选；剧本内的叙事内容已包含在剧本本身。</p>
+        </div>
+      </div>
+      <div class="export-summary">
+        <span
+          ><b>{{ explicitExportCount }}</b> 手动选择</span
+        ><span
+          ><b>{{ automaticExportCount }}</b> 自动关联</span
+        ><span
+          ><b>{{ finalExportCount }}</b> 最终资产</span
+        >
+      </div>
       <div class="export-list">
         <section v-for="group in exportGroups" :key="group.category">
-          <label class="export-category"
-            ><input
+          <header class="export-category">
+            <label
+              ><input
+                type="checkbox"
+                :checked="group.allSelected"
+                @change="toggleCategory(group.category, ($event.target as HTMLInputElement).checked)"
+              /><span>{{ group.category }}</span></label
+            ><small>{{ group.selectedCount }}/{{ group.items.length }}</small>
+          </header>
+          <label
+            v-for="item in group.items"
+            :key="`${group.category}:${item.id}`"
+            class="export-item"
+            :class="{ automatic: item.automatic }"
+          >
+            <input
               type="checkbox"
-              :checked="group.allSelected"
-              @change="toggleCategory(group.category, ($event.target as HTMLInputElement).checked)"
-            />{{ group.category }}<small>{{ group.items.length }} 项</small></label
-          >
-          <label v-for="item in group.items" :key="`${group.category}:${item.id}`"
-            ><input v-model="exportSelection[`${group.category}:${item.id}`]" type="checkbox" />{{ item.title }}</label
-          >
+              :checked="item.selected"
+              :disabled="item.automatic"
+              @change="setExportSelection(group.category, item.id, ($event.target as HTMLInputElement).checked)"
+            />
+            <span
+              ><strong>{{ item.title }}</strong
+              ><small v-if="item.summary">{{ item.summary }}</small></span
+            >
+            <em v-if="item.automatic">随剧本关联</em>
+          </label>
         </section>
       </div>
-      <p>已选 {{ explicitExportCount }} 项；最终导出 {{ finalExportCount }} 项（含自动依赖）。</p>
       <template #actions
         ><button class="primary" :disabled="!explicitExportCount" @click="confirmExport">导出所选资产</button></template
       >
@@ -146,12 +177,19 @@ import { assetsOf, roleIdentityOf, type WorkshopCategory } from '../assets/model
 import {
   createPackage,
   downloadPackage,
+  expandPackageSelection,
   listConflicts,
   mergePackage,
   parsePackage,
   type PackageConflict,
 } from '../assets/package';
-import { assetTitle, previewPackage, workshopCategories, type ImportPreview } from '../assets/presentation';
+import {
+  assetSummary,
+  assetTitle,
+  previewPackage,
+  workshopCategories,
+  type ImportPreview,
+} from '../assets/presentation';
 import { saveScenarioSource } from '../assets/repository';
 import { addRoleToRuntime, getRuntimeRoles, runtimeRoleExists, type RuntimeRoleSnapshot } from '../assets/runtimeRole';
 import type { PackageConflictDecision, ScenarioSourceBundle, WorkshopPackage } from '../scenario/types';
@@ -223,14 +261,27 @@ const previewCharType = computed(
 );
 const exportGroups = computed(() => {
   const all = assetsOf(props.source);
+  const expanded = expandPackageSelection(props.source, selectedAssets());
   return workshopCategories
-    .map(category => ({
-      category,
-      items: Object.entries(all[category]).map(([id, value]) => ({ id, title: assetTitle(category, value) })),
-      allSelected:
-        Object.keys(all[category]).length > 0 &&
-        Object.keys(all[category]).every(id => exportSelection.value[`${category}:${id}`]),
-    }))
+    .map(category => {
+      const included = new Set(expanded[category] ?? []);
+      const items = Object.entries(all[category]).map(([id, value]) => {
+        const explicit = !!exportSelection.value[`${category}:${id}`];
+        return {
+          id,
+          title: assetTitle(category, value),
+          summary: assetSummary(category, value),
+          selected: explicit || included.has(id),
+          automatic: !explicit && included.has(id),
+        };
+      });
+      return {
+        category,
+        items,
+        selectedCount: items.filter(item => item.selected).length,
+        allSelected: items.length > 0 && items.every(item => item.selected),
+      };
+    })
     .filter(group => group.items.length);
 });
 const explicitExportCount = computed(() => Object.values(exportSelection.value).filter(Boolean).length);
@@ -238,6 +289,7 @@ const exportPackage = computed(() => createPackage(props.source, selectedAssets(
 const finalExportCount = computed(() =>
   Object.values(exportPackage.value.assets).reduce((count, entries) => count + Object.keys(entries ?? {}).length, 0),
 );
+const automaticExportCount = computed(() => Math.max(0, finalExportCount.value - explicitExportCount.value));
 const runtimeDiff = computed(() => {
   if (!overwrite.value) return [];
   const before =
@@ -324,6 +376,9 @@ function openExport() {
 }
 function toggleCategory(category: WorkshopCategory, checked: boolean) {
   for (const id of Object.keys(assetsOf(props.source)[category])) exportSelection.value[`${category}:${id}`] = checked;
+}
+function setExportSelection(category: WorkshopCategory, id: string, checked: boolean) {
+  exportSelection.value[`${category}:${id}`] = checked;
 }
 function confirmExport() {
   if (!explicitExportCount.value) return;
@@ -541,42 +596,124 @@ dd {
   min-height: 420px;
   overflow: hidden;
 }
-.export-hint,
-.export-category small {
+.export-intro {
+  display: flex;
+  gap: 13px;
+  margin-bottom: 14px;
+  padding: 13px 15px;
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.12), rgba(197, 160, 89, 0.03));
+  border: 1px solid #514a38;
+}
+.export-intro p {
+  margin: 4px 0 0;
   color: #aaa397;
+  line-height: 1.45;
+}
+.export-mark {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  color: #17130c;
+  font-size: 20px;
+  place-items: center;
+  background: #cbb477;
+  border-radius: 50%;
+}
+.export-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.export-summary span {
+  padding: 9px 10px;
+  color: #aaa397;
+  text-align: center;
+  background: #111416;
+  border: 1px solid #34383a;
+}
+.export-summary b {
+  margin-right: 4px;
+  color: #e8ddc3;
 }
 .export-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
-  max-height: 52vh;
+  max-height: 48vh;
+  padding-right: 4px;
   overflow: auto;
 }
-.export-list section,
-.export-list label {
-  display: grid;
-  gap: 6px;
-}
 .export-list section {
+  display: grid;
+  gap: 4px;
   align-content: start;
-  padding: 10px;
+  overflow: hidden;
+  background: #15181a;
   border: 1px solid #3b3932;
 }
-.export-list label {
-  grid-template-columns: auto 1fr;
+.export-category,
+.export-category label,
+.export-item {
+  display: flex;
   align-items: center;
 }
-.export-list input {
-  width: auto !important;
-  min-height: 0 !important;
-}
 .export-category {
-  color: #cbb477;
+  justify-content: space-between;
+  padding: 10px 12px;
+  color: #d9c78f;
+  background: #20221f;
+  border-bottom: 1px solid #3b3932;
+}
+.export-category label {
+  gap: 8px;
   font-weight: 700;
 }
 .export-category small {
-  margin-left: auto;
-  font-weight: 400;
+  color: #8f8a7e;
+  font-variant-numeric: tabular-nums;
+}
+.export-item {
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-left: 2px solid transparent;
+}
+.export-item:hover {
+  background: #1c2022;
+}
+.export-item.automatic {
+  background: rgba(197, 160, 89, 0.07);
+  border-left-color: #c5a059;
+}
+.export-item > span {
+  display: grid;
+  min-width: 0;
+}
+.export-item strong,
+.export-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.export-item small {
+  color: #85817a;
+}
+.export-item em {
+  flex: none;
+  padding: 2px 5px;
+  color: #cbb477;
+  font-size: 10px;
+  font-style: normal;
+  border: 1px solid #62583d;
+}
+.export-list input {
+  flex: none;
+  width: auto !important;
+  min-height: 0 !important;
+  accent-color: #cbb477;
 }
 @media (max-width: 760px) {
   .workspace-head {
@@ -607,6 +744,12 @@ dd {
   .role-preview {
     height: calc(100dvh - 190px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     min-height: 0;
+  }
+  .export-summary {
+    grid-template-columns: 1fr;
+  }
+  .export-list {
+    grid-template-columns: 1fr;
   }
 }
 </style>
