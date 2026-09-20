@@ -491,6 +491,7 @@ assert.doesNotMatch(sharedMapExplorer, /\.node span\s*\{/, '节点标签样式�
 assert.match(sharedMapExplorer, /\.node > \.node-label\s*\{/, '节点标签必须使用明确的直系类边界');
 assert.match(sharedMapExplorer, /iconSize\?: number/, '共享地图必须允许调整节点图标尺寸');
 assert.match(sharedMapExplorer, /--map-svg-width[\s\S]*--map-svg-height/, '节点容器必须消费 SVG 声明的独立宽高');
+assert.match(sharedMapExplorer, /\.grid\s*\{[^}]*pointer-events:\s*none/s, '地图装饰网格不得截获负深度节点的点击');
 assert.match(
   sharedMapExplorer,
   /coordinateScale: baseScale\.value \* transform\.k, iconScale: transform\.k/,

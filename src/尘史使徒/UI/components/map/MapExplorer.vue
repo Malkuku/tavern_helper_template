@@ -440,6 +440,7 @@ watch(() => [props.map, props.currentLocation], init);
   inset: -200%;
   width: 500%;
   height: 500%;
+  pointer-events: none;
   opacity: 0.42;
   background-image:
     linear-gradient(rgba(197, 160, 89, 0.075) 1px, transparent 1px),
