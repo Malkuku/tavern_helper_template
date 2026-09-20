@@ -15,6 +15,7 @@
     >
       <div class="layer" :style="translateStyle">
         <div class="grid" :style="gridStyle"></div>
+        <div class="cartography" :style="cartographyStyle" aria-hidden="true"></div>
         <div
           v-for="node in nodes"
           :key="node.name"
@@ -189,7 +190,11 @@ const results = computed(() =>
     : [],
 );
 const translateStyle = computed(() => ({ '--map-translate': `translate(${transform.x}px,${transform.y}px)` })),
-  gridStyle = computed(() => ({ '--map-grid-size': `${100 * transform.k}px ${100 * transform.k}px` })),
+  gridStyle = computed(() => ({
+    '--map-grid-size': `${100 * transform.k}px ${100 * transform.k}px`,
+    '--map-grid-sub-size': `${20 * transform.k}px ${20 * transform.k}px`,
+  })),
+  cartographyStyle = computed(() => ({ '--map-chart-size': `${Math.max(360, 760 * transform.k)}px` })),
   sizeClass = computed(() => (baseScale.value > 40 ? 'large' : baseScale.value < 2 ? 'small' : 'medium'));
 const defaultIconSize = computed(() =>
   Math.max(
@@ -351,9 +356,34 @@ watch(() => [props.map, props.currentLocation], init);
   height: 100% !important;
   min-height: 360px !important;
   overflow: hidden !important;
-  background: radial-gradient(circle at center, #2a2f3a, #15171c);
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(159, 127, 65, 0.11) 0, rgba(41, 47, 57, 0.05) 28%, transparent 55%),
+    radial-gradient(circle at 18% 22%, rgba(93, 111, 128, 0.09), transparent 32%),
+    linear-gradient(145deg, #20252d 0%, #15191f 50%, #101217 100%);
   color: #ddd;
   user-select: none;
+}
+.vision::before,
+.vision::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  content: '';
+}
+.vision::before {
+  opacity: 0.16;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+}
+.vision::after {
+  background:
+    radial-gradient(circle at center, transparent 46%, rgba(5, 7, 10, 0.3) 76%, rgba(3, 4, 7, 0.72) 100%),
+    linear-gradient(90deg, rgba(197, 160, 89, 0.035) 1px, transparent 1px);
+  background-size:
+    auto,
+    25% 100%;
 }
 .viewport {
   position: absolute !important;
@@ -371,9 +401,62 @@ watch(() => [props.map, props.currentLocation], init);
   inset: -200%;
   width: 500%;
   height: 500%;
-  opacity: 0.08;
-  background-image: linear-gradient(#aaa 1px, transparent 1px), linear-gradient(90deg, #aaa 1px, transparent 1px);
-  background-size: var(--map-grid-size) !important;
+  opacity: 0.72;
+  background-image:
+    linear-gradient(rgba(197, 160, 89, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(197, 160, 89, 0.09) 1px, transparent 1px),
+    linear-gradient(rgba(172, 185, 194, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(172, 185, 194, 0.025) 1px, transparent 1px);
+  background-size:
+    var(--map-grid-size), var(--map-grid-size), var(--map-grid-sub-size), var(--map-grid-sub-size) !important;
+}
+.cartography {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--map-chart-size);
+  height: var(--map-chart-size);
+  box-sizing: border-box;
+  border: 1px solid rgba(197, 160, 89, 0.13);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  opacity: 0.78;
+  pointer-events: none;
+  background:
+    linear-gradient(transparent calc(50% - 0.5px), rgba(197, 160, 89, 0.11) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(197, 160, 89, 0.11) 50%, transparent calc(50% + 0.5px)),
+    repeating-conic-gradient(from 2deg, rgba(197, 160, 89, 0.18) 0 0.35deg, transparent 0.35deg 15deg);
+  -webkit-mask: radial-gradient(
+    circle,
+    transparent 0 48%,
+    #000 48.2% 50%,
+    transparent 50.2% 67%,
+    #000 67.2% 68%,
+    transparent 68.2%
+  );
+  mask: radial-gradient(
+    circle,
+    transparent 0 48%,
+    #000 48.2% 50%,
+    transparent 50.2% 67%,
+    #000 67.2% 68%,
+    transparent 68.2%
+  );
+}
+.cartography::before,
+.cartography::after {
+  position: absolute;
+  border: 1px dashed rgba(197, 160, 89, 0.12);
+  border-radius: 50%;
+  content: '';
+}
+.cartography::before {
+  inset: 18%;
+}
+.cartography::after {
+  inset: 36%;
+  border-style: solid;
+  border-color: rgba(197, 160, 89, 0.09);
 }
 .node {
   position: absolute !important;
@@ -455,6 +538,7 @@ watch(() => [props.map, props.currentLocation], init);
 .overlay {
   position: absolute;
   inset: 0;
+  z-index: 5;
   pointer-events: none;
   padding: 20px;
 }
@@ -512,6 +596,7 @@ watch(() => [props.map, props.currentLocation], init);
 }
 .back {
   position: absolute;
+  z-index: 5;
   bottom: 30px;
   left: 30px;
   color: #c5a059;
@@ -521,6 +606,7 @@ watch(() => [props.map, props.currentLocation], init);
 }
 .detail {
   position: absolute !important;
+  z-index: 5;
   top: 20% !important;
   right: 30px !important;
   width: 300px !important;

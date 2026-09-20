@@ -83,16 +83,30 @@ export function renderMapSvg(markup: string): string {
   return sanitizeMapSvg(markup).replace(
     /<(svg|g|path|circle|ellipse|rect|line|polyline|polygon)\b([^<>]*)>/gi,
     (tag, name, raw) => {
-      const colors: string[] = [];
-      const attributes = String(raw).replace(
-        /\s+(fill|stroke)\s*=\s*("([^"]*)"|'([^']*)')/gi,
-        (_all, key, _quoted, doubleValue, singleValue) => {
-          const value = doubleValue ?? singleValue;
-          colors.push(`${String(key).toLowerCase()}:${value} !important`);
-          return '';
-        },
-      );
-      return `<${name}${attributes}${colors.length ? ` style="${colors.join(';')}"` : ''}>`;
+      const elementName = String(name).toLowerCase();
+      const presentation = new Map<string, string>();
+      const selfClosing = /\/\s*$/.test(String(raw));
+      const attributes = String(raw)
+        .replace(/\/\s*$/, '')
+        .replace(
+          /\s+(fill|stroke|stroke-width)\s*=\s*("([^"]*)"|'([^']*)')/gi,
+          (_all, key, _quoted, doubleValue, singleValue) => {
+            const value = doubleValue ?? singleValue;
+            presentation.set(String(key).toLowerCase(), value);
+            return '';
+          },
+        );
+      if (elementName === 'svg') {
+        if (!presentation.has('fill')) presentation.set('fill', 'none');
+        if (!presentation.has('stroke')) presentation.set('stroke', 'currentColor');
+        if (!presentation.has('stroke-width')) presentation.set('stroke-width', '1.5');
+      } else if (elementName !== 'g') {
+        if (!presentation.has('fill')) presentation.set('fill', 'inherit');
+        if (!presentation.has('stroke')) presentation.set('stroke', 'inherit');
+        if (!presentation.has('stroke-width')) presentation.set('stroke-width', 'inherit');
+      }
+      const styles = [...presentation].map(([key, value]) => `${key}:${value} !important`);
+      return `<${name}${attributes}${styles.length ? ` style="${styles.join(';')}"` : ''}${selfClosing ? '/' : ''}>`;
     },
   );
 }

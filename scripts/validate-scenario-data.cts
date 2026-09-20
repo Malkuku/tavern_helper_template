@@ -98,6 +98,12 @@ expectCode('INVALID_MAP_LOCATION', draft => {
 const worldEditIni = readFileSync(path.join(configDirectory, '..', '更新规则', '（配置1）世界编辑任务.ini'), 'utf8');
 assert.match(worldEditIni, /完整 SVG 字符串/, '世界编辑规则必须要求完整 SVG');
 assert.match(worldEditIni, /SVG 安全子集/, '世界编辑规则必须声明 SVG 安全子集');
+assert.match(worldEditIni, /横向、纵向或方形画布/, '世界编辑规则必须采用新版异形地图图标风格');
+assert.match(
+  worldEditIni,
+  /常规线稿不要在 SVG 中重复输出这三个属性/,
+  '世界编辑规则必须省略渲染组件已提供的默认 SVG 属性',
+);
 assert.doesNotMatch(
   worldEditIni,
   /MapIcon|图标[^\r\n]*(?:earth|kingdom|city|village|building|shop|palace|academy|dungeon|forest)/i,

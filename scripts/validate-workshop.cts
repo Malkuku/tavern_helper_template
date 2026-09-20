@@ -330,6 +330,23 @@ const renderedMulticolorSvg = renderMapSvg(multicolorSvg);
 assert.match(renderedMulticolorSvg, /fill:#243B55 !important/, '节点填色必须以内联 important 抵抗宿主样式');
 assert.match(renderedMulticolorSvg, /stroke:#D4AF37 !important/, '节点描边色必须以内联 important 抵抗宿主样式');
 assert.match(renderedMulticolorSvg, /stroke:#F7E7A9 !important/, '不同图形元素必须允许各自着色');
+const renderedDefaultSvg = renderMapSvg(
+  '<svg viewBox="0 0 126 82" stroke-width="1.2"><path d="M6 14h30"/><circle cx="47" cy="50" r="4"/></svg>',
+);
+assert.match(renderedDefaultSvg, /<svg[^>]*style="[^"]*fill:none !important/, 'SVG 根节点必须提供默认无填充');
+assert.match(renderedDefaultSvg, /<svg[^>]*style="[^"]*stroke:currentColor !important/, 'SVG 根节点必须提供继承色描边');
+assert.match(renderedDefaultSvg, /<svg[^>]*style="[^"]*stroke-width:1\.2 !important/, 'SVG 根节点必须保留自定义线宽');
+assert.doesNotMatch(renderedDefaultSvg, /\/ style=/, '自闭合 SVG 图形追加内联样式后必须保持合法标签顺序');
+assert.equal(
+  [...renderedDefaultSvg.matchAll(/<(?:path|circle)[^>]*style="([^"]+)"/g)].every(
+    match =>
+      match[1].includes('fill:inherit !important') &&
+      match[1].includes('stroke:inherit !important') &&
+      match[1].includes('stroke-width:inherit !important'),
+  ),
+  true,
+  '每个可绘制元素必须以内联 important 继承根节点默认值，抵抗宿主直接元素样式',
+);
 assert.throws(
   () => sanitizeMapSvg('<svg viewBox="0 0 24 24"><path fill="url(https://evil.example/a)" d="M0 0"/></svg>'),
   '颜色属性不得借 URL 绕过外部资源限制',
@@ -397,6 +414,13 @@ assert.match(
   /xmlns 只能写在 svg 根标签[\s\S]*不要把它转换成 Markdown 链接/,
   '地图提示词必须防止 AI 污染标准命名空间',
 );
+assert.match(
+  mapGenerationPrompt,
+  /横向、纵向或方形 viewBox[\s\S]*不要在 SVG 中重复输出这三个默认属性/,
+  '地图提示词必须采用新版异形线稿，并省略组件已提供的默认 SVG 属性',
+);
+const mapSvgIconSource = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/map/MapSvgIcon.vue'), 'utf8');
+assert.doesNotMatch(mapSvgIconSource, /(?:fill|stroke):[^;]+!important/, '地图 SVG 默认呈现不得依赖 scoped CSS 穿透');
 const editingMapPrompt = buildMapGenerationPrompt('只重构港口图标', '', source.registries.地图.map);
 assert.match(editingMapPrompt, /当前完整 MapEntry JSON/, '地图修改提示词必须携带当前地图基线');
 assert.match(editingMapPrompt, /只改动用户点名的范围/, '地图修改提示词必须保护未点名内容');
@@ -479,8 +503,7 @@ assert.match(
   /iconShape\?: 'none' \| 'circle' \| 'rounded' \| 'square'/,
   '共享地图必须允许调整节点图标外形',
 );
-assert.match(sharedMapIcon, /fill: inherit !important/, '子图形必须继承已校验的 SVG 填充色并抵抗宿主覆盖');
-assert.match(sharedMapIcon, /stroke: inherit !important/, '子图形必须继承已校验的 SVG 描边色并抵抗宿主覆盖');
+assert.match(sharedMapIcon, /renderMapSvg/, '共享地图图标必须通过安全渲染器补齐内联呈现属性');
 for (const [selector, rulePattern] of [
   [
     '.search > button',

@@ -2,7 +2,7 @@ import { parseMapJson } from './package';
 import type { MapEntry } from '../scenario/types';
 
 const exampleSvg =
-  '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="#243B55" stroke="#D4AF37" stroke-width="1.5"/><path d="M8 14l4-7 4 7z" fill="#F7E7A9"/></svg>';
+  '<svg viewBox="0 0 72 48" width="72" height="48" role="img" aria-label="山地城镇"><path d="M4 43h64M10 43V27l12-9 12 9v16M38 43V20l10-9 12 9v23M17 43V32h10v11M45 43V29h9v14"/><path d="M8 15l10-8 9 8M43 10l5-6 7 6"/></svg>';
 
 function mapFieldGuide(editing: boolean): string {
   return [
@@ -26,7 +26,9 @@ function mapFieldGuide(editing: boolean): string {
     '- 只允许 svg、g、path、circle、ellipse、rect、line、polyline、polygon、title、desc 标签。',
     '- 只使用 viewBox/xmlns、fill、fill-opacity、stroke、stroke-width、stroke-linecap、stroke-linejoin、stroke-opacity、opacity、d、cx、cy、r、rx、ry、x、y、x1、y1、x2、y2、width、height、points、transform、role、aria-label 属性。xmlns 只能写在 svg 根标签，且值必须精确为 http://www.w3.org/2000/svg；不要把它转换成 Markdown 链接。',
     '- 禁止 script、style、foreignObject、image、use、事件属性、href/src、外部资源、URL、data URI、CSS 和动画。颜色只能使用安全静态色值、none、transparent 或 currentColor。',
-    '- 建议统一使用 viewBox="0 0 24 24"，轮廓清楚、细节克制；允许不同图形元素分别使用安全的 fill/stroke 多色。',
+    '- 图标采用克制、清晰的金色线稿视觉：根据地点轮廓选择横向、纵向或方形 viewBox，并用多条简洁几何轮廓表达建筑、地貌或空间结构；不要把所有地点压成同一个 24×24 方形符号。',
+    '- 渲染组件默认提供 fill: none、stroke: currentColor、stroke-width: 1.5，currentColor 会跟随地图节点的金色。常规线稿不要在 SVG 中重复输出这三个默认属性；只有确需填充、变色或改变局部线宽时，才在对应元素上显式设置 fill/stroke/stroke-width。',
+    '- 默认继承色的图标保持统一金色；允许为确有语义需要的局部元素分别设置安全的 fill/stroke 多色，但应克制使用，不能破坏整套地图的统一感。',
     '- viewBox 的宽高同时决定未声明显示尺寸时的默认宽高与比例；地图按 1 个 viewBox 单位 = 2 CSS px 显示，因此 24×24 默认显示 48×48px、20×32 默认显示 40×64px、32×18 默认显示 64×36px。根标签也可用正数 width/height（无单位或 px）明确覆盖显示尺寸；只声明一轴时由 viewBox 比例推导另一轴。尺寸表达地点形态，不要无节制放大遮挡其他节点。',
     `- 合法图标示例：${exampleSvg}`,
     '## 设计与交付流程',

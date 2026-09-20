@@ -7,7 +7,7 @@ const safeSvg = computed(() => {
   try {
     return renderMapSvg(props.svg);
   } catch {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 1.8-2.5 2.1-2.5 4.3M12 17h.01"/></svg>';
+    return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 1.8-2.5 2.1-2.5 4.3M12 17h.01"/></svg>';
   }
 });
 </script>
@@ -19,9 +19,5 @@ const safeSvg = computed(() => {
   height: 100% !important;
   max-width: none !important;
   max-height: none !important;
-}
-.map-svg-icon :deep(svg *) {
-  fill: inherit !important;
-  stroke: inherit !important;
 }
 </style>
