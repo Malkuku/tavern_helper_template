@@ -103,8 +103,6 @@ export interface MapSvgDisplaySize {
   aspectRatio?: number;
 }
 
-const mapViewBoxPixelScale = 2;
-
 export function mapSvgDisplaySize(markup: string): MapSvgDisplaySize {
   let source: string;
   try {
@@ -127,10 +125,6 @@ export function mapSvgDisplaySize(markup: string): MapSvgDisplaySize {
     .map(Number);
   if (viewBox?.length === 4 && viewBox.every(Number.isFinite) && viewBox[2] > 0 && viewBox[3] > 0)
     dimensions.aspectRatio = viewBox[2] / viewBox[3];
-  if (viewBox?.length === 4 && dimensions.width === undefined && dimensions.height === undefined) {
-    dimensions.width = viewBox[2] * mapViewBoxPixelScale;
-    dimensions.height = viewBox[3] * mapViewBoxPixelScale;
-  }
   return dimensions;
 }
 

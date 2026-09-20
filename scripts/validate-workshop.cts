@@ -44,6 +44,7 @@ import {
 import type { ScenarioSourceBundle } from '../src/创意工坊/scenario/types';
 import { mapSvgDisplaySize, renderMapSvg, sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import { scenarioThemes } from '../src/创意工坊/scenario/themes';
+import { layoutMapNodes } from '../src/尘史使徒/UI/components/map/layout';
 import { resolveSpeaker } from '../src/尘史使徒/UI/components/panel/speaker';
 
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
@@ -253,13 +254,64 @@ assert.deepEqual(
   mapSvgDisplaySize(
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 0"/></svg>',
   ),
-  { width: 48, height: 48, aspectRatio: 1 },
-  'stroke-width 不得被误判为 width；旧 SVG 必须直接从 viewBox 换算默认显示尺寸',
+  { aspectRatio: 1 },
+  'stroke-width 不得被误判为 width；未声明显示尺寸时只保留 viewBox 比例',
 );
 assert.deepEqual(
   mapSvgDisplaySize('<svg viewBox="0 0 32 18"><path d="M0 0"/></svg>'),
-  { width: 64, height: 36, aspectRatio: 32 / 18 },
-  '未声明尺寸的横向 SVG 必须从 viewBox 推导宽高与比例',
+  { aspectRatio: 32 / 18 },
+  '未声明尺寸的横向 SVG 不得把 viewBox 内部坐标当成 CSS 像素',
+);
+const ordinaryLayout = layoutMapNodes(
+  [
+    { key: 'west', x: 0, y: 0, z: 0, width: 20, height: 20 },
+    { key: 'east', x: 100, y: 0, z: 0, width: 20, height: 20 },
+  ],
+  { coordinateScale: 1, iconScale: 1 },
+);
+assert.equal(ordinaryLayout.find(node => node.key === 'west')?.visualX, 0, '无碰撞节点不得产生额外位移');
+assert.equal(ordinaryLayout.find(node => node.key === 'east')?.visualX, 100, '正常距离应保留原始相对位置');
+const crowdedLayout = layoutMapNodes(
+  [
+    { key: 'west', x: 0, y: 0, z: 0, width: 80, height: 40 },
+    { key: 'east', x: 10, y: 0, z: 0, width: 80, height: 40 },
+  ],
+  { coordinateScale: 1, iconScale: 1 },
+);
+assert.ok(
+  crowdedLayout.find(node => node.key === 'east')!.visualX - crowdedLayout.find(node => node.key === 'west')!.visualX >=
+    90,
+  '相邻大型 SVG 必须沿原始东西方向撑开到安全距离',
+);
+const stackedLayout = layoutMapNodes(
+  [
+    { key: 'hill', x: 0, y: 0, z: 0, width: 40, height: 40 },
+    { key: 'palace', x: 0, y: 0, z: 10, width: 40, height: 40 },
+  ],
+  { coordinateScale: 1, iconScale: 1 },
+);
+assert.ok(
+  stackedLayout.find(node => node.key === 'palace')!.visualY < stackedLayout.find(node => node.key === 'hill')!.visualY,
+  '同 x/y 节点必须按 z 将高处节点稳定地向屏幕上方分开',
+);
+const closeAtOverview = layoutMapNodes(
+    [
+      { key: 'a', x: 0, y: 0, z: 0, width: 40, height: 40 },
+      { key: 'b', x: 20, y: 0, z: 0, width: 40, height: 40 },
+    ],
+    { coordinateScale: 1, iconScale: 1 },
+  ),
+  releasedAtZoom = layoutMapNodes(
+    [
+      { key: 'a', x: 0, y: 0, z: 0, width: 40, height: 40 },
+      { key: 'b', x: 20, y: 0, z: 0, width: 40, height: 40 },
+    ],
+    { coordinateScale: 4, iconScale: 1 },
+  );
+assert.ok(
+  Math.abs(closeAtOverview[0].visualX - closeAtOverview[0].x) > 0 &&
+    Math.abs(releasedAtZoom[0].visualX - releasedAtZoom[0].x * 4) < 1e-6,
+  '放大时必须释放概览尺度产生的碰撞偏移并回归语义位置',
 );
 assert.throws(
   () => sanitizeMapSvg('<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path d="M0 0"/></svg>'),

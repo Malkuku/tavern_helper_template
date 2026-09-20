@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { mapSvgDisplaySize } from '../../../../创意工坊/scenario/map';
+import { layoutMapNodes, mapLayoutBounds, type MapLayoutItem } from './layout';
 import MapSvgIcon from './MapSvgIcon.vue';
 type Mode = 'gameplay' | 'preview' | 'selection';
 type Crumb = { name: string; node: Record<string, any> };
@@ -190,38 +191,73 @@ const results = computed(() =>
 const translateStyle = computed(() => ({ '--map-translate': `translate(${transform.x}px,${transform.y}px)` })),
   gridStyle = computed(() => ({ '--map-grid-size': `${100 * transform.k}px ${100 * transform.k}px` })),
   sizeClass = computed(() => (baseScale.value > 40 ? 'large' : baseScale.value < 2 ? 'small' : 'medium'));
+const defaultIconSize = computed(() =>
+  Math.max(
+    16,
+    Math.min(props.iconSize ?? (sizeClass.value === 'large' ? 56 : sizeClass.value === 'small' ? 30 : 40), 160),
+  ),
+);
+const layoutNodes = computed(() => {
+  const byName = new Map<string, MapLayoutItem>();
+  for (const item of layoutMapNodes(
+    nodes.value.map(node => ({
+      key: node.name,
+      x: node.displayY,
+      y: -node.displayX,
+      z: node.z,
+      width:
+        node.iconWidth ??
+        (node.iconHeight && node.iconAspectRatio ? node.iconHeight * node.iconAspectRatio : defaultIconSize.value),
+      height:
+        node.iconHeight ??
+        (node.iconWidth && node.iconAspectRatio ? node.iconWidth / node.iconAspectRatio : defaultIconSize.value),
+    })),
+    { coordinateScale: baseScale.value * transform.k, iconScale: Math.min(transform.k, 1) },
+  ))
+    byName.set(item.key, item);
+  return byName;
+});
 const nodeStyle = (n: NodeView) => {
-  const scale = baseScale.value * transform.k;
+  const layout = layoutNodes.value.get(n.name);
   const style: Record<string, string | number> = {
-    '--map-node-left': `calc(50% + ${n.displayY * scale}px)`,
-    '--map-node-top': `calc(50% + ${-n.displayX * scale}px)`,
+    '--map-node-left': `calc(50% + ${layout?.visualX ?? 0}px)`,
+    '--map-node-top': `calc(50% + ${layout?.visualY ?? 0}px)`,
     '--map-node-z': Math.floor(n.z * 100) + 10,
+    '--map-svg-width': `${layout?.renderWidth ?? defaultIconSize.value}px`,
+    '--map-svg-height': `${layout?.renderHeight ?? defaultIconSize.value}px`,
   };
-  if (props.iconSize) style['--map-icon-size'] = `${Math.max(16, Math.min(props.iconSize, 160))}px`;
-  if (n.iconWidth) style['--map-svg-width'] = `${n.iconWidth}px`;
-  if (n.iconHeight) style['--map-svg-height'] = `${n.iconHeight}px`;
-  const ratio = n.iconAspectRatio;
-  if (ratio && !n.iconWidth && !n.iconHeight) {
-    if (ratio >= 1) style['--map-svg-height'] = `calc(var(--map-icon-size) / ${ratio})`;
-    else style['--map-svg-width'] = `calc(var(--map-icon-size) * ${ratio})`;
-  } else if (ratio && n.iconWidth && !n.iconHeight) {
-    style['--map-svg-height'] = `${n.iconWidth / ratio}px`;
-  } else if (ratio && n.iconHeight && !n.iconWidth) {
-    style['--map-svg-width'] = `${n.iconHeight * ratio}px`;
-  }
   return style;
 };
 function fit() {
   if (!viewport.value || !nodes.value.length) return;
   const rect = viewport.value.getBoundingClientRect(),
-    xs = nodes.value.map(n => n.displayX),
-    ys = nodes.value.map(n => n.displayY),
-    dx = Math.max(Math.max(...xs) - Math.min(...xs), 10),
-    dy = Math.max(Math.max(...ys) - Math.min(...ys), 10);
-  baseScale.value = Math.min(Math.max(Math.min(rect.width / dy, rect.height / dx) * 0.75, 0.5), 150);
+    availableWidth = rect.width * 0.75,
+    availableHeight = rect.height * 0.75,
+    input = nodes.value.map(node => ({
+      key: node.name,
+      x: node.displayY,
+      y: -node.displayX,
+      z: node.z,
+      width:
+        node.iconWidth ??
+        (node.iconHeight && node.iconAspectRatio ? node.iconHeight * node.iconAspectRatio : defaultIconSize.value),
+      height:
+        node.iconHeight ??
+        (node.iconWidth && node.iconAspectRatio ? node.iconWidth / node.iconAspectRatio : defaultIconSize.value),
+    }));
+  let low = 0.05,
+    high = 150;
+  for (let iteration = 0; iteration < 24; iteration++) {
+    const candidate = (low + high) / 2,
+      bounds = mapLayoutBounds(layoutMapNodes(input, { coordinateScale: candidate, iconScale: 1 }));
+    if (bounds.width <= availableWidth && bounds.height <= availableHeight) low = candidate;
+    else high = candidate;
+  }
+  baseScale.value = low;
   transform.k = 1;
-  transform.x = (-(Math.min(...ys) + Math.max(...ys)) / 2) * baseScale.value;
-  transform.y = ((Math.min(...xs) + Math.max(...xs)) / 2) * baseScale.value;
+  const bounds = mapLayoutBounds(layoutMapNodes(input, { coordinateScale: baseScale.value, iconScale: 1 }));
+  transform.x = -(bounds.left + bounds.right) / 2;
+  transform.y = -(bounds.top + bounds.bottom) / 2;
 }
 function wheel(e: WheelEvent) {
   if (!viewport.value) return;
