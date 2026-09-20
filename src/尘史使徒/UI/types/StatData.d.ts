@@ -196,9 +196,9 @@ export interface MapNodeData {
   详情: string[];
   图标: string;
   方位: {
-    x: number[];
-    y: number[];
-    z: number[];
+    x: [number, number];
+    y: [number, number];
+    z: [number, number];
   };
   子地图?: Record<string, MapNodeData>;
 }

@@ -301,18 +301,15 @@ const closeAtOverview = layoutMapNodes(
     ],
     { coordinateScale: 1, iconScale: 1 },
   ),
-  releasedAtZoom = layoutMapNodes(
+  enlargedAtZoom = layoutMapNodes(
     [
       { key: 'a', x: 0, y: 0, z: 0, width: 40, height: 40 },
       { key: 'b', x: 20, y: 0, z: 0, width: 40, height: 40 },
     ],
-    { coordinateScale: 4, iconScale: 1 },
+    { coordinateScale: 4, iconScale: 4 },
   );
-assert.ok(
-  Math.abs(closeAtOverview[0].visualX - closeAtOverview[0].x) > 0 &&
-    Math.abs(releasedAtZoom[0].visualX - releasedAtZoom[0].x * 4) < 1e-6,
-  '放大时必须释放概览尺度产生的碰撞偏移并回归语义位置',
-);
+assert.ok(Math.abs(closeAtOverview[0].visualX - closeAtOverview[0].x) > 0, '概览尺度的近距节点必须避免重叠');
+assert.equal(enlargedAtZoom[0].renderWidth, 160, '地图放大时图标必须随平面坐标倍率同步放大');
 assert.throws(
   () => sanitizeMapSvg('<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path d="M0 0"/></svg>'),
   /标准 SVG 命名空间/,
@@ -386,6 +383,13 @@ assert.throws(
 );
 const mapRoundTrip = parseMapJson(JSON.stringify(source.registries.地图.map));
 assert.deepEqual(mapRoundTrip, source.registries.地图.map, '完整 MapEntry JSON 必须无损往返');
+const invalidCoordinateMap = structuredClone(source.registries.地图.map);
+invalidCoordinateMap.data.城市.方位.x = [0] as unknown as [number, number];
+assert.throws(
+  () => parseMapJson(JSON.stringify(invalidCoordinateMap)),
+  /data\.城市\.方位\.x/,
+  '地图方位的每个轴都必须严格使用 [min,max] 二元组',
+);
 assert.deepEqual(
   parseGeneratedMap(`\`\`\`json\n${JSON.stringify(source.registries.地图.map)}\n\`\`\``),
   source.registries.地图.map,
@@ -400,7 +404,7 @@ assert.match(
 );
 assert.match(
   mapGenerationPrompt,
-  /区间两端的平均值[\s\S]*x 向右、y 向下[\s\S]*当前父节点/,
+  /区间两端的平均值[\s\S]*东（x）、北（y）、上（z）[\s\S]*1 km[\s\S]*当前父节点/,
   '地图提示词必须解释坐标的真实渲染语义',
 );
 assert.match(
@@ -487,6 +491,28 @@ assert.doesNotMatch(sharedMapExplorer, /\.node span\s*\{/, '节点标签样式�
 assert.match(sharedMapExplorer, /\.node > \.node-label\s*\{/, '节点标签必须使用明确的直系类边界');
 assert.match(sharedMapExplorer, /iconSize\?: number/, '共享地图必须允许调整节点图标尺寸');
 assert.match(sharedMapExplorer, /--map-svg-width[\s\S]*--map-svg-height/, '节点容器必须消费 SVG 声明的独立宽高');
+assert.match(
+  sharedMapExplorer,
+  /coordinateScale: baseScale\.value \* transform\.k, iconScale: transform\.k/,
+  '节点图标必须随地图平面倍率同步缩放',
+);
+assert.match(
+  sharedMapExplorer,
+  /x: node\.displayX,[\s\S]*y: -node\.displayY/,
+  '地图投影必须使用屏幕向右为正东、屏幕向上为正北的坐标系',
+);
+assert.match(sharedMapExplorer, /E:.*displayX.*km N:.*displayY.*km/, '地点详情必须按 E:x、N:y 展示公里坐标');
+assert.match(sharedMapExplorer, /class="detail"[\s\S]*detailIsLeft\(node\)/, '地点详情必须锚定节点并按画面位置换边');
+assert.match(
+  sharedMapExplorer,
+  /class="detail"[\s\S]*@mousedown\.stop[\s\S]*@wheel\.stop[\s\S]*@touchstart\.stop[\s\S]*@touchmove\.stop/,
+  '地点详情必须拦截地图拖拽与缩放手势，同时保留自身滚动',
+);
+assert.match(
+  sharedMapExplorer,
+  /detailTab === 'summary'[\s\S]*detailTab === 'details'/,
+  '地点简介与详细信息必须分 Tab 展示',
+);
 assert.doesNotMatch(
   sharedMapExplorer,
   /'--map-(?:icon-size|svg-width|svg-height)'[^\n]+undefined/,

@@ -103,9 +103,9 @@ const MapNodeSchema: z.ZodType<Record<string, unknown>> = z.lazy(() =>
         }
       }, '图标必须是安全的完整 SVG'),
       方位: z.object({
-        x: z.array(z.number()),
-        y: z.array(z.number()),
-        z: z.array(z.number()),
+        x: z.tuple([z.number().finite(), z.number().finite()]),
+        y: z.tuple([z.number().finite(), z.number().finite()]),
+        z: z.tuple([z.number().finite(), z.number().finite()]),
       }),
       子地图: z.record(z.string(), MapNodeSchema).optional(),
     })

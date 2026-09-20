@@ -20,15 +20,72 @@
           v-for="node in nodes"
           :key="node.name"
           class="node"
-          :class="[`size-${sizeClass}`, { here: node.name === currentLocation }]"
+          :class="[`size-${sizeClass}`, { here: node.name === currentLocation, focused: focus?.name === node.name }]"
           :style="nodeStyle(node)"
-          @click.stop="focus = node"
+          @click.stop="selectNode(node)"
         >
           <div class="map-node-icon" :class="`shape-${iconShape}`">
             <MapSvgIcon :svg="node.icon" />
           </div>
           <span class="node-label">{{ node.name }}</span
           ><i v-if="node.name === currentLocation">YOU</i>
+          <aside
+            v-if="focus?.name === node.name"
+            class="detail"
+            :class="{ left: detailIsLeft(node) }"
+            @click.stop
+            @mousedown.stop
+            @wheel.stop
+            @touchstart.stop
+            @touchmove.stop
+          >
+            <button class="close" aria-label="关闭地点详情" @click.stop="focus = undefined">×</button>
+            <h3>{{ focus.name }}</h3>
+            <div class="detail-tabs" role="tablist" aria-label="地点信息">
+              <button
+                :class="{ active: detailTab === 'summary' }"
+                role="tab"
+                :aria-selected="detailTab === 'summary'"
+                @click="detailTab = 'summary'"
+              >
+                简介
+              </button>
+              <button
+                :class="{ active: detailTab === 'details' }"
+                role="tab"
+                :aria-selected="detailTab === 'details'"
+                @click="detailTab = 'details'"
+              >
+                详细
+              </button>
+            </div>
+            <div class="detail-content">
+              <p v-if="detailTab === 'summary'">{{ focus.desc || '暂无简介' }}</p>
+              <ul v-else-if="focus.details.length">
+                <li v-for="item in focus.details" :key="item">{{ item }}</li>
+              </ul>
+              <p v-else>暂无详细信息</p>
+            </div>
+            <small>E:{{ focus.displayX.toFixed(1) }} km N:{{ focus.displayY.toFixed(1) }} km</small>
+            <footer>
+              <button v-if="focus.hasChildren" class="primary" @click="enter(focus)">进入地区</button
+              ><button v-if="mode === 'selection'" class="primary" @click="$emit('select', focus.name)">确定选择</button
+              ><button v-if="mode === 'gameplay'" @click="$emit('travel', focus.name)">前往此处</button
+              ><button
+                v-if="mode === 'gameplay'"
+                class="danger"
+                @click="
+                  $emit(
+                    'delete',
+                    focus.name,
+                    trail.map(x => x.name),
+                  )
+                "
+              >
+                删除地图
+              </button>
+            </footer>
+          </aside>
         </div>
       </div>
     </div>
@@ -51,33 +108,6 @@
       <slot name="hud" />
     </div>
     <button v-if="trail.length > 1" class="back" @click="goUp">← LEAVE {{ trail.at(-1)?.name }}</button>
-    <aside v-if="focus" class="detail">
-      <button class="close" @click="focus = undefined">×</button>
-      <h3>{{ focus.name }}</h3>
-      <p>{{ focus.desc }}</p>
-      <small>N:{{ focus.displayX.toFixed(1) }} E:{{ focus.displayY.toFixed(1) }}</small>
-      <ul>
-        <li v-for="item in focus.details.slice(0, 3)" :key="item">{{ item }}</li>
-      </ul>
-      <footer>
-        <button v-if="focus.hasChildren" class="primary" @click="enter(focus)">进入地区</button
-        ><button v-if="mode === 'selection'" class="primary" @click="$emit('select', focus.name)">确定选择</button
-        ><button v-if="mode === 'gameplay'" @click="$emit('travel', focus.name)">前往此处</button
-        ><button
-          v-if="mode === 'gameplay'"
-          class="danger"
-          @click="
-            $emit(
-              'delete',
-              focus.name,
-              trail.map(x => x.name),
-            )
-          "
-        >
-          删除地图
-        </button>
-      </footer>
-    </aside>
   </div>
 </template>
 <script setup lang="ts">
@@ -126,6 +156,7 @@ const viewport = ref<HTMLElement>(),
   drag = reactive({ active: false, moved: false, x: 0, y: 0, tx: 0, ty: 0 });
 const searchOpen = ref(false),
   query = ref(''),
+  detailTab = ref<'summary' | 'details'>('summary'),
   pinch = reactive({ active: false, distance: 0 });
 function findPath(nodes: Record<string, any>, target: string, path: Crumb[] = []): Crumb[] | undefined {
   for (const [name, node] of Object.entries(nodes ?? {})) {
@@ -207,8 +238,8 @@ const layoutNodes = computed(() => {
   for (const item of layoutMapNodes(
     nodes.value.map(node => ({
       key: node.name,
-      x: node.displayY,
-      y: -node.displayX,
+      x: node.displayX,
+      y: -node.displayY,
       z: node.z,
       width:
         node.iconWidth ??
@@ -217,7 +248,7 @@ const layoutNodes = computed(() => {
         node.iconHeight ??
         (node.iconWidth && node.iconAspectRatio ? node.iconWidth / node.iconAspectRatio : defaultIconSize.value),
     })),
-    { coordinateScale: baseScale.value * transform.k, iconScale: Math.min(transform.k, 1) },
+    { coordinateScale: baseScale.value * transform.k, iconScale: transform.k },
   ))
     byName.set(item.key, item);
   return byName;
@@ -233,6 +264,14 @@ const nodeStyle = (n: NodeView) => {
   };
   return style;
 };
+function selectNode(node: NodeView) {
+  focus.value = node;
+  detailTab.value = 'summary';
+}
+function detailIsLeft(node: NodeView) {
+  const visualX = layoutNodes.value.get(node.name)?.visualX ?? 0;
+  return visualX + transform.x > 0;
+}
 function fit() {
   if (!viewport.value || !nodes.value.length) return;
   const rect = viewport.value.getBoundingClientRect(),
@@ -240,8 +279,8 @@ function fit() {
     availableHeight = rect.height * 0.75,
     input = nodes.value.map(node => ({
       key: node.name,
-      x: node.displayY,
-      y: -node.displayX,
+      x: node.displayX,
+      y: -node.displayY,
       z: node.z,
       width:
         node.iconWidth ??
@@ -358,9 +397,10 @@ watch(() => [props.map, props.currentLocation], init);
   overflow: hidden !important;
   isolation: isolate;
   background:
-    radial-gradient(circle at 50% 46%, rgba(159, 127, 65, 0.11) 0, rgba(41, 47, 57, 0.05) 28%, transparent 55%),
-    radial-gradient(circle at 18% 22%, rgba(93, 111, 128, 0.09), transparent 32%),
-    linear-gradient(145deg, #20252d 0%, #15191f 50%, #101217 100%);
+    radial-gradient(ellipse at 50% 44%, rgba(181, 137, 67, 0.105) 0, rgba(93, 73, 44, 0.045) 28%, transparent 63%),
+    radial-gradient(ellipse at 7% 12%, rgba(67, 91, 116, 0.13), transparent 42%),
+    radial-gradient(ellipse at 94% 88%, rgba(42, 60, 80, 0.11), transparent 46%),
+    linear-gradient(145deg, #171d26 0%, #0e131b 48%, #090d13 100%);
   color: #ddd;
   user-select: none;
 }
@@ -373,17 +413,16 @@ watch(() => [props.map, props.currentLocation], init);
   content: '';
 }
 .vision::before {
-  opacity: 0.16;
+  opacity: 0.2;
   mix-blend-mode: soft-light;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+  background:
+    radial-gradient(ellipse at 42% 38%, rgba(255, 224, 162, 0.15), transparent 34%),
+    radial-gradient(ellipse at 64% 58%, rgba(111, 131, 151, 0.08), transparent 38%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.42' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E");
 }
 .vision::after {
-  background:
-    radial-gradient(circle at center, transparent 46%, rgba(5, 7, 10, 0.3) 76%, rgba(3, 4, 7, 0.72) 100%),
-    linear-gradient(90deg, rgba(197, 160, 89, 0.035) 1px, transparent 1px);
-  background-size:
-    auto,
-    25% 100%;
+  box-shadow: inset 0 0 110px 18px rgba(1, 3, 7, 0.62);
+  background: radial-gradient(ellipse at center, transparent 48%, rgba(3, 6, 10, 0.16) 74%, rgba(2, 4, 8, 0.48) 100%);
 }
 .viewport {
   position: absolute !important;
@@ -401,12 +440,12 @@ watch(() => [props.map, props.currentLocation], init);
   inset: -200%;
   width: 500%;
   height: 500%;
-  opacity: 0.72;
+  opacity: 0.42;
   background-image:
-    linear-gradient(rgba(197, 160, 89, 0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(197, 160, 89, 0.09) 1px, transparent 1px),
-    linear-gradient(rgba(172, 185, 194, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(172, 185, 194, 0.025) 1px, transparent 1px);
+    linear-gradient(rgba(197, 160, 89, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(197, 160, 89, 0.075) 1px, transparent 1px),
+    linear-gradient(rgba(172, 185, 194, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(172, 185, 194, 0.022) 1px, transparent 1px);
   background-size:
     var(--map-grid-size), var(--map-grid-size), var(--map-grid-sub-size), var(--map-grid-sub-size) !important;
 }
@@ -417,15 +456,15 @@ watch(() => [props.map, props.currentLocation], init);
   width: var(--map-chart-size);
   height: var(--map-chart-size);
   box-sizing: border-box;
-  border: 1px solid rgba(197, 160, 89, 0.13);
+  border: 1px solid rgba(197, 160, 89, 0.08);
   border-radius: 50%;
   transform: translate(-50%, -50%) rotate(-8deg);
-  opacity: 0.78;
+  opacity: 0.22;
   pointer-events: none;
   background:
-    linear-gradient(transparent calc(50% - 0.5px), rgba(197, 160, 89, 0.11) 50%, transparent calc(50% + 0.5px)),
-    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(197, 160, 89, 0.11) 50%, transparent calc(50% + 0.5px)),
-    repeating-conic-gradient(from 2deg, rgba(197, 160, 89, 0.18) 0 0.35deg, transparent 0.35deg 15deg);
+    linear-gradient(transparent calc(50% - 0.5px), rgba(197, 160, 89, 0.07) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(197, 160, 89, 0.07) 50%, transparent calc(50% + 0.5px)),
+    repeating-conic-gradient(from 2deg, rgba(197, 160, 89, 0.12) 0 0.3deg, transparent 0.3deg 15deg);
   -webkit-mask: radial-gradient(
     circle,
     transparent 0 48%,
@@ -473,6 +512,9 @@ watch(() => [props.map, props.currentLocation], init);
   top: var(--map-node-top) !important;
   z-index: var(--map-node-z) !important;
   cursor: pointer;
+}
+.node.focused {
+  z-index: 10000 !important;
 }
 .map-node-icon {
   display: grid !important;
@@ -606,31 +648,77 @@ watch(() => [props.map, props.currentLocation], init);
 }
 .detail {
   position: absolute !important;
-  z-index: 5;
-  top: 20% !important;
-  right: 30px !important;
-  width: 300px !important;
+  z-index: 2;
+  top: 50% !important;
+  left: calc(100% + 18px) !important;
+  width: 290px !important;
+  max-height: 420px;
+  box-sizing: border-box !important;
   padding: 16px !important;
+  transform: translateY(-50%) !important;
+  cursor: default;
   color: #ddd !important;
   background: #14161cf5 !important;
   border: 1px solid #444 !important;
   border-top: 3px solid #c5a059 !important;
   box-shadow: 0 10px 30px #000 !important;
 }
+.detail.left {
+  right: calc(100% + 18px) !important;
+  left: auto !important;
+}
 .detail p,
 .detail li {
   color: #ddd !important;
 }
 .detail h3 {
+  margin: 0 32px 12px 0;
   color: #c5a059 !important;
 }
 .detail small {
   color: #888 !important;
 }
+.detail-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #3f3a30;
+}
+.detail-tabs button {
+  padding: 6px 14px !important;
+  color: #8d8d8d !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  font: inherit !important;
+  cursor: pointer !important;
+}
+.detail-tabs button.active {
+  color: #c5a059 !important;
+  border-bottom-color: #c5a059 !important;
+}
+.detail-content {
+  max-height: 190px;
+  margin-bottom: 10px;
+  overflow-y: auto;
+  user-select: text;
+}
+.detail-content p {
+  margin: 0;
+  line-height: 1.65;
+}
+.detail-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.detail-content li + li {
+  margin-top: 6px;
+}
 .detail footer {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 12px;
 }
 .detail footer button {
   flex: 1 !important;
@@ -665,11 +753,12 @@ watch(() => [props.map, props.currentLocation], init);
 }
 @media (max-width: 700px) {
   .detail {
-    top: auto !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
+    top: calc(100% + 18px) !important;
+    right: auto !important;
+    left: 50% !important;
+    width: min(290px, calc(100vw - 24px)) !important;
+    max-height: 360px;
+    transform: translateX(-50%) !important;
   }
   .overlay {
     padding: 10px;
