@@ -14,6 +14,7 @@
         <h2>{{ domain }}</h2>
         <div class="catalog-actions">
           <button v-if="domain === '角色'" @click="openRoleAssistant()">✦ AI 新建</button
+          ><button v-else-if="domain === '地图'" @click="openMapAssistant()">✦ AI 新建</button
           ><button class="primary" @click="createCurrent">+ 新建</button>
         </div>
       </header>
@@ -110,6 +111,7 @@
         </div>
         <div class="entry-actions">
           <button v-if="domain === '角色'" @click="openRoleAssistant(selectedId)">✦ AI 修改</button
+          ><button v-else-if="domain === '地图'" @click="openMapAssistant(selectedId)">✦ AI 修改</button
           ><button @click="copyCurrent">复制</button
           ><span v-if="domain === '剧本' || domain === '地图'" class="scenario-json-actions"
             ><button type="button" @click="scenarioImportInput?.click()">导入 JSON</button
@@ -291,19 +293,72 @@
         </button></template
       >
     </AppDialog>
+    <AppDialog
+      :open="mapGeneratorOpen"
+      :title="mapGeneratorTargetId ? '使用外部 AI 修改地图' : '使用外部 AI 新建地图'"
+      @cancel="closeMapGenerator"
+    >
+      <div class="generator-form">
+        <label
+          >{{ mapGeneratorTargetId ? '修改要求' : '地图创意'
+          }}<textarea
+            v-model="mapGeneratorIdea"
+            rows="6"
+            :placeholder="
+              mapGeneratorTargetId
+                ? '说明要调整的区域、层级、坐标、文案或 SVG 图标风格……'
+                : '地图尺度、核心区域、空间层级、交通关系、视觉风格与叙事用途……'
+            "
+          />
+        </label>
+        <label
+          >提升词（可选）<textarea
+            v-model="mapGeneratorEnhancement"
+            rows="3"
+            placeholder="强调的布局、文案或图标设计方向"
+          />
+        </label>
+        <p class="muted">
+          提示词会逐项解释地图字段、安全 SVG 与坐标规则。AI 可先用自包含 HTML
+          展示方案供你审阅；确认后，请把它最终返回的完整 MapEntry JSON 粘贴到下方。
+        </p>
+        <label
+          >地图 JSON<textarea
+            v-model="mapGeneratorJson"
+            rows="9"
+            placeholder="粘贴 AI 最终返回的完整 MapEntry JSON；可包含 ```json 代码围栏"
+          />
+        </label>
+        <p v-if="mapGeneratorError" class="generator-error" role="alert">{{ mapGeneratorError }}</p>
+      </div>
+      <template #actions
+        ><button v-if="mapGeneratorTargetId" @click="downloadCurrentMapJson">导出当前地图 JSON</button
+        ><button :disabled="!mapGeneratorIdea.trim()" @click="downloadMapGeneratorPrompt">下载提示词</button
+        ><button class="primary" :disabled="!mapGeneratorJson.trim()" @click="importGeneratedMapJson">
+          {{ mapGeneratorTargetId ? '完整覆盖地图' : '导入新地图' }}
+        </button></template
+      >
+    </AppDialog>
     <AppDialog :open="exportOpen" title="导出预览" @cancel="exportOpen = false"
       ><p v-if="domain === '剧本' || domain === '地图'">将导出“{{ title }}”的完整 JSON，可再次导入工坊编辑。</p>
       <p v-else>将导出角色“{{ title }}”及其资产包装信息。</p>
       <template #actions><button class="primary" @click="confirmExport">下载</button></template></AppDialog
-    ><AppDialog :open="!!pendingScenarioImport" title="覆盖当前剧本" @cancel="pendingScenarioImport = undefined">
+    ><AppDialog
+      :open="!!pendingScenarioImport"
+      :title="`覆盖当前${pendingScenarioImport?.category ?? '资源'}`"
+      @cancel="pendingScenarioImport = undefined"
+    >
       <p v-if="pendingScenarioImport">
-        将用“{{ pendingScenarioImport.value.key }}”完整覆盖当前剧本“{{
-          scenarioTitle(pendingScenarioImport.targetId)
+        将用“{{ importValueTitle(pendingScenarioImport) }}”完整覆盖当前{{ pendingScenarioImport.category }}“{{
+          importTargetTitle(pendingScenarioImport)
         }}”。当前 UUID 保持不变，未保存内容将被替换。
       </p>
       <template #actions
         ><button class="danger" @click="confirmScenarioImport">确认覆盖草稿</button></template
-      > </AppDialog
+      ></AppDialog
+    ><AppDialog :open="!!importError" title="JSON 导入失败" @cancel="importError = ''">
+      <pre class="import-error" role="alert">{{ importError }}</pre>
+      <template #actions><button class="primary" @click="importError = ''">返回检查文件</button></template></AppDialog
     ><AppDialog :open="deleteOpen" title="删除确认" @cancel="deleteOpen = false"
       ><p>{{ deleteImpacts.length ? `将清理${deleteImpacts.length}处剧本引用并禁用相关剧本。` : '该项未被引用。' }}</p>
       <template #actions><button class="danger" @click="confirmDelete">确认删除</button></template></AppDialog
@@ -334,7 +389,8 @@ import {
   roleToRuntimeJson,
   type GeneratedRoleType,
 } from '../assets/roleGenerator';
-import type { ReferenceIssue, ScenarioSourceBundle } from '../scenario/types';
+import { buildMapGenerationPrompt, parseGeneratedMap } from '../assets/mapGenerator';
+import type { MapEntry, ReferenceIssue, ScenarioEntry, ScenarioSourceBundle } from '../scenario/types';
 import AppDialog from './AppDialog.vue';
 import RoleEditor from './RoleEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
@@ -367,8 +423,18 @@ const domain = ref<'角色' | '剧本' | '地图'>('剧本'),
   generatorJson = ref(''),
   generatorError = ref(''),
   preparingPrompt = ref(false),
+  mapGeneratorOpen = ref(false),
+  mapGeneratorTargetId = ref(''),
+  mapGeneratorIdea = ref(''),
+  mapGeneratorEnhancement = ref(''),
+  mapGeneratorJson = ref(''),
+  mapGeneratorError = ref(''),
   scenarioImportInput = ref<HTMLInputElement>(),
-  pendingScenarioImport = ref<{ targetId: string; value: any }>(),
+  pendingScenarioImport = ref<
+    | { category: '地图'; targetId: string; value: MapEntry }
+    | { category: '剧本'; targetId: string; value: ScenarioEntry }
+  >(),
+  importError = ref(''),
   expandedGroups = reactive(new Set<string>());
 const changes = computed(() => diffSources(props.source, props.draft)),
   issues = computed(() => findReferenceIssues(props.draft));
@@ -534,6 +600,18 @@ function openRoleAssistant(targetId = '') {
   generatorError.value = '';
   generatorOpen.value = true;
 }
+function closeMapGenerator() {
+  mapGeneratorOpen.value = false;
+  mapGeneratorError.value = '';
+}
+function openMapAssistant(targetId = '') {
+  mapGeneratorTargetId.value = targetId;
+  mapGeneratorIdea.value = '';
+  mapGeneratorEnhancement.value = '';
+  mapGeneratorJson.value = '';
+  mapGeneratorError.value = '';
+  mapGeneratorOpen.value = true;
+}
 function downloadText(content: string, filename: string) {
   const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
   const anchor = document.createElement('a');
@@ -565,6 +643,40 @@ function downloadCurrentRoleJson() {
   const target = props.draft.registries.角色[generatorTargetId.value];
   if (!target) return;
   downloadText(JSON.stringify(roleToRuntimeJson(target), null, 2), `${target.key || '角色'}-stat_data.json`);
+}
+function downloadMapGeneratorPrompt() {
+  mapGeneratorError.value = '';
+  try {
+    const current = props.draft.registries.地图[mapGeneratorTargetId.value];
+    const prompt = buildMapGenerationPrompt(mapGeneratorIdea.value, mapGeneratorEnhancement.value, current);
+    downloadText(prompt, `尘史地图提示词-${current?.desc || '新地图'}.txt`);
+  } catch (error) {
+    mapGeneratorError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+function downloadCurrentMapJson() {
+  const current = props.draft.registries.地图[mapGeneratorTargetId.value];
+  if (!current) return;
+  downloadText(JSON.stringify(current, null, 2), `${current.desc || '地图'}-MapEntry.json`);
+}
+function importGeneratedMapJson() {
+  mapGeneratorError.value = '';
+  try {
+    const parsed = parseGeneratedMap(mapGeneratorJson.value);
+    const targetId = mapGeneratorTargetId.value;
+    const id = targetId && props.draft.registries.地图[targetId] ? targetId : crypto.randomUUID();
+    props.draft.registries.地图[id] = parsed;
+    domain.value = '地图';
+    selectedId.value = id;
+    mobilePane.value = 'editor';
+    mapGeneratorOpen.value = false;
+    mapGeneratorTargetId.value = '';
+    mapGeneratorIdea.value = '';
+    mapGeneratorEnhancement.value = '';
+    mapGeneratorJson.value = '';
+  } catch (error) {
+    mapGeneratorError.value = error instanceof Error ? error.message : String(error);
+  }
 }
 function importGeneratedJson() {
   generatorError.value = '';
@@ -616,12 +728,13 @@ async function importScenarioFile(event: Event) {
     const target =
       domain.value === '地图' ? props.draft.registries.地图[selectedId.value] : props.draft.scenarios[selectedId.value];
     if (!selectedId.value || !target) throw new Error(`请先选择要覆盖的${domain.value}。`);
-    pendingScenarioImport.value = {
-      targetId: selectedId.value,
-      value: domain.value === '地图' ? parseMapJson(await file.text()) : parseScenarioJson(await file.text()),
-    };
+    const text = await file.text();
+    pendingScenarioImport.value =
+      domain.value === '地图'
+        ? { category: '地图', targetId: selectedId.value, value: parseMapJson(text) }
+        : { category: '剧本', targetId: selectedId.value, value: parseScenarioJson(text) };
   } catch (error) {
-    emit('message', { text: error instanceof Error ? error.message : String(error), error: true });
+    importError.value = error instanceof Error ? error.message : String(error);
   } finally {
     input.value = '';
   }
@@ -630,18 +743,29 @@ function confirmScenarioImport() {
   const pending = pendingScenarioImport.value;
   if (!pending) return;
   const targetExists =
-    domain.value === '地图' ? props.draft.registries.地图[pending.targetId] : props.draft.scenarios[pending.targetId];
+    pending.category === '地图'
+      ? props.draft.registries.地图[pending.targetId]
+      : props.draft.scenarios[pending.targetId];
   if (!targetExists) {
     pendingScenarioImport.value = undefined;
-    emit('message', { text: '目标剧本已不存在，未执行覆盖。', error: true });
+    emit('message', { text: `目标${pending.category}已不存在，未执行覆盖。`, error: true });
     return;
   }
-  if (domain.value === '地图') props.draft.registries.地图[pending.targetId] = pending.value as any;
+  if (pending.category === '地图') props.draft.registries.地图[pending.targetId] = pending.value;
   else props.draft.scenarios[pending.targetId] = pending.value;
+  domain.value = pending.category;
   selectedId.value = pending.targetId;
   mobilePane.value = 'editor';
   pendingScenarioImport.value = undefined;
-  emit('message', { text: '剧本 JSON 已覆盖当前草稿，保存前可继续检查和编辑。' });
+  emit('message', { text: `${pending.category} JSON 已覆盖当前草稿，保存前可继续检查和编辑。` });
+}
+function importValueTitle(pending: NonNullable<typeof pendingScenarioImport.value>) {
+  return pending.category === '地图' ? pending.value.desc || '未命名地图' : pending.value.key;
+}
+function importTargetTitle(pending: NonNullable<typeof pendingScenarioImport.value>) {
+  return pending.category === '地图'
+    ? assetTitle('地图', props.draft.registries.地图[pending.targetId])
+    : scenarioTitle(pending.targetId);
 }
 function askDelete() {
   deleteImpacts.value =
@@ -998,6 +1122,17 @@ function format(v: unknown) {
   margin: 0;
   padding: 10px 12px;
   color: #f1c2bc;
+  background: rgba(121, 43, 36, 0.28);
+  border-left: 3px solid #d47569;
+}
+.import-error {
+  max-height: min(50vh, 420px);
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  color: #f1c2bc;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   background: rgba(121, 43, 36, 0.28);
   border-left: 3px solid #d47569;
 }

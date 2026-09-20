@@ -19,11 +19,11 @@
           v-for="node in nodes"
           :key="node.name"
           class="node"
-          :class="{ here: node.name === currentLocation }"
+          :class="[`size-${sizeClass}`, { here: node.name === currentLocation }]"
           :style="nodeStyle(node)"
           @click.stop="focus = node"
         >
-          <div class="map-node-icon" :class="[`size-${sizeClass}`, `shape-${iconShape}`]" :style="iconStyle">
+          <div class="map-node-icon" :class="`shape-${iconShape}`">
             <MapSvgIcon :svg="node.icon" />
           </div>
           <span class="node-label">{{ node.name }}</span
@@ -81,6 +81,7 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { mapSvgDisplaySize } from '../../../../创意工坊/scenario/map';
 import MapSvgIcon from './MapSvgIcon.vue';
 type Mode = 'gameplay' | 'preview' | 'selection';
 type Crumb = { name: string; node: Record<string, any> };
@@ -92,6 +93,9 @@ type NodeView = {
   desc: string;
   details: string[];
   icon: string;
+  iconWidth?: number;
+  iconHeight?: number;
+  iconAspectRatio?: number;
   hasChildren: boolean;
   originalData: Record<string, any>;
 };
@@ -147,7 +151,9 @@ const nodes = computed<NodeView[]>(() =>
     const v = value as any,
       x = v.方位?.x ?? [0, 0],
       y = v.方位?.y ?? [0, 0],
-      z = v.方位?.z ?? [0, 0];
+      z = v.方位?.z ?? [0, 0],
+      icon = typeof v.图标 === 'string' ? v.图标 : '',
+      iconDimensions = mapSvgDisplaySize(icon);
     return {
       name,
       displayX: (x[0] + x[1]) / 2,
@@ -155,7 +161,10 @@ const nodes = computed<NodeView[]>(() =>
       z: (z[0] + z[1]) / 2,
       desc: v.描述 ?? '',
       details: Array.isArray(v.详情) ? v.详情 : [],
-      icon: v.图标 ?? '',
+      icon,
+      iconWidth: iconDimensions.width,
+      iconHeight: iconDimensions.height,
+      iconAspectRatio: iconDimensions.aspectRatio,
       hasChildren: Boolean(v.子地图),
       originalData: v,
     };
@@ -180,21 +189,27 @@ const results = computed(() =>
 );
 const translateStyle = computed(() => ({ '--map-translate': `translate(${transform.x}px,${transform.y}px)` })),
   gridStyle = computed(() => ({ '--map-grid-size': `${100 * transform.k}px ${100 * transform.k}px` })),
-  sizeClass = computed(() => (baseScale.value > 40 ? 'large' : baseScale.value < 2 ? 'small' : 'medium')),
-  iconStyle = computed(() =>
-    props.iconSize
-      ? {
-          '--map-icon-size': `${Math.max(16, Math.min(props.iconSize, 160))}px`,
-        }
-      : undefined,
-  );
+  sizeClass = computed(() => (baseScale.value > 40 ? 'large' : baseScale.value < 2 ? 'small' : 'medium'));
 const nodeStyle = (n: NodeView) => {
   const scale = baseScale.value * transform.k;
-  return {
+  const style: Record<string, string | number> = {
     '--map-node-left': `calc(50% + ${n.displayY * scale}px)`,
     '--map-node-top': `calc(50% + ${-n.displayX * scale}px)`,
     '--map-node-z': Math.floor(n.z * 100) + 10,
   };
+  if (props.iconSize) style['--map-icon-size'] = `${Math.max(16, Math.min(props.iconSize, 160))}px`;
+  if (n.iconWidth) style['--map-svg-width'] = `${n.iconWidth}px`;
+  if (n.iconHeight) style['--map-svg-height'] = `${n.iconHeight}px`;
+  const ratio = n.iconAspectRatio;
+  if (ratio && !n.iconWidth && !n.iconHeight) {
+    if (ratio >= 1) style['--map-svg-height'] = `calc(var(--map-icon-size) / ${ratio})`;
+    else style['--map-svg-width'] = `calc(var(--map-icon-size) * ${ratio})`;
+  } else if (ratio && n.iconWidth && !n.iconHeight) {
+    style['--map-svg-height'] = `${n.iconWidth / ratio}px`;
+  } else if (ratio && n.iconHeight && !n.iconWidth) {
+    style['--map-svg-width'] = `${n.iconHeight * ratio}px`;
+  }
+  return style;
 };
 function fit() {
   if (!viewport.value || !nodes.value.length) return;
@@ -326,9 +341,9 @@ watch(() => [props.map, props.currentLocation], init);
 }
 .node {
   position: absolute !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
+  display: block !important;
+  width: var(--map-svg-width, var(--map-icon-size)) !important;
+  height: var(--map-svg-height, var(--map-icon-size)) !important;
   min-width: 0 !important;
   min-height: 0 !important;
   padding: 0 !important;
@@ -344,8 +359,9 @@ watch(() => [props.map, props.currentLocation], init);
   display: grid !important;
   place-items: center !important;
   flex: 0 0 auto !important;
-  width: var(--map-icon-size) !important;
-  height: var(--map-icon-size) !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
   padding: 0 !important;
   overflow: hidden !important;
   background: transparent !important;
@@ -354,13 +370,13 @@ watch(() => [props.map, props.currentLocation], init);
   box-shadow: none !important;
   color: #c5a059 !important;
 }
-.size-small {
+.node.size-small {
   --map-icon-size: 30px;
 }
-.size-medium {
+.node.size-medium {
   --map-icon-size: 40px;
 }
-.size-large {
+.node.size-large {
   --map-icon-size: 56px;
 }
 .map-node-icon.shape-circle,
@@ -377,8 +393,13 @@ watch(() => [props.map, props.currentLocation], init);
   border-radius: 22% !important;
 }
 .node > .node-label {
-  margin-top: 5px;
+  position: absolute !important;
+  top: calc(100% + 5px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
   padding: 2px 6px;
+  white-space: nowrap;
   background: #000a;
   color: #aaa;
   border-radius: 4px;
@@ -388,6 +409,10 @@ watch(() => [props.map, props.currentLocation], init);
   border: 1px solid;
 }
 .node i {
+  position: absolute !important;
+  top: calc(100% + 30px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   color: #c5a059;
   font-size: 10px;
 }

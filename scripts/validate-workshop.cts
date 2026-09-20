@@ -34,6 +34,7 @@ import {
   roleGenerationMap,
   roleToRuntimeJson,
 } from '../src/创意工坊/assets/roleGenerator';
+import { buildMapGenerationPrompt, parseGeneratedMap } from '../src/创意工坊/assets/mapGenerator';
 import { serializeScenarioSource } from '../src/创意工坊/assets/repository';
 import {
   parseScenarioSourceEntries,
@@ -41,7 +42,7 @@ import {
   synchronizeAutomaticReferences,
 } from '../src/创意工坊/scenario/worldbookSource';
 import type { ScenarioSourceBundle } from '../src/创意工坊/scenario/types';
-import { renderMapSvg, sanitizeMapSvg } from '../src/创意工坊/scenario/map';
+import { mapSvgDisplaySize, renderMapSvg, sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import { scenarioThemes } from '../src/创意工坊/scenario/themes';
 import { resolveSpeaker } from '../src/尘史使徒/UI/components/panel/speaker';
 
@@ -90,7 +91,7 @@ assert.doesNotMatch(themeIconSource, /available|availability/, '共享主题图�
 const workspaceSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'), 'utf8');
 assert.match(workspaceSource, /scenario-availability/, '剧本资源侧栏必须展示可玩状态徽标');
 assert.doesNotMatch(workspaceSource, /<CharPanel[^>]+mode="view"/, '角色资源侧栏不得错误承载阵容预览');
-assert.match(workspaceSource, /parseScenarioJson\(await file\.text\(\)\)/, '剧本工作台必须支持纯 JSON 导入');
+assert.match(workspaceSource, /parseScenarioJson\(text\)/, '剧本工作台必须支持纯 JSON 导入');
 assert.match(workspaceSource, /downloadScenarioJson\(entry\.value\)/, '剧本工作台必须以纯 JSON 导出当前剧本');
 assert.match(
   workspaceSource,
@@ -230,6 +231,46 @@ const source: ScenarioSourceBundle = {
 };
 assert.deepEqual(findReferenceIssues(source), []);
 assert.equal(sanitizeMapSvg(`  ${safeMapSvg}  `), safeMapSvg, '合法 SVG 应净化并保留完整标记');
+const namespacedSvg =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M4.9 19.1L19.1 4.9"/></svg>';
+assert.equal(sanitizeMapSvg(namespacedSvg), namespacedSvg, '标准 SVG xmlns 不应被外部 URL 规则误判');
+assert.deepEqual(
+  mapSvgDisplaySize('<svg viewBox="0 0 24 24" width="24" height="24"><path d="M0 0"/></svg>'),
+  { width: 24, height: 24, aspectRatio: 1 },
+  '普通节点必须读取 24×24 显示尺寸',
+);
+assert.deepEqual(
+  mapSvgDisplaySize('<svg viewBox="0 0 20 32" width="32" height="58"><path d="M0 0"/></svg>'),
+  { width: 32, height: 58, aspectRatio: 20 / 32 },
+  '纵向节点必须保留 32×58 长宽比',
+);
+assert.deepEqual(
+  mapSvgDisplaySize('<svg viewBox="0 0 32 18" width="58" height="24"><path d="M0 0"/></svg>'),
+  { width: 58, height: 24, aspectRatio: 32 / 18 },
+  '横向节点必须保留 58×24 长宽比',
+);
+assert.deepEqual(
+  mapSvgDisplaySize(
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 0"/></svg>',
+  ),
+  { width: 48, height: 48, aspectRatio: 1 },
+  'stroke-width 不得被误判为 width；旧 SVG 必须直接从 viewBox 换算默认显示尺寸',
+);
+assert.deepEqual(
+  mapSvgDisplaySize('<svg viewBox="0 0 32 18"><path d="M0 0"/></svg>'),
+  { width: 64, height: 36, aspectRatio: 32 / 18 },
+  '未声明尺寸的横向 SVG 必须从 viewBox 推导宽高与比例',
+);
+assert.throws(
+  () => sanitizeMapSvg('<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path d="M0 0"/></svg>'),
+  /标准 SVG 命名空间/,
+  '被 Markdown 链接污染的 xmlns 必须给出明确错误',
+);
+assert.throws(
+  () => sanitizeMapSvg('<svg xmlns="https://evil.example/svg"><path d="M0 0"/></svg>'),
+  /标准 SVG 命名空间/,
+  '非标准 xmlns 仍必须拒绝',
+);
 const multicolorSvg =
   '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#243B55" stroke="#D4AF37"/><path d="M7 13l3 3 7-8" stroke="#F7E7A9" stroke-width="2"/></svg>';
 assert.equal(sanitizeMapSvg(multicolorSvg), multicolorSvg, '安全的多色 SVG 必须保持原始 JSON 表示');
@@ -258,12 +299,70 @@ for (const maliciousSvg of [
           data: { 恶意节点: { 描述: '', 详情: [], 图标: maliciousSvg, 方位: { x: [], y: [], z: [] } } },
         }),
       ),
-    /不安全的 SVG/,
+    /安全的完整 SVG/,
     '恶意 SVG 地图导入必须失败',
   );
 }
+assert.throws(
+  () =>
+    parseMapJson(
+      JSON.stringify({
+        author: 'x',
+        desc: '字段诊断',
+        data: { 城市: { 描述: '缺少字段' } },
+      }),
+    ),
+  /data\.城市\.详情[\s\S]*data\.城市\.图标[\s\S]*data\.城市\.方位/,
+  '地图导入失败必须报告具体字段路径，而不是合并成无信息错误',
+);
 const mapRoundTrip = parseMapJson(JSON.stringify(source.registries.地图.map));
 assert.deepEqual(mapRoundTrip, source.registries.地图.map, '完整 MapEntry JSON 必须无损往返');
+assert.deepEqual(
+  parseGeneratedMap(`\`\`\`json\n${JSON.stringify(source.registries.地图.map)}\n\`\`\``),
+  source.registries.地图.map,
+  'AI 地图导入应接受纯 JSON 或 JSON 代码围栏',
+);
+const mapGenerationPrompt = buildMapGenerationPrompt('设计一张多层港城地图', '图标采用克制的铜蓝双色');
+assert.match(mapGenerationPrompt, /author：[\s\S]*desc：[\s\S]*data：/, '地图提示词必须解释 MapEntry 顶层字段');
+assert.match(
+  mapGenerationPrompt,
+  /名称检索词[\s\S]*描述[\s\S]*详情[\s\S]*图标[\s\S]*方位[\s\S]*子地图/,
+  '地图提示词必须覆盖全部节点字段',
+);
+assert.match(
+  mapGenerationPrompt,
+  /区间两端的平均值[\s\S]*x 向右、y 向下[\s\S]*当前父节点/,
+  '地图提示词必须解释坐标的真实渲染语义',
+);
+assert.match(
+  mapGenerationPrompt,
+  /自包含 HTML[\s\S]*等待用户确认[\s\S]*最终回复只输出一个合法、完整的 MapEntry JSON/,
+  '地图提示词必须将 HTML 方案审阅与最终 JSON 交付分阶段',
+);
+assert.match(mapGenerationPrompt, /禁止 script、style、foreignObject、image、use/, '地图提示词必须说明 SVG 安全边界');
+assert.match(
+  mapGenerationPrompt,
+  /xmlns 只能写在 svg 根标签[\s\S]*不要把它转换成 Markdown 链接/,
+  '地图提示词必须防止 AI 污染标准命名空间',
+);
+const editingMapPrompt = buildMapGenerationPrompt('只重构港口图标', '', source.registries.地图.map);
+assert.match(editingMapPrompt, /当前完整 MapEntry JSON/, '地图修改提示词必须携带当前地图基线');
+assert.match(editingMapPrompt, /只改动用户点名的范围/, '地图修改提示词必须保护未点名内容');
+assert.throws(() => buildMapGenerationPrompt('  ', ''), /请先填写地图创意或修改要求/);
+assert.throws(
+  () =>
+    parseGeneratedMap(
+      JSON.stringify({
+        author: 'x',
+        desc: 'bad',
+        data: {
+          恶意节点: { 描述: '', 详情: [], 图标: '<svg onload="alert(1)"></svg>', 方位: { x: [], y: [], z: [] } },
+        },
+      }),
+    ),
+  /安全的完整 SVG/,
+  'AI 地图导入必须复用 SVG 安全边界',
+);
 assert.throws(
   () =>
     parseMapJson(
@@ -273,10 +372,14 @@ assert.throws(
         data: { 城市: { 描述: '', 详情: [], 图标: 'city', 方位: { x: [], y: [], z: [] } } },
       }),
     ),
-  /不安全的 SVG/,
+  /安全的完整 SVG/,
   '旧图标枚举不得继续作为地图输入',
 );
 const sharedMapExplorer = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/map/MapExplorer.vue'), 'utf8');
+const developerWorkspace = readFileSync(join(process.cwd(), 'src/创意工坊/components/DeveloperWorkspace.vue'), 'utf8');
+assert.match(developerWorkspace, /pendingScenarioImport\?\.category/, 'JSON 覆盖确认弹窗必须按资源类型显示标题');
+assert.match(developerWorkspace, /title="JSON 导入失败"/, 'JSON 文件导入失败必须在当前操作上下文显示错误弹窗');
+assert.match(developerWorkspace, /pending\.category === '地图'/, '确认导入不得依赖用户之后可能切换的当前领域');
 const sharedMapIcon = readFileSync(join(process.cwd(), 'src/尘史使徒/UI/components/map/MapSvgIcon.vue'), 'utf8');
 const fullscreenMapDialog = readFileSync(
   join(process.cwd(), 'src/尘史使徒/UI/components/map/MapFullscreenDialog.vue'),
@@ -307,6 +410,18 @@ assert.doesNotMatch(sharedMapExplorer, /class="icon"/, '地图节点不得使用
 assert.doesNotMatch(sharedMapExplorer, /\.node span\s*\{/, '节点标签样式不得误伤 SVG 图标容器');
 assert.match(sharedMapExplorer, /\.node > \.node-label\s*\{/, '节点标签必须使用明确的直系类边界');
 assert.match(sharedMapExplorer, /iconSize\?: number/, '共享地图必须允许调整节点图标尺寸');
+assert.match(sharedMapExplorer, /--map-svg-width[\s\S]*--map-svg-height/, '节点容器必须消费 SVG 声明的独立宽高');
+assert.doesNotMatch(
+  sharedMapExplorer,
+  /'--map-(?:icon-size|svg-width|svg-height)'[^\n]+undefined/,
+  '缺失尺寸时不得用 undefined 内联变量覆盖默认档位',
+);
+assert.match(sharedMapExplorer, /top: calc\(100% \+ 5px\) !important/, '节点标签必须跟随实际 SVG 下边界定位');
+assert.match(
+  sharedMapExplorer,
+  /transform: translate\(-50%, -50%\) !important/,
+  '不同长宽比的 SVG 必须继续以节点坐标为中心锚定',
+);
 assert.match(
   sharedMapExplorer,
   /iconShape\?: 'none' \| 'circle' \| 'rounded' \| 'square'/,

@@ -119,8 +119,16 @@ export function parseMapJson(text: string) {
   try {
     return MapEntrySchema.parse(JSON.parse(text));
   } catch (error) {
-    if (error instanceof SyntaxError) throw new Error('地图 JSON 语法无效，请检查逗号、引号和括号。');
-    throw new Error('文件不是有效的完整地图 JSON，或包含不安全的 SVG。');
+    if (error instanceof SyntaxError) throw new Error(`地图 JSON 语法无效：${error.message}`);
+    if (error instanceof z.ZodError) {
+      const details = error.issues
+        .slice(0, 8)
+        .map(issue => `${issue.path.length ? issue.path.join('.') : '根对象'}：${issue.message}`)
+        .join('\n');
+      const remaining = error.issues.length > 8 ? `\n另有 ${error.issues.length - 8} 个字段错误。` : '';
+      throw new Error(`地图 JSON 字段校验失败：\n${details}${remaining}`);
+    }
+    throw new Error(`无法读取地图 JSON：${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

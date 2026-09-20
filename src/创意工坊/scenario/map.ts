@@ -48,7 +48,7 @@ export function sanitizeMapSvg(markup: string): string {
   const source = markup.trim();
   if (!source || !/^<svg(?:\s|>)/i.test(source) || !/<\/svg>$/i.test(source))
     throw new Error('地图图标必须是完整的 <svg> 字符串。');
-  if (/<!|<\?|\b(?:href|src|style)\s*=|\bon[a-z]+\s*=|(?:javascript|data|https?):/i.test(source))
+  if (/<!|<\?|\b(?:href|src|style)\s*=|\bon[a-z]+\s*=/i.test(source))
     throw new Error('地图 SVG 包含禁止的脚本、样式或外部资源。');
 
   const tagPattern = /<\/?\s*([\w:-]+)([^<>]*)>/g;
@@ -64,7 +64,12 @@ export function sanitizeMapSvg(markup: string): string {
     while ((attr = attrPattern.exec(attributes))) {
       const name = attr[1].toLowerCase();
       if (!allowedAttributes.has(name)) throw new Error(`地图 SVG 不允许属性 ${name}。`);
-      if ((name === 'fill' || name === 'stroke') && !isSafeSvgColor(attr[2].slice(1, -1)))
+      const value = attr[2].slice(1, -1);
+      if (name === 'xmlns' && (tag !== 'svg' || value !== 'http://www.w3.org/2000/svg'))
+        throw new Error('地图 SVG 的 xmlns 只能使用标准 SVG 命名空间。');
+      if (name !== 'xmlns' && /(?:javascript|data|https?):/i.test(value))
+        throw new Error(`地图 SVG 属性 ${name} 不允许 URL 或可执行协议。`);
+      if ((name === 'fill' || name === 'stroke') && !isSafeSvgColor(value))
         throw new Error(`地图 SVG 的 ${name} 颜色无效。`);
       consumed += attr[0];
     }
@@ -90,6 +95,43 @@ export function renderMapSvg(markup: string): string {
       return `<${name}${attributes}${colors.length ? ` style="${colors.join(';')}"` : ''}>`;
     },
   );
+}
+
+export interface MapSvgDisplaySize {
+  width?: number;
+  height?: number;
+  aspectRatio?: number;
+}
+
+const mapViewBoxPixelScale = 2;
+
+export function mapSvgDisplaySize(markup: string): MapSvgDisplaySize {
+  let source: string;
+  try {
+    source = sanitizeMapSvg(markup);
+  } catch {
+    return {};
+  }
+  const root = source.match(/^<svg\b([^<>]*)>/i)?.[1] ?? '';
+  const dimensions: MapSvgDisplaySize = {};
+  for (const match of root.matchAll(/(?:^|\s)(width|height)\s*=\s*("([^"]*)"|'([^']*)')/gi)) {
+    const value = (match[3] ?? match[4]).trim();
+    if (!/^\d+(?:\.\d+)?(?:px)?$/i.test(value)) continue;
+    const number = Number.parseFloat(value);
+    if (Number.isFinite(number) && number > 0) dimensions[match[1].toLowerCase() as 'width' | 'height'] = number;
+  }
+  const viewBoxValue = root.match(/\bviewBox\s*=\s*("([^"]*)"|'([^']*)')/i);
+  const viewBox = (viewBoxValue?.[2] ?? viewBoxValue?.[3])
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (viewBox?.length === 4 && viewBox.every(Number.isFinite) && viewBox[2] > 0 && viewBox[3] > 0)
+    dimensions.aspectRatio = viewBox[2] / viewBox[3];
+  if (viewBox?.length === 4 && dimensions.width === undefined && dimensions.height === undefined) {
+    dimensions.width = viewBox[2] * mapViewBoxPixelScale;
+    dimensions.height = viewBox[3] * mapViewBoxPixelScale;
+  }
+  return dimensions;
 }
 
 function isSafeSvgColor(value: string): boolean {
