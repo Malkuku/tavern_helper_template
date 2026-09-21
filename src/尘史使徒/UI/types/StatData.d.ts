@@ -11,7 +11,6 @@ export interface StatData {
   主线: Record<string, MainQuestData | MainlineMetaData>;
   任务: Record<string, TaskData>;
   事件: Record<string, EventData>;
-  术: Record<string, Record<string, string>>;
   图书馆: LibraryData;
   system: SystemSettings;
   总结概括: Record<string, SummaryOverview>;

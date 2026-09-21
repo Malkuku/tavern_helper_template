@@ -42,6 +42,7 @@ const expectCode = (expectedCode: string, mutate: (draft: any) => void) => {
 const result = assembleScenario(source, scenarioId);
 assert.equal(result.scenario.key, '被遗忘者');
 assert.equal(result.statData.system.当前剧本, '被遗忘者');
+assert.equal(Object.hasOwn(result.statData, '术'), false, '运行时数据不应再携带顶层术能力表');
 assert.ok(result.openingText.length > 0);
 assert.ok(Object.keys(result.statData.角色.主要角色).length > 0);
 assert.ok(countMapNodes(result.statData.地图) > 0);

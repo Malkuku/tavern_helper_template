@@ -12,7 +12,7 @@
         v-for="(art, name) in artsData"
         :key="name"
         class="art-summary-card"
-        :class="[getArtThemeClass(name), { 'locked': (art.等级 || 0) === 0 && mode === 'view' }]"
+        :class="[getArtThemeClass(name), { locked: (art.等级 || 0) === 0 && mode === 'view' }]"
         @click="openArtModal(name)"
       >
         <div class="art-card-top">
@@ -37,11 +37,7 @@
             <nav class="pagination-nav">
               <ul>
                 <li v-for="(art, name) in artsData" :key="name">
-                  <button
-                    class="art-button"
-                    :class="{ active: selectedArtName === name }"
-                    @click="switchArt(name)"
-                  >
+                  <button class="art-button" :class="{ active: selectedArtName === name }" @click="switchArt(name)">
                     {{ name }}
                     <span class="nav-lv" v-if="mode === 'creation'">Lv.{{ art.等级 || 0 }}</span>
                   </button>
@@ -70,7 +66,8 @@
                       <span>经验积累</span>
                       <!-- 动态计算经验需求显示 -->
                       <span v-if="calculateNextLevelXp(selectedArtData.等级) !== -1">
-                        {{ selectedArtData.经验 || selectedArtData.经验值 || 0 }} / {{ calculateNextLevelXp(selectedArtData.等级) }}
+                        {{ selectedArtData.经验 || selectedArtData.经验值 || 0 }} /
+                        {{ calculateNextLevelXp(selectedArtData.等级) }}
                       </span>
                       <span v-else>MAX (秘而不宣)</span>
                     </div>
@@ -83,39 +80,22 @@
                   </div>
                 </div>
 
-                <!-- 描述与能力列表 -->
+                <!-- 面向玩家的准则介绍 -->
                 <div class="art-description-block">
-                  <h3>准则描述</h3>
-                  <p class="desc-text">{{ getArtDescription(selectedArtName) }}</p>
+                  <p class="principle-subtitle">{{ selectedPrinciple.subtitle }}</p>
+                  <p class="desc-text">{{ selectedPrinciple.description }}</p>
                 </div>
 
-                <!-- 详细能力展示区 -->
                 <div class="art-abilities-block">
-                  <h3>{{ mode === 'creation' ? '全阶位能力预览' : '当前掌握能力' }}</h3>
-
-                  <div class="ability-timeline">
-                    <!-- 动态获取 Store 中的详情数据 -->
-                    <template v-for="(desc, levelStr) in getArtDetails(selectedArtName)" :key="levelStr">
-                      <div
-                        class="ability-item"
-                        :class="{
-                          'active': Number(levelStr) <= (selectedArtData.等级 || 0),
-                          'future': Number(levelStr) > (selectedArtData.等级 || 0),
-                          'hidden': mode === 'view' && Number(levelStr) > (selectedArtData.等级 || 0)
-                        }"
-                        v-if="mode === 'creation' || Number(levelStr) <= (selectedArtData.等级 || 0)"
-                      >
-                        <div class="ability-lv-badge">Lv.{{ levelStr }}</div>
-                        <div class="ability-text">{{ desc }}</div>
-                      </div>
-                    </template>
-
-                    <div v-if="!getArtDetails(selectedArtName)" class="no-detail-hint">
-                      该准则的详细记录尚未被破译，或正在从虚空中读取...
-                    </div>
+                  <h3>常见显现</h3>
+                  <div class="expression-list">
+                    <span v-for="expression in selectedPrinciple.expressions" :key="expression" class="expression-chip">
+                      {{ expression }}
+                    </span>
                   </div>
                 </div>
 
+                <blockquote class="principle-perspective">{{ selectedPrinciple.perspective }}</blockquote>
               </div>
             </div>
           </div>
@@ -127,35 +107,18 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { storeToRefs } from 'pinia';
-import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { artPrinciples } from './artPrinciples';
 
 const props = defineProps({
   artsData: {
     type: Object,
-    default: () => ({})
+    default: () => ({}),
   },
   mode: {
     type: String,
-    default: 'view' // 'view' | 'creation'
-  }
+    default: 'view', // 'view' | 'creation'
+  },
 });
-
-// --- 接入 Store ---
-const statStore = useStatStore();
-const { stat_data } = storeToRefs(statStore);
-
-// --- 静态配置 (仅保留主题色和通用描述，具体等级详情走Store) ---
-const artPrinciples = {
-  '灯': { description: '灯是理性、求知与启明的准则。', themeClass: 'theme-lamp' },
-  '铸': { description: '铸是毁灭、塑形与技巧的准则。', themeClass: 'theme-forge' },
-  '刃': { description: '刃是斗争与征服的准则。', themeClass: 'theme-blade' },
-  '冬': { description: '冬是静默、消逝、铭记、终结的准则。', themeClass: 'theme-winter' },
-  '心': { description: '心是生命、存续、不息的准则。', themeClass: 'theme-heart' },
-  '杯': { description: '杯是欲望、生育、诱惑的准则。', themeClass: 'theme-cup' },
-  '蛾': { description: '蛾是变化、混沌、未知的准则。', themeClass: 'theme-moth' },
-  '启': { description: '启是揭示、洞开、拆解的准则。', themeClass: 'theme-key' },
-};
 
 const showModal = ref(false);
 const selectedArtName = ref('');
@@ -167,25 +130,22 @@ const selectedArtData = computed(() => {
   return props.artsData[selectedArtName.value];
 });
 
-// --- 核心修改：从 Store 获取详情 ---
-const getArtDetails = (name) => {
-  // 1. 确保数据已加载
-  if (!stat_data.value || !stat_data.value['术']) {
-    return null;
-  }
-
-  const artsDb = stat_data.value['术'];
-
-  // 2. 尝试直接匹配
-  if (artsDb[name]) return artsDb[name];
-
-  // 3. 尝试模糊匹配 (例如 name="灯之术", key="灯")
-  const key = Object.keys(artsDb).find(k => name.includes(k));
-  return key ? artsDb[key] : null;
-};
+const selectedPrinciple = computed(() => {
+  const key = Object.keys(artPrinciples).find(item => selectedArtName.value.includes(item));
+  return key
+    ? artPrinciples[key]
+    : {
+        title: selectedArtName.value,
+        subtitle: '尚未被完整认识的准则',
+        description: '它的性质仍隐藏在漫宿的阴影之中。',
+        expressions: ['未知'],
+        perspective: '并非所有力量都已经拥有可供人类理解的名字。',
+        themeClass: 'theme-default',
+      };
+});
 
 // --- 新增：根据规则计算下一级所需经验 ---
-const calculateNextLevelXp = (level) => {
+const calculateNextLevelXp = level => {
   const lvl = level || 0;
   if (lvl >= 19 || lvl <= 0) return -1; // 秘而不宣: 未知领域，涉及神性存在，无法获取经验值
 
@@ -200,7 +160,7 @@ const calculateNextLevelXp = (level) => {
   }
 };
 
-const calculateXpPercent = (art) => {
+const calculateXpPercent = art => {
   if (!art) return 0;
   const level = art.等级 || 0;
   const currentXp = art.经验 || art.经验值 || 0; // 兼容字段
@@ -210,7 +170,7 @@ const calculateXpPercent = (art) => {
   return Math.min((currentXp / reqXp) * 100, 100);
 };
 
-const getArtStageText = (level) => {
+const getArtStageText = level => {
   const lvl = level || 0;
   if (lvl === 0) return '未入门';
   if (lvl >= 1 && lvl <= 13) return '初阶 · 模仿';
@@ -219,24 +179,18 @@ const getArtStageText = (level) => {
   return '未知';
 };
 
-const getArtThemeClass = (name) => {
+const getArtThemeClass = name => {
   if (!name) return 'theme-default';
   const key = Object.keys(artPrinciples).find(k => name.includes(k));
   return key ? artPrinciples[key].themeClass : 'theme-default';
 };
 
-const getArtDescription = (name) => {
-  if (!name) return '';
-  const key = Object.keys(artPrinciples).find(k => name.includes(k));
-  return key ? artPrinciples[key].description : '该准则的力量在阴影中涌动，性质未明。';
-};
-
-const openArtModal = (name) => {
+const openArtModal = name => {
   selectedArtName.value = name;
   showModal.value = true;
 };
 
-const switchArt = (name) => {
+const switchArt = name => {
   selectedArtName.value = name;
 };
 
@@ -255,152 +209,551 @@ const closeModal = () => {
   --font-body: 'EB Garamond', serif;
 }
 
-.section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.section-header-row h3 { color: var(--c-gold); border-left: 3px solid var(--c-gold); padding-left: 10px; margin: 0; font-family: var(--font-title); font-size: 1.1rem; }
-.hint-text { font-size: 0.8rem; color: var(--c-text-dim); }
-.no-data { color: var(--c-text-dim); font-style: italic; padding: 10px; }
-
-.arts-summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.art-summary-card {
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  padding: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s;
-  position: relative; overflow: hidden;
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
-.art-summary-card:hover { transform: translateY(-2px); border-color: var(--c-gold); }
-.art-summary-card.locked { opacity: 0.5; filter: grayscale(1); }
+.section-header-row h3 {
+  color: var(--c-gold);
+  border-left: 3px solid var(--c-gold);
+  padding-left: 10px;
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+}
+.hint-text {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+}
+.no-data {
+  color: var(--c-text-dim);
+  font-style: italic;
+  padding: 10px;
+}
 
-.art-card-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
-.art-card-name { font-weight: bold; color: var(--c-text); }
-.art-card-lv { color: var(--c-gold); }
-.xp-bar-mini { height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; overflow: hidden; }
-.xp-fill { height: 100%; background: var(--c-gold); }
+.arts-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.art-summary-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.art-summary-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--c-gold);
+}
+.art-summary-card.locked {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+.art-card-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+.art-card-name {
+  font-weight: bold;
+  color: var(--c-text);
+}
+.art-card-lv {
+  color: var(--c-gold);
+}
+.xp-bar-mini {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  background: var(--c-gold);
+}
 
 /* 弹窗样式 */
 .art-modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
-  z-index: 2000; display: flex; justify-content: center; align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .art-modal-content {
-  width: 90%; max-width: 1000px; height: 85vh;
-  background: #121212; border: 1px solid #333;
-  display: flex; flex-direction: column; position: relative;
-  box-shadow: 0 0 50px rgba(0,0,0,0.8);
-  border-radius: 6px; overflow: hidden;
+  width: 90%;
+  max-width: 1000px;
+  height: 85vh;
+  background: #121212;
+  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  border-radius: 6px;
+  overflow: hidden;
   --theme-color: #d4af37;
   --theme-glow: rgba(212, 175, 55, 0.2);
   border-color: var(--theme-color);
 }
 
-.close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #666; font-size: 2rem; cursor: pointer; z-index: 10; }
-.close-btn:hover { color: var(--theme-color); }
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 10;
+}
+.close-btn:hover {
+  color: var(--theme-color);
+}
 
-.arts-layout { display: grid; grid-template-columns: 240px 1fr; height: 100%; overflow: hidden; }
+.arts-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: 100%;
+  overflow: hidden;
+}
 
 /* 导航 */
-.pagination-nav { background: rgba(0,0,0,0.3); border-right: 1px solid rgba(255,255,255,0.05); overflow-y: auto; padding: 20px 0; z-index: 2; }
-.pagination-nav ul { list-style: none; padding: 0; margin: 0; }
-.art-button {
-  width: 100%; text-align: left; padding: 15px 25px; background: none; border: none;
-  color: #888; font-family: var(--font-title); font-size: 1.1rem; cursor: pointer;
-  border-left: 3px solid transparent; transition: 0.3s; display: flex; justify-content: space-between;
+.pagination-nav {
+  background: rgba(0, 0, 0, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  overflow-y: auto;
+  padding: 20px 0;
+  z-index: 2;
 }
-.art-button:hover { background: rgba(255,255,255,0.05); color: #ccc; }
+.pagination-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.art-button {
+  width: 100%;
+  text-align: left;
+  padding: 15px 25px;
+  background: none;
+  border: none;
+  color: #888;
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: 0.3s;
+  display: flex;
+  justify-content: space-between;
+}
+.art-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
+}
 .art-button.active {
   background: linear-gradient(90deg, var(--theme-glow), transparent);
-  color: var(--theme-color); border-left-color: var(--theme-color);
+  color: var(--theme-color);
+  border-left-color: var(--theme-color);
 }
-.nav-lv { font-size: 0.8rem; opacity: 0.7; font-family: var(--font-body); }
+.nav-lv {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  font-family: var(--font-body);
+}
 
 /* 详情区 */
-.panel-display-area { position: relative; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
-.art-content-scroll { position: relative; z-index: 1; height: 100%; overflow-y: auto; padding: 40px 60px; }
-.art-content-scroll::-webkit-scrollbar { width: 6px; }
-.art-content-scroll::-webkit-scrollbar-thumb { background: var(--theme-color); border-radius: 3px; }
+.panel-display-area {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.art-content-scroll {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 40px 60px;
+}
+.art-content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.art-content-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-color);
+  border-radius: 3px;
+}
 
 /* 头部 */
-.art-detail-header { text-align: center; margin-bottom: 40px; }
-.art-big-name { font-family: var(--font-title); font-size: 3.5rem; margin: 0; }
-.art-stage-badge { display: inline-block; margin-top: 10px; padding: 4px 12px; border: 1px solid var(--theme-color); color: var(--theme-color); border-radius: 20px; font-size: 0.9rem; letter-spacing: 2px; }
+.art-detail-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.art-big-name {
+  font-family: var(--font-title);
+  font-size: 3.5rem;
+  margin: 0;
+}
+.art-stage-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 12px;
+  border: 1px solid var(--theme-color);
+  color: var(--theme-color);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+}
 
 /* 核心数据 */
-.art-core-stats { display: flex; align-items: center; gap: 40px; margin-bottom: 40px; background: rgba(0,0,0,0.4); padding: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+.art-core-stats {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  margin-bottom: 40px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 .level-circle {
-  width: 100px; height: 100px; border: 3px solid var(--theme-color); border-radius: 50%;
-  display: flex; flex-direction: column; justify-content: center; align-items: center;
-  box-shadow: 0 0 20px var(--theme-glow); flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+  border: 3px solid var(--theme-color);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 20px var(--theme-glow);
+  flex-shrink: 0;
 }
-.lvl-label { font-size: 0.7rem; color: #aaa; }
-.lvl-val { font-size: 2.5rem; font-weight: bold; color: var(--theme-color); }
-.xp-section { flex: 1; }
-.xp-text-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #ccc; font-family: monospace; }
-.xp-bar-large { height: 12px; background: #222; border-radius: 6px; overflow: hidden; border: 1px solid #444; }
+.lvl-label {
+  font-size: 0.7rem;
+  color: #aaa;
+}
+.lvl-val {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--theme-color);
+}
+.xp-section {
+  flex: 1;
+}
+.xp-text-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #ccc;
+  font-family: monospace;
+}
+.xp-bar-large {
+  height: 12px;
+  background: #222;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #444;
+}
 .xp-fill-anim {
-  height: 100%; background: var(--theme-color);
-  background-image: linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%, transparent);
-  background-size: 20px 20px; animation: flow-bar 1s linear infinite;
+  height: 100%;
+  background: var(--theme-color);
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: flow-bar 1s linear infinite;
 }
-@keyframes flow-bar { 0% { background-position: 40px 0; } 100% { background-position: 0 0; } }
-.xp-hint { font-size: 0.85rem; color: #888; margin-top: 8px; font-style: italic; }
+@keyframes flow-bar {
+  0% {
+    background-position: 40px 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+.xp-hint {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 8px;
+  font-style: italic;
+}
 
 /* 描述与能力 */
-.art-description-block, .art-abilities-block { margin-bottom: 30px; }
-.art-description-block h3, .art-abilities-block h3 { color: var(--theme-color); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px; font-family: var(--font-title); margin-top: 0; }
-.desc-text { line-height: 1.8; font-size: 1.1rem; text-align: justify; color: #ddd; font-family: var(--font-body); }
-
-/* 能力时间轴列表 */
-.ability-timeline { display: flex; flex-direction: column; gap: 15px; }
-.ability-item {
-  display: flex; gap: 15px; padding: 15px; background: rgba(255,255,255,0.03);
-  border-left: 2px solid #444; transition: all 0.3s;
+.art-description-block,
+.art-abilities-block {
+  margin-bottom: 30px;
 }
-.ability-item.active { border-left-color: var(--theme-color); background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent); }
-.ability-item.future { opacity: 0.5; border-left-style: dashed; }
-.ability-item.hidden { display: none; }
-
-.ability-lv-badge {
-  flex-shrink: 0; width: 50px; text-align: center; font-weight: bold;
-  color: var(--theme-color); font-family: var(--font-title);
+.art-description-block h3,
+.art-abilities-block h3 {
+  color: var(--theme-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+  font-family: var(--font-title);
+  margin-top: 0;
 }
-.ability-text { color: #ccc; font-family: var(--font-body); line-height: 1.5; }
-.no-detail-hint { color: #666; font-style: italic; padding: 10px; }
+.desc-text {
+  line-height: 1.8;
+  font-size: 1.1rem;
+  text-align: justify;
+  color: #ddd;
+  font-family: var(--font-body);
+}
+.principle-subtitle {
+  color: var(--theme-color);
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  margin: 0 0 14px;
+}
+.expression-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.expression-chip {
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--theme-color) 55%, transparent);
+  background: color-mix(in srgb, var(--theme-color) 10%, transparent);
+  color: #ddd;
+  border-radius: 999px;
+}
+.principle-perspective {
+  margin: 30px 0 0;
+  padding: 18px 22px;
+  border-left: 3px solid var(--theme-color);
+  background: rgba(255, 255, 255, 0.035);
+  color: #bbb;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
 
 /* 特效样式 */
-.art-bg-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.theme-lamp { --theme-color: #FFD700; --theme-glow: rgba(255, 215, 0, 0.3); }
-.theme-lamp .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%); opacity: 0.15; }
+.art-bg-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.theme-lamp {
+  --theme-color: #ffd700;
+  --theme-glow: rgba(255, 215, 0, 0.3);
+}
+.theme-lamp .art-bg-effect {
+  background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%);
+  opacity: 0.15;
+}
 
-.theme-forge { --theme-color: #FF4500; --flame-color-2: #FF8C00; --theme-glow: rgba(255, 69, 0, 0.3); }
-.theme-forge .art-bg-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0; }
-@keyframes art-forge-seamless-rise { from { transform: translateY(0); } to { transform: translateY(-50%); } }
-.theme-forge .art-bg-effect::before, .theme-forge .art-bg-effect::after { content: ''; position: absolute; left: 0; width: 100%; height: 200%; background-image: radial-gradient(circle, var(--theme-color) 1px, transparent 1px); background-repeat: repeat; animation-name: art-forge-seamless-rise; animation-timing-function: linear; animation-iteration-count: infinite; }
-.theme-forge .art-bg-effect::before { top: 0; background-size: 70px 70px; animation-duration: 6s; opacity: 0.7; }
-.theme-forge .art-bg-effect::after { top: 0; background-size: 110px 110px; animation-duration: 10s; opacity: 0.6; animation-delay: -3s; }
+.theme-forge {
+  --theme-color: #ff4500;
+  --flame-color-2: #ff8c00;
+  --theme-glow: rgba(255, 69, 0, 0.3);
+}
+.theme-forge .art-bg-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+@keyframes art-forge-seamless-rise {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+.theme-forge .art-bg-effect::before,
+.theme-forge .art-bg-effect::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  background-image: radial-gradient(circle, var(--theme-color) 1px, transparent 1px);
+  background-repeat: repeat;
+  animation-name: art-forge-seamless-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.theme-forge .art-bg-effect::before {
+  top: 0;
+  background-size: 70px 70px;
+  animation-duration: 6s;
+  opacity: 0.7;
+}
+.theme-forge .art-bg-effect::after {
+  top: 0;
+  background-size: 110px 110px;
+  animation-duration: 10s;
+  opacity: 0.6;
+  animation-delay: -3s;
+}
 
-.theme-blade { --theme-color: #C0C0C0; --metal-dark: #888; --metal-light: #F0F0F0; --theme-glow: rgba(192, 192, 192, 0.3); }
-.theme-blade .art-bg-effect { background: linear-gradient(0deg, rgba(255,255,255,0.05), rgba(0,0,0,0.05)), repeating-linear-gradient(90deg, #ccc, #ccc 1px, #bbb 1px, #bbb 2px); opacity: 0.15; }
+.theme-blade {
+  --theme-color: #c0c0c0;
+  --metal-dark: #888;
+  --metal-light: #f0f0f0;
+  --theme-glow: rgba(192, 192, 192, 0.3);
+}
+.theme-blade .art-bg-effect {
+  background:
+    linear-gradient(0deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.05)),
+    repeating-linear-gradient(90deg, #ccc, #ccc 1px, #bbb 1px, #bbb 2px);
+  opacity: 0.15;
+}
 
-.theme-winter { --theme-color: #A3D5D5; --theme-glow: rgba(163, 213, 213, 0.3); }
-.theme-winter .art-bg-effect { background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%); background-size: 30px 30px, 50px 50px; background-position: 0 0, 25px 25px; animation: snow 10s linear infinite; opacity: 0.3; }
-@keyframes snow { 0% {background-position: 0 0, 25px 25px;} 100% {background-position: 0 300px, 25px 325px;} }
+.theme-winter {
+  --theme-color: #a3d5d5;
+  --theme-glow: rgba(163, 213, 213, 0.3);
+}
+.theme-winter .art-bg-effect {
+  background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%);
+  background-size:
+    30px 30px,
+    50px 50px;
+  background-position:
+    0 0,
+    25px 25px;
+  animation: snow 10s linear infinite;
+  opacity: 0.3;
+}
+@keyframes snow {
+  0% {
+    background-position:
+      0 0,
+      25px 25px;
+  }
+  100% {
+    background-position:
+      0 300px,
+      25px 325px;
+  }
+}
 
-.theme-heart { --theme-color: #FF69B4; --theme-glow: rgba(255, 105, 180, 0.3); }
-.theme-heart .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 50%) no-repeat center; animation: art-heart-pulse-gradient 2s infinite ease-in-out; opacity: 0.15; }
-@keyframes art-heart-pulse-gradient { 0%, 100% { background-size: 100% 100%; opacity: 0.1; } 50% { background-size: 150% 150%; opacity: 0.2; } }
+.theme-heart {
+  --theme-color: #ff69b4;
+  --theme-glow: rgba(255, 105, 180, 0.3);
+}
+.theme-heart .art-bg-effect {
+  background: radial-gradient(circle, var(--theme-color) 0%, transparent 50%) no-repeat center;
+  animation: art-heart-pulse-gradient 2s infinite ease-in-out;
+  opacity: 0.15;
+}
+@keyframes art-heart-pulse-gradient {
+  0%,
+  100% {
+    background-size: 100% 100%;
+    opacity: 0.1;
+  }
+  50% {
+    background-size: 150% 150%;
+    opacity: 0.2;
+  }
+}
 
-.theme-cup { --theme-color: #8B0000; --theme-glow: rgba(139, 0, 0, 0.4); }
-.theme-cup .art-bg-effect { background-image: linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%); background-repeat: no-repeat; background-size: 2px 150%, 3px 200%, 1px 220%; background-position: 10% 0, 50% 0, 90% 0; animation: art-cup-drip-y 6s linear infinite; opacity: 0.4; }
-@keyframes art-cup-drip-y { from { background-position-y: -250%; } to { background-position-y: 100%; } }
+.theme-cup {
+  --theme-color: #8b0000;
+  --theme-glow: rgba(139, 0, 0, 0.4);
+}
+.theme-cup .art-bg-effect {
+  background-image:
+    linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%),
+    linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%),
+    linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%);
+  background-repeat: no-repeat;
+  background-size:
+    2px 150%,
+    3px 200%,
+    1px 220%;
+  background-position:
+    10% 0,
+    50% 0,
+    90% 0;
+  animation: art-cup-drip-y 6s linear infinite;
+  opacity: 0.4;
+}
+@keyframes art-cup-drip-y {
+  from {
+    background-position-y: -250%;
+  }
+  to {
+    background-position-y: 100%;
+  }
+}
 
-.theme-moth { --theme-color: #888888; --theme-glow: rgba(136, 136, 136, 0.3); }
-.theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.15; }
+.theme-moth {
+  --theme-color: #888888;
+  --theme-glow: rgba(136, 136, 136, 0.3);
+}
+.theme-moth .art-bg-effect {
+  background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px);
+  opacity: 0.15;
+}
 
-.theme-key { --theme-color: #9400D3; --theme-glow: rgba(148, 0, 211, 0.3); }
-.theme-key .art-bg-effect { background: radial-gradient(ellipse at center, var(--theme-color) 0%, rgba(148, 0, 211, 0.5) 30%, rgba(148, 0, 211, 0.1) 60%, transparent 80%); transform-origin: center; animation: art-key-slow-spin 30s linear infinite; opacity: 0.4; }
-@keyframes art-key-slow-spin { from { transform: scale(1.5) rotate(0deg); } to { transform: scale(1.5) rotate(360deg); } }
+.theme-key {
+  --theme-color: #9400d3;
+  --theme-glow: rgba(148, 0, 211, 0.3);
+}
+.theme-key .art-bg-effect {
+  background: radial-gradient(
+    ellipse at center,
+    var(--theme-color) 0%,
+    rgba(148, 0, 211, 0.5) 30%,
+    rgba(148, 0, 211, 0.1) 60%,
+    transparent 80%
+  );
+  transform-origin: center;
+  animation: art-key-slow-spin 30s linear infinite;
+  opacity: 0.4;
+}
+@keyframes art-key-slow-spin {
+  from {
+    transform: scale(1.5) rotate(0deg);
+  }
+  to {
+    transform: scale(1.5) rotate(360deg);
+  }
+}
 
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.3s; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
 
 /* =========================================
    移动端适配 (Mobile Responsive)
@@ -427,7 +780,7 @@ const closeModal = () => {
   .pagination-nav {
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0;
     overflow-x: auto;
     overflow-y: hidden;

@@ -136,7 +136,6 @@ export const RuntimeStatDataSchema = z
     主线: JsonObjectSchema,
     任务: JsonObjectSchema,
     事件: JsonObjectSchema,
-    术: JsonObjectSchema,
     图书馆: JsonObjectSchema,
     system: z
       .object({
