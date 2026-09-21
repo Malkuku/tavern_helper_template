@@ -108,7 +108,7 @@
             <div class="skill-header">
               <div class="skill-title-group">
                 <span class="skill-icon" v-html="getAspectIcon(skill.raw.性相)"></span>
-                <strong v-fit-text class="skill-name" :title="skill.name">{{ skill.name }}</strong>
+                <strong v-fit-text class="skill-name" :title="skill.name"><span class="skill-name-text" data-fit-text-content>{{ skill.name }}</span></strong>
               </div>
               <div class="skill-meta">
                 <span class="skill-level-badge">Lv.{{ skill.raw.技能等级 }}</span>
@@ -181,7 +181,7 @@
             <div class="skill-header">
               <div class="skill-title-group">
                 <span class="skill-icon" v-html="getAspectIcon(skill.raw.性相)"></span>
-                <strong v-fit-text class="skill-name" :title="skill.name">{{ skill.name }}</strong>
+                <strong v-fit-text class="skill-name" :title="skill.name"><span class="skill-name-text" data-fit-text-content>{{ skill.name }}</span></strong>
               </div>
               <div class="skill-meta">
                 <span class="skill-level-badge">Lv.{{ skill.raw.技能等级 }}</span>
@@ -679,6 +679,7 @@ async function saveAllChanges() {
 .skill-title-group { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
 .skill-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex: 0 0 20px; }
 .skill-name { min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-title); font-size: 1.05rem; color: #e8e8e8; letter-spacing: 1px; font-weight: 500; --fit-text-min-font-size: 0.75rem; }
+.skill-name-text { display: inline-block; white-space: nowrap; will-change: transform; }
 .skill-meta { display: flex; gap: 6px; font-size: 0.75rem; }
 .skill-level-badge { background: rgba(255, 255, 255, 0.1); color: #ddd; padding: 2px 6px; border-radius: 2px; font-family: monospace; border: 1px solid rgba(255, 255, 255, 0.1); }
 .skill-aspect-tag { padding: 2px 6px; border-radius: 2px; color: #111; font-weight: bold; background: #aaa; }

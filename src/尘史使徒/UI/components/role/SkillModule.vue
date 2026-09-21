@@ -18,7 +18,9 @@
                 :value="name"
                 @change="renameSkill(name, $event)"
               />
-              <strong v-else v-fit-text class="skill-name" :title="String(name)">{{ name }}</strong>
+              <strong v-else v-fit-text class="skill-name" :title="String(name)"
+                ><span class="skill-name-text" data-fit-text-content>{{ name }}</span></strong
+              >
             </div>
             <div class="skill-meta">
               <label class="skill-level-badge"
@@ -362,6 +364,11 @@ textarea.edit-control {
   white-space: nowrap;
   text-overflow: ellipsis;
   --fit-text-min-font-size: 0.75rem;
+}
+.skill-name-text {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
 }
 
 .skill-meta {
