@@ -18,7 +18,7 @@
                 :value="name"
                 @change="renameSkill(name, $event)"
               />
-              <strong v-else class="skill-name">{{ name }}</strong>
+              <strong v-else v-fit-text class="skill-name" :title="String(name)">{{ name }}</strong>
             </div>
             <div class="skill-meta">
               <label class="skill-level-badge"
@@ -101,6 +101,7 @@
 
 <script setup>
 import { defineProps, ref } from 'vue';
+import { vFitText } from '@/尘史使徒/UI/util/fitText';
 
 const props = defineProps({
   data: { type: Object, default: () => ({}) },
@@ -356,8 +357,11 @@ textarea.edit-control {
   font-weight: 500;
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  --fit-text-min-font-size: 0.75rem;
 }
 
 .skill-meta {

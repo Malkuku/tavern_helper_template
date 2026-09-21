@@ -108,7 +108,7 @@
             <div class="skill-header">
               <div class="skill-title-group">
                 <span class="skill-icon" v-html="getAspectIcon(skill.raw.性相)"></span>
-                <strong class="skill-name">{{ skill.name }}</strong>
+                <strong v-fit-text class="skill-name" :title="skill.name">{{ skill.name }}</strong>
               </div>
               <div class="skill-meta">
                 <span class="skill-level-badge">Lv.{{ skill.raw.技能等级 }}</span>
@@ -181,7 +181,7 @@
             <div class="skill-header">
               <div class="skill-title-group">
                 <span class="skill-icon" v-html="getAspectIcon(skill.raw.性相)"></span>
-                <strong class="skill-name">{{ skill.name }}</strong>
+                <strong v-fit-text class="skill-name" :title="skill.name">{{ skill.name }}</strong>
               </div>
               <div class="skill-meta">
                 <span class="skill-level-badge">Lv.{{ skill.raw.技能等级 }}</span>
@@ -241,6 +241,7 @@ import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+import { vFitText } from '@/尘史使徒/UI/util/fitText';
 
 // --- 状态定义 ---
 const router = useRouter(); // 新增：初始化路由
@@ -675,9 +676,9 @@ async function saveAllChanges() {
 .skill-card.is-modified { border-left: 3px solid var(--c-gold); }
 
 .skill-header { padding: 10px 14px; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; }
-.skill-title-group { display: flex; align-items: center; gap: 8px; }
-.skill-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
-.skill-name { font-family: var(--font-title); font-size: 1.05rem; color: #e8e8e8; letter-spacing: 1px; font-weight: 500; }
+.skill-title-group { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.skill-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex: 0 0 20px; }
+.skill-name { min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-title); font-size: 1.05rem; color: #e8e8e8; letter-spacing: 1px; font-weight: 500; --fit-text-min-font-size: 0.75rem; }
 .skill-meta { display: flex; gap: 6px; font-size: 0.75rem; }
 .skill-level-badge { background: rgba(255, 255, 255, 0.1); color: #ddd; padding: 2px 6px; border-radius: 2px; font-family: monospace; border: 1px solid rgba(255, 255, 255, 0.1); }
 .skill-aspect-tag { padding: 2px 6px; border-radius: 2px; color: #111; font-weight: bold; background: #aaa; }
