@@ -492,6 +492,19 @@ assert.match(sharedMapExplorer, /\.node > \.node-label\s*\{/, '节点标签必�
 assert.match(sharedMapExplorer, /iconSize\?: number/, '共享地图必须允许调整节点图标尺寸');
 assert.match(sharedMapExplorer, /--map-svg-width[\s\S]*--map-svg-height/, '节点容器必须消费 SVG 声明的独立宽高');
 assert.match(sharedMapExplorer, /\.grid\s*\{[^}]*pointer-events:\s*none/s, '地图装饰网格不得截获负深度节点的点击');
+assert.doesNotMatch(
+  sharedMapExplorer,
+  /Object\.entries\(props\.map \?\? \{\}\)\[0\]/,
+  '共享地图不得固定进入首个顶层节点',
+);
+assert.match(
+  sharedMapExplorer,
+  /root\.value \? \(root\.value\.子地图 \?\? \{\}\) : \(props\.map \?\? \{\}\)/,
+  '虚拟总根必须展示全部同级顶层地图',
+);
+assert.match(sharedMapExplorer, /path\?\.slice\(0, -1\) \?\? \[\]/, '当前位置为顶层地图时必须停留在虚拟总根');
+assert.match(sharedMapExplorer, /v-if="trail\.length" class="back"/, '进入任一顶层地图后必须能够返回虚拟总根');
+assert.match(sharedMapExplorer, /const parent = item\.crumbs\.slice\(0, -1\)/, '搜索顶层地图时必须定位到虚拟总根');
 assert.match(
   sharedMapExplorer,
   /coordinateScale: baseScale\.value \* transform\.k, iconScale: transform\.k/,

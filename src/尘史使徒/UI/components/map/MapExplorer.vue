@@ -91,6 +91,7 @@
     </div>
     <div class="overlay">
       <nav>
+        <button @click="navigateRoot">全部地图</button>
         <button v-for="(crumb, index) in trail" :key="crumb.name" @click="navigate(index)">{{ crumb.name }}</button>
       </nav>
       <div class="search">
@@ -107,7 +108,7 @@
       </div>
       <slot name="hud" />
     </div>
-    <button v-if="trail.length > 1" class="back" @click="goUp">← LEAVE {{ trail.at(-1)?.name }}</button>
+    <button v-if="trail.length" class="back" @click="goUp">← LEAVE {{ trail.at(-1)?.name }}</button>
   </div>
 </template>
 <script setup lang="ts">
@@ -167,20 +168,20 @@ function findPath(nodes: Record<string, any>, target: string, path: Crumb[] = []
   }
 }
 function init() {
-  const first = Object.entries(props.map ?? {})[0] as [string, Record<string, any>] | undefined;
-  if (!first) {
+  if (!Object.keys(props.map ?? {}).length) {
     trail.value = [];
     root.value = undefined;
     return;
   }
   const path = props.currentLocation ? findPath(props.map, props.currentLocation) : undefined;
-  trail.value = path && path.length > 1 ? path.slice(0, -1) : [{ name: first[0], node: first[1] }];
-  root.value = trail.value.at(-1)!.node;
+  trail.value = path?.slice(0, -1) ?? [];
+  root.value = trail.value.at(-1)?.node;
   focus.value = undefined;
   nextTick(fit);
 }
+const visibleNodes = computed(() => (root.value ? (root.value.子地图 ?? {}) : (props.map ?? {})));
 const nodes = computed<NodeView[]>(() =>
-  Object.entries(root.value?.子地图 ?? {}).map(([name, value]) => {
+  Object.entries(visibleNodes.value).map(([name, value]) => {
     const v = value as any,
       x = v.方位?.x ?? [0, 0],
       y = v.方位?.y ?? [0, 0],
@@ -362,15 +363,18 @@ function enter(n: NodeView) {
 }
 function navigate(index: number) {
   trail.value = trail.value.slice(0, index + 1);
-  root.value = trail.value.at(-1)!.node;
+  root.value = trail.value.at(-1)?.node;
   focus.value = undefined;
   nextTick(fit);
+}
+function navigateRoot() {
+  navigate(-1);
 }
 function goUp() {
   navigate(trail.value.length - 2);
 }
 function jump(item: { crumbs: Crumb[] }) {
-  const parent = item.crumbs.length > 1 ? item.crumbs.slice(0, -1) : item.crumbs;
+  const parent = item.crumbs.slice(0, -1);
   trail.value = parent;
   root.value = parent.at(-1)?.node;
   focus.value = undefined;
