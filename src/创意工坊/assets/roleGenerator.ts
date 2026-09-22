@@ -1,7 +1,7 @@
 import { klona } from 'klona';
 
-import { calculateCharacterAttributes, type CharacterLevels } from '../../尘史使徒/DOC/数值计算';
 import { defaultRoleData } from './presentation';
+import { applyRoleDerivedStats } from './roleStats';
 import type { JsonObject, RoleMeta, ScenarioSourceBundle, TypedCollectionEntry } from '../scenario/types';
 
 export type GeneratedRoleType = 'user' | '主要角色' | '次要角色';
@@ -294,24 +294,7 @@ function normalizeArts(value: unknown): Record<string, { 等级: number; 经验:
 function applyDerivedStats(data: JsonObject): void {
   const arts = normalizeArts(data.术之等级);
   data.术之等级 = arts;
-  const aspectMap: Record<string, keyof CharacterLevels> = {
-    灯: 'Lantern',
-    铸: 'Forge',
-    刃: 'Edge',
-    冬: 'Winter',
-    心: 'Heart',
-    杯: 'Grail',
-    蛾: 'Moth',
-    启: 'Knock',
-  };
-  const levels = Object.fromEntries(Object.entries(arts).map(([name, art]) => [aspectMap[name], art.等级]));
-  const stats = calculateCharacterAttributes(levels);
-  data.基础数值 = { 力量: stats.Strength, 敏捷: stats.Agility, 智慧: stats.Wisdom, 魅力: stats.Charisma };
-  data.生命状态 = {
-    生命: { 最大值: stats.Life, 当前: stats.Life },
-    体力: { 最大值: stats.Stamina, 当前: stats.Stamina },
-    精神: { 最大值: stats.Spirit, 当前: stats.Spirit },
-  };
+  applyRoleDerivedStats(data);
 }
 
 export function parseRoleRuntimeJson(text: string, type: GeneratedRoleType) {

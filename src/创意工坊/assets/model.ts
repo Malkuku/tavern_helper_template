@@ -3,6 +3,7 @@ import { klona } from 'klona';
 import { ScenarioEntrySchema } from '../scenario/schemas';
 import type { ReferenceIssue, ResourceCategory, ScenarioSourceBundle, TypedCollectionEntry } from '../scenario/types';
 import { mapContainsLocation } from '../scenario/map';
+import { applyRoleDerivedStats } from './roleStats';
 
 export type WorkshopCategory = '开场白' | ResourceCategory;
 
@@ -23,12 +24,7 @@ export function assetsOf(source: ScenarioSourceBundle): Record<WorkshopCategory,
 
 export function syncRoleVitalsToMaximum(source: ScenarioSourceBundle): void {
   for (const role of Object.values(source.registries.角色)) {
-    const vitals = (role.data as Record<string, any>)?.生命状态;
-    if (!vitals || typeof vitals !== 'object') continue;
-    for (const key of ['生命', '体力', '精神']) {
-      const status = vitals[key];
-      if (status && typeof status === 'object' && '最大值' in status) status.当前 = status.最大值;
-    }
+    applyRoleDerivedStats(role.data as Record<string, unknown>);
   }
 }
 

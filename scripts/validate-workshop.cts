@@ -940,13 +940,23 @@ vitalsSource.registries.角色.vitals = {
   desc: 'd',
   key: 'vitals',
   type: '主要角色',
-  data: { 生命状态: { 生命: { 当前: 1, 最大值: 10 }, 体力: { 当前: 2, 最大值: 20 }, 精神: { 当前: 3, 最大值: 30 } } },
+  data: {
+    术之等级: { 启: { 等级: 18, 经验: 0 } },
+    基础数值: { 力量: 65, 敏捷: 180, 智慧: 350, 魅力: 160 },
+    生命状态: { 生命: { 当前: 1, 最大值: 100 }, 体力: { 当前: 2, 最大值: 100 }, 精神: { 当前: 3, 最大值: 100 } },
+  },
 } as never;
 syncRoleVitalsToMaximum(vitalsSource);
 assert.deepEqual((vitalsSource.registries.角色.vitals.data as any).生命状态, {
-  生命: { 当前: 10, 最大值: 10 },
-  体力: { 当前: 20, 最大值: 20 },
-  精神: { 当前: 30, 最大值: 30 },
+  生命: { 当前: 1306, 最大值: 1306 },
+  体力: { 当前: 424, 最大值: 424 },
+  精神: { 当前: 1266, 最大值: 1266 },
+});
+assert.deepEqual((vitalsSource.registries.角色.vitals.data as any).基础数值, {
+  力量: 204,
+  敏捷: 593,
+  智慧: 755,
+  魅力: 399,
 });
 const enumSource = structuredClone(vitalsSource);
 (enumSource.registries.角色.vitals.data as any).术之等级 = {

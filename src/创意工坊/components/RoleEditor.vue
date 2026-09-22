@@ -190,7 +190,7 @@
 </template>
 <script setup lang="ts">
 import { computed, ref, watch, watchEffect } from 'vue';
-import { calculateCharacterAttributes } from '../../尘史使徒/DOC/数值计算';
+import { applyRoleDerivedStats } from '../assets/roleStats';
 import AvatarMediaField from './AvatarMediaField.vue';
 import MessageDisplay from '../../尘史使徒/UI/components/panel/MessageDisplay.vue';
 import ArtLevelEditor from './ArtLevelEditor.vue';
@@ -237,16 +237,6 @@ watch(
 );
 const roleName = computed(() => entry.value.data?.姓名 || entry.value.key || '角色头像');
 const hasAvatar = computed(() => Boolean(entry.value.meta?.avatar?.trim()));
-const aspectMap: Record<string, string> = {
-  灯: 'Lantern',
-  铸: 'Forge',
-  刃: 'Edge',
-  冬: 'Winter',
-  心: 'Heart',
-  杯: 'Grail',
-  蛾: 'Moth',
-  启: 'Knock',
-};
 const currentIdentity = computed(() =>
   entry.value.type === 'user' ? 'user' : `${entry.value.type}\u0000${entry.value.key}`,
 );
@@ -255,21 +245,7 @@ const availableRelationshipTargets = computed(() =>
 );
 function updateArts(value: Record<string, { 等级: number; 经验: number }>) {
   entry.value.data['术之等级'] = value;
-  const levels = Object.fromEntries(Object.entries(value).map(([key, art]) => [aspectMap[key] ?? key, art.等级]));
-  const result = calculateCharacterAttributes(levels);
-  entry.value.data.基础数值 = {
-    力量: result.Strength,
-    敏捷: result.Agility,
-    智慧: result.Wisdom,
-    魅力: result.Charisma,
-  };
-  entry.value.data.生命状态 ??= {};
-  for (const [key, maximum] of [
-    ['生命', result.Life],
-    ['体力', result.Stamina],
-    ['精神', result.Spirit],
-  ] as const)
-    entry.value.data.生命状态[key] = { 最大值: maximum, 当前: maximum };
+  applyRoleDerivedStats(entry.value.data);
 }
 watchEffect(() => {
   entry.value.meta ??= { avatar: '', color: '#C9B485', avatarStyle: 'auto' };

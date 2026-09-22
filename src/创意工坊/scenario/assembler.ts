@@ -1,6 +1,7 @@
 import { klona } from 'klona';
 import { z } from 'zod';
 
+import { applyRoleDerivedStats } from '../assets/roleStats';
 import { ScenarioDataError } from './errors';
 import { mapContainsLocation } from './map';
 import { RuntimeStatDataSchema } from './schemas';
@@ -114,6 +115,7 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
       ...klona(data),
       meta: klona(entry.meta ?? { avatar: '', color: '#C9B485' }),
     };
+    applyRoleDerivedStats(runtimeData);
 
     if (entry.type === 'user') {
       if (result.user) {
@@ -168,10 +170,14 @@ export function assembleScenario(source: ScenarioSourceBundle, scenarioId: strin
   const map = requireEntry(source.registries.地图, '地图', config.地图);
   const initialLocation = String(config.世界.地图索引 ?? '');
   if (!mapContainsLocation(map, initialLocation)) {
-    throw new ScenarioDataError('INVALID_MAP_LOCATION', `初始地图索引“${initialLocation || '（空）'}”不在所选地图中。`, {
-      category: '地图',
-      resourceId: config.地图,
-    });
+    throw new ScenarioDataError(
+      'INVALID_MAP_LOCATION',
+      `初始地图索引“${initialLocation || '（空）'}”不在所选地图中。`,
+      {
+        category: '地图',
+        resourceId: config.地图,
+      },
+    );
   }
   const fixedData = klona(source.fixedData);
   const system = z.record(z.string(), z.unknown()).parse(fixedData.system);

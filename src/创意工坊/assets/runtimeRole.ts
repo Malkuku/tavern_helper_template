@@ -1,6 +1,7 @@
 import { klona } from 'klona';
 
 import type { TypedCollectionEntry } from '../scenario/types';
+import { applyRoleDerivedStats } from './roleStats';
 
 export type RuntimeRoleResult = 'added' | 'overwritten' | 'conflict';
 
@@ -47,6 +48,7 @@ export async function addRoleToRuntime(role: TypedCollectionEntry, overwrite = f
     ...(klona(role.data) as Record<string, unknown>),
     meta: klona(role.meta ?? { avatar: '', color: '#C9B485' }),
   };
+  applyRoleDerivedStats(runtimeRole);
   if (role.type === 'user') next.stat_data.角色.user = runtimeRole;
   else next.stat_data.角色[role.type][role.key] = runtimeRole;
   try {
