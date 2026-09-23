@@ -66,25 +66,26 @@
               </ul>
               <p v-else>暂无详细信息</p>
             </div>
-            <small>E:{{ focus.displayX.toFixed(1) }} km N:{{ focus.displayY.toFixed(1) }} km</small>
+            <div class="detail-meta">
+              <small>E:{{ focus.displayX.toFixed(1) }} km N:{{ focus.displayY.toFixed(1) }} km</small>
+              <button
+                v-if="mode === 'gameplay'"
+                class="more-actions"
+                aria-label="更多地图操作"
+                :aria-expanded="deleteActionOpen"
+                @click="deleteActionOpen = !deleteActionOpen"
+              >
+                ···
+              </button>
+            </div>
             <footer>
               <button v-if="focus.hasChildren" class="primary" @click="enter(focus)">进入地区</button
               ><button v-if="mode === 'selection'" class="primary" @click="$emit('select', focus.name)">确定选择</button
-              ><button v-if="mode === 'gameplay'" @click="$emit('travel', focus.name)">前往此处</button
-              ><button
-                v-if="mode === 'gameplay'"
-                class="danger"
-                @click="
-                  $emit(
-                    'delete',
-                    focus.name,
-                    trail.map(x => x.name),
-                  )
-                "
-              >
-                删除地图
-              </button>
+              ><button v-if="mode === 'gameplay'" @click="$emit('travel', focus.name)">前往此处</button>
             </footer>
+            <button v-if="mode === 'gameplay' && deleteActionOpen" class="danger delete-action" @click="deleteFocus">
+              删除地图
+            </button>
           </aside>
         </div>
       </div>
@@ -147,7 +148,7 @@ const props = withDefaults(
     iconShape: 'none',
   },
 );
-defineEmits<{ select: [name: string]; travel: [name: string]; delete: [name: string, path: string[]] }>();
+const emit = defineEmits<{ select: [name: string]; travel: [name: string]; delete: [name: string, path: string[]] }>();
 const viewport = ref<HTMLElement>(),
   trail = ref<Crumb[]>([]),
   root = ref<Record<string, any>>(),
@@ -158,6 +159,7 @@ const viewport = ref<HTMLElement>(),
 const searchOpen = ref(false),
   query = ref(''),
   detailTab = ref<'summary' | 'details'>('summary'),
+  deleteActionOpen = ref(false),
   pinch = reactive({ active: false, distance: 0 });
 function findPath(nodes: Record<string, any>, target: string, path: Crumb[] = []): Crumb[] | undefined {
   for (const [name, node] of Object.entries(nodes ?? {})) {
@@ -268,6 +270,16 @@ const nodeStyle = (n: NodeView) => {
 function selectNode(node: NodeView) {
   focus.value = node;
   detailTab.value = 'summary';
+  deleteActionOpen.value = false;
+}
+function deleteFocus() {
+  if (!focus.value) return;
+  emit(
+    'delete',
+    focus.value.name,
+    trail.value.map(x => x.name),
+  );
+  deleteActionOpen.value = false;
 }
 function detailIsLeft(node: NodeView) {
   const visualX = layoutNodes.value.get(node.name)?.visualX ?? 0;
@@ -683,6 +695,24 @@ watch(() => [props.map, props.currentLocation], init);
 .detail small {
   color: #888 !important;
 }
+.detail-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.detail .more-actions {
+  flex: 0 0 auto !important;
+  min-width: 34px !important;
+  padding: 2px 8px !important;
+  color: #aaa !important;
+  background: transparent !important;
+  border: 1px solid #555 !important;
+  border-radius: 0 !important;
+  font: inherit !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+}
 .detail-tabs {
   display: flex;
   gap: 0;
@@ -744,6 +774,16 @@ watch(() => [props.map, props.currentLocation], init);
   color: #d77a85 !important;
   background: #1d2128 !important;
   border-color: #b85c67 !important;
+}
+.detail .delete-action {
+  width: 100% !important;
+  margin-top: 8px;
+  padding: 8px !important;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font: inherit !important;
 }
 .close {
   position: absolute !important;

@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container animus-theme">
+  <ChronicleFrame title="战斗回溯" subtitle="战斗回溯 · 交锋记录">
     <svg class="icon-sprite" aria-hidden="true">
       <symbol id="icon-attack" viewBox="0 0 24 24">
         <path d="m14 5 5-3-3 5-8.8 8.8-3-3L13 4Z" />
@@ -28,541 +28,583 @@
         <path d="M12 9v5M12 17h.01" />
       </symbol>
     </svg>
-    <!-- 全局扫描线遮罩 -->
-    <div class="scanlines"></div>
-
-    <div class="gallery-card active">
-      <!-- HUD 边角装饰 -->
-      <div class="hud-corner top-left"></div>
-      <div class="hud-corner top-right"></div>
-      <div class="hud-corner bottom-left"></div>
-      <div class="hud-corner bottom-right"></div>
-
-      <!-- 卡片头部 (动态显示当前攻防角色) -->
-      <div class="card-header">
-        <div class="header-title">
-          <span class="tech-prefix">//</span>
-          战斗回溯 <span class="separator">::</span>
-          <span class="entity-red">{{ parsedInteraction.atkName }}</span>
-          <span class="vs-mini">VS</span>
-          <span class="entity-gold">{{ parsedInteraction.defName }}</span>
+    <template #heading>
+      <span class="entity-red">{{ parsedInteraction.atkName }}</span>
+      <span class="vs-mini"> 对阵 </span>
+      <span class="entity-gold">{{ parsedInteraction.defName }}</span>
+    </template>
+    <template #actions>
+      <div class="status-indicator" :class="phase">
+        <div class="status-left">
+          <span class="status-dot"></span>
+          {{ phaseText }}
+          <span v-if="phase !== 'finished'" class="beat-counter">
+            [ 拍数: {{ currentBeatIndex + 1 }} / {{ combatLog.length }} ]
+          </span>
         </div>
-        <div class="status-indicator" :class="phase">
-          <div class="status-left">
-            <span class="status-dot"></span>
-            {{ phaseText }}
-            <span v-if="phase !== 'finished'" class="beat-counter">
-              [ 拍数: {{ currentBeatIndex + 1 }} / {{ combatLog.length }} ]
-            </span>
+        <button class="replay-btn" aria-label="重置战斗回放" title="重置战斗回放" @click="replayCombat">
+          <svg class="hud-icon"><use href="#icon-replay" /></svg><span>重置</span>
+        </button>
+      </div>
+    </template>
+
+    <!-- 卡片内容 -->
+    <div class="card-content">
+      <!-- SVG 动画区域 -->
+      <div
+        v-if="phase !== 'finished'"
+        class="svg-container"
+        role="button"
+        tabindex="0"
+        aria-label="推进战斗回放"
+        @keydown.enter.prevent="advanceCombat"
+        @keydown.space.prevent="advanceCombat"
+        @click="advanceCombat"
+      >
+        <!-- 动态 viewBox，适配移动端与电脑端 -->
+        <svg :viewBox="layout.viewBox" class="combat-svg">
+          <defs>
+            <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="glow-gold" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="glow-red-sm" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="glow-gold-sm" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+
+          <!-- 攻方基础信息 -->
+          <g class="side-attacker anim-group" :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }">
+            <g class="action-type-mark attacker-mark" role="img" :aria-label="parsedInteraction.atkType">
+              <title>{{ parsedInteraction.atkType }}</title>
+              <rect
+                :x="layout.atk.icon.x"
+                :y="layout.atk.icon.y"
+                width="22"
+                height="22"
+                rx="4"
+                class="action-type-frame"
+              />
+              <svg :x="layout.atk.icon.x + 4" :y="layout.atk.icon.y + 4" width="14" height="14" viewBox="0 0 24 24">
+                <use :href="actionIcon(parsedInteraction.atkType)" />
+              </svg>
+            </g>
+            <line
+              :x1="layout.atk.line.x1"
+              :y1="layout.atk.line.y1"
+              :x2="layout.atk.line.x2"
+              :y2="layout.atk.line.y2"
+              stroke="#bd6c67"
+              stroke-width="1"
+              opacity="0.3"
+              class="svg-trans"
+            />
+            <text
+              :x="layout.atk.title.x"
+              :y="layout.atk.title.y"
+              class="role-title svg-trans"
+              fill="#bd6c67"
+              text-anchor="middle"
+              filter="url(#glow-red)"
+            >
+              {{ parsedInteraction.atkName }}
+            </text>
+            <text
+              :x="layout.atk.sub.x"
+              :y="layout.atk.sub.y"
+              class="sub-info svg-trans"
+              fill="#bd6c67"
+              text-anchor="middle"
+              opacity="0.8"
+            >
+              {{ parsedInteraction.atkAction }}
+            </text>
+          </g>
+
+          <!-- 防方基础信息 -->
+          <g class="side-defender anim-group" :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }">
+            <g class="action-type-mark defender-mark" role="img" :aria-label="parsedInteraction.defType">
+              <title>{{ parsedInteraction.defType }}</title>
+              <rect
+                :x="layout.def.icon.x"
+                :y="layout.def.icon.y"
+                width="22"
+                height="22"
+                rx="4"
+                class="action-type-frame"
+              />
+              <svg :x="layout.def.icon.x + 4" :y="layout.def.icon.y + 4" width="14" height="14" viewBox="0 0 24 24">
+                <use :href="actionIcon(parsedInteraction.defType)" />
+              </svg>
+            </g>
+            <line
+              :x1="layout.def.line.x1"
+              :y1="layout.def.line.y1"
+              :x2="layout.def.line.x2"
+              :y2="layout.def.line.y2"
+              stroke="#a48b57"
+              stroke-width="1"
+              opacity="0.3"
+              class="svg-trans"
+            />
+            <text
+              :x="layout.def.title.x"
+              :y="layout.def.title.y"
+              class="role-title svg-trans"
+              fill="#a48b57"
+              text-anchor="middle"
+              filter="url(#glow-gold)"
+            >
+              {{ parsedInteraction.defName }}
+              <tspan font-size="10" fill="#aaa">({{ parsedInteraction.defType }})</tspan>
+            </text>
+            <text
+              :x="layout.def.sub.x"
+              :y="layout.def.sub.y"
+              class="sub-info svg-trans"
+              fill="#a48b57"
+              text-anchor="middle"
+              opacity="0.8"
+            >
+              {{ parsedInteraction.defAction }}
+            </text>
+          </g>
+
+          <!-- 中央区域：骰子与总值对决 -->
+          <g class="center-clash-area anim-group" :class="{ 'fade-out': phase === 'switching' }">
+            <!-- 准备阶段：显示骰子占位符 (?) -->
+            <g v-if="phase === 'ready' || phase === 'switching'">
+              <g
+                v-for="(_, index) in expectedAtkDice"
+                :key="'atk-placeholder' + index"
+                :transform="diceTransform('atk', index, expectedAtkDice)"
+                class="svg-trans"
+              >
+                <g class="placeholder-pulse">
+                  <rect
+                    width="26"
+                    height="26"
+                    fill="transparent"
+                    stroke="rgba(189,108,103,0.4)"
+                    stroke-width="1"
+                    stroke-dasharray="3 3"
+                    rx="4"
+                  />
+                  <text
+                    x="13"
+                    y="18"
+                    fill="rgba(189,108,103,0.6)"
+                    font-size="14"
+                    font-family="monospace"
+                    text-anchor="middle"
+                  >
+                    ?
+                  </text>
+                </g>
+              </g>
+              <g
+                v-for="(_, index) in expectedDefDice"
+                :key="'def-placeholder' + index"
+                :transform="diceTransform('def', index, expectedDefDice)"
+                class="svg-trans"
+              >
+                <g class="placeholder-pulse">
+                  <rect
+                    width="26"
+                    height="26"
+                    fill="transparent"
+                    stroke="rgba(164, 139, 87, 0.4)"
+                    stroke-width="1"
+                    stroke-dasharray="3 3"
+                    rx="4"
+                  />
+                  <text
+                    x="13"
+                    y="18"
+                    fill="rgba(164, 139, 87, 0.6)"
+                    font-size="14"
+                    font-family="monospace"
+                    text-anchor="middle"
+                  >
+                    ?
+                  </text>
+                </g>
+              </g>
+            </g>
+
+            <!-- 投骰/结算阶段：显示真实骰子 -->
+            <g v-else>
+              <g
+                v-for="(dice, index) in currentAtkRolls"
+                :key="'atk' + index"
+                :transform="diceTransform('atk', index, currentAtkRolls.length)"
+                class="svg-trans"
+              >
+                <g class="dice-enter-left" :style="{ animationDelay: `${index * 0.1}s` }">
+                  <rect
+                    width="26"
+                    height="26"
+                    fill="rgba(189,108,103,0.15)"
+                    stroke="#bd6c67"
+                    stroke-width="1.5"
+                    rx="4"
+                    filter="url(#glow-red-sm)"
+                  />
+                  <text
+                    x="13"
+                    y="18"
+                    fill="#fff"
+                    font-size="14"
+                    font-family="monospace"
+                    font-weight="bold"
+                    text-anchor="middle"
+                  >
+                    {{ dice }}
+                  </text>
+                </g>
+              </g>
+              <g
+                v-for="(dice, index) in currentDefRolls"
+                :key="'def' + index"
+                :transform="diceTransform('def', index, currentDefRolls.length)"
+                class="svg-trans"
+              >
+                <g class="dice-enter-right" :style="{ animationDelay: `${index * 0.1}s` }">
+                  <rect
+                    width="26"
+                    height="26"
+                    fill="rgba(164, 139, 87, 0.15)"
+                    stroke="#a48b57"
+                    stroke-width="1.5"
+                    rx="4"
+                    filter="url(#glow-gold-sm)"
+                  />
+                  <text
+                    x="13"
+                    y="18"
+                    fill="#fff"
+                    font-size="14"
+                    font-family="monospace"
+                    font-weight="bold"
+                    text-anchor="middle"
+                  >
+                    {{ dice }}
+                  </text>
+                </g>
+              </g>
+            </g>
+
+            <!-- 拼点总值与 VS (统一使用左右横向碰撞) -->
+            <g v-if="phase === 'clashing' || phase === 'beat-result'">
+              <g :transform="`translate(${layout.clash.atkTotalX}, ${layout.clash.atkTotalY})`" class="svg-trans">
+                <g class="total-group" :class="{ 'clash-move-right': phase === 'clashing' }">
+                  <polygon
+                    points="0,-20 20,0 0,20 -20,0"
+                    fill="rgba(189,108,103,0.15)"
+                    stroke="#bd6c67"
+                    stroke-width="1.5"
+                    filter="url(#glow-red)"
+                  />
+                  <text
+                    x="0"
+                    y="5"
+                    fill="#fff"
+                    font-size="16"
+                    font-family="monospace"
+                    font-weight="bold"
+                    text-anchor="middle"
+                  >
+                    {{ currentBeat.攻方.攻击总值 }}
+                  </text>
+                </g>
+              </g>
+              <g :transform="`translate(${layout.clash.defTotalX}, ${layout.clash.defTotalY})`" class="svg-trans">
+                <g class="total-group" :class="{ 'clash-move-left': phase === 'clashing' }">
+                  <polygon
+                    points="0,-20 20,0 0,20 -20,0"
+                    fill="rgba(164, 139, 87, 0.15)"
+                    stroke="#a48b57"
+                    stroke-width="1.5"
+                    filter="url(#glow-gold)"
+                  />
+                  <text
+                    x="0"
+                    y="5"
+                    fill="#fff"
+                    font-size="16"
+                    font-family="monospace"
+                    font-weight="bold"
+                    text-anchor="middle"
+                  >
+                    {{ currentBeat.防方.防御总值 }}
+                  </text>
+                </g>
+              </g>
+              <line
+                :x1="layout.clash.lineX1"
+                :y1="layout.clash.lineY"
+                :x2="layout.clash.lineX2"
+                :y2="layout.clash.lineY"
+                stroke="#fff"
+                stroke-width="1"
+                stroke-dasharray="4 4"
+                opacity="0.3"
+                class="clash-line svg-trans"
+              />
+              <text
+                :x="layout.clash.vsX"
+                :y="layout.clash.vsY"
+                fill="#fff"
+                font-size="18"
+                font-family="monospace"
+                letter-spacing="2"
+                text-anchor="middle"
+                class="vs-text svg-trans"
+              >
+                VS
+              </text>
+            </g>
+          </g>
+
+          <!-- 操作提示 -->
+          <g
+            v-if="phase === 'ready' || phase === 'beat-result' || phase === 'switching'"
+            class="action-prompt anim-group"
+            :class="{ 'fade-out': phase === 'switching' }"
+          >
+            <rect
+              :x="layout.clash.promptX"
+              :y="layout.clash.promptY"
+              :width="layout.clash.promptW"
+              :height="layout.clash.promptH"
+              fill="rgba(164, 139, 87, 0.1)"
+              stroke="#a48b57"
+              stroke-width="1"
+              rx="10"
+              class="svg-trans"
+            />
+            <text
+              :x="layout.clash.promptTextX"
+              :y="layout.clash.promptTextY"
+              fill="#a48b57"
+              font-size="11"
+              text-anchor="middle"
+              class="click-continue-hint svg-trans"
+            >
+              {{ phase === 'ready' ? '>> 点击投掷骰子 <<' : '>> 点击进入下一拍 <<' }}
+            </text>
+          </g>
+        </svg>
+      </div>
+
+      <button
+        v-if="isMobile && phase !== 'finished' && currentBeat"
+        type="button"
+        class="calculation-toggle"
+        :aria-expanded="calculationExpanded"
+        @click="calculationExpanded = !calculationExpanded"
+      >
+        <svg class="hud-icon"><use href="#icon-formula" /></svg>
+        {{ calculationExpanded ? '收起判定详情' : '展开判定详情' }}
+        <span aria-hidden="true">{{ calculationExpanded ? '−' : '+' }}</span>
+      </button>
+      <div
+        v-if="phase !== 'finished' && currentBeat"
+        v-show="!isMobile || calculationExpanded"
+        class="calculation-strip"
+      >
+        <div class="calculation-card attacker">
+          <div class="calculation-meta">
+            <span class="action-kind"
+              ><svg class="hud-icon"><use :href="actionIcon(parsedInteraction.atkType)" /></svg
+              >{{ parsedInteraction.atkType }}</span
+            >
+            <strong title="综合优势率"
+              ><svg class="hud-icon"><use href="#icon-advantage" /></svg
+              >{{ formatRate(currentBeat.优势结算?.攻方优势率) }}</strong
+            >
           </div>
-          <button class="replay-btn" aria-label="重置战斗回放" title="重置战斗回放" @click="replayCombat">
-            <svg class="hud-icon"><use href="#icon-replay" /></svg><span>重置</span>
-          </button>
+          <div class="resource-line">
+            <svg class="hud-icon"><use href="#icon-resource" /></svg>{{ currentBeat.攻方.消耗 || '无消耗' }}
+          </div>
+          <div class="calculation-formula">
+            <svg class="hud-icon"><use href="#icon-formula" /></svg><span class="formula-label">算式</span>
+            <code :title="currentBeat.攻方.公式 || '无需检定'">
+              <span class="formula-expression">{{ formulaParts(currentBeat.攻方.公式).expression }}</span>
+              <span v-if="formulaParts(currentBeat.攻方.公式).result" class="formula-result">
+                <span aria-hidden="true">→</span> {{ formulaParts(currentBeat.攻方.公式).result }}
+              </span>
+            </code>
+          </div>
+          <ul class="advantage-list">
+            <li v-for="fact in advantageFacts(currentBeat, '攻方')" :key="fact">{{ fact }}</li>
+            <li v-if="advantageFacts(currentBeat, '攻方').length === 0" class="neutral">无有效优势</li>
+          </ul>
+        </div>
+        <div class="calculation-card defender">
+          <div class="calculation-meta">
+            <span class="action-kind"
+              ><svg class="hud-icon"><use :href="actionIcon(parsedInteraction.defType)" /></svg
+              >{{ parsedInteraction.defType }}</span
+            >
+            <strong title="综合优势率"
+              ><svg class="hud-icon"><use href="#icon-advantage" /></svg
+              >{{ formatRate(currentBeat.优势结算?.防方优势率) }}</strong
+            >
+          </div>
+          <div class="resource-line">
+            <svg class="hud-icon"><use href="#icon-resource" /></svg>{{ currentBeat.防方.消耗 || '无消耗' }}
+          </div>
+          <div class="calculation-formula">
+            <svg class="hud-icon"><use href="#icon-formula" /></svg><span class="formula-label">算式</span>
+            <code :title="currentBeat.防方.公式 || '无需检定'">
+              <span class="formula-expression">{{ formulaParts(currentBeat.防方.公式).expression }}</span>
+              <span v-if="formulaParts(currentBeat.防方.公式).result" class="formula-result">
+                <span aria-hidden="true">→</span> {{ formulaParts(currentBeat.防方.公式).result }}
+              </span>
+            </code>
+          </div>
+          <ul class="advantage-list">
+            <li v-for="fact in advantageFacts(currentBeat, '防方')" :key="fact">{{ fact }}</li>
+            <li v-if="advantageFacts(currentBeat, '防方').length === 0" class="neutral">无有效优势</li>
+          </ul>
         </div>
       </div>
 
-      <!-- 卡片内容 -->
-      <div class="card-content">
-        <!-- SVG 动画区域 -->
-        <div class="svg-container" @click="advanceCombat" v-if="phase !== 'finished'">
-          <div class="grid-bg"></div>
-
-          <!-- 动态 viewBox，适配移动端与电脑端 -->
-          <svg :viewBox="layout.viewBox" class="combat-svg">
-            <defs>
-              <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <filter id="glow-gold" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <filter id="glow-red-sm" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <filter id="glow-gold-sm" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            <!-- 攻方基础信息 -->
-            <g
-              class="side-attacker anim-group"
-              :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }"
-            >
-              <line
-                :x1="layout.atk.line.x1"
-                :y1="layout.atk.line.y1"
-                :x2="layout.atk.line.x2"
-                :y2="layout.atk.line.y2"
-                stroke="#ff3333"
-                stroke-width="1"
-                opacity="0.3"
-                class="svg-trans"
-              />
-              <text
-                :x="layout.atk.title.x"
-                :y="layout.atk.title.y"
-                class="role-title svg-trans"
-                fill="#ff3333"
-                text-anchor="middle"
-                filter="url(#glow-red)"
-              >
-                {{ parsedInteraction.atkName }}
-                <tspan font-size="10" fill="#aaa">({{ parsedInteraction.atkType }})</tspan>
-              </text>
-              <text
-                :x="layout.atk.sub.x"
-                :y="layout.atk.sub.y"
-                class="sub-info svg-trans"
-                fill="#ff3333"
-                text-anchor="middle"
-                opacity="0.8"
-              >
-                {{ parsedInteraction.atkAction }}
-              </text>
-            </g>
-
-            <!-- 防方基础信息 -->
-            <g
-              class="side-defender anim-group"
-              :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }"
-            >
-              <line
-                :x1="layout.def.line.x1"
-                :y1="layout.def.line.y1"
-                :x2="layout.def.line.x2"
-                :y2="layout.def.line.y2"
-                stroke="#d4af37"
-                stroke-width="1"
-                opacity="0.3"
-                class="svg-trans"
-              />
-              <text
-                :x="layout.def.title.x"
-                :y="layout.def.title.y"
-                class="role-title svg-trans"
-                fill="#d4af37"
-                text-anchor="middle"
-                filter="url(#glow-gold)"
-              >
-                {{ parsedInteraction.defName }}
-                <tspan font-size="10" fill="#aaa">({{ parsedInteraction.defType }})</tspan>
-              </text>
-              <text
-                :x="layout.def.sub.x"
-                :y="layout.def.sub.y"
-                class="sub-info svg-trans"
-                fill="#d4af37"
-                text-anchor="middle"
-                opacity="0.8"
-              >
-                {{ parsedInteraction.defAction }}
-              </text>
-            </g>
-
-            <!-- 中央区域：骰子与总值对决 -->
-            <g class="center-clash-area anim-group" :class="{ 'fade-out': phase === 'switching' }">
-              <!-- 准备阶段：显示骰子占位符 (?) -->
-              <g v-if="phase === 'ready' || phase === 'switching'">
-                <g
-                  v-for="(_, index) in expectedAtkDice"
-                  :key="'atk-placeholder' + index"
-                  :transform="diceTransform('atk', index, expectedAtkDice)"
-                  class="svg-trans"
-                >
-                  <g class="placeholder-pulse">
-                    <rect
-                      width="26"
-                      height="26"
-                      fill="transparent"
-                      stroke="rgba(255,51,51,0.4)"
-                      stroke-width="1"
-                      stroke-dasharray="3 3"
-                      rx="4"
-                    />
-                    <text
-                      x="13"
-                      y="18"
-                      fill="rgba(255,51,51,0.6)"
-                      font-size="14"
-                      font-family="monospace"
-                      text-anchor="middle"
-                    >
-                      ?
-                    </text>
-                  </g>
-                </g>
-                <g
-                  v-for="(_, index) in expectedDefDice"
-                  :key="'def-placeholder' + index"
-                  :transform="diceTransform('def', index, expectedDefDice)"
-                  class="svg-trans"
-                >
-                  <g class="placeholder-pulse">
-                    <rect
-                      width="26"
-                      height="26"
-                      fill="transparent"
-                      stroke="rgba(212, 175, 55, 0.4)"
-                      stroke-width="1"
-                      stroke-dasharray="3 3"
-                      rx="4"
-                    />
-                    <text
-                      x="13"
-                      y="18"
-                      fill="rgba(212, 175, 55, 0.6)"
-                      font-size="14"
-                      font-family="monospace"
-                      text-anchor="middle"
-                    >
-                      ?
-                    </text>
-                  </g>
-                </g>
-              </g>
-
-              <!-- 投骰/结算阶段：显示真实骰子 -->
-              <g v-else>
-                <g
-                  v-for="(dice, index) in currentAtkRolls"
-                  :key="'atk' + index"
-                  :transform="diceTransform('atk', index, currentAtkRolls.length)"
-                  class="svg-trans"
-                >
-                  <g class="dice-enter-left" :style="{ animationDelay: `${index * 0.1}s` }">
-                    <rect
-                      width="26"
-                      height="26"
-                      fill="rgba(255,51,51,0.15)"
-                      stroke="#ff3333"
-                      stroke-width="1.5"
-                      rx="4"
-                      filter="url(#glow-red-sm)"
-                    />
-                    <text
-                      x="13"
-                      y="18"
-                      fill="#fff"
-                      font-size="14"
-                      font-family="monospace"
-                      font-weight="bold"
-                      text-anchor="middle"
-                    >
-                      {{ dice }}
-                    </text>
-                  </g>
-                </g>
-                <g
-                  v-for="(dice, index) in currentDefRolls"
-                  :key="'def' + index"
-                  :transform="diceTransform('def', index, currentDefRolls.length)"
-                  class="svg-trans"
-                >
-                  <g class="dice-enter-right" :style="{ animationDelay: `${index * 0.1}s` }">
-                    <rect
-                      width="26"
-                      height="26"
-                      fill="rgba(212, 175, 55, 0.15)"
-                      stroke="#d4af37"
-                      stroke-width="1.5"
-                      rx="4"
-                      filter="url(#glow-gold-sm)"
-                    />
-                    <text
-                      x="13"
-                      y="18"
-                      fill="#fff"
-                      font-size="14"
-                      font-family="monospace"
-                      font-weight="bold"
-                      text-anchor="middle"
-                    >
-                      {{ dice }}
-                    </text>
-                  </g>
-                </g>
-              </g>
-
-              <!-- 拼点总值与 VS (统一使用左右横向碰撞) -->
-              <g v-if="phase === 'clashing' || phase === 'beat-result'">
-                <g :transform="`translate(${layout.clash.atkTotalX}, ${layout.clash.atkTotalY})`" class="svg-trans">
-                  <g class="total-group" :class="{ 'clash-move-right': phase === 'clashing' }">
-                    <polygon
-                      points="0,-20 20,0 0,20 -20,0"
-                      fill="rgba(255,51,51,0.15)"
-                      stroke="#ff3333"
-                      stroke-width="1.5"
-                      filter="url(#glow-red)"
-                    />
-                    <text
-                      x="0"
-                      y="5"
-                      fill="#fff"
-                      font-size="16"
-                      font-family="monospace"
-                      font-weight="bold"
-                      text-anchor="middle"
-                    >
-                      {{ currentBeat.攻方.攻击总值 }}
-                    </text>
-                  </g>
-                </g>
-                <g :transform="`translate(${layout.clash.defTotalX}, ${layout.clash.defTotalY})`" class="svg-trans">
-                  <g class="total-group" :class="{ 'clash-move-left': phase === 'clashing' }">
-                    <polygon
-                      points="0,-20 20,0 0,20 -20,0"
-                      fill="rgba(212, 175, 55, 0.15)"
-                      stroke="#d4af37"
-                      stroke-width="1.5"
-                      filter="url(#glow-gold)"
-                    />
-                    <text
-                      x="0"
-                      y="5"
-                      fill="#fff"
-                      font-size="16"
-                      font-family="monospace"
-                      font-weight="bold"
-                      text-anchor="middle"
-                    >
-                      {{ currentBeat.防方.防御总值 }}
-                    </text>
-                  </g>
-                </g>
-                <line
-                  :x1="layout.clash.lineX1"
-                  :y1="layout.clash.lineY"
-                  :x2="layout.clash.lineX2"
-                  :y2="layout.clash.lineY"
-                  stroke="#fff"
-                  stroke-width="1"
-                  stroke-dasharray="4 4"
-                  opacity="0.3"
-                  class="clash-line svg-trans"
-                />
-                <text
-                  :x="layout.clash.vsX"
-                  :y="layout.clash.vsY"
-                  fill="#fff"
-                  font-size="18"
-                  font-family="monospace"
-                  letter-spacing="2"
-                  text-anchor="middle"
-                  class="vs-text svg-trans"
-                >
-                  VS
-                </text>
-              </g>
-            </g>
-
-            <!-- 操作提示 -->
-            <g
-              class="action-prompt anim-group"
-              v-if="phase === 'ready' || phase === 'beat-result' || phase === 'switching'"
-              :class="{ 'fade-out': phase === 'switching' }"
-            >
-              <rect
-                :x="layout.clash.promptX"
-                :y="layout.clash.promptY"
-                :width="layout.clash.promptW"
-                :height="layout.clash.promptH"
-                fill="rgba(212, 175, 55, 0.1)"
-                stroke="#d4af37"
-                stroke-width="1"
-                rx="10"
-                class="svg-trans"
-              />
-              <text
-                :x="layout.clash.promptTextX"
-                :y="layout.clash.promptTextY"
-                fill="#d4af37"
-                font-size="11"
-                text-anchor="middle"
-                class="click-continue-hint svg-trans"
-              >
-                {{ phase === 'ready' ? '>> 点击投掷骰子 <<' : '>> 点击进入下一拍 <<' }}
-              </text>
-            </g>
-          </svg>
+      <!-- 结算与视觉演绎 -->
+      <div class="result-panel">
+        <div class="tab-controller">
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: currentTab === 'visual' }"
+            :aria-pressed="currentTab === 'visual'"
+            @click="currentTab = 'visual'"
+          >
+            <svg class="hud-icon"><use href="#icon-log" /></svg>战斗复盘
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: currentTab === 'data' }"
+            :aria-pressed="currentTab === 'data'"
+            @click="currentTab = 'data'"
+          >
+            <svg class="hud-icon"><use href="#icon-settlement" /></svg>最终结算
+          </button>
         </div>
 
-        <div v-if="phase !== 'finished' && currentBeat" class="calculation-strip">
-          <div class="calculation-card attacker">
-            <div class="calculation-meta">
-              <span class="action-kind"
-                ><svg class="hud-icon"><use :href="actionIcon(parsedInteraction.atkType)" /></svg
-                >{{ parsedInteraction.atkType }}</span
-              >
-              <strong title="综合优势率"
-                ><svg class="hud-icon"><use href="#icon-advantage" /></svg
-                >{{ formatRate(currentBeat.优势结算?.攻方优势率) }}</strong
-              >
-            </div>
-            <div class="resource-line">
-              <svg class="hud-icon"><use href="#icon-resource" /></svg>{{ currentBeat.攻方.消耗 || '无消耗' }}
-            </div>
-            <div class="calculation-formula">
-              <svg class="hud-icon"><use href="#icon-formula" /></svg
-              ><span>{{ currentBeat.攻方.公式 || '无需检定' }}</span>
-            </div>
-            <ul class="advantage-list">
-              <li v-for="fact in advantageFacts(currentBeat, '攻方')" :key="fact">{{ fact }}</li>
-              <li v-if="advantageFacts(currentBeat, '攻方').length === 0" class="neutral">无有效优势</li>
-            </ul>
-          </div>
-          <div class="calculation-card defender">
-            <div class="calculation-meta">
-              <span class="action-kind"
-                ><svg class="hud-icon"><use :href="actionIcon(parsedInteraction.defType)" /></svg
-                >{{ parsedInteraction.defType }}</span
-              >
-              <strong title="综合优势率"
-                ><svg class="hud-icon"><use href="#icon-advantage" /></svg
-                >{{ formatRate(currentBeat.优势结算?.防方优势率) }}</strong
-              >
-            </div>
-            <div class="resource-line">
-              <svg class="hud-icon"><use href="#icon-resource" /></svg>{{ currentBeat.防方.消耗 || '无消耗' }}
-            </div>
-            <div class="calculation-formula">
-              <svg class="hud-icon"><use href="#icon-formula" /></svg
-              ><span>{{ currentBeat.防方.公式 || '无需检定' }}</span>
-            </div>
-            <ul class="advantage-list">
-              <li v-for="fact in advantageFacts(currentBeat, '防方')" :key="fact">{{ fact }}</li>
-              <li v-if="advantageFacts(currentBeat, '防方').length === 0" class="neutral">无有效优势</li>
-            </ul>
-          </div>
-        </div>
+        <div class="tab-content-area">
+          <!-- TAB 1: 视觉演绎 -->
+          <transition name="fade-slide" mode="out-in">
+            <div v-if="currentTab === 'visual'" key="visual" class="visual-view">
+              <div class="data-box visual-narrative">
+                <div class="narrative-content">
+                  <div v-if="phase !== 'finished' && currentBeat" class="beat-log-item current-focus">
+                    <div class="beat-header">
+                      <span class="beat-num">拍数 {{ currentBeatIndex + 1 }}</span>
+                      <span class="beat-interaction">{{ currentBeat.交互 }}</span>
+                    </div>
 
-        <!-- 结算与视觉演绎 -->
-        <div class="result-panel">
-          <div class="tab-controller">
-            <div class="tab-btn" :class="{ active: currentTab === 'visual' }" @click="currentTab = 'visual'">
-              <svg class="hud-icon"><use href="#icon-log" /></svg>战斗复盘
-            </div>
-            <div class="tab-btn" :class="{ active: currentTab === 'data' }" @click="currentTab = 'data'">
-              <svg class="hud-icon"><use href="#icon-settlement" /></svg>最终结算
-            </div>
-            <div class="tab-line"></div>
-          </div>
+                    <div class="narrative-text">
+                      <span v-if="phase === 'beat-result' || phase === 'switching'" class="revealed-text">
+                        {{ currentBeat.短述 }}
+                      </span>
+                      <span v-else class="pending-text"> 静候交锋展开… </span>
+                    </div>
 
-          <div class="tab-content-area">
-            <!-- TAB 1: 视觉演绎 -->
-            <transition name="fade-slide" mode="out-in">
-              <div v-if="currentTab === 'visual'" key="visual" class="visual-view">
-                <div class="data-box visual-narrative">
-                  <div class="narrative-content">
-                    <div v-if="phase !== 'finished' && currentBeat" class="beat-log-item current-focus">
+                    <div class="system-result-box" :class="phase">
+                      <svg class="hud-icon result-icon"><use href="#icon-result" /></svg>
+                      <span v-if="phase === 'ready' || phase === 'switching'" class="pending">等待投骰演算...</span>
+                      <span v-else-if="phase === 'rolling' || phase === 'clashing'" class="pending"
+                        >正在进行冲突判定...</span
+                      >
+                      <span v-else-if="phase === 'beat-result'" class="highlight-result">
+                        {{ currentBeat.结果 }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div v-else class="full-recap-list">
+                    <div v-for="(beat, index) in combatLog" :key="'recap' + index" class="beat-log-item history-item">
                       <div class="beat-header">
-                        <span class="beat-num">拍数 {{ currentBeatIndex + 1 }}</span>
-                        <span class="beat-interaction">{{ currentBeat.交互 }}</span>
+                        <span class="beat-num">拍数 {{ index + 1 }}</span>
+                        <span class="beat-interaction">{{ beat.交互 }}</span>
                       </div>
-
                       <div class="narrative-text">
-                        <span v-if="phase === 'beat-result' || phase === 'switching'" class="revealed-text">
-                          {{ currentBeat.短述 }}
-                        </span>
-                        <span v-else class="pending-text">
-                          <span class="glitch-marks">???</span> 动作轨迹解析中... <span class="glitch-marks">???</span>
-                        </span>
+                        <span class="revealed-text">{{ beat.短述 }}</span>
                       </div>
-
-                      <div class="system-result-box" :class="phase">
+                      <div class="history-rates">
+                        <span>行动方 {{ formatRate(beat.优势结算?.攻方优势率) }}</span>
+                        <span>对抗方 {{ formatRate(beat.优势结算?.防方优势率) }}</span>
+                      </div>
+                      <div class="system-result-box beat-result">
                         <svg class="hud-icon result-icon"><use href="#icon-result" /></svg>
-                        <span v-if="phase === 'ready' || phase === 'switching'" class="pending">等待投骰演算...</span>
-                        <span v-else-if="phase === 'rolling' || phase === 'clashing'" class="pending"
-                          >正在进行冲突判定...</span
-                        >
-                        <span v-else-if="phase === 'beat-result'" class="highlight-result">
-                          {{ currentBeat.结果 }}
-                        </span>
+                        <span class="highlight-result">{{ beat.结果 }}</span>
                       </div>
                     </div>
-
-                    <div v-else class="full-recap-list">
-                      <div v-for="(beat, index) in combatLog" :key="'recap' + index" class="beat-log-item history-item">
-                        <div class="beat-header">
-                          <span class="beat-num">拍数 {{ index + 1 }}</span>
-                          <span class="beat-interaction">{{ beat.交互 }}</span>
-                        </div>
-                        <div class="narrative-text">
-                          <span class="revealed-text">{{ beat.短述 }}</span>
-                        </div>
-                        <div class="history-rates">
-                          <span>行动方 {{ formatRate(beat.优势结算?.攻方优势率) }}</span>
-                          <span>对抗方 {{ formatRate(beat.优势结算?.防方优势率) }}</span>
-                        </div>
-                        <div class="system-result-box beat-result">
-                          <svg class="hud-icon result-icon"><use href="#icon-result" /></svg>
-                          <span class="highlight-result">{{ beat.结果 }}</span>
-                        </div>
-                      </div>
-                      <div class="narrative-footer">
-                        <span class="end-mark">/// 序列已完成，可切换至[最终结算]查看数值 ///</span>
-                      </div>
+                    <div class="narrative-footer">
+                      <span class="end-mark">交锋已结束，可切换至「最终结算」查看数值。</span>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <!-- TAB 2: 数值结算 -->
-              <div v-else-if="currentTab === 'data'" key="data" class="data-view">
-                <div class="data-grid-layout">
-                  <div v-for="charName in charNames" :key="charName" class="data-box tactical-analysis">
-                    <div class="box-header">
-                      <svg class="hud-icon box-heading-icon"><use href="#icon-settlement" /></svg>
-                      <h4>{{ charName }}</h4>
-                    </div>
-                    <div class="stats-comparison">
-                      <div class="stat-col" :class="charName === charNames[0] ? 'red' : 'gold'">
-                        <div
-                          class="stat-row"
-                          v-for="(stat, index) in parseStats(finalSettlement[charName])"
-                          :key="index"
-                        >
-                          <span>{{ stat.name }}</span>
-                          <span class="val-highlight">{{ stat.value }}</span>
-                        </div>
+            <!-- TAB 2: 数值结算 -->
+            <div v-else-if="currentTab === 'data'" key="data" class="data-view">
+              <div class="data-grid-layout">
+                <div v-for="charName in charNames" :key="charName" class="data-box tactical-analysis">
+                  <div class="box-header">
+                    <svg class="hud-icon box-heading-icon"><use href="#icon-settlement" /></svg>
+                    <h4>{{ charName }}</h4>
+                  </div>
+                  <div class="stats-comparison">
+                    <div class="stat-col" :class="charName === charNames[0] ? 'red' : 'gold'">
+                      <div v-for="(stat, index) in parseStats(finalSettlement[charName])" :key="index" class="stat-row">
+                        <span>{{ stat.name }}</span>
+                        <span class="val-highlight">{{ stat.value }}</span>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div class="data-box settlement" style="grid-column: 1 / -1">
-                    <div class="box-header">
-                      <svg class="hud-icon box-heading-icon"><use href="#icon-status" /></svg>
-                      <h4>状态附加</h4>
-                    </div>
-                    <div class="list-section">
-                      <ul>
-                        <li
-                          v-if="!finalSettlement.状态附加 || finalSettlement.状态附加.length === 0"
-                          style="color: #777"
-                        >
-                          无新增状态
-                        </li>
-                        <li v-for="(state, i) in finalSettlement.状态附加" :key="'state' + i" class="status-alert">
-                          {{ state }}
-                        </li>
-                      </ul>
-                    </div>
+                <div class="data-box settlement" style="grid-column: 1 / -1">
+                  <div class="box-header">
+                    <svg class="hud-icon box-heading-icon"><use href="#icon-status" /></svg>
+                    <h4>状态附加</h4>
+                  </div>
+                  <div class="list-section">
+                    <ul>
+                      <li v-if="!finalSettlement.状态附加 || finalSettlement.状态附加.length === 0" style="color: #777">
+                        无新增状态
+                      </li>
+                      <li v-for="(state, i) in finalSettlement.状态附加" :key="'state' + i" class="status-alert">
+                        {{ state }}
+                      </li>
+                    </ul>
                   </div>
                 </div>
               </div>
-            </transition>
-          </div>
+            </div>
+          </transition>
         </div>
       </div>
     </div>
-  </div>
+  </ChronicleFrame>
 </template>
 
 <script setup>
+import ChronicleFrame from '../尘史使徒/UI/components/common/ChronicleFrame.vue';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 // 1. 注入符合新规则的 JSON 数据
@@ -591,8 +633,11 @@ const isAnimating = ref(false);
 
 // --- 响应式布局检测 ---
 const isMobile = ref(false);
+const calculationExpanded = ref(true);
 const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768;
+  const nextIsMobile = window.innerWidth <= 768;
+  if (nextIsMobile !== isMobile.value) calculationExpanded.value = !nextIsMobile;
+  isMobile.value = nextIsMobile;
 };
 
 onMounted(() => {
@@ -616,6 +661,7 @@ const layout = computed(() => {
         sub: { x: 100, y: 35 },
         rect: { x: 10, y: 45, w: 180, h: 20 },
         form: { x: 100, y: 59 },
+        icon: { x: 12, y: 7 },
       },
       def: {
         line: { x1: 210, y1: 20, x2: 390, y2: 20 },
@@ -623,6 +669,7 @@ const layout = computed(() => {
         sub: { x: 300, y: 35 },
         rect: { x: 210, y: 45, w: 180, h: 20 },
         form: { x: 300, y: 59 },
+        icon: { x: 366, y: 7 },
       },
       dice: {
         atkY: 76,
@@ -658,6 +705,7 @@ const layout = computed(() => {
         sub: { x: 170, y: 35 },
         rect: { x: 50, y: 45, w: 240, h: 20 },
         form: { x: 170, y: 59 },
+        icon: { x: 48, y: 7 },
       },
       def: {
         line: { x1: 500, y1: 20, x2: 760, y2: 20 },
@@ -665,6 +713,7 @@ const layout = computed(() => {
         sub: { x: 630, y: 35 },
         rect: { x: 510, y: 45, w: 240, h: 20 },
         form: { x: 630, y: 59 },
+        icon: { x: 730, y: 7 },
       },
       dice: {
         atkY: 74,
@@ -757,6 +806,16 @@ const actionIcon = type => {
     干扰: '#icon-control',
   };
   return icons[type] || '#icon-action';
+};
+
+const formulaParts = formula => {
+  const text = String(formula || '无需检定').trim();
+  const separator = text.lastIndexOf('=');
+  if (separator < 0) return { expression: text, result: '' };
+  return {
+    expression: text.slice(0, separator).trim(),
+    result: text.slice(separator + 1).trim(),
+  };
 };
 
 const diceTransform = (side, index, count) => {
@@ -866,32 +925,11 @@ const replayCombat = () => {
   currentTab.value = 'visual';
   currentAtkRolls.value = [];
   currentDefRolls.value = [];
+  calculationExpanded.value = !isMobile.value;
 };
 </script>
 
 <style scoped>
-/* --- 核心色彩与变量 --- */
-.animus-theme {
-  --ac-bg-dark: #080705;
-  --ac-bg-panel: rgba(20, 18, 12, 0.9);
-  --ac-gold: #d4af37;
-  --ac-gold-dim: #8a7035;
-  --ac-gold-light: #f9d77e;
-  --ac-red: #cc2929;
-  --ac-white: #e8e0c5;
-  --ac-gray: #7d7560;
-  --ac-line: rgba(212, 175, 55, 0.2);
-  --ac-font-main: 'Rajdhani', 'Microsoft YaHei', sans-serif;
-  --ac-font-mono: 'Fira Code', monospace;
-
-  background-color: transparent;
-  color: var(--ac-white);
-  font-family: var(--ac-font-main);
-  padding: 15px 10px;
-  position: relative;
-  overflow: hidden;
-}
-
 .icon-sprite {
   position: absolute;
   width: 0;
@@ -909,118 +947,31 @@ const replayCombat = () => {
   stroke-linejoin: round;
 }
 
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 0) 50%,
-    rgba(50, 40, 0, 0.05) 50%,
-    rgba(50, 40, 0, 0.05)
-  );
-  background-size: 100% 4px;
-  pointer-events: none;
-  z-index: 999;
-  opacity: 0.4;
-}
-
-.gallery-card {
-  position: relative;
-  background-color: var(--ac-bg-panel);
-  border: 1px solid var(--ac-line);
-  max-width: 850px;
-  margin: 0 auto;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(4px);
-}
-
-.gallery-card.active {
-  border-color: rgba(212, 175, 55, 0.5);
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
-}
-
-.hud-corner {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border: 2px solid transparent;
-  z-index: 10;
-}
-.top-left {
-  top: -1px;
-  left: -1px;
-  border-top-color: var(--ac-gold);
-  border-left-color: var(--ac-gold);
-}
-.top-right {
-  top: -1px;
-  right: -1px;
-  border-top-color: var(--ac-gold);
-  border-right-color: var(--ac-gold);
-}
-.bottom-left {
-  bottom: -1px;
-  left: -1px;
-  border-bottom-color: var(--ac-gold);
-  border-left-color: var(--ac-gold);
-}
-.bottom-right {
-  bottom: -1px;
-  right: -1px;
-  border-bottom-color: var(--ac-gold);
-  border-right-color: var(--ac-gold);
-}
-
-.card-header {
-  padding: 8px 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--ac-line);
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.1) 0%, transparent 100%);
-}
-
-.header-title {
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: bold;
-}
-.tech-prefix {
-  color: var(--ac-gold-dim);
-}
-.separator {
-  color: var(--ac-line);
-}
 .entity-red {
-  color: var(--ac-red);
+  color: var(--c-accent-danger);
   transition: color 0.3s;
 }
 .entity-gold {
-  color: var(--ac-gold);
+  color: var(--c-gold);
   transition: color 0.3s;
 }
 .vs-mini {
   font-size: 0.75rem;
-  color: var(--ac-gray);
-  font-family: var(--ac-font-mono);
+  color: var(--c-text-dim);
+  font-family: var(--font-body);
 }
 
 .status-indicator {
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ac-gray);
+  color: var(--c-text-dim);
 }
 .status-left {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
@@ -1030,36 +981,36 @@ const replayCombat = () => {
   border-radius: 50%;
 }
 .beat-counter {
-  color: var(--ac-gold-light);
+  color: var(--c-text-main);
   margin-left: 6px;
 }
 .status-indicator.ready .status-dot {
-  background-color: var(--ac-gold);
+  background-color: var(--c-gold);
   animation: pulse 1.5s infinite;
 }
 .status-indicator.rolling .status-dot {
-  background-color: var(--ac-gold-light);
+  background-color: var(--c-text-main);
   animation: blink 0.5s infinite;
 }
 .status-indicator.clashing .status-dot {
-  background-color: var(--ac-red);
+  background-color: var(--c-accent-danger);
 }
 .status-indicator.beat-result .status-dot {
-  background-color: var(--ac-red);
+  background-color: var(--c-accent-danger);
 }
 .status-indicator.switching .status-dot {
-  background-color: var(--ac-gray);
+  background-color: var(--c-text-dim);
   animation: blink 0.3s infinite;
 }
 .status-indicator.finished .status-dot {
-  background-color: var(--ac-gold);
+  background-color: var(--c-gold);
 }
 
 .replay-btn {
   background: transparent;
-  border: 1px solid var(--ac-gold-dim);
-  color: var(--ac-gold-light);
-  font-family: var(--ac-font-mono);
+  border: 1px solid var(--c-text-dim);
+  color: var(--c-text-main);
+  font-family: var(--font-body);
   font-size: 0.7rem;
   padding: 2px 6px;
   margin-left: 6px;
@@ -1069,9 +1020,9 @@ const replayCombat = () => {
   gap: 4px;
 }
 .replay-btn:hover {
-  background: rgba(212, 175, 55, 0.2);
+  background: rgba(164, 139, 87, 0.2);
   color: #fff;
-  border-color: var(--ac-gold);
+  border-color: var(--c-gold);
 }
 
 /* SVG 区域 */
@@ -1079,20 +1030,8 @@ const replayCombat = () => {
   position: relative;
   width: 100%;
   cursor: pointer;
-  border-bottom: 1px solid var(--ac-line);
-  background-color: #0b0a08;
-  min-height: 190px;
-}
-.grid-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image:
-    linear-gradient(var(--ac-line) 1px, transparent 1px), linear-gradient(90deg, var(--ac-line) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.15;
+  border-bottom: 1px solid var(--c-border);
+  background-color: var(--chronicle-panel);
 }
 .combat-svg {
   width: 100%;
@@ -1108,28 +1047,30 @@ const replayCombat = () => {
 .calculation-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1px;
-  border-bottom: 1px solid var(--ac-line);
-  background: var(--ac-line);
+  gap: 12px;
+  border-bottom: 1px solid var(--c-border);
+}
+.calculation-toggle {
+  display: none;
 }
 .calculation-card {
   min-width: 0;
   padding: 9px 12px;
-  background: rgba(11, 10, 8, 0.96);
+  background: var(--chronicle-panel);
   border-top: 2px solid transparent;
 }
 .calculation-card.attacker {
-  border-top-color: var(--ac-red);
+  border-top-color: var(--c-accent-danger);
 }
 .calculation-card.defender {
-  border-top-color: var(--ac-gold);
+  border-top-color: var(--c-gold);
 }
 .calculation-meta {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  color: var(--ac-gray);
-  font: 0.72rem var(--ac-font-mono);
+  color: var(--c-text-dim);
+  font: 0.72rem var(--font-body);
 }
 .calculation-meta span,
 .calculation-meta strong,
@@ -1140,35 +1081,68 @@ const replayCombat = () => {
   gap: 5px;
 }
 .action-kind {
-  color: var(--ac-white);
+  color: var(--c-text-main);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 .resource-line {
   margin-top: 5px;
-  color: var(--ac-gray);
-  font: 0.68rem var(--ac-font-mono);
+  color: var(--c-text-dim);
+  font: 0.68rem var(--font-body);
 }
 .resource-line .hud-icon {
-  color: var(--ac-gold-dim);
+  color: var(--c-text-dim);
 }
 .calculation-card.attacker .calculation-meta strong {
-  color: #ff7777;
+  color: #bd6c67;
 }
 .calculation-card.defender .calculation-meta strong {
-  color: var(--ac-gold-light);
+  color: var(--c-text-main);
 }
 .calculation-formula {
+  align-items: flex-start;
   margin: 5px 0 6px;
-  color: var(--ac-white);
-  font: 0.75rem/1.45 var(--ac-font-mono);
+  color: var(--c-text-main);
+  font: 0.75rem/1.45 var(--font-body);
   overflow-wrap: anywhere;
 }
 .calculation-formula .hud-icon {
-  color: var(--ac-gold-dim);
+  margin-top: 5px;
+  color: var(--c-text-dim);
 }
-.calculation-formula span {
+.calculation-formula .formula-label {
+  margin-top: 2px;
+  padding: 1px 4px;
+  color: var(--c-text-dim);
+  border: 1px solid rgba(164, 139, 87, 0.22);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+.calculation-formula code {
+  display: flex;
   min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 7px;
+  color: inherit;
+  font:
+    0.72rem/1.55 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.calculation-formula .formula-expression {
+  min-width: 0;
+  color: #c8bea4;
+}
+.calculation-formula .formula-result {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  color: #111;
+  background: var(--c-gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .advantage-list {
   display: flex;
@@ -1180,20 +1154,20 @@ const replayCombat = () => {
 }
 .advantage-list li {
   padding: 2px 5px;
-  border: 1px solid rgba(212, 175, 55, 0.22);
+  border: 1px solid rgba(164, 139, 87, 0.22);
   color: #c8bea4;
-  font: 0.68rem/1.35 var(--ac-font-mono);
+  font: 0.68rem/1.35 var(--font-body);
 }
 .advantage-list li.neutral {
-  color: var(--ac-gray);
+  color: var(--c-text-dim);
   border-style: dashed;
 }
 .history-rates {
   display: flex;
   gap: 8px;
   margin: -2px 0 7px;
-  color: var(--ac-gray);
-  font: 0.7rem var(--ac-font-mono);
+  color: var(--c-text-dim);
+  font: 0.7rem var(--font-body);
 }
 
 .role-title {
@@ -1202,11 +1176,29 @@ const replayCombat = () => {
 }
 .sub-info {
   font-size: 11px;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
 }
 .formula-text {
   font-size: 11px;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
+}
+.action-type-mark .action-type-frame {
+  fill: rgba(10, 13, 18, 0.86);
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.action-type-mark svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.attacker-mark {
+  color: #bd6c67;
+}
+.defender-mark {
+  color: var(--c-gold);
 }
 
 /* 动画组 */
@@ -1243,7 +1235,7 @@ const replayCombat = () => {
 .click-continue-hint {
   animation: blink 1.5s infinite;
   pointer-events: none;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
 }
 
 /* 骰子入场动画 */
@@ -1298,47 +1290,34 @@ const replayCombat = () => {
 
 /* 底部面板 */
 .result-panel {
-  padding: 12px 15px;
-  background: linear-gradient(to bottom, rgba(212, 175, 55, 0.03), transparent);
-  min-height: 160px;
+  padding: 16px 0 0;
 }
 .tab-controller {
   display: flex;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 10px;
   position: relative;
 }
 .tab-btn {
-  padding: 4px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--ac-line);
-  border-bottom: none;
-  color: var(--ac-gray);
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-dim);
   font-size: 0.8rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
 }
 .tab-btn.active {
-  background: rgba(212, 175, 55, 0.15);
-  color: var(--ac-gold);
-  border-color: var(--ac-gold);
+  background: rgba(164, 139, 87, 0.15);
+  color: var(--c-gold);
+  border-color: var(--c-gold);
 }
 .tab-btn .hud-icon {
   font-size: 1.05rem;
 }
-.tab-line {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--ac-gold);
-  opacity: 0.3;
-}
-
 .data-grid-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1347,31 +1326,30 @@ const replayCombat = () => {
 .data-box {
   position: relative;
   padding: 10px 12px;
-  background: rgba(20, 18, 12, 0.5);
-  border: 1px solid var(--ac-line);
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  background: var(--chronicle-panel);
+  border: 1px solid var(--c-border);
 }
 
 .box-header {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--ac-line);
+  border-bottom: 1px solid var(--c-border);
   padding-bottom: 4px;
 }
 .box-heading-icon {
-  color: var(--ac-gold);
+  color: var(--c-gold);
   margin-right: 6px;
 }
 .box-header h4 {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--ac-white);
+  color: var(--c-text-main);
   font-weight: normal;
 }
 
 .stats-comparison {
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
   font-size: 0.75rem;
 }
 .stat-col {
@@ -1383,7 +1361,7 @@ const replayCombat = () => {
   color: #ffaaaa;
 }
 .stat-col.gold {
-  color: var(--ac-gold-light);
+  color: var(--c-text-main);
 }
 .stat-row {
   display: flex;
@@ -1393,7 +1371,7 @@ const replayCombat = () => {
 }
 .val-highlight {
   font-weight: bold;
-  color: var(--ac-white);
+  color: var(--c-text-main);
 }
 
 .list-section ul {
@@ -1401,15 +1379,15 @@ const replayCombat = () => {
   padding: 0;
   list-style: none;
   font-size: 0.75rem;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
 }
 .list-section ul li::before {
   content: '>';
-  color: var(--ac-gold);
+  color: var(--c-gold);
   margin-right: 4px;
 }
 .status-alert {
-  color: var(--ac-red);
+  color: var(--c-accent-danger);
 }
 
 /* --- 文本展示优化 --- */
@@ -1421,8 +1399,8 @@ const replayCombat = () => {
 }
 .beat-log-item {
   padding: 10px 12px;
-  border-left: 3px solid var(--ac-gold);
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.08), transparent);
+  border-left: 3px solid var(--c-gold);
+  background: linear-gradient(90deg, rgba(164, 139, 87, 0.08), transparent);
   margin-bottom: 8px;
 }
 .beat-header {
@@ -1430,10 +1408,10 @@ const replayCombat = () => {
   gap: 8px;
   align-items: center;
   margin-bottom: 6px;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
 }
 .beat-num {
-  background: var(--ac-gold);
+  background: var(--c-gold);
   color: #000;
   padding: 1px 5px;
   font-size: 0.7rem;
@@ -1442,28 +1420,24 @@ const replayCombat = () => {
 }
 .beat-interaction {
   font-size: 0.8rem;
-  color: var(--ac-gold-light);
+  color: var(--c-text-main);
   opacity: 0.9;
 }
 
 .narrative-text {
-  font-family: 'Microsoft YaHei', sans-serif;
-  line-height: 1.4;
+  font-family: var(--font-body);
+  line-height: 1.75;
   font-size: 0.9rem;
-  color: #e2dac2;
+  color: #e0e0e0;
   text-align: justify;
   margin-bottom: 8px;
 }
 
 .pending-text {
-  color: var(--ac-gray);
+  color: var(--c-text-dim);
   font-style: italic;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
   font-size: 0.85rem;
-}
-.glitch-marks {
-  color: var(--ac-gold-dim);
-  animation: blink 1s infinite;
 }
 .revealed-text {
   animation: glitchPop 0.3s ease forwards;
@@ -1471,9 +1445,9 @@ const replayCombat = () => {
 
 .system-result-box {
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid rgba(164, 139, 87, 0.2);
   padding: 6px 10px;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
   font-size: 0.85rem;
   border-radius: 2px;
   display: flex;
@@ -1481,46 +1455,34 @@ const replayCombat = () => {
   gap: 8px;
 }
 .system-result-box.beat-result {
-  border-color: rgba(204, 41, 41, 0.4);
-  background: rgba(204, 41, 41, 0.05);
+  border-color: rgba(189, 108, 103, 0.4);
+  background: rgba(189, 108, 103, 0.05);
 }
 .result-arrow {
-  color: var(--ac-gold);
+  color: var(--c-gold);
   font-weight: bold;
 }
 .result-icon {
-  color: var(--ac-gold);
+  color: var(--c-gold);
   font-size: 1rem;
 }
 .system-result-box .pending {
-  color: var(--ac-gray);
+  color: var(--c-text-dim);
   font-style: italic;
 }
 .highlight-result {
-  color: var(--ac-red);
+  color: var(--c-accent-danger);
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(204, 41, 41, 0.3);
+  text-shadow: 0 0 5px rgba(189, 108, 103, 0.3);
   animation: glitchPop 0.3s ease forwards;
 }
 
 .full-recap-list {
-  max-height: 320px;
-  overflow-y: auto;
   padding-right: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   animation: fadeSlideUp 0.4s ease forwards;
-}
-.full-recap-list::-webkit-scrollbar {
-  width: 4px;
-}
-.full-recap-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-}
-.full-recap-list::-webkit-scrollbar-thumb {
-  background: var(--ac-gold-dim);
-  border-radius: 2px;
 }
 .history-item {
   opacity: 0.85;
@@ -1528,15 +1490,15 @@ const replayCombat = () => {
 }
 .history-item:hover {
   opacity: 1;
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), transparent);
+  background: linear-gradient(90deg, rgba(164, 139, 87, 0.15), transparent);
 }
 
 .narrative-footer {
   margin-top: 10px;
   text-align: right;
-  font-family: var(--ac-font-mono);
+  font-family: var(--font-body);
   font-size: 0.7rem;
-  color: var(--ac-gold-dim);
+  color: var(--c-text-dim);
   opacity: 0.8;
 }
 
@@ -1556,7 +1518,7 @@ const replayCombat = () => {
   }
   50% {
     opacity: 1;
-    text-shadow: 0 0 10px var(--ac-gold);
+    text-shadow: 0 0 10px var(--c-gold);
   }
 }
 @keyframes drawLine {
@@ -1609,23 +1571,6 @@ const replayCombat = () => {
    移动端深度优化 (紧凑型横向布局)
 ========================================== */
 @media (max-width: 768px) {
-  .animus-theme {
-    padding: 5px;
-  } /* 减小外边距 */
-  .gallery-card {
-    border-radius: 6px;
-  }
-
-  /* 1. 头部排版优化：紧凑换行 */
-  .card-header {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 10px;
-  }
-  .header-title {
-    font-size: 0.95rem;
-  }
   .status-indicator {
     width: 100%;
     justify-content: space-between;
@@ -1650,6 +1595,24 @@ const replayCombat = () => {
   }
   .calculation-strip {
     grid-template-columns: 1fr;
+  }
+  .calculation-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    color: var(--c-text-dim);
+    background: var(--chronicle-panel);
+    border: 0;
+    border-bottom: 1px solid var(--c-border);
+    font: 0.75rem var(--font-body);
+    cursor: pointer;
+  }
+  .calculation-toggle span {
+    margin-left: auto;
+    color: var(--c-gold);
+    font-size: 1rem;
   }
   .calculation-card {
     padding: 8px 10px;
@@ -1691,7 +1654,7 @@ const replayCombat = () => {
   }
   .narrative-text {
     font-size: 0.85rem;
-    line-height: 1.4;
+    line-height: 1.75;
     margin-bottom: 6px;
   }
   .system-result-box {
