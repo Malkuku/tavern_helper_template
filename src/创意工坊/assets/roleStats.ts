@@ -1,6 +1,8 @@
 import { calculateCharacterAttributes, type CharacterLevels } from '../../尘史使徒/DOC/数值计算';
 import type { JsonObject } from '../scenario/types';
 
+export type DerivedStatsRoleType = 'user' | '主要角色' | '次要角色';
+
 const aspectMap: Record<string, keyof CharacterLevels> = {
   灯: 'Lantern',
   铸: 'Forge',
@@ -12,7 +14,8 @@ const aspectMap: Record<string, keyof CharacterLevels> = {
   启: 'Knock',
 };
 
-export function applyRoleDerivedStats(data: JsonObject): void {
+export function applyRoleDerivedStats(data: JsonObject, type: DerivedStatsRoleType): void {
+  if (type === '次要角色') return;
   const arts = data.术之等级;
   const levels: CharacterLevels = {};
   if (arts && typeof arts === 'object' && !Array.isArray(arts)) {

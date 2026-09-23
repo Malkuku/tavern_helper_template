@@ -74,7 +74,7 @@ function betaRoleTemplate(type: GeneratedRoleType): JsonObject {
   }
   if ('人际关系' in template) template.人际关系 = {};
   if ('性经验' in template) template.性经验 = {};
-  applyDerivedStats(template);
+  normalizeRoleStats(template, type);
   return template;
 }
 
@@ -102,7 +102,9 @@ function roleFieldGuide(type: GeneratedRoleType, editing: boolean): string {
     '- 技能：对象键是技能名；值必须包含性相、技能等级、描述、消耗、作用。技能必须源于角色经历与术，效果使用明确数值，遵守技能生成标准；禁止同义技能换皮、万能解法和只写氛围没有机制。',
     '- 特殊状态：对象键使用“类别:名称”；值包含描述、效果、持续时间。只写能改变角色处境的长期特质、伤病、印记、契约等，不把普通性格和穿着塞进状态。',
     '- 物品：对象键是物品名；值包含类型、品质、描述、作用、数量、耐久。物品必须服务身份、经历或玩法；禁止无来源神器、同功能重复装备和纯装饰库存堆砌。',
-    '- 基础数值、生命状态：程序根据术之等级重算。JSON 中保留完整结构，但不得据此反推或夸大角色能力。',
+    type === '次要角色'
+      ? '- 基础数值、生命状态：参考数值表按角色实际强度填写，这些数值会作为最终结果保留，不会由术之等级重算。'
+      : '- 基础数值、生命状态：程序根据术之等级重算。JSON 中保留完整结构，但不得据此反推或夸大角色能力。',
     '- 人际关系、性经验：暂时锁定。新建必须是空对象；修改必须逐字保持当前 JSON，不得新增、删除或改写。',
     '- meta：由工坊媒体编辑器维护；修改时保持当前值，新建使用模板默认值。',
     type === 'user' ? '- 金钱、缥缈异质：新建使用模板默认值；修改时保持当前值，除非用户明确要求手工修改。' : '',
@@ -146,7 +148,9 @@ export function buildRoleGenerationPrompt(
     '最终阶段只返回一个合法 JSON 对象，不要 Markdown、代码围栏、解释或 VariableInsert/VariableEdit 标签。',
     'JSON 直接使用 stat_data.角色 中单个角色对象的结构，不要包含 author、desc、key、type 或 data 包装层。',
     '输出必须包含模板中的全部字段并保持字段类型；不要添加模板以外的字段。meta 也属于角色对象。',
-    '基础数值与生命状态由程序根据术之等级重算。请保留这两个完整字段以满足 JSON 结构，但不要把自行填写的数值视为最终结果。',
+    type === '次要角色'
+      ? '基础数值与生命状态由你参考数值表决定，程序会保留你填写的最终数值，不会根据术之等级重算。'
+      : '基础数值与生命状态由程序根据术之等级重算。请保留这两个完整字段以满足 JSON 结构，但不要把自行填写的数值视为最终结果。',
     roleFieldGuide(type, !!currentRole),
     currentRole ? `待修改角色 JSON：\n${JSON.stringify(currentRole, null, 2)}` : '',
     `${currentRole ? '修改要求' : '用户创意'}：\n${idea.trim()}`,
@@ -291,10 +295,10 @@ function normalizeArts(value: unknown): Record<string, { 等级: number; 经验:
   return result;
 }
 
-function applyDerivedStats(data: JsonObject): void {
+function normalizeRoleStats(data: JsonObject, type: GeneratedRoleType): void {
   const arts = normalizeArts(data.术之等级);
   data.术之等级 = arts;
-  applyRoleDerivedStats(data);
+  applyRoleDerivedStats(data, type);
 }
 
 export function parseRoleRuntimeJson(text: string, type: GeneratedRoleType) {
@@ -305,7 +309,7 @@ export function parseRoleRuntimeJson(text: string, type: GeneratedRoleType) {
   const { meta, ...rawData } = value;
   const data = klona(rawData) as JsonObject;
   validateCompleteRoleData(data, type);
-  applyDerivedStats(data);
+  normalizeRoleStats(data, type);
   const name = type === 'user' ? 'user' : String(data.姓名 || '').trim();
   if (!name) throw new Error('AI 结果缺少角色姓名。');
   if ('姓名' in data) data.姓名 = name;

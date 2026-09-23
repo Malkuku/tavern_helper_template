@@ -48,7 +48,7 @@ export async function addRoleToRuntime(role: TypedCollectionEntry, overwrite = f
     ...(klona(role.data) as Record<string, unknown>),
     meta: klona(role.meta ?? { avatar: '', color: '#C9B485' }),
   };
-  applyRoleDerivedStats(runtimeRole);
+  applyRoleDerivedStats(runtimeRole, role.type);
   if (role.type === 'user') next.stat_data.角色.user = runtimeRole;
   else next.stat_data.角色[role.type][role.key] = runtimeRole;
   try {

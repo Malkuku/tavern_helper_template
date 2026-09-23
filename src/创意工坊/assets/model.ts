@@ -24,7 +24,7 @@ export function assetsOf(source: ScenarioSourceBundle): Record<WorkshopCategory,
 
 export function syncRoleVitalsToMaximum(source: ScenarioSourceBundle): void {
   for (const role of Object.values(source.registries.角色)) {
-    applyRoleDerivedStats(role.data as Record<string, unknown>);
+    applyRoleDerivedStats(role.data as Record<string, unknown>, role.type);
   }
 }
 

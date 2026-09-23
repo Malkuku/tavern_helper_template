@@ -115,7 +115,7 @@ function assembleRoles(ids: string[], registry: Registry<TypedCollectionEntry>):
       ...klona(data),
       meta: klona(entry.meta ?? { avatar: '', color: '#C9B485' }),
     };
-    applyRoleDerivedStats(runtimeData);
+    applyRoleDerivedStats(runtimeData, entry.type);
 
     if (entry.type === 'user') {
       if (result.user) {

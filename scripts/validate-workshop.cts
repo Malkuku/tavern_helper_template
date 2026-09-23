@@ -706,6 +706,18 @@ const generatedRole = parseGeneratedRole(
 assert.equal(generatedRole.data.姓名, '雾鸦');
 assert.equal((generatedRole.data.基础数值 as any).力量, 10, '基础数值必须根据术之等级重算');
 assert.equal((generatedRole.data.生命状态 as any).生命.当前, 140, '生命状态必须根据术之等级重算并回满');
+const generatedMinorData = defaultRoleData('次要角色');
+generatedMinorData.姓名 = '灰狼';
+generatedMinorData.术之等级 = { 刃: { 等级: 9, 经验: 0 } };
+generatedMinorData.基础数值 = { 力量: 77, 敏捷: 88, 智慧: 9, 魅力: 6 };
+generatedMinorData.生命状态 = {
+  生命: { 当前: 321, 最大值: 654 },
+  体力: { 当前: 210, 最大值: 432 },
+  精神: { 当前: 45, 最大值: 123 },
+};
+const generatedMinor = parseGeneratedRole(JSON.stringify(generatedMinorData), '次要角色');
+assert.deepEqual(generatedMinor.data.基础数值, generatedMinorData.基础数值, '次要角色必须保留 AI 给定的基础数值');
+assert.deepEqual(generatedMinor.data.生命状态, generatedMinorData.生命状态, '次要角色必须保留 AI 给定的生命状态');
 const generatedUserData = defaultRoleData('user');
 assert.equal(
   parseGeneratedRole(JSON.stringify({ ...generatedUserData, 金钱: 12, meta: {} }), 'user').key,
@@ -958,6 +970,19 @@ assert.deepEqual((vitalsSource.registries.角色.vitals.data as any).基础数�
   智慧: 755,
   魅力: 399,
 });
+vitalsSource.registries.角色.minorVitals = {
+  author: 'a',
+  desc: 'd',
+  key: 'minor-vitals',
+  type: '次要角色',
+  data: structuredClone(generatedMinorData),
+} as never;
+syncRoleVitalsToMaximum(vitalsSource);
+assert.deepEqual(
+  (vitalsSource.registries.角色.minorVitals.data as any).生命状态,
+  generatedMinorData.生命状态,
+  '载入规范化不得重算次要角色数值',
+);
 const enumSource = structuredClone(vitalsSource);
 (enumSource.registries.角色.vitals.data as any).术之等级 = {
   灯: { 等级: 1, 经验: 0 },

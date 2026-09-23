@@ -245,7 +245,7 @@ const availableRelationshipTargets = computed(() =>
 );
 function updateArts(value: Record<string, { 等级: number; 经验: number }>) {
   entry.value.data['术之等级'] = value;
-  applyRoleDerivedStats(entry.value.data);
+  applyRoleDerivedStats(entry.value.data, entry.value.type);
 }
 watchEffect(() => {
   entry.value.meta ??= { avatar: '', color: '#C9B485', avatarStyle: 'auto' };
