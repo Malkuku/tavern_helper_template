@@ -1,5 +1,5 @@
 import { startFloatingUi } from '@/util/floatingUi';
-import { useMagicGirlStatStore } from '@/魔法少女恶堕/StatStore';
+import { useMagicGirlStatStore } from './store/StatStore';
 import App from './App.vue';
 
 startFloatingUi({

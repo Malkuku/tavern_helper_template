@@ -1,0 +1,351 @@
+.wechat {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 52px;
+  background: #ededed;
+  color: #191919;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+}
+.wx-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 49px;
+  padding: 0 16px;
+  border-bottom: 1px solid #d9d9d9;
+  background: #ededed;
+  font-size: 17px;
+}
+.wx-header strong {
+  font-weight: 600;
+}
+.wx-back {
+  position: absolute;
+  left: 13px;
+  border: 0;
+  background: none;
+  color: #222;
+  font-size: 34px !important;
+  line-height: 1;
+}
+.wx-header-side {
+  position: absolute;
+  right: 19px;
+  font-size: 27px;
+  line-height: 1;
+}
+.wx-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.wx-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  margin: 8px 10px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #fff;
+  color: #929292;
+}
+.wx-search span {
+  font-size: 24px;
+  line-height: 1;
+}
+.wx-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #222;
+  font: inherit;
+  font-size: 14px;
+}
+.wx-chat-row,
+.wx-list-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 68px;
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+}
+.wx-chat-row {
+  gap: 12px;
+}
+.wx-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 600;
+}
+.wx-row-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.wx-row-main strong,
+.wx-list-row strong {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wx-row-main small {
+  overflow: hidden;
+  color: #999;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wx-chat-row time {
+  align-self: flex-start;
+  margin-top: 4px;
+  color: #aaa;
+  font-size: 11px;
+}
+.wx-section-label {
+  padding: 8px 16px;
+  color: #888;
+  font-size: 13px;
+}
+.wx-list-row {
+  gap: 14px;
+  min-height: 58px;
+}
+.wx-list-row .wx-avatar {
+  width: 38px;
+  height: 38px;
+  font-size: 16px;
+}
+.wx-group-row {
+  margin-bottom: 9px;
+}
+.wx-feature-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 23px;
+}
+.wx-feature-icon.moments {
+  background: #6abf80;
+}
+.wx-feature-icon.video {
+  background: #e9956c;
+}
+.wx-feature-icon.mini {
+  background: #6c92d8;
+}
+.wx-feature-icon.favorite {
+  background: #e9bc57;
+}
+.wx-feature-icon.settings {
+  background: #769cb7;
+}
+.wx-chevron {
+  margin-left: auto;
+  color: #b3b3b3;
+  font-size: 24px;
+}
+.wx-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 144px;
+  margin-bottom: 10px;
+  padding: 25px 18px;
+  background: #fff;
+}
+.wx-profile-avatar {
+  width: 62px;
+  height: 62px;
+  background: #a2b7d1;
+  font-size: 24px;
+}
+.wx-profile div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wx-profile strong {
+  font-size: 20px;
+}
+.wx-profile small {
+  color: #888;
+  font-size: 13px;
+}
+.wx-tabs {
+  display: flex;
+  flex: none;
+  height: 80px;
+  padding-bottom: 23px;
+  border-top: 1px solid #d5d5d5;
+  background: #f7f7f7;
+}
+.wx-tabs button {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: none;
+  color: #777;
+}
+.wx-tabs button.selected {
+  color: #07ad58;
+}
+.wx-tab-icon {
+  font-size: 25px;
+  line-height: 1;
+}
+.wx-tabs small {
+  font-size: 10px;
+}
+.wx-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 14px;
+}
+.wx-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 17px;
+}
+.wx-message.mine {
+  flex-direction: row-reverse;
+}
+.wx-message .wx-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+.wx-bubble {
+  max-width: 72%;
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.wx-message.mine .wx-bubble {
+  background: #95ec69;
+}
+.wx-compose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 82px;
+  padding: 7px 10px 30px;
+  border-top: 1px solid #d7d7d7;
+  background: #f7f7f7;
+}
+.wx-compose-icon {
+  color: #777;
+  font-size: 25px;
+}
+.wx-compose input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  outline: none;
+  background: #fff;
+  color: #222;
+  font: inherit;
+  font-size: 15px;
+}
+.wx-compose button {
+  min-width: 49px;
+  height: 36px;
+  border: 0;
+  border-radius: 5px;
+  background: #07ad58;
+  color: #fff;
+  font-size: 13px;
+}
+.wx-compose button:disabled {
+  background: #d4d4d4;
+  color: #999;
+}
+.wx-empty,
+.wx-detail-note {
+  padding: 28px;
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+}
+.wx-moments {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+}
+.wx-moments-cover {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  height: 175px;
+  padding: 20px;
+  background: linear-gradient(135deg, #6a8d8f, #233d54);
+  color: #fff;
+  font-size: 21px;
+  font-weight: 600;
+}
+.wx-moment {
+  display: flex;
+  gap: 12px;
+  padding: 18px 14px;
+  border-bottom: 1px solid #eee;
+}
+.wx-moment div {
+  flex: 1;
+}
+.wx-moment strong {
+  color: #526b8b;
+  font-size: 15px;
+}
+.wx-moment p {
+  margin: 7px 0;
+  font-size: 14px;
+}
+.wx-moment small {
+  color: #aaa;
+}
+@media (max-width: 600px) {
+  .wechat {
+    padding-top: calc(52px + env(safe-area-inset-top));
+  }
+  .wx-tabs,
+  .wx-compose {
+    padding-bottom: max(23px, env(safe-area-inset-bottom));
+    height: auto;
+    min-height: 80px;
+  }
+}

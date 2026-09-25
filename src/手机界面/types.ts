@@ -54,7 +54,6 @@ export interface 人设阶段 {
   恶堕度: 阶段状态;
 }
 
-
 export interface 魔法少女能力 {
   基础能力?: string;
   核心能力: string;
@@ -116,14 +115,6 @@ export interface 世界数据 {
   地图索引: string;
 }
 
-export interface 主要角色表 {
-  小鸟游琉璃: 角色人设;
-  索菲亚: 角色人设;
-  鹭见凛: 角色人设;
-}
-
-export type 魔法少女角色名 = keyof 主要角色表;
-
 export interface 技能等级 {
   战力评分: number;
   描述: string;
@@ -146,6 +137,46 @@ export interface 任务 {
   目标: string;
   当前进度: string;
   奖励: unknown[];
+  过期时间: 世界时间;
+}
+
+export interface 商店道具 {
+  描述: string;
+  作用: string;
+  价格: number;
+  数量: number;
+  类别: '战斗' | '成人BDSM' | '特殊';
+}
+
+export interface 可购技能 {
+  描述: string;
+  作用: string;
+  价格: number;
+  适用评级: string;
+  等级表: Record<string, 技能等级>;
+}
+
+export interface 系统数据 {
+  /** 当前已应用的主世界书版本。 */
+  版本: string;
+  /** 前端维护；到期时 EJS 显示商店生成规则。格式同世界.时间。 */
+  商店下次刷新时间: 世界时间;
+  /** 前端维护；主动刷新第 n 次花费 2 * 2^(n-1) 积分，每日自动刷新后归零。 */
+  商店主动刷新次数: number;
+  /** 前端在主动刷新支付成功后置 true；消费 shopVariable 后清为 false。 */
+  商店待刷新: boolean;
+  /** 前端维护；到期时 EJS 显示任务生成规则。 */
+  任务下次刷新时间: 世界时间;
+  /** 前端维护；主动刷新第 n 次花费 4 * 2^(n-1) 积分，每日自动刷新后归零。 */
+  任务主动刷新次数: number;
+  /** 前端在主动刷新支付成功后置 true；消费 questVariable 后清为 false。 */
+  任务待刷新: boolean;
+  /** 前端维护；到期时 EJS 显示技能生成规则。每周一 00:00 刷新。 */
+  技能下次刷新时间: 世界时间;
+  /** 前端维护；主动刷新第 n 次花费 20 * 2^(n-1) 积分，每周自动刷新后归零。 */
+  技能主动刷新次数: number;
+  /** 前端在主动刷新支付成功后置 true；消费 skillVariable 后清为 false。 */
+  技能待刷新: boolean;
 }
 
 export interface 用户基础信息 {
@@ -163,7 +194,6 @@ export interface 用户数据 {
   技能: Record<string, 技能>;
   物品: Record<string, 物品>;
 }
-
 
 /**
  * =================================================
@@ -262,7 +292,7 @@ export interface 手机数据 {
 
 export interface stat_data {
   角色: {
-    主要角色: 主要角色表;
+    主要角色: Record<string, 角色人设>;
     次要角色: Record<string, 次要角色人设>;
     user: 用户数据;
   };
@@ -270,5 +300,8 @@ export interface stat_data {
   世界: 世界数据;
   仓库: Record<string, 物品>;
   任务: Record<string, 任务>;
+  商店: Record<string, 商店道具>;
+  技能商店: Record<string, 可购技能>;
+  系统: 系统数据;
   手机: 手机数据;
 }

@@ -1,0 +1,428 @@
+.data-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f5f3f8;
+  color: #252337;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+.data-app .data-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: 104px;
+  padding: 52px 18px 0;
+  background: #faf8fc;
+  border-bottom: 1px solid #e8e2ee;
+}
+.data-app .data-header strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+.data-app .data-back {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 76px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7656a2;
+  font-size: 30px;
+  line-height: 1;
+}
+.data-app .data-back span {
+  font-size: 15px;
+}
+.data-app .data-header-space {
+  width: 76px;
+}
+.data-app .data-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 17px 40px;
+  overscroll-behavior: contain;
+}
+.data-app .data-intro {
+  padding: 24px 5px 18px;
+}
+.data-app .data-intro > span,
+.data-app .hero-overline,
+.data-app .item-kicker {
+  color: #9777a9;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+.data-app .data-intro h1 {
+  margin: 5px 0 2px;
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+.data-app .data-intro p {
+  margin: 0;
+  color: #8d8795;
+  font-size: 13px;
+}
+.data-app .data-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding-bottom: 15px;
+}
+.data-app .data-selector {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 0 15px;
+}
+.data-app .data-selector button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid #e8e2ec;
+  border-radius: 999px;
+  background: #fff;
+  color: #6f6878;
+  font-size: 12px;
+}
+.data-app .data-selector button.active {
+  border-color: #b78bd3;
+  background: #f0e6f7;
+  color: #653e82;
+  font-weight: 700;
+}
+.data-app .selector-avatar,
+.data-app .minor-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f3bdd1, #a996db);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.data-app .data-hero {
+  padding: 21px;
+  border-radius: 22px;
+  background: linear-gradient(140deg, #342d54, #76527e 65%, #a877a4);
+  color: #fff;
+  box-shadow: 0 12px 25px #48305b25;
+}
+.data-app .data-hero .hero-overline {
+  color: #efcfe5;
+}
+.data-app .data-hero h2 {
+  margin: 10px 0 15px;
+  font-size: 25px;
+  line-height: 1.2;
+}
+.data-app .data-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.data-app .data-badges span {
+  padding: 5px 9px;
+  border: 1px solid #ffffff45;
+  border-radius: 99px;
+  background: #ffffff20;
+  color: #fff;
+  font-size: 11px;
+}
+.data-app .data-badges .badge-live {
+  background: #ffffff36;
+}
+.data-app .data-card {
+  padding: 18px;
+  border: 1px solid #ebe5ee;
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 5px 18px #42334a08;
+}
+.data-app .data-card h3 {
+  margin: 0 0 13px;
+  font-size: 16px;
+  color: #342840;
+}
+.data-app .data-field {
+  padding: 11px 0;
+  border-top: 1px solid #f1edf2;
+}
+.data-app .data-field:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.data-app .data-field > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #9a7cad;
+  font-size: 11px;
+  font-weight: 700;
+}
+.data-app .data-field p,
+.data-app .data-prose {
+  margin: 0;
+  color: #4c4654;
+  font-size: 13px;
+  line-height: 1.68;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.data-app .data-prose {
+  margin-top: 5px;
+}
+.data-app .stage-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 8px;
+  padding: 11px 0;
+  border-top: 1px solid #f1edf2;
+}
+.data-app .stage-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.data-app .stage-row strong {
+  font-size: 13px;
+}
+.data-app .stage-row small {
+  color: #99919e;
+  font-size: 11px;
+}
+.data-app .stage-row p {
+  grid-column: 1/-1;
+  margin: 5px 0 0;
+  color: #5b5262;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.data-app .stage-level {
+  align-self: start;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #f2eafa;
+  color: #74499a;
+  font-size: 12px;
+  font-weight: 800;
+}
+.data-app .data-details {
+  padding: 10px 0;
+  border-top: 1px solid #f1edf2;
+}
+.data-app .data-details summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.data-app .data-details summary small {
+  color: #9b80ab;
+  font-size: 11px;
+  font-weight: 500;
+}
+.data-app .data-details .data-field {
+  margin-top: 9px;
+}
+.data-app .minor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.data-app .minor-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #eae4ee;
+  border-radius: 14px;
+  background: #fff;
+  color: #373041;
+  text-align: left;
+}
+.data-app .minor-list button.active {
+  border-color: #b890d3;
+  background: #f4eefa;
+}
+.data-app .minor-avatar {
+  width: 35px;
+  height: 35px;
+  font-size: 14px;
+}
+.data-app .minor-list-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.data-app .minor-list-copy strong {
+  font-size: 13px;
+}
+.data-app .minor-list-copy small {
+  overflow: hidden;
+  color: #9b94a2;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-app .minor-presence {
+  color: #9b80ab;
+  font-size: 10px;
+}
+.data-app .minor-hero {
+  padding: 16px 19px;
+}
+.data-app .minor-hero h2 {
+  margin: 7px 0 10px;
+  font-size: 21px;
+}
+.data-app .resource-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.data-app .resource-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px;
+  border: 1px solid #ebe5ee;
+  border-radius: 16px;
+  background: #fff;
+}
+.data-app .resource-grid span {
+  color: #9b82a8;
+  font-size: 11px;
+}
+.data-app .resource-grid strong {
+  font-size: 21px;
+  color: #473050;
+}
+.data-app .item-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.data-app .item-heading h3 {
+  margin: 0;
+}
+.data-app .item-count {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #f3eafa;
+  color: #76519b;
+  font-size: 12px;
+  font-weight: 800;
+}
+.data-app .item-effect {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: #f8f4fa;
+}
+.data-app .item-effect span {
+  color: #9676a8;
+  font-size: 11px;
+  font-weight: 800;
+}
+.data-app .item-effect p {
+  margin: 4px 0 0;
+  color: #55485f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.data-app .skill-card {
+  padding-bottom: 12px;
+}
+.data-app .skill-card .item-heading {
+  margin-bottom: 10px;
+}
+.data-app .skill-level {
+  padding: 10px 11px;
+  margin-top: 7px;
+  border: 1px solid #efebf1;
+  border-radius: 11px;
+  background: #faf9fb;
+}
+.data-app .skill-level.current {
+  border-color: #d9bce8;
+  background: #f8effb;
+}
+.data-app .skill-level-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.data-app .skill-level-head span {
+  color: #8755a5;
+  font-size: 11px;
+  font-weight: 800;
+}
+.data-app .skill-level p {
+  margin: 5px 0;
+  color: #5b5360;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.data-app .skill-level small {
+  color: #9b8ea1;
+  font-size: 10px;
+}
+.data-app .data-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 55%;
+  padding: 20px;
+  color: #776b80;
+  text-align: center;
+}
+.data-app .data-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 65px;
+  height: 65px;
+  margin-bottom: 14px;
+  border-radius: 19px;
+  background: #e9ddf1;
+  color: #9168aa;
+  font-size: 39px;
+}
+.data-app .data-empty strong {
+  font-size: 16px;
+}
+.data-app .data-empty p {
+  max-width: 230px;
+  color: #a59aaa;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .data-app .data-header {
+    height: calc(104px + env(safe-area-inset-top));
+    padding-top: calc(52px + env(safe-area-inset-top));
+  }
+  .data-app .data-scroll {
+    padding-bottom: max(40px, env(safe-area-inset-bottom));
+  }
+}

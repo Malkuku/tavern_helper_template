@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { reconcileWorldbookStatData } from '../src/手机界面/store/worldbookInit';
+
+const fixtureRoot = 'O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕';
+const entry = (name: string, content: string) => ({ name, content });
+const tag = (path: string, type: string, value: string, dynamic = false) =>
+  `<JSON path="$.${path}" type="${type}"${dynamic ? ' dynamic="true"' : ''}>\n${value}\n</JSON>`;
+const entries = [
+  entry('当前世界书版本', 'version: 2.0.0'),
+  entry('[initvar]', tag('系统', 'json', '{"商店主动刷新次数":0}', true)),
+  entry(
+    '<人设配置>user',
+    [tag('角色.user.基础信息.身份', 'string', '新版身份'), tag('角色.user.金钱', 'number', '120', true)].join('\n'),
+  ),
+  entry(
+    '<人设配置>新人物',
+    [
+      tag('角色.主要角色.新人物.性格', 'string', '新版性格'),
+      tag('角色.主要角色.新人物.在场', 'boolean', 'false', true),
+      tag('角色.主要角色.新人物.额外字段', 'string', '应保留'),
+    ].join('\n'),
+  ),
+];
+
+const old = {
+  系统: { 版本: '1.0.0', 商店主动刷新次数: 5 },
+  角色: { user: { 基础信息: { 身份: '旧版身份' }, 金钱: 999 }, 主要角色: {} },
+};
+const upgraded = reconcileWorldbookStatData(old, entries);
+assert.equal(upgraded.data.角色.user.基础信息.身份, '新版身份');
+assert.equal(upgraded.data.角色.user.金钱, 999);
+assert.equal(upgraded.data.系统.商店主动刷新次数, 5);
+assert.deepEqual(upgraded.data.角色.主要角色.新人物, { 性格: '新版性格', 在场: false, 额外字段: '应保留' });
+assert.equal(upgraded.data.系统.版本, '2.0.0');
+assert.deepEqual(upgraded.data.手机.微信, { 账号: {}, 会话: {}, 准备发送: null });
+assert.equal(old.系统.版本, '1.0.0');
+assert.equal(reconcileWorldbookStatData(upgraded.data, entries).changed, false);
+
+const missingRole = structuredClone(upgraded.data);
+delete missingRole.角色.主要角色.新人物;
+assert.deepEqual(reconcileWorldbookStatData(missingRole, entries).data.角色.主要角色.新人物, {
+  性格: '新版性格',
+  在场: false,
+  额外字段: '应保留',
+});
+
+const sameVersion = structuredClone(upgraded.data);
+sameVersion.角色.user.基础信息.身份 = '玩家改写';
+delete sameVersion.角色.user.金钱;
+assert.equal(reconcileWorldbookStatData(sameVersion, entries).data.角色.user.基础信息.身份, '玩家改写');
+assert.equal(reconcileWorldbookStatData(sameVersion, entries).data.角色.user.金钱, 120);
+assert.throws(() =>
+  reconcileWorldbookStatData({}, [
+    ...entries,
+    entry('<人设配置>坏人物', tag('角色.主要角色.坏人物.数值', 'number', 'NaN')),
+  ]),
+);
+
+// 本地源文件存在时，验证用户提供的人设和初始化标签都可解析。
+try {
+  const real = [
+    entry('当前世界书版本', readFileSync(join(fixtureRoot, '系统配置', '当前世界书版本.yaml'), 'utf8')),
+    entry('[initvar]', readFileSync(join(fixtureRoot, '系统配置', 'initvar'), 'utf8')),
+    ...['user', '小鸟游琉璃', '索菲亚', '鹭见凛'].map(name =>
+      entry(`<人设配置>${name}`, readFileSync(join(fixtureRoot, '人设', `${name}.ini`), 'utf8')),
+    ),
+  ];
+  const result = reconcileWorldbookStatData({}, real).data;
+  assert.equal(Object.keys(result.角色.主要角色).length, 3);
+  assert.equal(result.系统.版本, '1.0.0');
+  assert.ok(result.地图.故事城市);
+  assert.ok(result.角色.user.基础信息.身份);
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+}
+
+console.log('魔法少女世界书变量初始化验证通过');
