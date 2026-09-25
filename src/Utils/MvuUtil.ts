@@ -1,60 +1,56 @@
 /**
  * 从正文中应用一次Mvu更新
  */
-const updateMvuDataFromContent = async ()=>{
+const updateMvuDataFromContent = async () => {
   await waitGlobalInitialized('Mvu');
 
   const mvu_data = Mvu.getMvuData({ type: 'message', message_id: -1 });
-  const content = getChatMessages(-1)[0].message
+  const content = getChatMessages(-1)[0].message;
   const new_data = await Mvu.parseMessage(content, mvu_data);
-  if(new_data){
+  if (new_data) {
     await Mvu.replaceMvuData(new_data, { type: 'message', message_id: getLastMessageId() });
-    await eventEmit("mag_variable_update_ended",new_data,mvu_data);
+    await eventEmit('mag_variable_update_ended', new_data, mvu_data);
   }
-}
-
+};
 
 /**
  * 从指定文本中应用一次Mvu更新
  */
-const updateMvuData = async (content : string) =>{
+const updateMvuData = async (content: string) => {
   await waitGlobalInitialized('Mvu');
 
   const mvu_data = Mvu.getMvuData({ type: 'message', message_id: -1 });
   const new_data = await Mvu.parseMessage(content, mvu_data);
-  if(new_data){
+  if (new_data) {
     await Mvu.replaceMvuData(new_data, { type: 'message', message_id: getLastMessageId() });
-    await eventEmit("mag_variable_update_ended",new_data,mvu_data);
+    await eventEmit('mag_variable_update_ended', new_data, mvu_data);
   }
-
-}
+};
 
 /**
  * 将Mvu变量回滚到上一楼的
  */
-const backUpMvuData = async ()=>{
+const backUpMvuData = async () => {
   await waitGlobalInitialized('Mvu');
   const old_data = Mvu.getMvuData({ type: 'message', message_id: -1 });
-  const mvu_data = Mvu.getMvuData({ type: 'message', message_id: Math.max(0,getLastMessageId()-1) });
-  if(mvu_data){
+  const mvu_data = Mvu.getMvuData({ type: 'message', message_id: Math.max(0, getLastMessageId() - 1) });
+  if (mvu_data) {
     await Mvu.replaceMvuData(mvu_data, { type: 'message', message_id: getLastMessageId() });
-    await eventEmit("mag_variable_update_ended",mvu_data,old_data);
+    await eventEmit('mag_variable_update_ended', mvu_data, old_data);
   }
-}
+};
 
 /**
  * 通过变量对象覆盖更新Mvu变量(全量)
  */
-const updateMvuDataByObj = async(obj: object) => {
+const updateMvuDataByObj = async (obj: object) => {
   await waitGlobalInitialized('Mvu');
-  const mvuData = Mvu.getMvuData({ type: 'message', message_id: -1 });
-  const newData = mvuData;
-  newData.stat_data = obj;
-  if(newData){
-    await Mvu.replaceMvuData(newData, { type: 'message', message_id: getLastMessageId() });
-    await eventEmit("mag_variable_update_ended",newData,mvuData);
-  }
-}
+  const oldMvuData = Mvu.getMvuData({ type: 'message', message_id: -1 });
+  const newMvuData = JSON.parse(JSON.stringify(oldMvuData));
+  newMvuData.stat_data = obj;
+  await Mvu.replaceMvuData(newMvuData, { type: 'message', message_id: getLastMessageId() });
+  await eventEmit('mag_variable_update_ended', newMvuData, oldMvuData);
+};
 
 /**
  * 辅助函数：深度合并对象
@@ -126,9 +122,9 @@ const updateMvuDataByDiff = async (diffObj: object) => {
   if (newMvuData) {
     await Mvu.replaceMvuData(newMvuData, { type: 'message', message_id: getLastMessageId() });
     // 此时 oldMvuData 保持原样，newMvuData 是更新后的，事件监听者可以对比差异
-    await eventEmit("mag_variable_update_ended", newMvuData, oldMvuData);
+    await eventEmit('mag_variable_update_ended', newMvuData, oldMvuData);
   }
-}
+};
 
 // 导出
 export const MvuUtil = {
@@ -136,6 +132,5 @@ export const MvuUtil = {
   updateMvuData,
   backUpMvuData,
   updateMvuDataByObj,
-  updateMvuDataByDiff
-}
-
+  updateMvuDataByDiff,
+};

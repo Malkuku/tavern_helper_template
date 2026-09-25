@@ -43,7 +43,6 @@
         <p>{{ loadError }}</p>
         <button @click="load">重试</button>
       </section>
-      <p v-if="message" class="notice" :class="{ error }" :role="error ? 'alert' : 'status'">{{ message }}</p>
       <template v-if="source && draft"
         ><UserWorkspace
           v-if="workspace === 'user'"
@@ -65,6 +64,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import * as toastr from 'toastr';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { cloneSource, normalizeRoleEnums, syncRoleVitalsToMaximum, validateDraft } from './assets/model';
 import { diffSources } from './assets/presentation';
@@ -82,8 +82,6 @@ const workspace = ref<'user' | 'developer'>('user'),
   launcher = ref<HTMLElement>(),
   launcherDragging = ref(false),
   launcherDidDrag = ref(false),
-  message = ref(''),
-  error = ref(false),
   loadError = ref(''),
   lossAction = ref<{ label: string; run: () => void | Promise<void> }>();
 const dirtyCount = computed(() => (source.value && draft.value ? diffSources(source.value, draft.value).length : 0));
@@ -98,8 +96,8 @@ let dragDocument: Document | undefined,
   dragStartTop = 0,
   clearDidDragTimer: number | undefined;
 function showMessage(v: { text: string; error?: boolean }) {
-  message.value = v.text;
-  error.value = !!v.error;
+  if (v.error) toastr.error(v.text);
+  else toastr.success(v.text);
 }
 function readLauncherPosition() {
   try {
@@ -213,9 +211,8 @@ function openWorkshop() {
 }
 async function load() {
   busy.value = true;
-  message.value = '';
-  loadError.value = '';
   try {
+    loadError.value = '';
     source.value = await loadScenarioSourceFromWorldbook();
     draft.value = cloneSource(source.value);
     normalizeRoleEnums(draft.value);
@@ -465,7 +462,6 @@ h1 {
   color: var(--success);
   font-size: 12px;
 }
-.notice,
 .state {
   margin-top: 14px;
   padding: 14px;

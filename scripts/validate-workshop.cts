@@ -907,6 +907,12 @@ for (const ruleName of ['八大准则', '灯', '铸', '刃', '冬', '心', '杯'
   assert.match(roleGeneratorSource, new RegExp(`['"]${ruleName}['"]`), `角色提示词必须读取${ruleName}`);
 assert.match(
   roleGeneratorSource,
+  /技能示例：直接以“技能生成标准”世界书条目中的示例为准，不在此处重复定义。/,
+  '角色提示词必须直接引用世界书技能生成标准中的示例',
+);
+assert.doesNotMatch(roleGeneratorSource, /辨伪微光|割喉/, '角色提示词不得在源码中硬编码技能示例');
+assert.match(
+  roleGeneratorSource,
   /runtimeCollection\(source\.registries\.势力\)/,
   '势力必须以运行态 JSON 投影进入提示词',
 );
@@ -919,8 +925,18 @@ assert.match(
   '外部 AI 流程必须支持粘贴 JSON 导入',
 );
 assert.match(developerWorkspaceSource, /target\.data = parsed\.data/, '外部 AI 流程必须完整覆盖当前角色数据');
+assert.match(developerWorkspaceSource, /角色 JSON 已.*草稿，保存后才会写入主世界书/, '角色 JSON 导入成功必须弹窗反馈');
 assert.match(developerWorkspaceSource, /roleToRuntimeJson\(target\)/, '当前角色必须可导出为 stat_data JSON');
 assert.doesNotMatch(developerWorkspaceSource, /generateRaw|generateRoleDraft/, '工坊不得继续直调宿主模型生成角色');
+const workshopAppSource = readFileSync(join(process.cwd(), 'src/创意工坊/App.vue'), 'utf8');
+assert.match(workshopAppSource, /import \* as toastr from 'toastr'/, '工坊操作结果必须使用项目现有 toastr 提示');
+assert.match(workshopAppSource, /if \(v\.error\) toastr\.error\(v\.text\)/, '失败结果必须使用 toastr.error');
+assert.match(workshopAppSource, /else toastr\.success\(v\.text\)/, '成功结果必须使用 toastr.success');
+assert.doesNotMatch(workshopAppSource, /:open="!!message"/, '即时操作结果不得误用阻塞式 AppDialog');
+assert.doesNotMatch(workshopAppSource, /message\.value/, '移除页面消息状态后不得保留会中断加载的残余引用');
+const runtimeRoleSource = readFileSync(join(process.cwd(), 'src/创意工坊/assets/runtimeRole.ts'), 'utf8');
+assert.match(runtimeRoleSource, /MvuUtil\.updateMvuDataByObj/, '运行时角色写入必须通过 MvuUtil 通知前端刷新');
+assert.doesNotMatch(runtimeRoleSource, /Mvu\.replaceMvuData/, '运行时角色写入不得绕过 MvuUtil 更新事件');
 const avatarMediaSource = readFileSync(join(process.cwd(), 'src/创意工坊/components/AvatarMediaField.vue'), 'utf8');
 assert.match(avatarMediaSource, /聚焦裁剪头像/, '上传头像必须提供聚焦裁剪');
 assert.match(avatarMediaSource, /toDataURL\('image\/png'\)/, '裁剪结果必须写为可持久化 data URL');

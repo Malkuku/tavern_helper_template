@@ -664,6 +664,7 @@ function importGeneratedMapJson() {
   try {
     const parsed = parseGeneratedMap(mapGeneratorJson.value);
     const targetId = mapGeneratorTargetId.value;
+    const replaced = !!(targetId && props.draft.registries.地图[targetId]);
     const id = targetId && props.draft.registries.地图[targetId] ? targetId : crypto.randomUUID();
     props.draft.registries.地图[id] = parsed;
     domain.value = '地图';
@@ -674,6 +675,7 @@ function importGeneratedMapJson() {
     mapGeneratorIdea.value = '';
     mapGeneratorEnhancement.value = '';
     mapGeneratorJson.value = '';
+    emit('message', { text: `地图 JSON 已${replaced ? '覆盖当前' : '导入为新'}草稿，保存后才会写入主世界书。` });
   } catch (error) {
     mapGeneratorError.value = error instanceof Error ? error.message : String(error);
   }
@@ -682,6 +684,7 @@ function importGeneratedJson() {
   generatorError.value = '';
   try {
     const target = props.draft.registries.角色[generatorTargetId.value];
+    const replaced = !!target;
     let id = generatorTargetId.value;
     if (target) {
       const parsed = parseRoleRuntimeJson(generatorJson.value, generatorType.value);
@@ -699,6 +702,7 @@ function importGeneratedJson() {
     generatorEnhancement.value = '';
     generatorJson.value = '';
     generatorTargetId.value = '';
+    emit('message', { text: `角色 JSON 已${replaced ? '覆盖当前' : '导入为新'}草稿，保存后才会写入主世界书。` });
   } catch (error) {
     generatorError.value = error instanceof Error ? error.message : String(error);
   }

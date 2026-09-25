@@ -1,5 +1,6 @@
 import { klona } from 'klona';
 
+import { MvuUtil } from '../../Utils/MvuUtil';
 import type { TypedCollectionEntry } from '../scenario/types';
 import { applyRoleDerivedStats } from './roleStats';
 
@@ -35,7 +36,6 @@ export async function addRoleToRuntime(role: TypedCollectionEntry, overwrite = f
   await waitGlobalInitialized('Mvu');
   const messageId = getLastMessageId();
   if (messageId < 0) throw new Error('当前聊天没有可写入的消息楼层。');
-  const option = { type: 'message' as const, message_id: messageId };
   const previous = klona(Mvu.getMvuData({ type: 'message', message_id: -1 }));
   const statData = (previous as Record<string, any>).stat_data;
   const bucket = statData?.角色?.[role.type];
@@ -43,19 +43,19 @@ export async function addRoleToRuntime(role: TypedCollectionEntry, overwrite = f
   const exists =
     role.type === 'user' ? Object.keys(bucket).length > 0 : Object.prototype.hasOwnProperty.call(bucket, role.key);
   if (exists && !overwrite) return 'conflict';
-  const next = klona(previous) as Record<string, any>;
+  const nextStatData = klona(statData) as Record<string, any>;
   const runtimeRole = {
     ...(klona(role.data) as Record<string, unknown>),
     meta: klona(role.meta ?? { avatar: '', color: '#C9B485' }),
   };
   applyRoleDerivedStats(runtimeRole, role.type);
-  if (role.type === 'user') next.stat_data.角色.user = runtimeRole;
-  else next.stat_data.角色[role.type][role.key] = runtimeRole;
+  if (role.type === 'user') nextStatData.角色.user = runtimeRole;
+  else nextStatData.角色[role.type][role.key] = runtimeRole;
   try {
-    await Mvu.replaceMvuData(next as Mvu.MvuData, option);
+    await MvuUtil.updateMvuDataByObj(nextStatData);
   } catch (error) {
     try {
-      await Mvu.replaceMvuData(previous, option);
+      await MvuUtil.updateMvuDataByObj((previous as Record<string, any>).stat_data);
     } catch (rollbackError) {
       throw new AggregateError([error, rollbackError], '角色写入失败，且运行态回滚失败。');
     }

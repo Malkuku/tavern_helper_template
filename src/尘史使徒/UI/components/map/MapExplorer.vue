@@ -140,7 +140,7 @@ const props = withDefaults(
     currentLocation?: string;
     iconSize?: number;
     iconShape?: 'none' | 'circle' | 'rounded' | 'square';
-  }>(),
+      }>(),
   {
     mode: 'preview',
     currentLocation: '',

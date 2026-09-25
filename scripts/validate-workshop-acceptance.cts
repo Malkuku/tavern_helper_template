@@ -50,7 +50,7 @@ function fixture(): ScenarioSourceBundle {
         map: {
           author: 'acceptance',
           desc: '',
-          data: { 艾斯特拉: { 描述: '城市', 详情: [], 图标: mapIcon, 方位: { x: [0], y: [0], z: [0] } } },
+          data: { 艾斯特拉: { 描述: '城市', 详情: [], 图标: mapIcon, 方位: { x: [0, 0], y: [0, 0], z: [0, 0] } } },
         },
       },
       季节与节日: {},
@@ -100,7 +100,7 @@ async function testPackageAndReferences(): Promise<void> {
         another: {
           author: '',
           desc: '',
-          data: { 荒原: { 描述: '荒原', 详情: [], 图标: mapIcon, 方位: { x: [1], y: [1], z: [0] } } },
+          data: { 荒原: { 描述: '荒原', 详情: [], 图标: mapIcon, 方位: { x: [1, 1], y: [1, 1], z: [0, 0] } } },
         },
       },
     },
@@ -172,6 +172,7 @@ async function testRuntimeRoleTransaction(): Promise<void> {
   (globalThis as any).waitGlobalInitialized = async () => {};
   (globalThis as any).getLastMessageId = () => 7;
   const writes: any[] = [];
+  const updates: any[] = [];
   const reads: number[] = [];
   let current = structuredClone(initial);
   (globalThis as any).Mvu = {
@@ -185,6 +186,9 @@ async function testRuntimeRoleTransaction(): Promise<void> {
       current = structuredClone(value) as typeof initial;
     },
   };
+  (globalThis as any).eventEmit = async (name: string, next: unknown, previous: unknown) => {
+    updates.push({ name, next: structuredClone(next), previous: structuredClone(previous) });
+  };
   const role = {
     author: '',
     desc: '',
@@ -197,8 +201,13 @@ async function testRuntimeRoleTransaction(): Promise<void> {
   assert.deepEqual(reads, [-1]);
   assert.equal(writes.length, 0);
   assert.equal(await addRoleToRuntime(role, true), 'overwritten');
-  assert.deepEqual(writes[0].stat_data.角色.主要角色.key, { replacement: true, meta: role.meta });
+  assert.equal(writes[0].stat_data.角色.主要角色.key.replacement, true);
+  assert.deepEqual(writes[0].stat_data.角色.主要角色.key.meta, role.meta);
+  assert.equal('old' in writes[0].stat_data.角色.主要角色.key, false);
   assert.deepEqual(writes[0].stat_data.system.关注角色列表, initial.stat_data.system.关注角色列表);
+  assert.equal(updates[0].name, 'mag_variable_update_ended');
+  assert.deepEqual(updates[0].previous, initial);
+  assert.deepEqual(updates[0].next, writes[0]);
 
   const snapshot = await getRuntimeRoles();
   assert.deepEqual(Object.keys(snapshot.主要角色), ['key']);
@@ -215,7 +224,8 @@ async function testRuntimeRoleTransaction(): Promise<void> {
   assert.equal(await addRoleToRuntime(user, false), 'added', '空 user 槽必须允许直接加入');
   assert.equal(await addRoleToRuntime(user, false), 'conflict', '已有 user 必须进入替换确认而非并存');
   assert.equal(await addRoleToRuntime(user, true), 'overwritten');
-  assert.deepEqual(writes.at(-1).stat_data.角色.user, { name: '新主角', meta: user.meta });
+  assert.equal(writes.at(-1).stat_data.角色.user.name, '新主角');
+  assert.deepEqual(writes.at(-1).stat_data.角色.user.meta, user.meta);
 
   current = structuredClone(initial);
   writes.length = 0;
