@@ -1,4 +1,8 @@
 import { startFloatingUi } from '@/util/floatingUi';
+import { useMagicGirlStatStore } from '@/魔法少女恶堕/StatStore';
 import App from './App.vue';
 
-startFloatingUi({ component: App });
+startFloatingUi({
+  component: App,
+  initialize: ({ pinia }) => useMagicGirlStatStore(pinia).initialize(),
+});
