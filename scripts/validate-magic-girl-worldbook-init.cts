@@ -12,12 +12,13 @@ const entries = [
   entry('[initvar]', tag('系统', 'json', '{"商店主动刷新次数":0}', true)),
   entry(
     '<人设配置>user',
-    [tag('角色.user.基础信息.身份', 'string', '新版身份'), tag('角色.user.金钱', 'number', '120', true)].join('\n'),
+    [tag('角色.user.基础信息', 'string', '新版身份', true), tag('角色.user.金钱', 'number', '120', true)].join('\n'),
   ),
   entry(
     '<人设配置>新人物',
     [
       tag('角色.主要角色.新人物.性格', 'string', '新版性格'),
+      tag('角色.主要角色.新人物.基础信息', 'string', '新人物介绍'),
       tag('角色.主要角色.新人物.在场', 'boolean', 'false', true),
       tag('角色.主要角色.新人物.额外字段', 'string', '应保留'),
     ].join('\n'),
@@ -25,14 +26,20 @@ const entries = [
 ];
 
 const old = {
-  系统: { 版本: '1.0.0', 商店主动刷新次数: 5 },
+  系统: { 版本: '1.0.0', 商店主动刷新次数: 5, 商店待刷新: true },
   角色: { user: { 基础信息: { 身份: '旧版身份' }, 金钱: 999 }, 主要角色: {} },
 };
 const upgraded = reconcileWorldbookStatData(old, entries);
-assert.equal(upgraded.data.角色.user.基础信息.身份, '新版身份');
+assert.equal(upgraded.data.角色.user.基础信息, '身份：旧版身份');
 assert.equal(upgraded.data.角色.user.金钱, 999);
 assert.equal(upgraded.data.系统.商店主动刷新次数, 5);
-assert.deepEqual(upgraded.data.角色.主要角色.新人物, { 性格: '新版性格', 在场: false, 额外字段: '应保留' });
+assert.equal('商店待刷新' in upgraded.data.系统, false);
+assert.deepEqual(upgraded.data.角色.主要角色.新人物, {
+  性格: '新版性格',
+  基础信息: '新人物介绍',
+  在场: false,
+  额外字段: '应保留',
+});
 assert.equal(upgraded.data.系统.版本, '2.0.0');
 assert.deepEqual(upgraded.data.手机.微信, { 账号: {}, 会话: {}, 准备发送: null });
 assert.equal(old.系统.版本, '1.0.0');
@@ -42,14 +49,20 @@ const missingRole = structuredClone(upgraded.data);
 delete missingRole.角色.主要角色.新人物;
 assert.deepEqual(reconcileWorldbookStatData(missingRole, entries).data.角色.主要角色.新人物, {
   性格: '新版性格',
+  基础信息: '新人物介绍',
   在场: false,
   额外字段: '应保留',
 });
 
 const sameVersion = structuredClone(upgraded.data);
-sameVersion.角色.user.基础信息.身份 = '玩家改写';
+sameVersion.角色.user.基础信息 = '玩家改写';
+(sameVersion.角色.主要角色.新人物 as any).基础信息 = { 姓名: '旧档案名', 身份: '旧身份' };
 delete sameVersion.角色.user.金钱;
-assert.equal(reconcileWorldbookStatData(sameVersion, entries).data.角色.user.基础信息.身份, '玩家改写');
+assert.equal(reconcileWorldbookStatData(sameVersion, entries).data.角色.user.基础信息, '玩家改写');
+assert.equal(
+  reconcileWorldbookStatData(sameVersion, entries).data.角色.主要角色.新人物.基础信息,
+  '姓名：旧档案名\n身份：旧身份',
+);
 assert.equal(reconcileWorldbookStatData(sameVersion, entries).data.角色.user.金钱, 120);
 assert.throws(() =>
   reconcileWorldbookStatData({}, [
@@ -70,8 +83,8 @@ try {
   const result = reconcileWorldbookStatData({}, real).data;
   assert.equal(Object.keys(result.角色.主要角色).length, 3);
   assert.equal(result.系统.版本, '1.0.0');
-  assert.ok(result.地图.故事城市);
-  assert.ok(result.角色.user.基础信息.身份);
+  assert.ok(result.地图);
+  assert.ok(result.角色.user.基础信息);
 } catch (error) {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 }

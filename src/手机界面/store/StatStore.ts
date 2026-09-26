@@ -11,7 +11,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
 
-  async function initializeFromWorldbook(generation: number) {
+  async function checkWorldbook() {
+    const generation = ++chatGeneration;
     try {
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration) return;
@@ -65,7 +66,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refreshTimer = undefined;
     scheduleRefresh();
     startPolling();
-    void initializeFromWorldbook(chatGeneration);
   }
 
   function startPolling() {
@@ -80,7 +80,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     eventOn(KatEvents.kat_mvu_update_finished, scheduleRefresh);
     eventOn(tavern_events.MESSAGE_DELETED, scheduleRefresh);
     eventOn(tavern_events.CHAT_CHANGED, resetForChat);
-    void initializeFromWorldbook(chatGeneration);
     return () => {
       chatGeneration++;
       if (pollingTimer) clearInterval(pollingTimer);
@@ -100,5 +99,5 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refresh();
   }
 
-  return { statData, refresh, initialize, replace, update };
+  return { statData, refresh, initialize, checkWorldbook, replace, update };
 });

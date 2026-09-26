@@ -6,30 +6,29 @@
   </div>
   <div v-if="mainEntries.length" class="data-selector" aria-label="选择主要角色">
     <button
-      v-for="[key, person] in mainEntries"
+      v-for="[key] in mainEntries"
       :key="key"
       type="button"
       :class="{ active: selectedMainKey === key }"
       @click="selectedKey = key"
     >
-      <span class="selector-avatar">{{ person.基础信息?.姓名?.slice(0, 1) || key.slice(0, 1) }}</span>
-      <span>{{ person.基础信息?.姓名 || key }}</span>
+      <span class="selector-avatar">{{ key.slice(0, 1) }}</span>
+      <span>{{ key }}</span>
     </button>
   </div>
   <div v-if="selectedMain" class="data-sections">
     <section class="data-hero">
-      <div class="hero-overline">{{ selectedMain.基础信息?.身份 || '角色档案' }}</div>
-      <h2>{{ selectedMain.基础信息?.姓名 || selectedMainKey }}</h2>
+      <div class="hero-overline">角色档案</div>
+      <h2>{{ selectedMainKey }}</h2>
       <div class="data-badges">
         <span :class="selectedMain.在场 ? 'badge-live' : ''">{{ selectedMain.在场 ? '在场' : '未在场' }}</span>
         <span>{{ selectedMain.是否变身魔法少女 ? '魔法少女形态' : '日常形态' }}</span>
-        <span v-if="selectedMain.基础信息?.性别">{{ selectedMain.基础信息.性别 }}</span>
       </div>
     </section>
 
-    <section v-if="selectedMain.基础信息?.姐姐" class="data-card">
-      <h3>人物关系</h3>
-      <p class="data-prose">姐姐：{{ selectedMain.基础信息.姐姐 }}</p>
+    <section v-if="selectedMain.基础信息" class="data-card">
+      <h3>基础信息</h3>
+      <p class="data-prose">{{ selectedMain.基础信息 }}</p>
     </section>
     <section v-if="selectedMain.外貌" class="data-card">
       <h3>外貌与形态</h3>

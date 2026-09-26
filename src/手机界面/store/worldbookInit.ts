@@ -13,7 +13,8 @@ function isRecord(value: unknown): value is JsonRecord {
 function parseTags(entry: ConfigEntry): TaggedValue[] {
   const tags = [...entry.content.matchAll(/<JSON\b([^>]*)>([\s\S]*?)<\/JSON>/g)];
   const openCount = [...entry.content.matchAll(/<JSON\b/g)].length;
-  if (!tags.length || tags.length !== openCount) throw new Error(`世界书条目 ${entry.name} 的 JSON 标签缺失或未闭合。`);
+  if (tags.length !== openCount || (!tags.length && entry.name !== '[initvar]'))
+    throw new Error(`世界书条目 ${entry.name} 的 JSON 标签缺失或未闭合。`);
   const paths = new Set<string>();
   return tags.map(([, attributes, raw]) => {
     const attrs = Object.fromEntries(
@@ -67,6 +68,13 @@ function fillMissing(target: JsonRecord, source: JsonRecord): void {
   }
 }
 
+function migrateBasicInfo(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return Object.entries(value)
+    .map(([key, item]) => `${key}：${typeof item === 'string' ? item : JSON.stringify(item)}`)
+    .join('\n');
+}
+
 function applyTag(target: JsonRecord, tag: TaggedValue, updateStatic: boolean): void {
   let parent = target;
   for (const segment of tag.path.slice(0, -1)) {
@@ -103,13 +111,10 @@ const missingDefaults: JsonRecord = {
   系统: {
     商店下次刷新时间: '',
     商店主动刷新次数: 0,
-    商店待刷新: false,
     任务下次刷新时间: '',
     任务主动刷新次数: 0,
-    任务待刷新: false,
     技能下次刷新时间: '',
     技能主动刷新次数: 0,
-    技能待刷新: false,
   },
   手机: { 微信: { 账号: {}, 会话: {}, 准备发送: null } },
 };
@@ -145,6 +150,20 @@ export function reconcileWorldbookStatData(
   const data = isRecord(current) ? klona(current) : {};
   const before = JSON.stringify(data);
   const updateStatic = data.系统?.版本 !== version;
+  if (isRecord(data.系统)) {
+    delete data.系统.商店待刷新;
+    delete data.系统.任务待刷新;
+    delete data.系统.技能待刷新;
+  }
+  if (isRecord(data.角色)) {
+    if (isRecord(data.角色.user) && '基础信息' in data.角色.user)
+      data.角色.user.基础信息 = migrateBasicInfo(data.角色.user.基础信息);
+    if (isRecord(data.角色.主要角色)) {
+      for (const role of Object.values(data.角色.主要角色)) {
+        if (isRecord(role) && '基础信息' in role) role.基础信息 = migrateBasicInfo(role.基础信息);
+      }
+    }
+  }
   for (const tag of initTags) applyTag(data, tag, updateStatic);
   for (const { root, tags } of roleConfigs) {
     const original = root.reduce<unknown>((value, key) => (isRecord(value) ? value[key] : undefined), current);

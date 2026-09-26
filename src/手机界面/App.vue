@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { useMagicGirlStatStore } from './store/StatStore';
 import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
 import ControlCenter from './components/ControlCenter.vue';
@@ -101,6 +102,7 @@ import PhoneDesktop from './components/PhoneDesktop.vue';
 import { apps, dockApps, isDataApp } from './desktopApps';
 
 const open = ref(false);
+const statStore = useMagicGirlStatStore();
 const activeApp = ref<string | null>(null);
 const controlCenterOpen = ref(false);
 const brightness = ref(100);
@@ -174,6 +176,7 @@ function openPhone() {
   phonePosition.left = Math.max(0, ((hostWindow?.innerWidth ?? width) - width) / 2);
   phonePosition.top = Math.max(0, ((hostWindow?.innerHeight ?? height) - height) / 2);
   open.value = true;
+  void statStore.checkWorldbook();
 }
 function closePhone() {
   controlCenterOpen.value = false;

@@ -3,13 +3,6 @@
  * dynamic="true" 是模板元数据，不会成为运行时 JSON 的属性。
  */
 
-export interface 基础信息 {
-  姓名: string;
-  身份: string;
-  性别?: string;
-  姐姐?: string;
-}
-
 export interface 魔法少女形态 {
   正常: string;
   恶堕: string;
@@ -65,7 +58,7 @@ export interface 角色人设 {
   是否变身魔法少女: boolean;
   名称检索词: string[];
   区域检索词: string[];
-  基础信息: 基础信息;
+  基础信息: string;
   外貌: 外貌;
   身体: 身体;
   性格: string;
@@ -103,7 +96,7 @@ export interface 地图节点 {
   子地图: Record<string, 地图节点>;
 }
 
-/** 标准格式：2026-9-26T03:10[1]；[1]~[7] 对应周一~周日。 */
+/** 标准格式：2026-9-26T03:10[6]；[1]~[7] 对应周一~周日。 */
 export type 世界时间 = string;
 
 export interface 世界数据 {
@@ -163,31 +156,18 @@ export interface 系统数据 {
   商店下次刷新时间: 世界时间;
   /** 前端维护；主动刷新第 n 次花费 2 * 2^(n-1) 积分，每日自动刷新后归零。 */
   商店主动刷新次数: number;
-  /** 前端在主动刷新支付成功后置 true；消费 shopVariable 后清为 false。 */
-  商店待刷新: boolean;
   /** 前端维护；到期时 EJS 显示任务生成规则。 */
   任务下次刷新时间: 世界时间;
   /** 前端维护；主动刷新第 n 次花费 4 * 2^(n-1) 积分，每日自动刷新后归零。 */
   任务主动刷新次数: number;
-  /** 前端在主动刷新支付成功后置 true；消费 questVariable 后清为 false。 */
-  任务待刷新: boolean;
   /** 前端维护；到期时 EJS 显示技能生成规则。每周一 00:00 刷新。 */
   技能下次刷新时间: 世界时间;
   /** 前端维护；主动刷新第 n 次花费 20 * 2^(n-1) 积分，每周自动刷新后归零。 */
   技能主动刷新次数: number;
-  /** 前端在主动刷新支付成功后置 true；消费 skillVariable 后清为 false。 */
-  技能待刷新: boolean;
-}
-
-export interface 用户基础信息 {
-  身份: string;
-  背景: string;
-  外貌: string;
-  性格: string;
 }
 
 export interface 用户数据 {
-  基础信息: 用户基础信息;
+  基础信息: string;
   当前评级: string;
   金钱: number;
   恶堕积分: number;
