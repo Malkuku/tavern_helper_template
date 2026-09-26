@@ -1,9 +1,7 @@
 <template>
   <div class="data-app">
     <header class="data-header">
-      <button type="button" class="data-back" aria-label="返回桌面" @click="emit('back')">‹ <span>桌面</span></button>
-      <strong>{{ app }}</strong>
-      <span class="data-header-space"></span>
+      <strong>{{ appDisplayName(app) }}</strong>
     </header>
     <div class="data-scroll">
       <div v-if="!statStore.statData" class="data-empty">
@@ -22,7 +20,7 @@
 
 <script setup lang="ts">
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import type { DataAppName } from '../../desktopApps';
+import { appDisplayName, type DataAppName } from '../../desktopApps';
 import MainCharacters from './MainCharacters.vue';
 import MinorCharacters from './MinorCharacters.vue';
 import Profile from './Profile.vue';
@@ -30,7 +28,6 @@ import Skills from './Skills.vue';
 import Items from './Items.vue';
 
 defineProps<{ app: DataAppName }>();
-const emit = defineEmits<{ back: [] }>();
 const statStore = useMagicGirlStatStore();
 </script>
 

@@ -139,6 +139,12 @@ export const initialStatDataSchema = z.strictObject({
     技能主动刷新次数: number,
   }),
   手机: z.strictObject({
+    档案解锁: z
+      .strictObject({
+        主要角色: z.record(z.string(), z.array(z.string())).optional(),
+        次要角色: z.record(z.string(), z.array(z.string())).optional(),
+      })
+      .optional(),
     微信: z.strictObject({
       账号: z.record(
         z.string(),

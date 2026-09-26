@@ -1,135 +1,125 @@
 <template>
   <div class="phone-module">
-    <button
-      v-if="!open"
-      ref="launcherButton"
-      class="phone-launcher"
-      type="button"
-      :style="launcherStyle"
-      aria-label="打开手机界面，拖拽可移动"
-      @pointerdown="startDrag($event, 'launcher')"
-      @pointermove="moveDrag"
-      @pointerup="endDrag"
-      @pointercancel="endDrag"
-      @click="openPhone"
-    >
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <rect x="17" y="5" width="30" height="54" rx="8" fill="#131b32" stroke="#dfe8ff" stroke-width="2.5" />
-        <rect x="20" y="9" width="24" height="46" rx="5" fill="url(#phoneLauncherGradient)" />
-        <path d="M27 10h10" stroke="#17213d" stroke-width="3" stroke-linecap="round" />
-        <circle cx="32" cy="50" r="2" fill="#e8efff" />
-        <defs>
-          <linearGradient id="phoneLauncherGradient" x1="20" y1="9" x2="45" y2="55">
-            <stop stop-color="#94c8ff" />
-            <stop offset=".52" stop-color="#776ad6" />
-            <stop offset="1" stop-color="#ed91ba" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </button>
+    <Transition name="phone-shell" mode="out-in">
+      <button
+        v-if="!open"
+        ref="launcherButton"
+        class="phone-launcher"
+        type="button"
+        :style="launcherStyle"
+        aria-label="打开手机界面，拖拽可移动"
+        @pointerdown="startDrag($event, 'launcher')"
+        @pointermove="moveDrag"
+        @pointerup="endDrag"
+        @pointercancel="endDrag"
+        @click="openPhone"
+      >
+        <span class="launcher-device" aria-hidden="true"><span class="launcher-display"></span></span>
+      </button>
 
-    <div v-else class="phone-overlay">
-      <div ref="phoneFrame" class="phone-frame" :style="phoneStyle">
-        <button
-          class="window-drag-handle"
-          type="button"
-          aria-label="拖拽移动手机窗口"
-          title="拖拽移动手机窗口"
-          @pointerdown="startDrag($event, 'phone')"
-          @pointermove="moveDrag"
-          @pointerup="endDrag"
-          @pointercancel="endDrag"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3" />
-          </svg>
-        </button>
-        <div class="phone-screen" :style="{ '--screen-brightness': `${brightness}%` }">
-          <div class="wallpaper"></div>
-          <header class="status-bar" :class="{ 'status-bar-light': activeApp }" aria-label="状态栏">
-            <span>{{ time }}</span>
-            <button
-              v-if="activeApp"
-              class="status-home"
-              type="button"
-              aria-label="返回手机桌面"
-              title="返回手机桌面"
-              @click="activeApp = null"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" />
-                <path d="M9 21v-7h6v7" />
-              </svg>
-            </button>
-            <span class="dynamic-island" aria-hidden="true"></span>
-            <button
-              class="control-trigger"
-              type="button"
-              aria-label="打开控制中心"
-              @click="controlCenterOpen = true"
-              @pointerdown="startControlSwipe"
-              @pointerup="endControlSwipe"
-            >
-              ●●● ᯤ ▰ <span>⌄</span>
-            </button>
-          </header>
-
-          <PhoneDesktop v-if="!activeApp" :date-label="dateLabel" :today="worldDay" @open="activeApp = $event" />
-
-          <main v-else-if="activeApp === '微信'" class="wechat-screen">
-            <WeChat />
-          </main>
-
-          <main v-else-if="isDataApp(activeApp)" class="data-app-screen">
-            <DataApp :app="activeApp" @back="activeApp = null" />
-          </main>
-
-          <PhoneUtilities v-else-if="['备忘录', '电话', '日历', '天气'].includes(activeApp)" :app="activeApp" />
-
-          <main v-else class="app-screen">
-            <button class="back-button" type="button" @click="activeApp = null">‹ 桌面</button>
-            <div class="app-placeholder">
-              <span class="placeholder-icon" :style="{ background: selectedApp?.color }">{{ selectedApp?.icon }}</span>
-              <h1>{{ activeApp }}</h1>
-              <p>应用内容待接入</p>
-            </div>
-          </main>
-
-          <ControlCenter
-            v-if="controlCenterOpen"
-            v-model:brightness="brightness"
-            :time="time"
-            :date-label="dateLabel"
-            @close="controlCenterOpen = false"
-            @power-off="closePhone"
-          />
-
+      <div v-else class="phone-overlay">
+        <div ref="phoneFrame" class="phone-frame" :style="phoneStyle">
           <button
-            class="home-indicator"
+            class="window-drag-handle"
             type="button"
-            :aria-label="activeApp ? '返回桌面' : '退出手机'"
-            :title="activeApp ? '返回桌面' : '退出手机'"
-            @click="activeApp ? (activeApp = null) : closePhone()"
-          ></button>
+            aria-label="拖拽移动手机窗口"
+            title="拖拽移动手机窗口"
+            @pointerdown="startDrag($event, 'phone')"
+            @pointermove="moveDrag"
+            @pointerup="endDrag"
+            @pointercancel="endDrag"
+          >
+            <span class="window-grip" aria-hidden="true"></span>
+          </button>
+          <div class="phone-screen" :style="{ '--screen-brightness': `${brightness}%` }">
+            <div
+              class="wallpaper"
+              :style="
+                wallpaper
+                  ? { backgroundImage: `linear-gradient(180deg, #07132720, #07132755), url('${wallpaper}')` }
+                  : {}
+              "
+            ></div>
+            <header class="status-bar" :class="{ 'status-bar-light': activeApp }" aria-label="状态栏">
+              <span>{{ time }}</span>
+              <span class="dynamic-island" aria-hidden="true"></span>
+              <button
+                class="control-trigger"
+                type="button"
+                aria-label="打开控制中心"
+                @click="controlCenterOpen = true"
+                @pointerdown="startControlSwipe"
+                @pointerup="endControlSwipe"
+              >
+                ●●● ᯤ ▰ <span>⌄</span>
+              </button>
+            </header>
+
+            <Transition name="phone-view" mode="out-in">
+              <PhoneDesktop
+                v-if="!activeApp"
+                :key="'desktop'"
+                :date-label="dateLabel"
+                :today="worldDay"
+                @open="activeApp = $event"
+              />
+
+              <main v-else-if="activeApp === '微信'" :key="'wechat'" class="wechat-screen">
+                <WeChat />
+              </main>
+
+              <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
+                <DataApp :app="activeApp" />
+              </main>
+
+              <PhoneUtilities
+                v-else-if="['备忘录', '电话', '日历', '天气'].includes(activeApp)"
+                :key="activeApp"
+                :app="activeApp"
+              />
+
+              <PhoneExtras
+                v-else-if="['信息', '照片', '相机', '地图', '设置', '浏览器', '音乐', '文件'].includes(activeApp)"
+                :key="activeApp"
+                :app="activeApp"
+                @wallpaper-changed="wallpaper = $event"
+              />
+
+              <main v-else :key="activeApp" class="app-screen">
+                <div class="app-placeholder">
+                  <span class="placeholder-icon" :style="{ background: selectedApp?.color }">{{
+                    selectedApp?.icon
+                  }}</span>
+                  <h1>{{ activeApp }}</h1>
+                  <p>应用内容待接入</p>
+                </div>
+              </main>
+            </Transition>
+
+            <Transition name="control-sheet">
+              <ControlCenter
+                v-if="controlCenterOpen"
+                v-model:brightness="brightness"
+                :time="time"
+                :date-label="dateLabel"
+                @close="controlCenterOpen = false"
+                @power-off="closePhone"
+              />
+            </Transition>
+
+            <button
+              class="home-indicator"
+              type="button"
+              :aria-label="activeApp ? '返回桌面' : '退出手机'"
+              :title="activeApp ? '返回桌面' : '退出手机'"
+              @pointerdown="startHomeSwipe"
+              @pointerup="finishHomeSwipe"
+              @click="activateHome"
+            ></button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -139,15 +129,18 @@ import { useMagicGirlStatStore } from './store/StatStore';
 import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
+import PhoneExtras from './apps/PhoneExtras.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import { apps, dockApps, isDataApp } from './desktopApps';
+import { readPhoneWallpaper } from './wallpaper';
 
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
 const activeApp = ref<string | null>(null);
 const controlCenterOpen = ref(false);
 const brightness = ref(100);
+const wallpaper = ref('');
 const launcherPosition = reactive({ left: 20, top: 120 });
 const phonePosition = reactive({ left: 0, top: 0 });
 const launcherStyle = computed(() => ({ left: launcherPosition.left + 'px', top: launcherPosition.top + 'px' }));
@@ -175,6 +168,33 @@ let drag: { kind: 'launcher' | 'phone'; x: number; y: number; left: number; top:
   null;
 let didDrag = false;
 let controlSwipeStart = 0;
+const homeSwipeStart = ref(0);
+let homeSwipeHandled = false;
+function startHomeSwipe(event: PointerEvent) {
+  homeSwipeStart.value = event.clientY;
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+}
+function activateHome() {
+  if (homeSwipeHandled) {
+    homeSwipeHandled = false;
+    return;
+  }
+  if (controlCenterOpen.value) controlCenterOpen.value = false;
+  else if (activeApp.value) activeApp.value = null;
+  else closePhone();
+}
+function finishHomeSwipe(event: PointerEvent) {
+  const target = event.currentTarget as HTMLElement;
+  if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+  if (homeSwipeStart.value - event.clientY < 35) return;
+  homeSwipeHandled = true;
+  if (controlCenterOpen.value) controlCenterOpen.value = false;
+  else if (activeApp.value) activeApp.value = null;
+  else closePhone();
+  setTimeout(() => {
+    homeSwipeHandled = false;
+  }, 0);
+}
 
 function clampPosition(left: number, top: number, width: number, height: number, topInset = 0) {
   return {
@@ -225,6 +245,11 @@ function openPhone() {
   phonePosition.left = Math.max(0, ((hostWindow?.innerWidth ?? width) - width) / 2);
   phonePosition.top = Math.max(40, ((hostWindow?.innerHeight ?? height) - height) / 2);
   open.value = true;
+  try {
+    wallpaper.value = readPhoneWallpaper();
+  } catch (error) {
+    console.error('手机壁纸读取失败', error);
+  }
   void statStore.checkWorldbook();
 }
 function closePhone() {

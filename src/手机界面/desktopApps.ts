@@ -1,6 +1,10 @@
 export const dataAppNames = ['主要角色', '次要角色', '我的档案', '技能', '随身物品', '仓库'] as const;
 export type DataAppName = (typeof dataAppNames)[number];
 
+export function appDisplayName(name: string): string {
+  return name === '主要角色' ? '心象监测' : name === '次要角色' ? '人物观测' : name;
+}
+
 export function isDataApp(name: string | null): name is DataAppName {
   return dataAppNames.some(item => item === name);
 }

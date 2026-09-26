@@ -7,6 +7,7 @@ export type DropTarget =
   | { zone: 'desktop'; key: string; placement: 'before' | 'after' | 'inside' }
   | { zone: 'dock'; key: string; placement: 'before' | 'after' }
   | { zone: 'dock-empty' }
+  | { zone: 'page'; index: number }
   | { zone: 'empty' };
 
 const knownApps = new Set([...apps, ...dockApps].map(app => app.name));
@@ -100,6 +101,10 @@ export function movePhoneItem(
   const removed = removeSource(layout, source);
   if (!removed) return layout;
   const { layout: next, item, desktopIndex } = removed;
+  if (target.zone === 'page') {
+    next.desktop.splice(Math.max(0, Math.min(target.index, next.desktop.length)), 0, item);
+    return next;
+  }
   if (target.zone === 'empty') {
     next.desktop.push(item);
     return next;

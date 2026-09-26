@@ -1,8 +1,8 @@
 <template>
-  <div class="data-intro">
-    <span>魔法少女档案</span>
-    <h1>主要角色</h1>
-    <p>选择角色查看状态与人设</p>
+  <div class="data-intro monitor-intro">
+    <span>PERSONA MONITOR</span>
+    <h1>心象监测</h1>
+    <p>记录此刻，而非预告未来</p>
   </div>
   <div v-if="mainEntries.length" class="data-selector" aria-label="选择主要角色">
     <button
@@ -12,125 +12,120 @@
       :class="{ active: selectedMainKey === key }"
       @click="selectedKey = key"
     >
-      <span class="selector-avatar">{{ key.slice(0, 1) }}</span>
-      <span>{{ key }}</span>
+      <span class="selector-avatar">{{ key.slice(0, 1) }}</span
+      ><span>{{ key }}</span>
     </button>
   </div>
   <div v-if="selectedMain" class="data-sections">
-    <section class="data-hero">
-      <div class="hero-overline">角色档案</div>
+    <section class="data-hero monitor-hero">
+      <div class="hero-overline">实时观测 · {{ selectedMain.在场 ? '信号在线' : '信号离线' }}</div>
       <h2>{{ selectedMainKey }}</h2>
       <div class="data-badges">
-        <span :class="selectedMain.在场 ? 'badge-live' : ''">{{ selectedMain.在场 ? '在场' : '未在场' }}</span>
-        <span>{{ selectedMain.是否变身魔法少女 ? '魔法少女形态' : '日常形态' }}</span>
+        <span :class="selectedMain.在场 ? 'badge-live' : ''">{{ selectedMain.在场 ? '在场' : '未在场' }}</span
+        ><span>{{ selectedMain.是否变身魔法少女 ? '魔法少女形态' : '日常形态' }}</span>
       </div>
     </section>
-
-    <section v-if="selectedMain.基础信息" class="data-card">
-      <h3>基础信息</h3>
-      <p class="data-prose">{{ selectedMain.基础信息 }}</p>
-    </section>
-    <section v-if="selectedMain.外貌" class="data-card">
-      <h3>外貌与形态</h3>
-      <div v-if="selectedMain.外貌.整体印象" class="data-field">
-        <span>整体印象</span>
-        <p>{{ selectedMain.外貌.整体印象 }}</p>
-      </div>
-      <div v-if="selectedMain.外貌.日常外貌" class="data-field">
-        <span>日常外貌</span>
-        <p>{{ selectedMain.外貌.日常外貌 }}</p>
-      </div>
-      <div v-if="selectedMain.外貌.魔法少女形态?.正常" class="data-field">
-        <span>魔法少女</span>
-        <p>{{ selectedMain.外貌.魔法少女形态.正常 }}</p>
-      </div>
-      <div v-if="selectedMain.外貌.魔法少女形态?.恶堕" class="data-field">
-        <span>恶堕形态</span>
-        <p>{{ selectedMain.外貌.魔法少女形态.恶堕 }}</p>
-      </div>
-    </section>
-    <section v-if="selectedMain.性格 || selectedMain.背景 || selectedMain.核心创伤" class="data-card">
-      <h3>人物故事</h3>
-      <div v-if="selectedMain.性格" class="data-field">
-        <span>性格</span>
-        <p>{{ selectedMain.性格 }}</p>
-      </div>
-      <div v-if="selectedMain.背景" class="data-field">
-        <span>背景</span>
-        <p>{{ selectedMain.背景 }}</p>
-      </div>
-      <div v-if="selectedMain.核心创伤" class="data-field">
-        <span>核心创伤</span>
-        <p>{{ selectedMain.核心创伤 }}</p>
-      </div>
-    </section>
-    <section v-if="selectedMain.魔法少女能力" class="data-card">
-      <h3>魔法少女能力</h3>
-      <div v-if="selectedMain.魔法少女能力.基础能力" class="data-field">
-        <span>基础能力</span>
-        <p>{{ selectedMain.魔法少女能力.基础能力 }}</p>
-      </div>
-      <div v-if="selectedMain.魔法少女能力.核心能力" class="data-field">
-        <span>核心能力</span>
-        <p>{{ selectedMain.魔法少女能力.核心能力 }}</p>
-      </div>
-      <div v-for="[key, value] in entries(selectedMain.魔法少女能力.核心能力限制)" :key="key" class="data-field">
-        <span>{{ key }}</span>
-        <p>{{ value }}</p>
-      </div>
-    </section>
-    <section v-if="selectedMain.人设阶段" class="data-card">
-      <h3>当前阶段</h3>
-      <div v-for="[key, stage] in entries(selectedMain.人设阶段)" :key="key" class="stage-row">
-        <div>
+    <nav class="data-pages" aria-label="角色档案分页">
+      <button v-for="item in pages" :key="item" type="button" :class="{ active: page === item }" @click="page = item">
+        {{ item }}
+      </button>
+    </nav>
+    <template v-if="page === '心象'">
+      <section class="monitor-heading">
+        <span>01 / 当前心象</span>
+        <h3>三项人设阶段</h3>
+        <p>只呈现当前等级的表现</p>
+      </section>
+      <section v-for="[key, stage] in stageEntries" :key="key" class="data-card monitor-card">
+        <div class="monitor-card-head">
           <strong>{{ key }}</strong
-          ><small>累计经验 {{ stage.累计经验 }}</small>
+          ><span>等级 {{ stage.当前等级 }}</span>
         </div>
-        <span class="stage-level">Lv. {{ stage.当前等级 }}</span>
-        <p v-if="stage.描述?.[String(stage.当前等级)]">{{ stage.描述[String(stage.当前等级)] }}</p>
-      </div>
-    </section>
-    <section v-if="selectedMain.身体" class="data-card">
-      <h3>身体状态</h3>
-      <div v-if="selectedMain.身体.特殊状态?.length" class="data-field">
-        <span>特殊状态</span>
-        <p>{{ selectedMain.身体.特殊状态.map(formatValue).join('、') }}</p>
-      </div>
-      <details v-for="[key, part] in entries(selectedMain.身体.开发状态)" :key="key" class="data-details">
-        <summary>
-          <span>{{ key }}</span
-          ><small>Lv. {{ part.当前等级 }} · {{ part.当前状态 }}</small>
-        </summary>
-        <div class="data-field">
-          <span>累计经验</span>
-          <p>{{ part.累计经验 }}</p>
+        <p class="data-prose">{{ currentLevelDescription(stage) || '当前等级暂无记录' }}</p>
+        <small>累计经验 {{ stage.累计经验 }}</small>
+      </section>
+    </template>
+    <template v-else-if="page === '身体'">
+      <section class="monitor-heading">
+        <span>02 / 状态观测</span>
+        <h3>身体状态</h3>
+        <p>仅显示当前状态</p>
+      </section>
+      <section v-if="selectedMain.身体.特殊状态?.length" class="data-card">
+        <h3>特殊状态</h3>
+        <p class="data-prose">{{ selectedMain.身体.特殊状态.map(formatValue).join('、') }}</p>
+      </section>
+      <section v-for="[key, part] in bodyEntries" :key="key" class="data-card monitor-card">
+        <div class="monitor-card-head">
+          <strong>{{ key }}</strong
+          ><span>等级 {{ part.当前等级 }}</span>
         </div>
-        <div v-if="part.特征" class="data-field">
-          <span>特征</span>
-          <p>{{ part.特征 }}</p>
-        </div>
-        <div v-for="[label, value] in entries(part.描述)" :key="label" class="data-field">
-          <span>{{ label }}</span>
+        <p class="monitor-state">{{ part.当前状态 }}</p>
+        <p v-if="part.特征" class="data-prose">{{ part.特征 }}</p>
+        <p v-if="currentLevelDescription(part)" class="data-prose">{{ currentLevelDescription(part) }}</p>
+      </section>
+    </template>
+    <template v-else>
+      <section class="monitor-heading">
+        <span>03 / 人物档案</span>
+        <h3>档案线索</h3>
+        <p>重要信息需使用恶堕积分解锁</p>
+      </section>
+      <section class="data-card">
+        <h3>基础信息</h3>
+        <p class="data-prose">{{ selectedMain.基础信息 || '暂无记录' }}</p>
+      </section>
+      <section class="data-card">
+        <h3>整体印象</h3>
+        <p class="data-prose">{{ selectedMain.外貌.整体印象 || '暂无记录' }}</p>
+      </section>
+      <LockedField kind="主要角色" :character-key="selectedMainKey!" field="日常外貌"
+        ><p class="data-prose">{{ selectedMain.外貌.日常外貌 || '暂无记录' }}</p></LockedField
+      >
+      <LockedField kind="主要角色" :character-key="selectedMainKey!" field="魔法形态"
+        ><p class="data-prose">{{ selectedMain.外貌.魔法少女形态.正常 || '暂无记录' }}</p></LockedField
+      >
+      <LockedField kind="主要角色" :character-key="selectedMainKey!" field="性格"
+        ><p class="data-prose">{{ selectedMain.性格 || '暂无记录' }}</p></LockedField
+      >
+      <LockedField kind="主要角色" :character-key="selectedMainKey!" field="背景"
+        ><p class="data-prose">{{ selectedMain.背景 || '暂无记录' }}</p></LockedField
+      >
+      <LockedField kind="主要角色" :character-key="selectedMainKey!" field="核心能力">
+        <p class="data-prose">{{ selectedMain.魔法少女能力.核心能力 || '暂无记录' }}</p>
+        <div v-for="[key, value] in entries(selectedMain.魔法少女能力.核心能力限制)" :key="key" class="data-field">
+          <span>{{ key }}</span>
           <p>{{ value }}</p>
         </div>
-      </details>
-    </section>
+      </LockedField>
+      <LockedField kind="主要角色" :character-key="selectedMainKey!" field="核心创伤"
+        ><p class="data-prose">{{ selectedMain.核心创伤 || '暂无记录' }}</p></LockedField
+      >
+    </template>
   </div>
   <div v-else class="data-empty"><strong>暂无主要角色</strong></div>
 </template>
 
 <script setup lang="ts">
 import type { 角色人设, stat_data } from '../../types';
-import { computed, ref } from 'vue';
-import { entries } from './entries';
+import { computed, ref, watch } from 'vue';
+import { currentLevelDescription, entries } from './entries';
+import LockedField from './LockedField.vue';
 
 const props = defineProps<{ data: stat_data }>();
 const selectedKey = ref<string | null>(null);
+const pages = ['心象', '身体', '档案'] as const;
+const page = ref<(typeof pages)[number]>('心象');
 const mainEntries = computed(() => Object.entries(props.data.角色?.主要角色 ?? {}) as [string, 角色人设][]);
 const selectedMainKey = computed(() =>
   mainEntries.value.some(([key]) => key === selectedKey.value) ? selectedKey.value : mainEntries.value[0]?.[0],
 );
 const selectedMain = computed(() => mainEntries.value.find(([key]) => key === selectedMainKey.value)?.[1]);
+const stageEntries = computed(() => entries(selectedMain.value?.人设阶段));
+const bodyEntries = computed(() => entries(selectedMain.value?.身体?.开发状态));
+watch(selectedMainKey, () => {
+  page.value = '心象';
+});
 function formatValue(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
 }

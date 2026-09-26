@@ -48,7 +48,6 @@
         ><span v-for="blank in firstWeekday" :key="`blank-${blank}`"></span
         ><span v-for="day in daysInMonth" :key="day" :class="{ today: isToday(day) }">{{ day }}</span>
       </div>
-      <p>现实日历 · {{ new Date().toLocaleDateString('zh-CN') }}</p>
     </template>
   </main>
 </template>

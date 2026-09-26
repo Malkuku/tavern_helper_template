@@ -290,6 +290,11 @@ export interface 微信数据 {
 
 export interface 手机数据 {
   微信: 微信数据;
+  /** 已用恶堕积分解锁的档案字段，按角色类型和实际 key 分开存储。 */
+  档案解锁?: {
+    主要角色?: Record<string, string[]>;
+    次要角色?: Record<string, string[]>;
+  };
 }
 
 export interface stat_data {

@@ -12,7 +12,7 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   flex: none;
   height: 104px;
   padding: 52px 18px 0;
@@ -22,24 +22,6 @@
 .data-app .data-header strong {
   font-size: 16px;
   font-weight: 700;
-}
-.data-app .data-back {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 76px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #7656a2;
-  font-size: 30px;
-  line-height: 1;
-}
-.data-app .data-back span {
-  font-size: 15px;
-}
-.data-app .data-header-space {
-  width: 76px;
 }
 .data-app .data-scroll {
   flex: 1;
@@ -416,6 +398,179 @@
   color: #a59aaa;
   font-size: 12px;
   line-height: 1.5;
+}
+.data-app .monitor-intro {
+  padding-bottom: 13px;
+}
+.data-app .monitor-intro > span,
+.data-app .monitor-heading > span {
+  color: #8c76b3;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+.data-app .monitor-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #242641, #49416d 65%, #9b668f);
+}
+.data-app .monitor-hero::after {
+  position: absolute;
+  right: -28px;
+  bottom: -55px;
+  width: 150px;
+  height: 150px;
+  border: 1px solid #ffffff3d;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 24px #ffffff0b,
+    0 0 0 48px #ffffff08;
+  content: '';
+  pointer-events: none;
+}
+.data-app .data-pages {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 13px;
+  background: #eae7f0;
+}
+.data-app .data-pages button {
+  min-width: 0;
+  padding: 9px 5px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #82798c;
+  font-size: 12px;
+  font-weight: 700;
+}
+.data-app .data-pages button.active {
+  background: #fff;
+  color: #514174;
+  box-shadow: 0 2px 9px #30274816;
+}
+.data-app .monitor-heading {
+  padding: 7px 4px 0;
+}
+.data-app .monitor-heading h3 {
+  margin: 5px 0 2px;
+  font-size: 17px;
+}
+.data-app .monitor-heading p {
+  margin: 0;
+  color: #938b9a;
+  font-size: 11px;
+}
+.data-app .monitor-card {
+  border-left: 3px solid #9c86c8;
+}
+.data-app .monitor-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #3d3450;
+  font-size: 15px;
+}
+.data-app .monitor-card-head span,
+.data-app .unlock-mark,
+.data-app .lock-mark {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #f0ebf7;
+  color: #725c99;
+  font-size: 10px;
+  font-weight: 800;
+}
+.data-app .monitor-card > small {
+  display: block;
+  margin-top: 10px;
+  color: #aaa1b2;
+  font-size: 10px;
+}
+.data-app .monitor-state {
+  margin: 0 0 6px;
+  color: #76549b;
+  font-size: 12px;
+  font-weight: 700;
+}
+.data-app .locked-field .item-heading {
+  align-items: center;
+  margin-bottom: 10px;
+}
+.data-app .locked-field .item-heading h3 {
+  margin: 0;
+}
+.data-app .lock-mark {
+  background: #f3f0f3;
+  color: #9b8f9e;
+}
+.data-app .lock-caption,
+.data-app .lock-balance {
+  margin: 0 0 10px;
+  color: #908796;
+  font-size: 12px;
+}
+.data-app .lock-balance {
+  margin: 8px 0 0;
+}
+.data-app .unlock-button,
+.data-app .profile-actions .primary {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #6e548d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.data-app .unlock-button:disabled,
+.data-app .profile-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.data-app .data-text-button {
+  border: 0;
+  background: transparent;
+  color: #7957a0;
+  font-size: 12px;
+  font-weight: 700;
+}
+.data-app .profile-editor {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #d7c8e2;
+  border-radius: 11px;
+  background: #fcfafe;
+  color: #342d40;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.data-app .profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.data-app .profile-actions button:not(.primary) {
+  padding: 10px 12px;
+  border: 1px solid #e6dfeb;
+  border-radius: 10px;
+  background: #fff;
+  color: #6e627a;
+  font-size: 12px;
+}
+.data-app .data-error {
+  margin: 9px 0 0;
+  color: #b6375a;
+  font-size: 12px;
 }
 @media (max-width: 600px) {
   .data-app .data-header {

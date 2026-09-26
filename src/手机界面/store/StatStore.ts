@@ -19,6 +19,7 @@ import {
   unappliedWeChatLogs,
 } from '../apps/wechat/wechatData';
 import type { OperationEvent } from '../apps/wechat/wechatData';
+import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { reconcileWorldbookStatData } from './worldbookInit';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
@@ -69,12 +70,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
-  let wechatQueue = Promise.resolve();
+  let statWriteQueue = Promise.resolve();
   let stickerSyncQueued = false;
 
-  function queueWeChatWork<T>(work: () => Promise<T>): Promise<T> {
-    const result = wechatQueue.then(work);
-    wechatQueue = result.then(
+  function queueStatWork<T>(work: () => Promise<T>): Promise<T> {
+    const result = statWriteQueue.then(work);
+    statWriteQueue = result.then(
       () => undefined,
       () => undefined,
     );
@@ -93,7 +94,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     beforeWrite?: (data: stat_data) => Promise<void>,
   ) {
     const generation = chatGeneration;
-    return queueWeChatWork(async () => {
+    return queueStatWork(async () => {
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
@@ -108,6 +109,31 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
       await writeStatData(data, previous);
     });
+  }
+
+  async function changeCharacterData<T>(change: (data: stat_data) => T): Promise<T> {
+    const generation = chatGeneration;
+    return queueStatWork(async () => {
+      await waitGlobalInitialized('Mvu');
+      if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
+      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (!previous?.stat_data?.角色?.user) throw new Error('角色变量尚未初始化。');
+      const data = klona(previous.stat_data) as stat_data;
+      const result = change(data);
+      if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
+      await writeStatData(data, previous);
+      return result;
+    });
+  }
+
+  async function saveProfileBaseInfo(value: string) {
+    await changeCharacterData(data => {
+      data.角色.user.基础信息 = value;
+    });
+  }
+
+  async function unlockCharacterInfo(kind: CharacterKind, key: string, field: string): Promise<boolean> {
+    return changeCharacterData(data => applyCharacterUnlock(data, kind, key, field));
   }
 
   async function sendWeChatMessage(
@@ -372,7 +398,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function scheduleStickerSync() {
     if (stickerSyncQueued) return;
     stickerSyncQueued = true;
-    void queueWeChatWork(syncStickerSnapshot)
+    void queueStatWork(syncStickerSnapshot)
       .catch(error => console.error('微信表情包备份同步失败', error))
       .finally(() => {
         stickerSyncQueued = false;
@@ -436,7 +462,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function scheduleWeChatLog(messageId?: number) {
     const generation = chatGeneration;
     failedWeChatLogIndex.value = null;
-    void queueWeChatWork(async () => {
+    void queueStatWork(async () => {
       const id = messageId ?? getLastMessageId();
       if (id >= 0) await processWeChatMessage(id, generation);
     }).catch(error => {
@@ -563,6 +589,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     checkWorldbook,
     replace,
     update,
+    saveProfileBaseInfo,
+    unlockCharacterInfo,
     sendWeChatMessage,
     confirmWeChatSend,
     discardWeChatDraft,

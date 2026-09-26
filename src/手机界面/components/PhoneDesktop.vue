@@ -1,45 +1,48 @@
 <template>
-  <main class="home-screen">
+  <main
+    class="home-screen"
+    @pointermove="moveIconDrag"
+    @pointerup="endIconDrag"
+    @pointercancel="cancelIconDrag"
+    @touchstart.passive="startPageTouch"
+    @touchend="endPageTouch"
+  >
     <div class="home-heading">
       <span>今天</span>
       <strong>{{ dateLabel }}</strong>
     </div>
 
-    <div class="app-grid" data-layout-empty="true" @touchstart.passive="startPageTouch" @touchend="endPageTouch">
-      <button
-        v-for="item in visibleItems"
-        :key="itemKey(item)"
-        class="app-tile"
-        :class="{
-          'layout-drop-target': hoverKey === itemKey(item),
-          'layout-drop-inside': hoverKey === itemKey(item) && hoverPlacement === 'inside',
-        }"
-        type="button"
-        data-layout-zone="desktop"
-        :data-layout-key="itemKey(item)"
-        @pointerdown="
-          startIconDrag(
-            $event,
-            item.kind === 'app' ? { kind: 'app', name: item.name } : { kind: 'folder', id: item.id },
-          )
-        "
-        @pointermove="moveIconDrag"
-        @pointerup="endIconDrag"
-        @pointercancel="cancelIconDrag"
-        @click="openItem(item)"
-      >
-        <DesktopAppIcon v-if="item.kind === 'app'" :name="item.name" :today="today" />
-        <span v-else class="app-icon folder-icon" aria-hidden="true">
-          <span
-            v-for="name in item.apps.slice(0, 4)"
-            :key="name"
-            class="folder-mini"
-            :style="{ background: appColor(name) }"
-          ></span>
-        </span>
-        <span>{{ item.name }}</span>
-      </button>
-    </div>
+    <Transition name="desktop-page" mode="out-in">
+      <div :key="page" class="app-grid" data-layout-empty="true">
+        <button
+          v-for="item in visibleItems"
+          :key="itemKey(item)"
+          class="app-tile"
+          :class="{
+            'layout-drop-target': hoverKey === itemKey(item),
+            'layout-drop-inside': hoverKey === itemKey(item) && hoverPlacement === 'inside',
+          }"
+          type="button"
+          data-layout-zone="desktop"
+          :data-layout-key="itemKey(item)"
+          @pointerdown="
+            startIconDrag(
+              $event,
+              item.kind === 'app' ? { kind: 'app', name: item.name } : { kind: 'folder', id: item.id },
+            )
+          "
+          @click="openItem(item)"
+        >
+          <DesktopAppIcon v-if="item.kind === 'app'" :name="item.name" :today="today" />
+          <span v-else class="app-icon folder-icon" aria-hidden="true">
+            <span v-for="name in item.apps.slice(0, 4)" :key="name" class="folder-mini">
+              <DesktopAppIcon :name="name" :today="today" />
+            </span>
+          </span>
+          <span>{{ item.kind === 'app' ? appDisplayName(item.name) : item.name }}</span>
+        </button>
+      </div>
+    </Transition>
 
     <div class="home-spacer" data-layout-empty="true"></div>
     <div class="page-dots" aria-label="桌面分页">
@@ -63,39 +66,35 @@
         data-layout-zone="dock"
         :data-layout-key="name"
         @pointerdown="startIconDrag($event, { kind: 'app', name })"
-        @pointermove="moveIconDrag"
-        @pointerup="endIconDrag"
-        @pointercancel="cancelIconDrag"
         @click="openApp(name)"
       >
         <DesktopAppIcon :name="name" :today="today" />
       </button>
     </div>
 
-    <div v-if="selectedFolder" class="folder-overlay" data-layout-empty="true" @click.self="folderId = null">
-      <section class="folder-panel" :aria-label="selectedFolder.name">
-        <div class="folder-header">
-          <input v-model="selectedFolder.name" aria-label="文件夹名称" maxlength="20" @change="saveLayout" />
-          <button type="button" aria-label="关闭文件夹" @click="folderId = null">×</button>
-        </div>
-        <div class="folder-grid">
-          <div v-for="name in selectedFolder.apps" :key="name" class="folder-app">
-            <button
-              type="button"
-              class="app-tile"
-              @pointerdown="startIconDrag($event, { kind: 'app', name })"
-              @pointermove="moveIconDrag"
-              @pointerup="endIconDrag"
-              @pointercancel="cancelIconDrag"
-              @click="openApp(name)"
-            >
-              <DesktopAppIcon :name="name" :today="today" />
-              <span>{{ name }}</span>
-            </button>
+    <Transition name="folder-open">
+      <div v-if="selectedFolder" class="folder-overlay" data-layout-empty="true" @click.self="folderId = null">
+        <section class="folder-panel" :aria-label="selectedFolder.name">
+          <div class="folder-header">
+            <input v-model="selectedFolder.name" aria-label="文件夹名称" maxlength="20" @change="saveLayout" />
+            <button type="button" aria-label="关闭文件夹" @click="folderId = null">×</button>
           </div>
-        </div>
-      </section>
-    </div>
+          <div class="folder-grid">
+            <div v-for="name in selectedFolder.apps" :key="name" class="folder-app">
+              <button
+                type="button"
+                class="app-tile"
+                @pointerdown="startIconDrag($event, { kind: 'app', name })"
+                @click="openApp(name)"
+              >
+                <DesktopAppIcon :name="name" :today="today" />
+                <span>{{ appDisplayName(name) }}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Transition>
 
     <div
       v-if="drag?.moved"
@@ -104,14 +103,18 @@
       aria-hidden="true"
     >
       <DesktopAppIcon v-if="drag.source.kind === 'app'" :name="drag.source.name" :today="today" />
-      <span v-else class="app-icon folder-icon">▦</span>
+      <span v-else class="app-icon folder-icon">
+        <span v-for="name in draggedFolderApps" :key="name" class="folder-mini">
+          <DesktopAppIcon :name="name" :today="today" />
+        </span>
+      </span>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { apps, dockApps } from '../desktopApps';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { appDisplayName } from '../desktopApps';
 import {
   defaultPhoneLayout,
   itemKey,
@@ -139,9 +142,19 @@ function startPageTouch(event: TouchEvent) {
   pageTouchX = event.changedTouches[0]?.clientX ?? 0;
 }
 function endPageTouch(event: TouchEvent) {
-  if (drag.value?.moved) return;
+  if (skipPageTouch) {
+    skipPageTouch = false;
+    return;
+  }
+  if (drag.value?.moved || folderId.value) return;
   const dx = (event.changedTouches[0]?.clientX ?? pageTouchX) - pageTouchX;
-  if (Math.abs(dx) > 50) page.value = Math.max(0, Math.min(pageCount.value - 1, page.value + (dx < 0 ? 1 : -1)));
+  if (Math.abs(dx) > 50) {
+    page.value = Math.max(0, Math.min(pageCount.value - 1, page.value + (dx < 0 ? 1 : -1)));
+    suppressClick = true;
+    setTimeout(() => {
+      suppressClick = false;
+    }, 0);
+  }
 }
 const folderId = ref<string | null>(null);
 const selectedFolder = computed(
@@ -150,6 +163,11 @@ const selectedFolder = computed(
       | Extract<DesktopItem, { kind: 'folder' }>
       | undefined,
 );
+const draggedFolderApps = computed(() => {
+  if (drag.value?.source.kind !== 'folder') return [];
+  const folder = layout.value.desktop.find(item => item.kind === 'folder' && item.id === drag.value?.source.id);
+  return folder?.kind === 'folder' ? folder.apps.slice(0, 4) : [];
+});
 const hoverKey = ref<string | null>(null);
 const hoverPlacement = ref<'before' | 'after' | 'inside' | null>(null);
 const drag = ref<{
@@ -160,11 +178,27 @@ const drag = ref<{
   x: number;
   y: number;
   moved: boolean;
+  armed: boolean;
 } | null>(null);
 let suppressClick = false;
-
-function appColor(name: string) {
-  return [...apps, ...dockApps].find(app => app.name === name)?.color ?? '#777';
+let skipPageTouch = false;
+let holdTimer: ReturnType<typeof setTimeout> | null = null;
+let edgeTimer: ReturnType<typeof setTimeout> | null = null;
+let edgeDirection = 0;
+function clearEdgeTurn() {
+  if (edgeTimer) clearTimeout(edgeTimer);
+  edgeTimer = null;
+  edgeDirection = 0;
+}
+function queueEdgeTurn(direction: number) {
+  if (direction === edgeDirection) return;
+  clearEdgeTurn();
+  if (!direction) return;
+  edgeDirection = direction;
+  edgeTimer = setTimeout(() => {
+    page.value = Math.max(0, Math.min(pageCount.value - 1, page.value + direction));
+    clearEdgeTurn();
+  }, 420);
 }
 function readLayout() {
   try {
@@ -204,8 +238,15 @@ function startIconDrag(event: PointerEvent, source: DragItem) {
     x: event.clientX,
     y: event.clientY,
     moved: false,
+    armed: event.pointerType !== 'touch',
   };
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  if (event.pointerType === 'touch') {
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      if (drag.value?.pointerId === event.pointerId) drag.value.armed = true;
+      holdTimer = null;
+    }, 320);
+  }
 }
 function targetAt(event: PointerEvent): DropTarget | null {
   const element = (event.currentTarget as HTMLElement).ownerDocument.elementFromPoint(
@@ -241,8 +282,28 @@ function moveIconDrag(event: PointerEvent) {
   if (!current || current.pointerId !== event.pointerId) return;
   current.x = event.clientX;
   current.y = event.clientY;
+  if (!current.armed) {
+    if (Math.hypot(current.x - current.startX, current.y - current.startY) > 7 && holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    return;
+  }
   if (!current.moved && Math.hypot(current.x - current.startX, current.y - current.startY) < 7) return;
+  if (!current.moved) (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   current.moved = true;
+  const home = event.currentTarget as HTMLElement;
+  const bounds = home.getBoundingClientRect();
+  const dockTop = home.querySelector('.dock')?.getBoundingClientRect().top ?? bounds.bottom;
+  const direction =
+    !folderId.value && event.clientY >= bounds.top && event.clientY < dockTop
+      ? event.clientX < bounds.left + 28 && page.value > 0
+        ? -1
+        : event.clientX > bounds.right - 28 && page.value < pageCount.value - 1
+          ? 1
+          : 0
+      : 0;
+  queueEdgeTurn(direction);
   const target = targetAt(event);
   hoverKey.value = target?.zone === 'desktop' ? target.key : target?.zone === 'dock' ? `dock:${target.key}` : null;
   hoverPlacement.value = target?.zone === 'desktop' || target?.zone === 'dock' ? target.placement : null;
@@ -250,14 +311,20 @@ function moveIconDrag(event: PointerEvent) {
 function endIconDrag(event: PointerEvent) {
   const current = drag.value;
   if (!current || current.pointerId !== event.pointerId) return;
+  clearEdgeTurn();
   const target = current.moved ? targetAt(event) : null;
   if (current.moved) {
+    if (event.pointerType === 'touch') skipPageTouch = true;
     suppressClick = true;
     setTimeout(() => {
       suppressClick = false;
     }, 0);
     if (target) {
-      const next = movePhoneItem(layout.value, current.source, target, crypto.randomUUID());
+      const destination: DropTarget =
+        target.zone === 'empty' && !folderId.value
+          ? { zone: 'page', index: Math.min((page.value + 1) * pageSize - 1, layout.value.desktop.length) }
+          : target;
+      const next = movePhoneItem(layout.value, current.source, destination, crypto.randomUUID());
       if (next !== layout.value) {
         layout.value = next;
         if (!selectedFolder.value) folderId.value = null;
@@ -269,12 +336,19 @@ function endIconDrag(event: PointerEvent) {
 }
 function cancelIconDrag(event: PointerEvent) {
   if (drag.value?.pointerId !== event.pointerId) return;
+  if (holdTimer) clearTimeout(holdTimer);
+  holdTimer = null;
+  clearEdgeTurn();
   drag.value = null;
   hoverKey.value = null;
   hoverPlacement.value = null;
-  const target = event.currentTarget as HTMLElement;
-  if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+  const target = (event.currentTarget as HTMLElement).closest<HTMLElement>('.home-screen');
+  if (target?.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
 }
 
 onMounted(readLayout);
+onUnmounted(() => {
+  if (holdTimer) clearTimeout(holdTimer);
+  clearEdgeTurn();
+});
 </script>

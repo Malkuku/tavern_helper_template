@@ -23,10 +23,23 @@
   pointer-events: auto;
   filter: drop-shadow(0 5px 8px #0008);
 }
-.phone-launcher svg {
+.launcher-device {
   display: block;
-  width: 100%;
+  width: 34px;
+  height: 52px;
+  margin: auto;
+  padding: 3px;
+  border: 2px solid #dfe8ff;
+  border-radius: 10px;
+  background: #151a2b;
+  box-shadow: 0 3px 8px #0007;
+}
+.launcher-display {
+  display: block;
   height: 100%;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 70% 20%, #c0d9ff, transparent 35%), linear-gradient(150deg, #86baf5, #6557ba 55%, #e486aa);
 }
 .phone-overlay {
   position: fixed;
@@ -57,6 +70,8 @@
 .wallpaper {
   position: absolute;
   inset: 0;
+  background-size: cover;
+  background-position: center;
   background:
     radial-gradient(ellipse at 78% 20%, #aeb4eb 0, transparent 35%),
     radial-gradient(ellipse at 15% 66%, #7659ae 0, transparent 40%),
@@ -106,9 +121,11 @@
 .window-drag-handle:active {
   cursor: grabbing;
 }
-.window-drag-handle svg {
-  width: 100%;
-  height: 100%;
+.window-grip {
+  width: 18px;
+  height: 18px;
+  background: radial-gradient(circle, currentColor 1.5px, transparent 2px) 0 0 / 6px 6px;
+  opacity: 0.8;
 }
 .dynamic-island {
   position: absolute;
@@ -204,8 +221,17 @@
 .folder-mini {
   width: 21px;
   height: 21px;
-  border-radius: 6px;
+  overflow: hidden;
+  border-radius: 5px;
   box-shadow: 0 1px 3px #0003;
+}
+.folder-mini .app-icon {
+  transform: scale(0.362);
+  transform-origin: top left;
+}
+.folder-mini .data-app-icon {
+  width: 38px;
+  height: 38px;
 }
 .icon-drag-preview {
   position: fixed;
@@ -377,13 +403,6 @@
   position: relative;
   height: 100%;
 }
-.back-button {
-  align-self: flex-start;
-  border: 0;
-  background: none;
-  color: #3478ee;
-  font-size: 16px !important;
-}
 .app-placeholder {
   display: flex;
   flex: 1;
@@ -510,6 +529,87 @@
   background: #3478ee;
   color: #fff;
 }
+.utility-input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #d5dce8;
+  border-radius: 12px;
+  background: #fff;
+  color: #20283a;
+  font: inherit;
+}
+textarea.utility-input {
+  min-height: 130px;
+  resize: vertical;
+}
+.utility-screen form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.file-picker {
+  display: block;
+  cursor: pointer;
+}
+.file-picker input {
+  display: none;
+}
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.photo-grid button {
+  padding: 0;
+  border: 0;
+  background: none;
+  aspect-ratio: 1;
+}
+.photo-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.photo-detail {
+  position: absolute;
+  z-index: 5;
+  inset: 54px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  background: #101722f5;
+  color: #fff;
+}
+.photo-detail img {
+  max-width: 100%;
+  max-height: 60%;
+  object-fit: contain;
+}
+.photo-detail button {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 16px;
+}
+.map-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #c8eadb, #a9d5e8);
+  color: #255d78;
+}
+.map-preview span {
+  font-size: 78px;
+}
+.utility-screen audio {
+  width: 100%;
+}
 .control-grabber {
   align-self: center;
   width: 90px;
@@ -624,42 +724,116 @@
 .home-indicator {
   position: absolute;
   z-index: 4;
-  bottom: 9px;
+  bottom: 0;
   left: 50%;
   width: 125px;
-  height: 5px;
+  height: 28px;
   transform: translateX(-50%);
   border: 0;
   border-radius: 9px;
-  background: #fff;
+  background: transparent;
   padding: 0;
+  touch-action: none;
 }
-.app-screen ~ .home-indicator,
-.wechat-screen ~ .home-indicator,
-.data-app-screen ~ .home-indicator {
+.home-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: 9px;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  border-radius: 9px;
+  background: #fff;
+}
+.wallpaper-setting-preview {
+  align-self: center;
+  width: 108px;
+  height: 205px;
+  border: 5px solid #1b2030;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 75% 20%, #aeb4eb, transparent 35%), linear-gradient(160deg, #23486a, #7659ae, #141b44);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 8px 20px #17213d30;
+}
+.phone-shell-enter-active,
+.phone-shell-leave-active,
+.phone-view-enter-active,
+.phone-view-leave-active,
+.desktop-page-enter-active,
+.desktop-page-leave-active,
+.folder-open-enter-active,
+.folder-open-leave-active,
+.control-sheet-enter-active,
+.control-sheet-leave-active {
+  transition:
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.24s ease;
+}
+.phone-shell-enter-from,
+.phone-shell-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+.phone-view-enter-from {
+  opacity: 0;
+  transform: scale(0.96) translateY(12px);
+}
+.phone-view-leave-to {
+  opacity: 0;
+  transform: scale(1.035);
+}
+.desktop-page-enter-from {
+  opacity: 0;
+  transform: translateX(18px);
+}
+.desktop-page-leave-to {
+  opacity: 0;
+  transform: translateX(-18px);
+}
+.folder-open-enter-from,
+.folder-open-leave-to {
+  opacity: 0;
+}
+.folder-open-enter-from .folder-panel,
+.folder-open-leave-to .folder-panel {
+  transform: scale(0.9);
+}
+.folder-panel {
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.control-sheet-enter-from,
+.control-sheet-leave-to {
+  opacity: 0;
+  transform: translateY(-28px);
+}
+.app-tile:active .app-icon,
+.dock-tile:active .app-icon {
+  transform: scale(0.92);
+}
+.app-icon {
+  transition: transform 0.16s ease;
+}
+.folder-mini .app-icon,
+.folder-mini .app-icon:active {
+  transform: scale(0.362);
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-module *,
+  .phone-module *::before,
+  .phone-module *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+.app-screen ~ .home-indicator::after,
+.wechat-screen ~ .home-indicator::after,
+.data-app-screen ~ .home-indicator::after {
   background: #16191f;
 }
-.phone-screen:has(.wechat.wx-dark) .home-indicator {
+.phone-screen:has(.wechat.wx-dark) .home-indicator::after {
   background: #d3d3d3;
-}
-.status-home {
-  position: absolute;
-  left: 83px;
-  top: 11px;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 3px;
-  border: 0;
-  border-radius: 7px;
-  background: #8882;
-  color: inherit;
-  cursor: pointer;
-}
-.status-home svg {
-  width: 20px;
-  height: 20px;
 }
 @media (max-width: 600px) {
   .window-drag-handle {
@@ -696,7 +870,7 @@
     padding-bottom: max(36px, env(safe-area-inset-bottom));
   }
   .home-indicator {
-    bottom: max(9px, env(safe-area-inset-bottom));
+    bottom: env(safe-area-inset-bottom);
   }
 }
 @media (max-height: 690px) {

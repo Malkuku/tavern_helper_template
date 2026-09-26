@@ -60,6 +60,11 @@ const docked = movePhoneItem(
 assert.ok(docked.dock.includes('技能'));
 assert.ok(docked.desktop.some(item => item.kind === 'app' && item.name === '电话'));
 
+const movedToSecondPage = movePhoneItem(initial, { kind: 'app', name: '微信' }, { zone: 'page', index: 15 }, 'unused');
+assert.equal(movedToSecondPage.desktop[14].kind, 'app');
+assert.equal(movedToSecondPage.desktop[14].kind === 'app' ? movedToSecondPage.desktop[14].name : '', '微信');
+assert.equal(movedToSecondPage.desktop.length, initial.desktop.length);
+
 const bad = normalizePhoneLayout({
   desktop: [
     { kind: 'app', name: '微信' },
