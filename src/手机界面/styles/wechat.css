@@ -265,10 +265,6 @@
   border-top: 1px solid #d7d7d7;
   background: #f7f7f7;
 }
-.wx-compose-icon {
-  color: #777;
-  font-size: 25px;
-}
 .wx-compose input {
   flex: 1;
   min-width: 0;
@@ -295,48 +291,240 @@
   background: #d4d4d4;
   color: #999;
 }
-.wx-empty,
-.wx-detail-note {
+.wx-empty {
   padding: 28px;
   color: #999;
   font-size: 14px;
   text-align: center;
 }
-.wx-moments {
-  flex: 1;
-  overflow-y: auto;
-  background: #fff;
+.wx-add-button {
+  border: 0;
+  background: none;
+  color: #222;
+  cursor: pointer;
 }
-.wx-moments-cover {
+.wx-avatar {
+  overflow: hidden;
+  background: linear-gradient(145deg, #8eb5c8, #607ca3);
+}
+.wx-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wx-avatar-user {
+  background: #a2b7d1;
+}
+.wx-message-main {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  max-width: 76%;
+}
+.wx-message.mine .wx-message-main {
   align-items: flex-end;
-  justify-content: flex-end;
-  height: 175px;
-  padding: 20px;
-  background: linear-gradient(135deg, #6a8d8f, #233d54);
-  color: #fff;
-  font-size: 21px;
-  font-weight: 600;
 }
-.wx-moment {
+.wx-message-main > small,
+.wx-message-main time {
+  color: #929292;
+  font-size: 11px;
+}
+.wx-message-main time {
+  padding: 0 3px;
+}
+.wx-bubble {
+  max-width: 100%;
+}
+.wx-content-parts {
   display: flex;
-  gap: 12px;
-  padding: 18px 14px;
-  border-bottom: 1px solid #eee;
+  flex-direction: column;
+  gap: 7px;
 }
-.wx-moment div {
+.wx-content-text {
+  white-space: pre-wrap;
+}
+.wx-rich {
+  border-radius: 5px;
+  padding: 7px 9px;
+  background: #0000000c;
+}
+.wx-rich strong {
+  display: block;
+  font-size: 13px;
+}
+.wx-rich span {
+  display: block;
+  font-size: 12px;
+}
+.wx-voice {
+  min-width: 135px;
+}
+.wx-sticker img {
+  display: block;
+  max-width: 145px;
+  max-height: 145px;
+  object-fit: contain;
+}
+.wx-payment {
+  min-width: 150px;
+  background: #eeb16b;
+  color: #fff;
+}
+.wx-quote {
+  border-left: 3px solid #8ca2bb;
+}
+.wx-quote small {
+  color: #777;
+}
+.wx-forward summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.wx-forward-line {
+  border-top: 1px solid #0002;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.wx-forward-line:first-of-type {
+  margin-top: 7px;
+}
+.wx-pending .wx-bubble {
+  opacity: 0.65;
+}
+.wx-pending button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #287cba;
+  font-size: 11px;
+}
+.wx-error {
+  margin: 0;
+  padding: 8px 12px;
+  background: #fff0ed;
+  color: #b44332;
+  font-size: 12px;
+}
+.wx-count {
+  margin-left: auto;
+  border-radius: 12px;
+  padding: 2px 7px;
+  background: #ec5c53;
+  color: #fff;
+  font-size: 12px;
+}
+.wx-muted {
+  margin-left: auto;
+  color: #999;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.wx-small-action {
+  flex: none;
+  border: 0;
+  border-radius: 5px;
+  padding: 6px 9px;
+  background: #07ad58;
+  color: #fff;
+  font-size: 12px;
+}
+.wx-small-action.muted {
+  background: #ddd;
+  color: #555;
+}
+.wx-small-action:disabled {
+  background: #ddd;
+  color: #999;
+}
+.wx-request-row {
+  gap: 8px;
+}
+.wx-request-row .wx-avatar {
+  width: 38px;
+  height: 38px;
+}
+.wx-request-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px;
+  padding: 8px;
+  background: #fff;
+  color: #777;
+  font-size: 12px;
+}
+.wx-request-message input {
   flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  font: inherit;
+  color: #222;
 }
-.wx-moment strong {
-  color: #526b8b;
-  font-size: 15px;
+.wx-group-avatar {
+  background: linear-gradient(145deg, #90b6b2, #5c9291);
 }
-.wx-moment p {
-  margin: 7px 0;
-  font-size: 14px;
+.wx-message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.wx-moment small {
-  color: #aaa;
+.wx-message-meta button {
+  border: 0;
+  background: none;
+  color: #8d98a5;
+  font-size: 11px;
+}
+.wx-compose-quote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  background: #f7f7f7;
+  color: #777;
+  font-size: 12px;
+}
+.wx-compose-quote span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wx-compose-quote button {
+  border: 0;
+  background: none;
+  color: #888;
+  font-size: 20px;
+}
+.wx-compose-sticker {
+  flex: none;
+  border: 0;
+  background: none;
+  color: #777;
+  font-size: 25px;
+}
+.wx-compose button.wx-compose-sticker:disabled {
+  opacity: 0.4;
+  background: none;
+  color: #777;
+}
+.wx-sticker-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  background: #f7f7f7;
+}
+.wx-sticker-picker button {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
 }
 @media (max-width: 600px) {
   .wechat {

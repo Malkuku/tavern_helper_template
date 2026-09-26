@@ -41,9 +41,28 @@ assert.deepEqual(upgraded.data.角色.主要角色.新人物, {
   额外字段: '应保留',
 });
 assert.equal(upgraded.data.系统.版本, '2.0.0');
-assert.deepEqual(upgraded.data.手机.微信, { 账号: {}, 会话: {}, 准备发送: null });
+assert.deepEqual(upgraded.data.手机.微信, {
+  账号: {
+    user: { 昵称: '我', 头像: '', 表情包: {}, 好友: ['新人物'], 好友请求: { 收到: {}, 发出: {} } },
+    新人物: { 昵称: '新人物', 头像: '', 表情包: {}, 好友: ['user'], 好友请求: { 收到: {}, 发出: {} } },
+  },
+  会话: {},
+  准备发送: null,
+});
 assert.equal(old.系统.版本, '1.0.0');
 assert.equal(reconcileWorldbookStatData(upgraded.data, entries).changed, false);
+
+const removedFriend = structuredClone(upgraded.data);
+removedFriend.手机.微信.账号.user.好友 = [];
+removedFriend.手机.微信.账号.新人物.好友 = [];
+assert.deepEqual(reconcileWorldbookStatData(removedFriend, entries).data.手机.微信.账号.user.好友, []);
+assert.deepEqual(reconcileWorldbookStatData(removedFriend, entries).data.手机.微信.账号.新人物.好友, []);
+
+const missingAccount = structuredClone(upgraded.data);
+delete missingAccount.手机.微信.账号.新人物;
+const repairedAccount = reconcileWorldbookStatData(missingAccount, entries).data.手机.微信.账号;
+assert.deepEqual(repairedAccount.新人物.好友, ['user']);
+assert.deepEqual(repairedAccount.user.好友, ['新人物']);
 
 const missingRole = structuredClone(upgraded.data);
 delete missingRole.角色.主要角色.新人物;
@@ -85,6 +104,10 @@ try {
   assert.equal(result.系统.版本, '1.0.0');
   assert.ok(result.地图);
   assert.ok(result.角色.user.基础信息);
+  for (const name of Object.keys(result.角色.主要角色)) {
+    assert.ok(result.手机.微信.账号.user.好友.includes(name));
+    assert.ok(result.手机.微信.账号[name].好友.includes('user'));
+  }
 } catch (error) {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 }

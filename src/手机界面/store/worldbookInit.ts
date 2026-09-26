@@ -75,6 +75,38 @@ function migrateBasicInfo(value: unknown): unknown {
     .join('\n');
 }
 
+function seedWechatFriends(data: JsonRecord): void {
+  const accounts = data.手机?.微信?.账号;
+  const mainRoles = data.角色?.主要角色;
+  if (!isRecord(accounts) || !isRecord(mainRoles)) throw new Error('微信账号或主要角色变量结构无效。');
+  const mainIds = Object.keys(mainRoles).filter(id => id !== 'user');
+  const created = new Set<string>();
+  for (const id of ['user', ...mainIds]) {
+    const defaults = {
+      昵称: id === 'user' ? '我' : id,
+      头像: '',
+      表情包: {},
+      好友: [],
+      好友请求: { 收到: {}, 发出: {} },
+    };
+    if (!isRecord(accounts[id])) {
+      accounts[id] = defaults;
+      created.add(id);
+    } else {
+      fillMissing(accounts[id], defaults);
+    }
+  }
+  for (const id of mainIds) {
+    if (!created.has('user') && !created.has(id)) continue;
+    const userFriends = accounts.user.好友;
+    const roleFriends = accounts[id].好友;
+    if (!Array.isArray(userFriends) || !Array.isArray(roleFriends))
+      throw new Error(`微信账号 user 或 ${id} 的好友字段不是数组。`);
+    if (!userFriends.includes(id)) userFriends.push(id);
+    if (!roleFriends.includes('user')) roleFriends.push('user');
+  }
+}
+
 function applyTag(target: JsonRecord, tag: TaggedValue, updateStatic: boolean): void {
   let parent = target;
   for (const segment of tag.path.slice(0, -1)) {
@@ -125,6 +157,12 @@ export function reconcileWorldbookStatData(
   entries: ConfigEntry[],
 ): { data: JsonRecord; changed: boolean } {
   const initTags = parseTags(uniqueEntry(entries, '[initvar]'));
+  let initialData: JsonRecord | undefined;
+  if (!isRecord(current)) {
+    const parsed = JSON.parse(uniqueEntry(entries, 'StatData').content) as unknown;
+    if (!isRecord(parsed)) throw new Error('StatData 必须是 JSON 对象。');
+    initialData = parsed;
+  }
   const version = readVersion(uniqueEntry(entries, '当前世界书版本').content);
   const roleEntries = entries.filter(entry => entry.name.startsWith(rolePrefix));
   if (!roleEntries.some(entry => entry.name === `${rolePrefix}user`)) throw new Error('主世界书缺少 <人设配置>user。');
@@ -147,7 +185,7 @@ export function reconcileWorldbookStatData(
     return { root, tags };
   });
 
-  const data = isRecord(current) ? klona(current) : {};
+  const data = isRecord(current) ? klona(current) : klona(initialData!);
   const before = JSON.stringify(data);
   const updateStatic = data.系统?.版本 !== version;
   if (isRecord(data.系统)) {
@@ -175,6 +213,7 @@ export function reconcileWorldbookStatData(
     }
   }
   fillMissing(data, missingDefaults);
+  seedWechatFriends(data);
   data.系统.版本 = version;
   return { data, changed: JSON.stringify(data) !== before };
 }
