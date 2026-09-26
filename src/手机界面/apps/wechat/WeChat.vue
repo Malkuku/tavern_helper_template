@@ -35,8 +35,8 @@
                 }}</small>
                 <div
                   class="wx-bubble"
-                  @contextmenu.prevent="openMessageMenu(message, part)"
-                  @touchstart.passive="startMessageHold(message, part)"
+                  @contextmenu.prevent="openMessageMenu(message, part, contentIndex)"
+                  @touchstart.passive="startMessageHold(message, part, contentIndex)"
                   @touchend="cancelMessageHold"
                   @touchmove="cancelMessageHold"
                   @touchcancel="cancelMessageHold"
@@ -706,16 +706,17 @@ const draft = ref('');
 const requestMessage = ref('');
 const error = ref('');
 const sending = ref(false);
-const quoted = ref<微信消息 | null>(null);
-const messageMenu = ref<微信消息 | null>(null);
+type SelectedMessage = 微信消息 & { 内容下标?: number };
+const quoted = ref<SelectedMessage | null>(null);
+const messageMenu = ref<SelectedMessage | null>(null);
 let messageHoldTimer: ReturnType<typeof setTimeout> | undefined;
-function openMessageMenu(message: 微信消息, part: 微信消息内容) {
+function openMessageMenu(message: 微信消息, part: 微信消息内容, index: number) {
   cancelMessageHold();
-  messageMenu.value = { ...message, 内容: [part] };
+  messageMenu.value = { ...message, 内容: [part], 内容下标: index };
 }
-function startMessageHold(message: 微信消息, part: 微信消息内容) {
+function startMessageHold(message: 微信消息, part: 微信消息内容, index: number) {
   cancelMessageHold();
-  messageHoldTimer = setTimeout(() => openMessageMenu(message, part), 500);
+  messageHoldTimer = setTimeout(() => openMessageMenu(message, part, index), 500);
 }
 function cancelMessageHold() {
   if (messageHoldTimer) clearTimeout(messageHoldTimer);
@@ -802,7 +803,7 @@ async function resolvePayment(operation: '领取红包' | '领取转账' | '退�
     操作: operation,
     操作者: 'user',
     会话: selectedKey.value,
-    目标: { 发送者: view.message.发送者, 时间: view.message.时间 },
+    目标: { 楼层ID: view.message.楼层ID, 内容下标: view.index },
   });
   if (!error.value) paymentView.value = null;
 }
@@ -825,7 +826,7 @@ async function sendForward(destination: string) {
   sending.value = true;
   error.value = '';
   try {
-    const snapshot = { 发送者: message.发送者, 时间: message.时间, 内容: message.内容 };
+    const snapshot = { 楼层ID: message.楼层ID, 发送者: message.发送者, 时间: message.时间, 内容: message.内容 };
     const forwarded: 微信消息内容 =
       source.类型 === '私聊'
         ? { 转发: { 私聊: { 成员: [...source.成员], 消息: [snapshot] } } }

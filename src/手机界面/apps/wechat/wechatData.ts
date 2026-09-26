@@ -30,6 +30,7 @@ function messageContent(value: unknown, depth = 0): value is 微信消息内容 
 function validMessage(value: unknown, depth = 0): value is 微信消息 {
   return (
     record(value) &&
+    (value.楼层ID === undefined || (Number.isSafeInteger(value.楼层ID) && value.楼层ID > 0)) &&
     typeof value.发送者 === 'string' &&
     typeof value.时间 === 'string' &&
     Array.isArray(value.内容) &&
@@ -53,11 +54,16 @@ function validEvent(value: unknown): value is WeChatLog['事件'][number] {
     );
   }
   if (value.类型 !== '操作' || typeof value.时间 !== 'string') return false;
+  if (value.楼层ID !== undefined && (!Number.isSafeInteger(value.楼层ID) || value.楼层ID <= 0)) return false;
   if (typeof value.操作者 !== 'string' || typeof value.会话 !== 'string') return false;
   if (value.操作 === '好友申请') return typeof value.目标 === 'string' && typeof value.验证消息 === 'string';
   if (value.操作 === '通过好友申请' || value.操作 === '拒绝好友申请') return typeof value.目标 === 'string';
   if (['领取红包', '领取转账', '退回转账'].includes(value.操作))
-    return record(value.目标) && typeof value.目标.发送者 === 'string' && typeof value.目标.时间 === 'string';
+    return (
+      record(value.目标) &&
+      ((Number.isSafeInteger(value.目标.楼层ID) && Number.isSafeInteger(value.目标.内容下标)) ||
+        (typeof value.目标.发送者 === 'string' && typeof value.目标.时间 === 'string'))
+    );
   if (value.操作 === '拍一拍') return typeof value.目标 === 'string';
   if (value.操作 === '创建群聊') return typeof value.名称 === 'string' && value.名称.trim().length > 0;
   if (value.操作 === '邀请进群') return typeof value.目标 === 'string';
@@ -83,36 +89,28 @@ export function parseWeChatLogs(content: string): WeChatLog[] {
   });
 }
 
-export function unappliedWeChatLogs(current: 微信数据, logs: WeChatLog[], previousSignature?: string): WeChatLog[] {
-  if (!previousSignature) {
-    // 聊天级标记可能尚未写入，但正文已追加下一条增量。只跳过已落库且位于
-    // 本次待发送消息之前的完整事件，避免把上一轮 user 消息重新拿来确认发送。
-    if (current.准备发送) {
-      const events = logs.flatMap(log => log.事件);
-      const pendingIndex = events.findIndex(event => logConfirmsPending(current, { 事件: [event] }));
-      if (pendingIndex > 0 && logMessagesPresent(current, [{ 事件: events.slice(0, pendingIndex) }]))
-        return [{ 事件: events.slice(pendingIndex) }];
+export function unappliedWeChatLogs(current: 微信数据, logs: WeChatLog[]): WeChatLog[] {
+  const events = logs.flatMap(log => log.事件);
+  const legacyPositions = new Map<string, number>();
+  let applied = 0;
+  for (const event of events) {
+    const key = event.会话;
+    if (event.楼层ID === undefined) {
+      const messages = current.会话[key]?.消息 ?? [];
+      const start = legacyPositions.get(key) ?? 0;
+      const found = messages.findIndex((item, index) => index >= start && logEventMatchesItem(event, item));
+      if (found < 0) throw new Error(`会话 ${key} 的旧日志缺少楼层 ID 且尚未入库，请按新规则重新生成。`);
+      legacyPositions.set(key, found + 1);
+      applied++;
+      continue;
     }
-    return logs;
+    const stored = current.会话[key]?.消息[event.楼层ID - 1];
+    if (!stored) break;
+    if (!logEventMatchesItem(event, stored)) throw new Error(`会话 ${key} 的已入库消息与正文事件顺序或内容不一致。`);
+    legacyPositions.set(key, Math.max(legacyPositions.get(key) ?? 0, event.楼层ID));
+    applied++;
   }
-  let previousLogs: WeChatLog[];
-  try {
-    previousLogs = JSON.parse(previousSignature);
-    if (!Array.isArray(previousLogs)) throw new Error();
-  } catch {
-    throw new Error('已应用微信日志的记录无效，不能自动重复应用。');
-  }
-  const oldEvents = previousLogs.flatMap(log => log.事件);
-  const newEvents = logs.flatMap(log => log.事件);
-  if (logMessagesPresent(current, previousLogs)) {
-    if (
-      oldEvents.length > newEvents.length ||
-      oldEvents.some((event, index) => JSON.stringify(event) !== JSON.stringify(newEvents[index]))
-    )
-      throw new Error('微信日志已变更，旧增量仍在变量中，不能自动重复应用。');
-    return newEvents.length === oldEvents.length ? [] : [{ 事件: newEvents.slice(oldEvents.length) }];
-  }
-  return logs;
+  return applied === events.length ? [] : [{ 事件: events.slice(applied) }];
 }
 
 export function privateChatKey(otherId: string): string {
@@ -121,6 +119,23 @@ export function privateChatKey(otherId: string): string {
 
 export function privateKey(a: string, b: string): string {
   return a === 'user' ? privateChatKey(b) : b === 'user' ? privateChatKey(a) : `私聊:${[a, b].sort().join('&')}`;
+}
+
+export function normalizeWeChatIds(current: 微信数据): 微信数据 {
+  const next = klona(current);
+  for (const [key, session] of Object.entries(next.会话))
+    session.消息.forEach((item, index) => {
+      if (item.楼层ID !== undefined && item.楼层ID !== index + 1)
+        throw new Error(`会话 ${key} 的楼层 ID 与消息顺序不一致。`);
+      item.楼层ID = index + 1;
+    });
+  if (next.准备发送) {
+    const expected = (next.会话[next.准备发送.会话]?.消息.length ?? 0) + 1;
+    if (next.准备发送.楼层ID !== undefined && next.准备发送.楼层ID !== expected)
+      throw new Error('待发送消息的楼层 ID 与会话末尾不一致。');
+    next.准备发送.楼层ID = expected;
+  }
+  return next;
 }
 
 export function isWeChatMessage(item: 微信消息流项): item is 微信消息 {
@@ -180,6 +195,7 @@ export function logConfirmsPending(current: 微信数据, log: WeChatLog): boole
     pending &&
     first &&
     first.类型 === '消息' &&
+    first.楼层ID === pending.楼层ID &&
     first.会话 === pending.会话 &&
     first.发送者 === 'user' &&
     confirmableWeChatTime(first.时间, pending.时间) &&
@@ -203,6 +219,7 @@ function pendingMismatch(current: 微信数据, log: WeChatLog): string | null {
   const pending = current.准备发送;
   const first = log.事件[0];
   if (!pending || !first || first.类型 !== '消息' || first.发送者 !== 'user') return null;
+  if (first.楼层ID !== pending.楼层ID) return `楼层 ID 不一致（待发送：${pending.楼层ID}；正文：${first.楼层ID}）。`;
   if (first.会话 !== pending.会话) return `会话不一致（待发送：${pending.会话}；正文：${first.会话}）。`;
   if (!confirmableWeChatTime(first.时间, pending.时间))
     return `正文时间早于待发送时间或格式无效（待发送：${pending.时间}；正文：${first.时间}）。`;
@@ -213,7 +230,7 @@ function pendingMismatch(current: 微信数据, log: WeChatLog): string | null {
 }
 
 export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微信数据 {
-  const next = klona(current);
+  const next = normalizeWeChatIds(current);
   for (const log of logs) {
     const confirmsPending = logConfirmsPending(next, log);
     const mismatch = pendingMismatch(next, log);
@@ -234,7 +251,26 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
         if (!session.成员.includes(event.发送者)) throw new Error(`会话 ${event.会话} 包含非成员消息。`);
         if (session.类型 === '私聊' && !mutualFriends(next, session.成员[0], session.成员[1]))
           throw new Error('非好友不能发送普通私聊消息。');
+        if (event.楼层ID !== session.消息.length + 1) throw new Error(`会话 ${event.会话} 的楼层 ID 不连续。`);
+        if (event.引用) {
+          const quoted = session.消息[event.引用.楼层ID - 1];
+          const quotedContent =
+            quoted && isWeChatMessage(quoted)
+              ? event.引用.内容下标 === undefined
+                ? quoted.内容
+                : [quoted.内容[event.引用.内容下标]]
+              : undefined;
+          if (
+            !quoted ||
+            !isWeChatMessage(quoted) ||
+            quoted.发送者 !== event.引用.发送者 ||
+            quoted.时间 !== event.引用.时间 ||
+            JSON.stringify(quotedContent) !== JSON.stringify(event.引用.内容)
+          )
+            throw new Error('引用的楼层 ID 与消息快照不一致。');
+        }
         session.消息.push({
+          楼层ID: event.楼层ID,
           发送者: event.发送者,
           时间: event.时间,
           内容: klona(event.内容),
@@ -250,14 +286,17 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
 }
 
 export function applyWeChatOperation(current: 微信数据, event: OperationEvent): 微信数据 {
+  const next = normalizeWeChatIds(current);
+  event = { ...event, 楼层ID: next.会话[event.会话]?.消息.length + 1 || 1 };
   if (!validEvent(event)) throw new Error('微信操作格式无效。');
-  const next = klona(current);
   applyOperationInPlace(next, event);
   return next;
 }
 
 function applyOperationInPlace(next: 微信数据, event: OperationEvent): void {
   if (!next.账号[event.操作者]) throw new Error('微信操作人不存在。');
+  if (event.楼层ID !== (next.会话[event.会话]?.消息.length ?? 0) + 1)
+    throw new Error(`会话 ${event.会话} 的楼层 ID 不连续。`);
   if (event.操作 === '创建群聊') {
     if (!event.会话.startsWith('群聊:') || next.会话[event.会话]) throw new Error('群聊会话 key 无效或已存在。');
     const session: 微信会话 = { 类型: '群聊', 名称: event.名称, 群主: event.操作者, 成员: [event.操作者], 消息: [] };
@@ -316,22 +355,16 @@ function applyOperationInPlace(next: 微信数据, event: OperationEvent): void 
     session.消息.push(persistOperation(event));
   } else {
     const tag = event.操作 === '领取红包' ? '红包' : '转账';
-    const target = [...session.消息]
-      .reverse()
-      .find(
-        item =>
-          isWeChatMessage(item) &&
-          item.发送者 === event.目标.发送者 &&
-          item.时间 === event.目标.时间 &&
-          item.发送者 !== event.操作者 &&
-          item.内容.some(
-            (part, index) => typeof part === 'string' && part.startsWith(`<${tag} `) && !item.特殊内容状态?.[index],
-          ),
-      );
+    const target = session.消息[event.目标.楼层ID - 1];
     if (!target || !isWeChatMessage(target)) throw new Error('款项目标不存在或已经处理。');
-    const index = target.内容.findIndex(
-      (part, index) => typeof part === 'string' && part.startsWith(`<${tag} `) && !target.特殊内容状态?.[index],
-    );
+    const index = event.目标.内容下标;
+    if (
+      target.发送者 === event.操作者 ||
+      typeof target.内容[index] !== 'string' ||
+      !target.内容[index].startsWith(`<${tag} `) ||
+      target.特殊内容状态?.[index]
+    )
+      throw new Error('款项目标不存在或已经处理。');
     target.特殊内容状态 = {
       ...target.特殊内容状态,
       [index]: event.操作 === '领取红包' ? '已领取' : event.操作 === '领取转账' ? '已收款' : '已退回',
@@ -346,6 +379,7 @@ function mutualFriends(data: 微信数据, a: string, b: string): boolean {
 
 function persistOperation(event: OperationEvent): 微信操作 {
   return {
+    楼层ID: event.楼层ID,
     时间: event.时间,
     操作: event.操作,
     操作者: event.操作者,
@@ -355,29 +389,25 @@ function persistOperation(event: OperationEvent): 微信操作 {
   } as 微信操作;
 }
 
-export function logMessagesPresent(current: 微信数据, logs: WeChatLog[]): boolean {
-  return logs.every(log =>
-    log.事件.every(item => {
-      if (item.类型 === '消息') {
-        const messages = current.会话[item.会话]?.消息 ?? [];
-        return messages.some(
-          message =>
-            isWeChatMessage(message) &&
-            message.发送者 === item.发送者 &&
-            message.时间 === item.时间 &&
-            JSON.stringify(message.内容) === JSON.stringify(item.内容) &&
-            JSON.stringify(message.引用) === JSON.stringify(item.引用),
-        );
-      }
-      return (current.会话[item.会话]?.消息 ?? []).some(
-        entry =>
-          !isWeChatMessage(entry) &&
-          entry.操作 === item.操作 &&
-          entry.时间 === item.时间 &&
-          entry.操作者 === item.操作者 &&
-          JSON.stringify(entry.目标) === JSON.stringify(item.目标),
-      );
-    }),
+function logEventMatchesItem(event: WeChatLog['事件'][number], item: 微信消息流项): boolean {
+  if (event.类型 === '消息')
+    return (
+      isWeChatMessage(item) &&
+      (event.楼层ID === undefined || item.楼层ID === event.楼层ID) &&
+      item.发送者 === event.发送者 &&
+      item.时间 === event.时间 &&
+      JSON.stringify(item.内容) === JSON.stringify(event.内容) &&
+      JSON.stringify(item.引用) === JSON.stringify(event.引用)
+    );
+  return (
+    !isWeChatMessage(item) &&
+    (event.楼层ID === undefined || item.楼层ID === event.楼层ID) &&
+    item.操作 === event.操作 &&
+    item.时间 === event.时间 &&
+    item.操作者 === event.操作者 &&
+    JSON.stringify(item.目标) === JSON.stringify(event.目标) &&
+    item.验证消息 === event.验证消息 &&
+    item.名称 === event.名称
   );
 }
 

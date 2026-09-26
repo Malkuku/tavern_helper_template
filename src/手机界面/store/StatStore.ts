@@ -9,9 +9,9 @@ import {
   applyWeChatOperation,
   applyWeChatLogs,
   decideFriendRequest,
-  logMessagesPresent,
   logConfirmsPending,
   mergeStickerSnapshot,
+  normalizeWeChatIds,
   parseWeChatLogs,
   privateChatKey,
   sendFriendRequest,
@@ -64,7 +64,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  async function sendWeChatMessage(conversation: string, content: 微信消息内容[], quote?: 微信消息) {
+  async function sendWeChatMessage(
+    conversation: string,
+    content: 微信消息内容[],
+    quote?: 微信消息 & { 内容下标?: number },
+  ) {
     const generation = chatGeneration;
     await updateWeChat((current, stat) => {
       if (current.准备发送) throw new Error('上一条微信仍在等待生成，请先重试或等待完成。');
@@ -90,12 +94,23 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         )
           throw new Error('目标私聊不存在或对方不是好友。');
       }
-      const wechat = klona(current);
+      const wechat = normalizeWeChatIds(current);
       wechat.准备发送 = {
+        楼层ID: (wechat.会话[conversation]?.消息.length ?? 0) + 1,
         会话: conversation,
         时间: worldTime,
         内容: klona(content),
-        ...(quote ? { 引用: { 发送者: quote.发送者, 时间: quote.时间, 内容: klona(quote.内容) } } : {}),
+        ...(quote
+          ? {
+              引用: {
+                楼层ID: quote.楼层ID,
+                ...(quote.内容下标 === undefined ? {} : { 内容下标: quote.内容下标 }),
+                发送者: quote.发送者,
+                时间: quote.时间,
+                内容: klona(quote.内容),
+              },
+            }
+          : {}),
       };
       return wechat;
     });
@@ -186,39 +201,30 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (!message || message.role !== 'assistant' || !message.message.includes('<WeChatLog>')) return;
     const logs = parseWeChatLogs(message.message);
     if (!logs.length) return;
-    const signature = JSON.stringify(logs);
-    const markers = getVariables({ type: 'chat' })?.magicGirlWeChatAppliedLogs ?? {};
-    const key = String(messageId);
     await waitGlobalInitialized('Mvu');
     if (generation !== chatGeneration) return;
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
     if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，正文增量仍待处理。');
-    if (markers[key] === signature && logMessagesPresent(previous.stat_data.手机.微信, logs)) {
-      if (logs.some(log => logConfirmsPending(previous.stat_data.手机.微信, log))) {
+    const current = normalizeWeChatIds(previous.stat_data.手机.微信);
+    let remaining;
+    try {
+      remaining = unappliedWeChatLogs(current, logs);
+    } catch (error) {
+      throw new Error(`第 ${messageId} 楼的${error instanceof Error ? error.message : '微信日志处理失败'}`);
+    }
+    if (!remaining.length) {
+      if (logs.some(log => logConfirmsPending(current, log))) {
         const data = klona(previous.stat_data) as stat_data;
         data.手机.微信.准备发送 = null;
         await writeStatData(data, previous);
       }
       return;
     }
-    let remaining;
-    try {
-      remaining = unappliedWeChatLogs(previous.stat_data.手机.微信, logs, markers[key]);
-    } catch (error) {
-      throw new Error(`第 ${messageId} 楼的${error instanceof Error ? error.message : '微信日志处理失败'}`);
-    }
     const data = klona(previous.stat_data) as stat_data;
-    data.手机.微信 = applyWeChatLogs(data.手机.微信, remaining);
+    data.手机.微信 = applyWeChatLogs(current, remaining);
     if (generation !== chatGeneration) return;
     await writeStatData(data, previous);
     wechatLogError.value = '';
-    await updateVariablesWith(
-      variables => ({
-        ...variables,
-        magicGirlWeChatAppliedLogs: { ...(variables.magicGirlWeChatAppliedLogs ?? {}), [key]: signature },
-      }),
-      { type: 'chat' },
-    );
   }
 
   function scheduleWeChatLog(messageId?: number) {
@@ -261,6 +267,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     try {
       const data = getVariables({ type: 'message', message_id: -1 })?.stat_data;
       statData.value = data && typeof data === 'object' ? (data as stat_data) : null;
+      if (statData.value?.手机?.微信)
+        statData.value = {
+          ...statData.value,
+          手机: { ...statData.value.手机, 微信: normalizeWeChatIds(statData.value.手机.微信) },
+        };
       if (statData.value?.手机?.微信?.账号?.user?.表情包) scheduleStickerSync();
       if (statData.value && pollingTimer) {
         clearInterval(pollingTimer);

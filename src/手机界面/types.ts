@@ -193,6 +193,7 @@ export interface 微信账号 {
 }
 
 export interface 微信消息 {
+  楼层ID: number;
   发送者: 微信账号ID;
   时间: 微信时间;
   /**
@@ -206,6 +207,8 @@ export interface 微信消息 {
 }
 
 export interface 微信引用快照 {
+  楼层ID: number;
+  内容下标?: number;
   发送者: 微信账号ID;
   时间: 微信时间;
   内容: 微信消息内容[];
@@ -233,6 +236,7 @@ export interface 微信转发内容 {
 export type 微信消息内容 = string | 微信转发内容;
 
 export interface 微信操作 {
+  楼层ID: number;
   时间: 微信时间;
   操作:
     | '好友申请'
@@ -245,7 +249,7 @@ export interface 微信操作 {
     | '领取转账'
     | '退回转账';
   操作者: 微信账号ID;
-  目标?: 微信账号ID | { 发送者: 微信账号ID; 时间: 微信时间 };
+  目标?: 微信账号ID | { 楼层ID: number; 内容下标: number };
   验证消息?: string;
   名称?: string;
 }
@@ -263,6 +267,7 @@ export interface 微信会话 {
 
 /** user 在微信界面已经确认、准备发送的一次性暂存内容。成功处理后清空。 */
 export interface 微信准备发送 {
+  楼层ID: number;
   会话: string;
   时间: 微信时间;
   内容: 微信消息内容[];

@@ -146,7 +146,7 @@ export const initialStatDataSchema = z.strictObject({
       ),
       会话: z.record(z.string(), session),
       准备发送: z
-        .strictObject({ 会话: z.string(), 时间: z.string(), 内容: z.array(z.custom<微信消息内容>()) })
+        .strictObject({ 楼层ID: z.number().int().positive(), 会话: z.string(), 时间: z.string(), 内容: z.array(z.custom<微信消息内容>()) })
         .nullable(),
     }),
   }),
