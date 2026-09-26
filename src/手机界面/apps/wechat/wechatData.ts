@@ -53,11 +53,16 @@ function validEvent(value: unknown): value is WeChatLog['好友事件'][number] 
 }
 
 function parseLog(value: unknown): WeChatLog {
-  if (!record(value) || !Array.isArray(value.新增消息) || !Array.isArray(value.好友事件))
-    throw new Error('WeChatLog 缺少新增消息或好友事件数组。');
+  if (
+    !record(value) ||
+    !Array.isArray(value.新增消息) ||
+    (value.好友事件 !== undefined && !Array.isArray(value.好友事件))
+  )
+    throw new Error('WeChatLog 缺少新增消息数组或好友事件格式无效。');
   if (value.清空准备发送 !== undefined && value.清空准备发送 !== true)
     throw new Error('WeChatLog 的清空准备发送只能为 true。');
-  if (!value.好友事件.every(validEvent)) throw new Error('WeChatLog 包含无效好友事件。');
+  const friendEvents = value.好友事件 ?? [];
+  if (!friendEvents.every(validEvent)) throw new Error('WeChatLog 包含无效好友事件。');
   for (const item of value.新增消息) {
     if (!record(item) || typeof item.会话 !== 'string' || !Array.isArray(item.消息) || !item.消息.every(validMessage))
       throw new Error('WeChatLog 包含无效会话消息。');
@@ -73,7 +78,7 @@ function parseLog(value: unknown): WeChatLog {
         throw new Error('WeChatLog 会话信息无效。');
     }
   }
-  return value as WeChatLog;
+  return { ...value, 好友事件: friendEvents } as WeChatLog;
 }
 
 export function parseWeChatLogs(content: string): WeChatLog[] {
@@ -114,22 +119,24 @@ export function contentSummary(content: 微信消息内容[]): string {
     .join(' ');
 }
 
+export function logConfirmsPending(current: 微信数据, log: WeChatLog): boolean {
+  const pending = current.准备发送;
+  const first = log.新增消息.flatMap(item => item.消息.map(message => ({ key: item.会话, message })))[0];
+  return !!(
+    pending &&
+    first &&
+    first.key === pending.会话 &&
+    first.message.发送者 === 'user' &&
+    first.message.时间 === pending.时间 &&
+    JSON.stringify(first.message.内容) === JSON.stringify(pending.内容)
+  );
+}
+
 export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微信数据 {
   const next = klona(current);
   for (const log of logs) {
-    if (log.清空准备发送) {
-      const pending = next.准备发送;
-      const first = log.新增消息.flatMap(item => item.消息.map(message => ({ key: item.会话, message })))[0];
-      if (
-        !pending ||
-        !first ||
-        first.key !== pending.会话 ||
-        first.message.发送者 !== 'user' ||
-        first.message.时间 !== pending.时间 ||
-        JSON.stringify(first.message.内容) !== JSON.stringify(pending.内容)
-      )
-        throw new Error('主动聊天日志中的 user 消息与准备发送不一致。');
-    }
+    const confirmsPending = logConfirmsPending(next, log);
+    if (log.清空准备发送 && !confirmsPending) throw new Error('主动聊天日志中的 user 消息与准备发送不一致。');
     for (const item of log.新增消息) {
       let session = next.会话[item.会话];
       if (!session) {
@@ -159,7 +166,7 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
         }
       }
     }
-    if (log.清空准备发送) next.准备发送 = null;
+    if (confirmsPending) next.准备发送 = null;
   }
   return next;
 }
@@ -199,4 +206,44 @@ export function decideFriendRequest(current: 微信数据, applicantId: string, 
     if (!applicant.好友.includes('user')) applicant.好友.push('user');
   }
   return next;
+}
+
+export function addSticker(current: 微信数据, name: string, source: string): 微信数据 {
+  const user = current.账号.user;
+  if (!user) throw new Error('微信用户账号不存在。');
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('请填写表情包名称。');
+  if (!source.startsWith('data:image/')) throw new Error('请选择图片文件。');
+  if (user.表情包[trimmed]) throw new Error('表情包名称已存在。');
+  const next = klona(current);
+  next.账号.user.表情包[trimmed] = source;
+  return next;
+}
+
+export function mergeStickerSnapshot(
+  current: Record<string, string>,
+  snapshot: unknown,
+): { stickers: Record<string, string>; backup: Record<string, string>; restoreNeeded: boolean; backupNeeded: boolean } {
+  const backup: Record<string, string> = {};
+  if (snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)) {
+    for (const [name, source] of Object.entries(snapshot)) {
+      if (typeof source === 'string' && source.startsWith('data:image/')) backup[name] = source;
+    }
+  }
+  const stickers = { ...current };
+  let restoreNeeded = false;
+  let backupNeeded = false;
+  for (const [name, source] of Object.entries(backup)) {
+    if (!(name in stickers)) {
+      stickers[name] = source;
+      restoreNeeded = true;
+    }
+  }
+  for (const [name, source] of Object.entries(current)) {
+    if (source.startsWith('data:image/') && !(name in backup)) {
+      backup[name] = source;
+      backupNeeded = true;
+    }
+  }
+  return { stickers, backup, restoreNeeded, backupNeeded };
 }

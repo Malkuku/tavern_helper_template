@@ -5,9 +5,12 @@ import { ref } from 'vue';
 import { klona } from 'klona';
 import type { stat_data, 微信数据, 微信消息内容 } from '../types';
 import {
+  addSticker,
   applyWeChatLogs,
   decideFriendRequest,
   logMessagesPresent,
+  logConfirmsPending,
+  mergeStickerSnapshot,
   parseWeChatLogs,
   privateChatKey,
   sendFriendRequest,
@@ -16,10 +19,12 @@ import { reconcileWorldbookStatData } from './worldbookInit';
 
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
+  const wechatLogError = ref('');
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
   let wechatQueue = Promise.resolve();
+  let stickerSyncQueued = false;
 
   function queueWeChatWork<T>(work: () => Promise<T>): Promise<T> {
     const result = wechatQueue.then(work);
@@ -37,7 +42,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refresh();
   }
 
-  async function updateWeChat(updater: (current: 微信数据, data: stat_data) => 微信数据) {
+  async function updateWeChat(
+    updater: (current: 微信数据, data: stat_data) => 微信数据,
+    beforeWrite?: (data: stat_data) => Promise<void>,
+  ) {
     const generation = chatGeneration;
     return queueWeChatWork(async () => {
       await waitGlobalInitialized('Mvu');
@@ -46,6 +54,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，请重新打开手机。');
       const data = klona(previous.stat_data) as stat_data;
       data.手机.微信 = updater(data.手机.微信, data);
+      if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
+      if (beforeWrite) await beforeWrite(data);
       if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
       await writeStatData(data, previous);
     });
@@ -91,6 +101,56 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await updateWeChat(current => decideFriendRequest(current, id, accept));
   }
 
+  async function addWeChatSticker(name: string, source: string) {
+    await updateWeChat(
+      current => addSticker(current, name, source),
+      async data => {
+        const scope = { type: 'script' as const, script_id: getScriptId() };
+        await updateVariablesWith(
+          variables => ({
+            ...variables,
+            magicGirlWeChatStickerSnapshot: mergeStickerSnapshot(
+              data.手机.微信.账号.user.表情包,
+              variables.magicGirlWeChatStickerSnapshot,
+            ).backup,
+          }),
+          scope,
+        );
+      },
+    );
+  }
+
+  async function syncStickerSnapshot() {
+    const generation = chatGeneration;
+    await waitGlobalInitialized('Mvu');
+    if (generation !== chatGeneration) return;
+    const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+    const stickers = previous?.stat_data?.手机?.微信?.账号?.user?.表情包;
+    if (!stickers) return;
+    const scope = { type: 'script' as const, script_id: getScriptId() };
+    const snapshot = getVariables(scope)?.magicGirlWeChatStickerSnapshot;
+    const merged = mergeStickerSnapshot(stickers, snapshot);
+    if (merged.backupNeeded) {
+      await updateVariablesWith(variables => ({ ...variables, magicGirlWeChatStickerSnapshot: merged.backup }), scope);
+    }
+    if (generation !== chatGeneration) return;
+    if (merged.restoreNeeded) {
+      const data = klona(previous.stat_data) as stat_data;
+      data.手机.微信.账号.user.表情包 = merged.stickers;
+      await writeStatData(data, previous);
+    }
+  }
+
+  function scheduleStickerSync() {
+    if (stickerSyncQueued) return;
+    stickerSyncQueued = true;
+    void queueWeChatWork(syncStickerSnapshot)
+      .catch(error => console.error('微信表情包备份同步失败', error))
+      .finally(() => {
+        stickerSyncQueued = false;
+      });
+  }
+
   async function processWeChatMessage(messageId: number, generation: number) {
     if (generation !== chatGeneration) return;
     const message = getChatMessages(messageId)[0];
@@ -104,7 +164,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) return;
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
     if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，正文增量仍待处理。');
-    if (markers[key] === signature && logMessagesPresent(previous.stat_data.手机.微信, logs)) return;
+    if (markers[key] === signature && logMessagesPresent(previous.stat_data.手机.微信, logs)) {
+      if (logs.some(log => logConfirmsPending(previous.stat_data.手机.微信, log))) {
+        const data = klona(previous.stat_data) as stat_data;
+        data.手机.微信.准备发送 = null;
+        await writeStatData(data, previous);
+      }
+      return;
+    }
     if (markers[key] && markers[key] !== signature) {
       const oldLogs = JSON.parse(markers[key]);
       if (logMessagesPresent(previous.stat_data.手机.微信, oldLogs))
@@ -114,6 +181,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     data.手机.微信 = applyWeChatLogs(data.手机.微信, logs);
     if (generation !== chatGeneration) return;
     await writeStatData(data, previous);
+    wechatLogError.value = '';
     updateVariablesWith(
       variables => ({
         ...variables,
@@ -128,7 +196,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     void queueWeChatWork(async () => {
       const id = messageId ?? getLastMessageId();
       if (id >= 0) await processWeChatMessage(id, generation);
-    }).catch(error => console.error('微信正文增量处理失败', error));
+    }).catch(error => {
+      wechatLogError.value = error instanceof Error ? error.message : '微信正文增量处理失败';
+      console.error('微信正文增量处理失败', error);
+    });
   }
 
   async function checkWorldbook() {
@@ -162,6 +233,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     try {
       const data = getVariables({ type: 'message', message_id: -1 })?.stat_data;
       statData.value = data && typeof data === 'object' ? (data as stat_data) : null;
+      if (statData.value?.手机?.微信?.账号?.user?.表情包) scheduleStickerSync();
       if (statData.value && pollingTimer) {
         clearInterval(pollingTimer);
         pollingTimer = undefined;
@@ -185,6 +257,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function resetForChat() {
     chatGeneration++;
     statData.value = null;
+    wechatLogError.value = '';
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     scheduleRefresh();
@@ -231,6 +304,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   return {
     statData,
+    wechatLogError,
     refresh,
     initialize,
     checkWorldbook,
@@ -240,5 +314,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     retryWeChatSend,
     requestWeChatFriend,
     respondWeChatFriend,
+    addWeChatSticker,
   };
 });

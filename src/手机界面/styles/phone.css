@@ -340,6 +340,14 @@
   height: 100%;
   background: #ededed;
 }
+.phone-screen:has(.wechat) .status-bar {
+  background: #f7f7f7;
+  color: #191919;
+}
+.phone-screen:has(.wechat.wx-dark) .status-bar {
+  background: #111;
+  color: #d3d3d3;
+}
 .data-app-screen {
   position: relative;
   height: 100%;
@@ -513,6 +521,28 @@
 .app-screen ~ .home-indicator,
 .wechat-screen ~ .home-indicator {
   background: #16191f;
+}
+.phone-screen:has(.wechat.wx-dark) .home-indicator {
+  background: #d3d3d3;
+}
+.status-home {
+  position: absolute;
+  left: 83px;
+  top: 11px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border: 0;
+  border-radius: 7px;
+  background: #8882;
+  color: inherit;
+  cursor: pointer;
+}
+.status-home svg {
+  width: 20px;
+  height: 20px;
 }
 @media (max-width: 600px) {
   .phone-frame {

@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
+  addSticker,
   applyWeChatLogs,
   chatTitle,
   contentSummary,
   decideFriendRequest,
   logMessagesPresent,
+  logConfirmsPending,
+  mergeStickerSnapshot,
   parseWeChatLogs,
   privateChatKey,
   sendFriendRequest,
@@ -72,4 +75,30 @@ assert.throws(() => parseWeChatLogs('<WeChatLog>{}</WeChatLog>'));
 assert.throws(() => parseWeChatLogs('<WeChatLog>{'));
 assert.throws(() => applyWeChatLogs({ ...initial, 准备发送: { ...initial.准备发送!, 内容: ['不同内容'] } }, logs));
 assert.equal(initial.准备发送?.内容[0], '我到了。');
+const received = parseWeChatLogs(
+  `<WeChatLog>{"新增消息":[{"会话":"私聊:user&凛","会话信息":{"类型":"私聊","成员":["user","凛"]},"消息":[{"发送者":"user","时间":"2026-09-26T03:10[6]","内容":["你好？"]},{"发送者":"凛","时间":"2026-09-26T03:12[6]","内容":["你好。","请问有什么事吗？"]}]}]}</WeChatLog>`,
+);
+assert.deepEqual(received[0].好友事件, []);
+const receivedData = applyWeChatLogs({ ...initial, 准备发送: null }, received);
+assert.equal(receivedData.会话['私聊:user&凛'].消息.length, 2);
+const awaiting = {
+  ...initial,
+  准备发送: { 会话: '私聊:user&凛', 时间: '2026-09-26T03:10[6]', 内容: ['你好？'] },
+};
+assert.equal(logConfirmsPending(awaiting, received[0]), true);
+const confirmed = applyWeChatLogs(awaiting, received);
+assert.equal(confirmed.准备发送, null);
+assert.equal(confirmed.会话['私聊:user&凛'].消息.length, 2);
+assert.equal(initial.准备发送?.内容[0], '我到了。');
+const stickerData = addSticker(initial, '挥手', 'data:image/png;base64,dGVzdA==');
+assert.equal(stickerData.账号.user.表情包.挥手, 'data:image/png;base64,dGVzdA==');
+assert.equal(initial.账号.user.表情包.挥手, undefined);
+assert.throws(() => addSticker(stickerData, '挥手', 'data:image/png;base64,dGVzdA=='));
+const missingSticker = mergeStickerSnapshot({}, stickerData.账号.user.表情包);
+assert.equal(missingSticker.restoreNeeded, true);
+assert.equal(missingSticker.stickers.挥手, 'data:image/png;base64,dGVzdA==');
+const newBackup = mergeStickerSnapshot(stickerData.账号.user.表情包, undefined);
+assert.equal(newBackup.backupNeeded, true);
+assert.equal(newBackup.backup.挥手, 'data:image/png;base64,dGVzdA==');
+assert.equal(mergeStickerSnapshot(stickerData.账号.user.表情包, newBackup.backup).restoreNeeded, false);
 console.log('微信正文增量与好友流程验证通过');

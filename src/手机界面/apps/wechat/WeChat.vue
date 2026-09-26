@@ -1,35 +1,31 @@
 <template>
-  <div class="wechat">
+  <div class="wechat" :class="{ 'wx-dark': darkMode }">
+    <p v-if="store.wechatLogError" class="wx-log-error" role="alert">微信消息同步失败：{{ store.wechatLogError }}</p>
     <template v-if="selectedSession && selectedKey">
-      <header class="wx-header">
+      <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回微信" @click="selectedKey = null">‹</button>
         <strong>{{ selectedTitle }}</strong>
-        <small v-if="selectedSession.类型 === '群聊'" class="wx-header-side"
-          >{{ selectedSession.成员.length }} 人</small
-        >
+        <button class="wx-chat-more" type="button" aria-label="聊天详情" @click="showUnavailable('聊天详情')">
+          •••
+        </button>
       </header>
       <div ref="messagesElement" class="wx-messages">
         <p v-if="!selectedSession.消息.length && !pending" class="wx-empty">还没有消息，发一条开始聊天。</p>
-        <div
-          v-for="(message, index) in selectedSession.消息"
-          :key="index"
-          class="wx-message"
-          :class="{ mine: message.发送者 === 'user' }"
-        >
-          <WeChatAvatar :id="message.发送者" :accounts="accounts" />
-          <div class="wx-message-main">
-            <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
-              accounts[message.发送者]?.昵称 || message.发送者
-            }}</small>
-            <div class="wx-bubble">
-              <WeChatMessageContent :items="message.内容" :accounts="accounts" :sender="message.发送者" />
-            </div>
-            <div class="wx-message-meta">
-              <time>{{ displayTime(message.时间) }}</time
-              ><button type="button" @click="quoteMessage(message)">引用</button>
+        <template v-for="(message, index) in selectedSession.消息" :key="index">
+          <time v-if="showMessageTime(index)" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
+          <div class="wx-message" :class="{ mine: message.发送者 === 'user' }">
+            <WeChatAvatar :id="message.发送者" :accounts="accounts" />
+            <div class="wx-message-main">
+              <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
+                accounts[message.发送者]?.昵称 || message.发送者
+              }}</small>
+              <div class="wx-bubble">
+                <WeChatMessageContent :items="message.内容" :accounts="accounts" :sender="message.发送者" />
+              </div>
+              <div class="wx-message-meta"><button type="button" @click="quoteMessage(message)">引用</button></div>
             </div>
           </div>
-        </div>
+        </template>
         <div v-if="pending" class="wx-message mine wx-pending">
           <WeChatAvatar id="user" :accounts="accounts" />
           <div class="wx-message-main">
@@ -39,41 +35,66 @@
             <small>等待正文确认 · <button type="button" @click="retrySend">重试生成</button></small>
           </div>
         </div>
+        <div v-if="pending && generating" class="wx-typing">
+          <span class="wx-typing-dots"><i></i><i></i><i></i></span>对方正在输入中...
+        </div>
       </div>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       <div v-if="quoted" class="wx-compose-quote">
         <span>引用 {{ accounts[quoted.发送者]?.昵称 || quoted.发送者 }}：{{ contentSummary(quoted.内容) }}</span>
         <button type="button" aria-label="取消引用" @click="quoted = null">×</button>
       </div>
-      <div v-if="stickerOpen && stickerNames.length" class="wx-sticker-picker">
+      <div v-if="stickerOpen" class="wx-sticker-picker">
+        <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加图片后就能在聊天中发送。</p>
         <button
           v-for="name in stickerNames"
           :key="name"
+          class="wx-sticker-choice"
           type="button"
           :disabled="!!pending || sending || !worldTime"
           @click="sendSticker(name)"
         >
-          {{ name }}
+          <img :src="self?.表情包[name]" :alt="name" /><small>{{ name }}</small>
         </button>
+        <button class="wx-sticker-add" type="button" @click="stickerFileInput?.click()">
+          <WeChatIcon name="plus" />添加表情包
+        </button>
+        <input ref="stickerFileInput" class="wx-hidden-file" type="file" accept="image/*" @change="readStickerFile" />
+        <form v-if="newStickerSource" class="wx-sticker-form" @submit.prevent="saveSticker">
+          <img :src="newStickerSource" alt="新表情包预览" />
+          <input v-model="newStickerName" aria-label="表情包名称" maxlength="30" placeholder="给表情包起个名字" />
+          <button type="submit" :disabled="savingSticker">保存</button>
+        </form>
       </div>
       <form class="wx-compose" @submit.prevent="sendMessage">
-        <button
-          class="wx-compose-sticker"
-          type="button"
-          aria-label="选择表情包"
-          :disabled="!stickerNames.length"
-          @click="stickerOpen = !stickerOpen"
-        >
-          ☺
+        <button class="wx-compose-voice" type="button" aria-label="语音" @click="showUnavailable('语音')">
+          <WeChatIcon name="voice" />
         </button>
         <input
           v-model="draft"
           aria-label="输入消息"
-          :placeholder="worldTime ? '发送消息' : '世界时间未设置'"
+          :placeholder="worldTime ? '' : '世界时间未设置'"
           :disabled="!!pending || sending || !worldTime"
         />
-        <button type="submit" :disabled="!draft.trim() || !!pending || sending || !worldTime">发送</button>
+        <button class="wx-compose-sticker" type="button" aria-label="选择表情包" @click="stickerOpen = !stickerOpen">
+          <WeChatIcon name="emoji" />
+        </button>
+        <button v-if="draft.trim()" type="submit" :disabled="!!pending || sending || !worldTime">发送</button>
+        <button
+          v-else
+          class="wx-compose-plus"
+          type="button"
+          aria-label="更多聊天功能"
+          @click="extrasOpen = !extrasOpen"
+        >
+          <WeChatIcon name="plus" />
+        </button>
       </form>
+      <div v-if="extrasOpen" class="wx-chat-extras">
+        <button v-for="item in extraActions" :key="item.label" type="button" @click="showUnavailable(item.label)">
+          <span><WeChatIcon :name="item.icon" /></span>{{ item.label }}
+        </button>
+      </div>
     </template>
 
     <template v-else-if="subPage === 'requests'">
@@ -136,22 +157,27 @@
     </template>
 
     <template v-else>
-      <header class="wx-header">
-        <strong>{{ tabs.find(item => item.id === tab)?.label }}</strong>
-        <button
-          v-if="tab === 'contacts'"
-          class="wx-header-side wx-add-button"
-          type="button"
-          aria-label="添加朋友"
-          @click="subPage = 'add'"
-        >
-          ＋
-        </button>
+      <header v-if="tab !== 'me'" class="wx-header wx-main-header">
+        <strong>{{
+          tab === 'chats' ? `微信${chats.length ? `(${chats.length})` : ''}` : tabs.find(item => item.id === tab)?.label
+        }}</strong>
+        <div class="wx-header-actions">
+          <button type="button" aria-label="搜索" @click="searchOpen = !searchOpen">
+            <WeChatIcon name="search" />
+          </button>
+          <button
+            type="button"
+            :aria-label="tab === 'contacts' ? '添加朋友' : '更多'"
+            @click="tab === 'contacts' ? (subPage = 'add') : showUnavailable('更多功能')"
+          >
+            <WeChatIcon name="plus" />
+          </button>
+        </div>
       </header>
       <div class="wx-body" :class="{ 'wx-me-body': tab === 'me' }">
         <template v-if="!wechat"><p class="wx-empty">当前楼层尚无微信数据，请重新打开手机完成初始化。</p></template>
         <template v-else-if="tab === 'chats'">
-          <label class="wx-search"
+          <label v-if="searchOpen" class="wx-search"
             ><span>⌕</span><input v-model="query" aria-label="搜索聊天" placeholder="搜索会话"
           /></label>
           <button
@@ -172,15 +198,24 @@
           <p v-if="!visibleChats.length" class="wx-empty">暂无会话，可从通讯录选择好友开始聊天。</p>
         </template>
         <template v-else-if="tab === 'contacts'">
-          <label class="wx-search"
+          <label v-if="searchOpen" class="wx-search"
             ><span>⌕</span><input v-model="query" aria-label="搜索联系人" placeholder="搜索好友"
           /></label>
-          <button class="wx-list-row wx-group-row" type="button" @click="subPage = 'requests'">
-            <span class="wx-feature-icon moments">✉</span><strong>朋友申请</strong>
-            <span v-if="incomingRequests.length" class="wx-count">{{ incomingRequests.length }}</span
-            ><span class="wx-chevron">›</span>
+          <button class="wx-list-row wx-contact-feature" type="button" @click="subPage = 'requests'">
+            <span class="wx-feature-icon orange"><WeChatIcon name="new-friend" /></span><strong>新的朋友</strong>
+            <span v-if="incomingRequests.length" class="wx-count">{{ incomingRequests.length }}</span>
           </button>
-          <div class="wx-section-label">联系人 · {{ contacts.length }}</div>
+          <button
+            v-for="item in contactFeatures"
+            :key="item.label"
+            class="wx-list-row wx-contact-feature"
+            type="button"
+            @click="showUnavailable(item.label)"
+          >
+            <span class="wx-feature-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
+            ><strong>{{ item.label }}</strong>
+          </button>
+          <div class="wx-section-label">{{ contacts.length ? '好友' : '暂无好友' }}</div>
           <button
             v-for="[id, account] in visibleContacts"
             :key="id"
@@ -188,33 +223,45 @@
             type="button"
             @click="openContact(id)"
           >
-            <WeChatAvatar :id="id" :accounts="accounts" /><strong>{{ account.昵称 || id }}</strong
-            ><span class="wx-chevron">›</span>
+            <WeChatAvatar :id="id" :accounts="accounts" /><strong>{{ account.昵称 || id }}</strong>
           </button>
-          <p v-if="!contacts.length" class="wx-empty">暂无好友</p>
         </template>
         <template v-else-if="tab === 'discover'">
-          <div class="wx-section-label">发现</div>
-          <div class="wx-list-row">
-            <span class="wx-feature-icon moments">▦</span><strong>朋友圈</strong><span class="wx-muted">暂无数据</span>
+          <div v-for="(group, index) in discoverGroups" :key="index" class="wx-menu-group">
+            <button
+              v-for="item in group"
+              :key="item.label"
+              class="wx-list-row wx-menu-row"
+              type="button"
+              @click="showUnavailable(item.label)"
+            >
+              <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
+              ><strong>{{ item.label }}</strong
+              ><WeChatIcon class="wx-row-chevron" name="chevron" />
+            </button>
           </div>
-          <p class="wx-empty">朋友圈、视频号和小程序尚无对应变量数据。</p>
         </template>
         <template v-else>
-          <div class="wx-profile">
+          <button class="wx-profile" type="button" @click="showUnavailable('个人信息')">
             <WeChatAvatar id="user" :accounts="accounts" />
             <div>
               <strong>{{ self?.昵称 || '我' }}</strong
-              ><small>微信号：user</small>
+              ><small>微信号：{{ self?.昵称 || 'user' }}</small>
             </div>
-          </div>
-          <div class="wx-list-row">
-            <span class="wx-feature-icon favorite">☆</span><strong>好友</strong
-            ><span class="wx-muted">{{ self?.好友?.length || 0 }} 人</span>
-          </div>
-          <div class="wx-list-row">
-            <span class="wx-feature-icon settings">⌕</span><strong>会话</strong
-            ><span class="wx-muted">{{ chats.length }} 个</span>
+            <WeChatIcon class="wx-row-chevron" name="chevron" />
+          </button>
+          <div v-for="(group, index) in meGroups" :key="index" class="wx-menu-group">
+            <button
+              v-for="item in group"
+              :key="item.label"
+              class="wx-list-row wx-menu-row"
+              type="button"
+              @click="showUnavailable(item.label)"
+            >
+              <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
+              ><strong>{{ item.label }}</strong
+              ><WeChatIcon class="wx-row-chevron" name="chevron" />
+            </button>
           </div>
         </template>
       </div>
@@ -226,29 +273,148 @@
           :class="{ selected: tab === item.id }"
           @click="selectTab(item.id)"
         >
-          <span class="wx-tab-icon">{{ item.icon }}</span
-          ><small>{{ item.label }}</small>
+          <span class="wx-tab-icon"><WeChatIcon :name="item.id" /></span><small>{{ item.label }}</small>
         </button>
       </nav>
     </template>
+    <div v-if="unavailable" class="wx-dialog-backdrop" @click.self="unavailable = ''">
+      <div class="wx-dialog" role="alertdialog" aria-modal="true">
+        <p>{{ unavailable }}暂未开放</p>
+        <button type="button" @click="unavailable = ''">知道了</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容 } from '../../types';
 import { chatTitle, contentSummary, privateChatKey } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
+import WeChatIcon from './WeChatIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 
 type Tab = 'chats' | 'contacts' | 'discover' | 'me';
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'chats', label: '微信', icon: '◉' },
-  { id: 'contacts', label: '通讯录', icon: '♟' },
-  { id: 'discover', label: '发现', icon: '◈' },
-  { id: 'me', label: '我', icon: '◯' },
+const tabs: { id: Tab; label: string }[] = [
+  { id: 'chats', label: '微信' },
+  { id: 'contacts', label: '通讯录' },
+  { id: 'discover', label: '发现' },
+  { id: 'me', label: '我' },
 ];
+const contactFeatures = [
+  { label: '仅聊天的朋友', icon: 'contacts', color: 'orange' },
+  { label: '群聊', icon: 'group', color: 'green' },
+  { label: '标签', icon: 'tag', color: 'blue' },
+  { label: '公众号', icon: 'book', color: 'blue' },
+  { label: '服务号', icon: 'book', color: 'cyan' },
+];
+const discoverGroups = [
+  [{ label: '朋友圈', icon: 'moments', color: 'multi' }],
+  [
+    { label: '视频号', icon: 'video', color: 'orange-text' },
+    { label: '直播', icon: 'live', color: 'red' },
+  ],
+  [
+    { label: '扫一扫', icon: 'scan', color: 'blue-text' },
+    { label: '听一听', icon: 'music', color: 'red' },
+  ],
+  [
+    { label: '看一看', icon: 'look', color: 'gold' },
+    { label: '搜一搜', icon: 'search', color: 'red' },
+  ],
+  [{ label: '附近的人', icon: 'people', color: 'blue-text' }],
+  [{ label: '游戏', icon: 'discover', color: 'multi' }],
+  [{ label: '小程序', icon: 'discover', color: 'purple' }],
+];
+const meGroups = [
+  [{ label: '服务', icon: 'chats', color: 'green-text' }],
+  [
+    { label: '收藏', icon: 'look', color: 'multi' },
+    { label: '朋友圈', icon: 'moments', color: 'blue-text' },
+    { label: '作品', icon: 'video', color: 'blue-text' },
+    { label: '小店与卡包', icon: 'tag', color: 'red' },
+    { label: '表情', icon: 'discover', color: 'gold' },
+  ],
+  [{ label: '设置', icon: 'settings', color: 'blue-text' }],
+];
+const darkMode = ref(false);
+const unavailable = ref('');
+const searchOpen = ref(false);
+const generating = ref(false);
+const extrasOpen = ref(false);
+const extraActions = [
+  { label: '相册', icon: 'photo' },
+  { label: '拍摄', icon: 'camera' },
+  { label: '视频通话', icon: 'video-call' },
+  { label: '位置', icon: 'location' },
+  { label: '红包', icon: 'redpacket' },
+  { label: '礼物', icon: 'gift' },
+  { label: '转账', icon: 'transfer' },
+  { label: '收藏', icon: 'favorite' },
+];
+const stickerFileInput = ref<HTMLInputElement>();
+const newStickerName = ref('');
+const newStickerSource = ref('');
+const savingSticker = ref(false);
+async function readStickerFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  error.value = '';
+  try {
+    newStickerSource.value = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error ?? new Error('无法读取图片。'));
+      reader.readAsDataURL(file);
+    });
+    newStickerName.value = file.name.replace(/\.[^.]+$/, '');
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '无法读取图片。';
+  } finally {
+    input.value = '';
+  }
+}
+async function saveSticker() {
+  if (!newStickerSource.value || savingSticker.value) return;
+  savingSticker.value = true;
+  error.value = '';
+  try {
+    await store.addWeChatSticker(newStickerName.value, newStickerSource.value);
+    newStickerName.value = '';
+    newStickerSource.value = '';
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '保存表情包失败。';
+  } finally {
+    savingSticker.value = false;
+  }
+}
+function showUnavailable(label: string) {
+  unavailable.value = label;
+}
+function syncTheme() {
+  darkMode.value = getVariables({ type: 'script', script_id: getScriptId() })?.darkMode === true;
+}
+onMounted(() => {
+  syncTheme();
+  eventOn('mag_variable_update_ended', syncTheme);
+  eventOn(tavern_events.GENERATION_STARTED, onGenerationStart);
+  eventOn(tavern_events.GENERATION_ENDED, onGenerationEnd);
+  eventOn(tavern_events.GENERATION_STOPPED, onGenerationEnd);
+});
+onUnmounted(() => {
+  eventRemoveListener('mag_variable_update_ended', syncTheme);
+  eventRemoveListener(tavern_events.GENERATION_STARTED, onGenerationStart);
+  eventRemoveListener(tavern_events.GENERATION_ENDED, onGenerationEnd);
+  eventRemoveListener(tavern_events.GENERATION_STOPPED, onGenerationEnd);
+});
+function onGenerationStart() {
+  generating.value = true;
+}
+function onGenerationEnd() {
+  generating.value = false;
+}
 const store = useMagicGirlStatStore();
 const wechat = computed(() => store.statData?.手机?.微信);
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
@@ -324,9 +490,18 @@ const messagesElement = ref<HTMLElement>();
 function displayTime(value: string): string {
   return value.match(/T(\d{1,2}:\d{2})/)?.[1] || value;
 }
+function showMessageTime(index: number): boolean {
+  const messages = selectedSession.value?.消息;
+  if (!messages || index === 0) return true;
+  const current = messages[index].时间.match(/T(\d{1,2}):(\d{2})/);
+  const previous = messages[index - 1].时间.match(/T(\d{1,2}):(\d{2})/);
+  if (!current || !previous) return false;
+  return Number(current[1]) * 60 + Number(current[2]) - (Number(previous[1]) * 60 + Number(previous[2])) >= 5;
+}
 function selectTab(next: Tab) {
   tab.value = next;
   query.value = '';
+  searchOpen.value = false;
   error.value = '';
 }
 function openChat(key: string) {
@@ -334,6 +509,7 @@ function openChat(key: string) {
   draft.value = '';
   quoted.value = null;
   stickerOpen.value = false;
+  extrasOpen.value = false;
   error.value = '';
   scrollBottom();
 }

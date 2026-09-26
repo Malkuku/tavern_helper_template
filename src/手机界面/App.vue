@@ -42,6 +42,27 @@
               @pointercancel="endDrag"
               >{{ time }}</span
             >
+            <button
+              v-if="activeApp"
+              class="status-home"
+              type="button"
+              aria-label="返回手机桌面"
+              title="返回手机桌面"
+              @click="activeApp = null"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" />
+                <path d="M9 21v-7h6v7" />
+              </svg>
+            </button>
             <span class="dynamic-island" aria-hidden="true"></span>
             <button
               class="control-trigger"
@@ -85,7 +106,13 @@
             @power-off="closePhone"
           />
 
-          <button class="home-indicator" type="button" aria-label="返回桌面" @click="activeApp = null"></button>
+          <button
+            v-if="!activeApp"
+            class="home-indicator"
+            type="button"
+            aria-label="返回桌面"
+            @click="activeApp = null"
+          ></button>
         </div>
       </div>
     </div>
