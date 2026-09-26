@@ -3,7 +3,7 @@ import { KatEvents } from '@/Constants/KatEvent';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { klona } from 'klona';
-import type { stat_data, 微信数据, 微信消息内容 } from '../types';
+import type { stat_data, 微信数据, 微信消息, 微信消息内容 } from '../types';
 import {
   addSticker,
   applyWeChatOperation,
@@ -63,7 +63,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  async function sendWeChatMessage(conversation: string, content: 微信消息内容[]) {
+  async function sendWeChatMessage(conversation: string, content: 微信消息内容[], quote?: 微信消息) {
     const generation = chatGeneration;
     await updateWeChat((current, stat) => {
       if (current.准备发送) throw new Error('上一条微信仍在等待生成，请先重试或等待完成。');
@@ -72,6 +72,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const session = current.会话[conversation];
       if (session) {
         if (!session.成员.includes('user')) throw new Error('不能从 user 手机向非本人会话发送消息。');
+        if (
+          session.类型 === '私聊' &&
+          !session.成员.every(
+            id => id === 'user' || (current.账号.user?.好友.includes(id) && current.账号[id]?.好友.includes('user')),
+          )
+        )
+          throw new Error('非好友不能发送普通私聊消息。');
       } else {
         const other = conversation.startsWith('私聊:user&') ? conversation.slice('私聊:user&'.length) : '';
         if (
@@ -83,7 +90,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           throw new Error('目标私聊不存在或对方不是好友。');
       }
       const wechat = klona(current);
-      wechat.准备发送 = { 会话: conversation, 时间: worldTime, 内容: klona(content) };
+      wechat.准备发送 = {
+        会话: conversation,
+        时间: worldTime,
+        内容: klona(content),
+        ...(quote ? { 引用: { 发送者: quote.发送者, 时间: quote.时间, 内容: klona(quote.内容) } } : {}),
+      };
       return wechat;
     });
     if (generation !== chatGeneration) throw new Error('聊天已切换，请返回原聊天重试发送。');
@@ -96,11 +108,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function requestWeChatFriend(id: string, message: string) {
-    await updateWeChat(current => sendFriendRequest(current, id, message));
+    await updateWeChat((current, data) => {
+      if (!data.世界?.时间) throw new Error('世界时间尚未设置，无法申请好友。');
+      return sendFriendRequest(current, id, message, data.世界.时间);
+    });
   }
 
   async function respondWeChatFriend(id: string, accept: boolean) {
-    await updateWeChat(current => decideFriendRequest(current, id, accept));
+    await updateWeChat((current, data) => {
+      if (!data.世界?.时间) throw new Error('世界时间尚未设置，无法处理好友申请。');
+      return decideFriendRequest(current, id, accept, data.世界.时间);
+    });
   }
 
   async function performWeChatOperation(event: OperationEvent) {

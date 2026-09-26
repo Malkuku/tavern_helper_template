@@ -9,6 +9,7 @@ const tag = (path: string, type: string, value: string, dynamic = false) =>
   `<JSON path="$.${path}" type="${type}"${dynamic ? ' dynamic="true"' : ''}>\n${value}\n</JSON>`;
 const entries = [
   entry('当前世界书版本', 'version: 2.0.0'),
+  entry('StatData', JSON.stringify({ 世界: { 时间: '2026-09-26T03:10[6]' } })),
   entry('[initvar]', tag('系统', 'json', '{"商店主动刷新次数":0}', true)),
   entry(
     '<人设配置>user',
@@ -28,6 +29,7 @@ const entries = [
 const old = {
   系统: { 版本: '1.0.0', 商店主动刷新次数: 5, 商店待刷新: true },
   角色: { user: { 基础信息: { 身份: '旧版身份' }, 金钱: 999 }, 主要角色: {} },
+  世界: { 时间: '2026-09-26T03:10[6]' },
 };
 const upgraded = reconcileWorldbookStatData(old, entries);
 assert.equal(upgraded.data.角色.user.基础信息, '身份：旧版身份');
@@ -43,14 +45,29 @@ assert.deepEqual(upgraded.data.角色.主要角色.新人物, {
 assert.equal(upgraded.data.系统.版本, '2.0.0');
 assert.deepEqual(upgraded.data.手机.微信, {
   账号: {
-    user: { 昵称: '我', 头像: '', 表情包: {}, 好友: ['新人物'], 好友请求: { 收到: {}, 发出: {} } },
-    新人物: { 昵称: '新人物', 头像: '', 表情包: {}, 好友: ['user'], 好友请求: { 收到: {}, 发出: {} } },
+    user: { 昵称: '我', 头像: '', 表情包: {}, 好友: ['新人物'] },
+    新人物: { 昵称: '新人物', 头像: '', 表情包: {}, 好友: ['user'] },
   },
   会话: {},
   准备发送: null,
 });
 assert.equal(old.系统.版本, '1.0.0');
 assert.equal(reconcileWorldbookStatData(upgraded.data, entries).changed, false);
+
+const legacyRequest = structuredClone(upgraded.data);
+legacyRequest.手机.微信.账号.user.好友请求 = { 收到: {}, 发出: { 陌生人: { 验证消息: '加好友' } } };
+legacyRequest.手机.微信.账号.陌生人 = {
+  昵称: '陌生人',
+  头像: '',
+  表情包: {},
+  好友: [],
+  好友请求: { 收到: { user: { 验证消息: '加好友' } }, 发出: {} },
+};
+const migrated = reconcileWorldbookStatData(legacyRequest, entries).data.手机.微信;
+assert.equal(migrated.会话['私聊:user&陌生人'].消息[0].操作, '好友申请');
+assert.equal(migrated.会话['私聊:user&陌生人'].消息.length, 1);
+assert.equal('好友请求' in migrated.账号.user, false);
+assert.equal(reconcileWorldbookStatData({ ...upgraded.data, 手机: { 微信: migrated } }, entries).changed, false);
 
 const removedFriend = structuredClone(upgraded.data);
 removedFriend.手机.微信.账号.user.好友 = [];
@@ -94,6 +111,7 @@ assert.throws(() =>
 try {
   const real = [
     entry('当前世界书版本', readFileSync(join(fixtureRoot, '系统配置', '当前世界书版本.yaml'), 'utf8')),
+    entry('StatData', readFileSync(join(fixtureRoot, '系统配置', 'statdata.json'), 'utf8')),
     entry('[initvar]', readFileSync(join(fixtureRoot, '系统配置', 'initvar'), 'utf8')),
     ...['user', '小鸟游琉璃', '索菲亚', '鹭见凛'].map(name =>
       entry(`<人设配置>${name}`, readFileSync(join(fixtureRoot, '人设', `${name}.ini`), 'utf8')),

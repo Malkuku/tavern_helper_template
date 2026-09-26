@@ -11,7 +11,7 @@
         <p v-if="!selectedSession.消息.length && !pending" class="wx-empty">还没有消息，发一条开始聊天。</p>
         <template v-for="(message, index) in selectedSession.消息" :key="index">
           <time v-if="showMessageTime(index)" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
-          <div v-if="message.系统提示" class="wx-system-tip">{{ contentSummary(message.内容) }}</div>
+          <div v-if="!isWeChatMessage(message)" class="wx-system-tip">{{ operationSummary(message) }}</div>
           <div v-else class="wx-message" :class="{ mine: message.发送者 === 'user' }">
             <button
               v-if="message.发送者 !== 'user'"
@@ -27,10 +27,11 @@
               <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
                 accounts[message.发送者]?.昵称 || message.发送者
               }}</small>
-              <div v-if="message.已撤回" class="wx-recalled">
-                {{ message.发送者 === 'user' ? '你' : accounts[message.发送者]?.昵称 || message.发送者 }}撤回了一条消息
-              </div>
-              <div v-else class="wx-bubble">
+              <div class="wx-bubble">
+                <div v-if="message.引用" class="wx-rich wx-quote">
+                  <small>引用 {{ accounts[message.引用.发送者]?.昵称 || message.引用.发送者 }}</small>
+                  <WeChatMessageContent :items="message.引用.内容" :accounts="accounts" :sender="message.引用.发送者" />
+                </div>
                 <WeChatMessageContent
                   :items="message.内容"
                   :accounts="accounts"
@@ -40,10 +41,9 @@
                   @open-card="openCard"
                 />
               </div>
-              <div v-if="!message.已撤回 && !message.系统提示" class="wx-message-meta">
+              <div class="wx-message-meta">
                 <button type="button" @click="quoteMessage(message)">引用</button>
                 <button type="button" @click="startForward(message)">转发</button>
-                <button v-if="message.发送者 === 'user'" type="button" @click="recall(message)">撤回</button>
               </div>
             </div>
           </div>
@@ -52,6 +52,9 @@
           <WeChatAvatar id="user" :accounts="accounts" />
           <div class="wx-message-main">
             <div class="wx-bubble">
+              <div v-if="pending.引用" class="wx-rich wx-quote">
+                引用 {{ pending.引用.发送者 }}：{{ contentSummary(pending.引用.内容) }}
+              </div>
               <WeChatMessageContent :items="pending.内容" :accounts="accounts" sender="user" />
             </div>
             <small>等待正文确认 · <button type="button" @click="retrySend">重试生成</button></small>
@@ -202,13 +205,8 @@
         <div v-for="[id, account] in addCandidates" :key="id" class="wx-list-row">
           <WeChatAvatar :id="id" :accounts="accounts" />
           <strong>{{ account.昵称 || id }}</strong>
-          <button
-            type="button"
-            class="wx-small-action"
-            :disabled="!!self?.好友请求?.发出?.[id]"
-            @click="requestFriend(id)"
-          >
-            {{ self?.好友请求?.发出?.[id] ? '已申请' : '申请' }}
+          <button type="button" class="wx-small-action" :disabled="!!outgoingRequest(id)" @click="requestFriend(id)">
+            {{ outgoingRequest(id) ? '已申请' : '申请' }}
           </button>
         </div>
         <p v-if="!addCandidates.length" class="wx-empty">没有可添加的账号</p>
@@ -374,7 +372,7 @@
         <WeChatAvatar :id="cardView" :accounts="accounts" /><strong>{{ accounts[cardView]?.昵称 || cardView }}</strong
         ><small>微信号：{{ cardView }}</small
         ><button v-if="self?.好友.includes(cardView)" type="button" @click="openCardChat">发消息</button
-        ><button v-else-if="!self?.好友请求?.发出?.[cardView]" type="button" @click="requestCardFriend">添加朋友</button
+        ><button v-else-if="!outgoingRequest(cardView)" type="button" @click="requestCardFriend">添加朋友</button
         ><small v-else>好友申请已发送</small><button type="button" @click="cardView = null">关闭</button>
       </div>
     </div>
@@ -385,7 +383,14 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容 } from '../../types';
-import { chatTitle, contentSummary, privateChatKey } from './wechatData';
+import {
+  chatTitle,
+  contentSummary,
+  friendRequest,
+  isWeChatMessage,
+  operationSummary,
+  privateChatKey,
+} from './wechatData';
 import type { OperationEvent } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
@@ -596,7 +601,9 @@ const chats = computed(() =>
         group: session.类型 === '群聊',
         avatarId: session.类型 === '私聊' ? session.成员.find(id => id !== 'user') || 'user' : 'user',
         preview: last
-          ? `${last.发送者 === 'user' ? '我' : accounts.value[last.发送者]?.昵称 || last.发送者}：${contentSummary(last.内容)}`
+          ? isWeChatMessage(last)
+            ? `${last.发送者 === 'user' ? '我' : accounts.value[last.发送者]?.昵称 || last.发送者}：${contentSummary(last.内容)}`
+            : operationSummary(last)
           : '暂无消息',
         time: last?.时间 || '',
       };
@@ -611,16 +618,29 @@ const contacts = computed(() =>
 );
 const cardCandidates = computed(() => Object.entries(accounts.value).filter(([id]) => id !== 'user'));
 const inviteCandidates = computed(() =>
-  cardCandidates.value.filter(([id]) => !selectedSession.value?.成员.includes(id)),
+  cardCandidates.value.filter(([id]) => self.value?.好友.includes(id) && !selectedSession.value?.成员.includes(id)),
 );
-const incomingRequests = computed(() => Object.entries(self.value?.好友请求?.收到 ?? {}));
-const outgoingRequests = computed(() => Object.entries(self.value?.好友请求?.发出 ?? {}));
+const incomingRequests = computed(() =>
+  Object.entries(wechat.value?.会话 ?? {})
+    .map(([, session]) => friendRequest(session))
+    .filter((item): item is NonNullable<typeof item> => !!item && item.目标 === 'user')
+    .map(item => [item.操作者, item] as const),
+);
+const outgoingRequests = computed(() =>
+  Object.entries(wechat.value?.会话 ?? {})
+    .map(([, session]) => friendRequest(session))
+    .filter((item): item is NonNullable<typeof item> => !!item && item.操作者 === 'user')
+    .map(item => [item.目标!, item] as const),
+);
+function outgoingRequest(id: string) {
+  return friendRequest(wechat.value?.会话[privateChatKey(id)])?.操作者 === 'user';
+}
 const addCandidates = computed(() =>
   Object.entries(accounts.value).filter(
     ([id, account]) =>
       id !== 'user' &&
       !self.value?.好友.includes(id) &&
-      !self.value?.好友请求?.收到?.[id] &&
+      !friendRequest(wechat.value?.会话[privateChatKey(id)]) &&
       `${id} ${account.昵称}`.includes(query.value.trim()),
   ),
 );
@@ -722,18 +742,9 @@ async function poke(id: string) {
   if (!selectedKey.value || id === 'user') return;
   await performOperation({ 操作: '拍一拍', 操作者: 'user', 目标: id, 会话: selectedKey.value });
 }
-async function recall(message: 微信消息) {
-  if (!selectedKey.value) return;
-  await performOperation({
-    操作: '撤回消息',
-    操作者: 'user',
-    会话: selectedKey.value,
-    目标: { 发送者: 'user', 时间: message.时间 },
-  });
-}
 async function invite(id: string) {
   if (!selectedKey.value) return;
-  await performOperation({ 操作: '邀请进群', 操作者: 'user', 会话: selectedKey.value, 对象: id });
+  await performOperation({ 操作: '邀请进群', 操作者: 'user', 会话: selectedKey.value, 目标: id });
   if (!error.value) detailsOpen.value = false;
 }
 function startForward(message: 微信消息) {
@@ -814,8 +825,7 @@ async function sendMessage() {
   sending.value = true;
   error.value = '';
   try {
-    const content: 微信消息内容[] = quoted.value ? [text, { 引用: quoted.value }] : [text];
-    await store.sendWeChatMessage(selectedKey.value, content);
+    await store.sendWeChatMessage(selectedKey.value, [text], quoted.value ?? undefined);
     draft.value = '';
     quoted.value = null;
     await scrollBottom();
@@ -834,9 +844,7 @@ async function sendSticker(name: string) {
   sending.value = true;
   error.value = '';
   try {
-    const content: 微信消息内容[] = [`<表情包>${name}</表情包>`];
-    if (quoted.value) content.push({ 引用: quoted.value });
-    await store.sendWeChatMessage(selectedKey.value, content);
+    await store.sendWeChatMessage(selectedKey.value, [`<表情包>${name}</表情包>`], quoted.value ?? undefined);
     quoted.value = null;
     stickerOpen.value = false;
     await scrollBottom();

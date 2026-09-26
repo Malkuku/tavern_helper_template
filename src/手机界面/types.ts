@@ -185,23 +185,12 @@ export type 微信账号ID = string;
 
 export type 微信时间 = 世界时间;
 
-export interface 微信好友申请 {
-  验证消息: string;
-}
-
-export interface 微信好友请求 {
-  收到: Record<微信账号ID, 微信好友申请>;
-  发出: Record<微信账号ID, 微信好友申请>;
-}
-
 export interface 微信账号 {
   昵称: string;
   头像: string;
   /** key 为 AI 使用的表情包名称，value 为前端资源 ref。 */
   表情包: Record<string, string>;
   好友: 微信账号ID[];
-  /** 这里只保存尚未处理的请求；同意/拒绝是一次性操作，不作为历史状态保存。 */
-  好友请求: 微信好友请求;
 }
 
 export interface 微信消息 {
@@ -209,17 +198,18 @@ export interface 微信消息 {
   时间: 微信时间;
   /**
    * string：普通文本，或 <语音>/<表情包>/<红包>/<转账>/<名片> 标签。
-   * object：引用或转发的嵌套消息结构。
+   * object：转发的嵌套消息结构。
    */
   内容: 微信消息内容[];
+  引用?: 微信引用快照;
   /** 内容数组下标对应红包或转账的处理结果。 */
   特殊内容状态?: Record<number, '已领取' | '已收款' | '已退回'>;
-  已撤回?: true;
-  系统提示?: true;
 }
 
-export interface 微信引用内容 {
-  引用: 微信消息;
+export interface 微信引用快照 {
+  发送者: 微信账号ID;
+  时间: 微信时间;
+  内容: 微信消息内容[];
 }
 
 export interface 微信转发私聊 {
@@ -241,14 +231,35 @@ export interface 微信转发内容 {
   转发: 微信转发私聊 | 微信转发群聊;
 }
 
-export type 微信消息内容 = string | 微信引用内容 | 微信转发内容;
+export type 微信消息内容 = string | 微信转发内容;
+
+export interface 微信操作 {
+  时间: 微信时间;
+  操作:
+    | '好友申请'
+    | '通过好友申请'
+    | '拒绝好友申请'
+    | '拍一拍'
+    | '创建群聊'
+    | '邀请进群'
+    | '领取红包'
+    | '领取转账'
+    | '退回转账';
+  操作者: 微信账号ID;
+  目标?: 微信账号ID | { 发送者: 微信账号ID; 时间: 微信时间 };
+  验证消息?: string;
+  名称?: string;
+}
+
+export type 微信消息流项 = 微信消息 | 微信操作;
 
 export interface 微信会话 {
   类型: '私聊' | '群聊';
   /** 群聊使用；私聊显示名由前端根据另一方账号昵称生成。 */
   名称?: string;
   成员: 微信账号ID[];
-  消息: 微信消息[];
+  群主?: 微信账号ID;
+  消息: 微信消息流项[];
 }
 
 /** user 在微信界面已经确认、准备发送的一次性暂存内容。成功处理后清空。 */
@@ -256,6 +267,7 @@ export interface 微信准备发送 {
   会话: string;
   时间: 微信时间;
   内容: 微信消息内容[];
+  引用?: 微信引用快照;
 }
 
 export interface 微信数据 {
@@ -263,7 +275,7 @@ export interface 微信数据 {
   /**
    * 私聊 key：私聊:<账号A>&<账号B>。
    * 若包含 user，则 user 固定在前；否则按账号ID稳定排序。
-   * 群聊 key 使用有意义的群名。
+   * 群聊 key 独立于显示名，由创建事件给出唯一值。
    */
   会话: Record<string, 微信会话>;
   /** 一次性输入缓冲；没有待发送内容时为 null。 */

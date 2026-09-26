@@ -1,4 +1,5 @@
 import { klona } from 'klona';
+import { privateKey } from '../apps/wechat/wechatData';
 
 type JsonRecord = Record<string, any>;
 type TaggedValue = { path: string[]; value: unknown; dynamic: boolean };
@@ -87,7 +88,6 @@ function seedWechatFriends(data: JsonRecord): void {
       头像: '',
       表情包: {},
       好友: [],
-      好友请求: { 收到: {}, 发出: {} },
     };
     if (!isRecord(accounts[id])) {
       accounts[id] = defaults;
@@ -105,6 +105,45 @@ function seedWechatFriends(data: JsonRecord): void {
     if (!userFriends.includes(id)) userFriends.push(id);
     if (!roleFriends.includes('user')) roleFriends.push('user');
   }
+  const sessions = data.手机.微信.会话;
+  const requests = new Map<string, { from: string; to: string; message: string }>();
+  for (const [id, account] of Object.entries(accounts)) {
+    if (!isRecord(account)) continue;
+    const legacy = account.好友请求;
+    if (!isRecord(legacy)) continue;
+    for (const [to, request] of Object.entries(legacy.发出 || {})) {
+      if (accounts[to])
+        requests.set(`${id}\u0000${to}`, {
+          from: id,
+          to,
+          message: isRecord(request) ? String(request.验证消息 || '') : '',
+        });
+    }
+    for (const [from, request] of Object.entries(legacy.收到 || {})) {
+      if (accounts[from] && !requests.has(`${from}\u0000${id}`))
+        requests.set(`${from}\u0000${id}`, {
+          from,
+          to: id,
+          message: isRecord(request) ? String(request.验证消息 || '') : '',
+        });
+    }
+  }
+  if (requests.size && (!isRecord(sessions) || !data.世界?.时间))
+    throw new Error('旧好友请求迁移需要微信会话与世界时间。');
+  for (const { from, to, message } of requests.values()) {
+    const key = privateKey(from, to);
+    const session = sessions[key] ?? (sessions[key] = { 类型: '私聊', 成员: key.slice(3).split('&'), 消息: [] });
+    if (!Array.isArray(session.消息)) throw new Error(`旧好友请求的会话 ${key} 无效。`);
+    const lastRequest = [...session.消息]
+      .reverse()
+      .find(
+        (item: JsonRecord) =>
+          item?.操作 === '好友申请' || item?.操作 === '通过好友申请' || item?.操作 === '拒绝好友申请',
+      );
+    if (!lastRequest || lastRequest.操作 !== '好友申请')
+      session.消息.push({ 时间: data.世界.时间, 操作: '好友申请', 操作者: from, 目标: to, 验证消息: message });
+  }
+  for (const account of Object.values(accounts)) if (isRecord(account)) delete account.好友请求;
 }
 
 function applyTag(target: JsonRecord, tag: TaggedValue, updateStatic: boolean): void {
@@ -161,12 +200,7 @@ export function reconcileWorldbookStatData(
   const needsWorldTime = !isRecord(current) || !isRecord(current.世界) || !current.世界.时间;
   if (needsWorldTime) {
     const parsed = JSON.parse(uniqueEntry(entries, 'StatData').content) as unknown;
-    if (
-      !isRecord(parsed) ||
-      !isRecord(parsed.世界) ||
-      typeof parsed.世界.时间 !== 'string' ||
-      !parsed.世界.时间
-    )
+    if (!isRecord(parsed) || !isRecord(parsed.世界) || typeof parsed.世界.时间 !== 'string' || !parsed.世界.时间)
       throw new Error('StatData 必须包含非空的世界.时间。');
     initialData = parsed;
   }

@@ -45,17 +45,6 @@
           states?.[index] || (parseText(item).kind === 'redpacket' ? '领取红包' : '确认收款')
         }}</small>
       </button>
-      <div v-else-if="'引用' in item" class="wx-rich wx-quote">
-        <small>引用 {{ accounts[item.引用.发送者]?.昵称 || item.引用.发送者 }}</small>
-        <WeChatMessageContent
-          v-if="depth < 2"
-          :items="item.引用.内容"
-          :accounts="accounts"
-          :sender="item.引用.发送者"
-          :depth="depth + 1"
-        />
-        <span v-else>[引用消息]</span>
-      </div>
       <details v-else class="wx-rich wx-forward">
         <summary>转发的{{ '私聊' in item.转发 ? '私聊' : '群聊' }}记录 · {{ forwardMessages(item).length }} 条</summary>
         <div v-for="(message, messageIndex) in forwardMessages(item)" :key="messageIndex" class="wx-forward-line">
