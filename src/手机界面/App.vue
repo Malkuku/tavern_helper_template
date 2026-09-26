@@ -30,18 +30,32 @@
 
     <div v-else class="phone-overlay">
       <div ref="phoneFrame" class="phone-frame" :style="phoneStyle">
+        <button
+          class="window-drag-handle"
+          type="button"
+          aria-label="拖拽移动手机窗口"
+          title="拖拽移动手机窗口"
+          @pointerdown="startDrag($event, 'phone')"
+          @pointermove="moveDrag"
+          @pointerup="endDrag"
+          @pointercancel="endDrag"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3" />
+          </svg>
+        </button>
         <div class="phone-screen" :style="{ '--screen-brightness': `${brightness}%` }">
           <div class="wallpaper"></div>
           <header class="status-bar" :class="{ 'status-bar-light': activeApp }" aria-label="状态栏">
-            <span
-              class="window-drag-handle"
-              title="拖拽移动手机窗口"
-              @pointerdown="startDrag($event, 'phone')"
-              @pointermove="moveDrag"
-              @pointerup="endDrag"
-              @pointercancel="endDrag"
-              >{{ time }}</span
-            >
+            <span>{{ time }}</span>
             <button
               v-if="activeApp"
               class="status-home"
@@ -154,10 +168,10 @@ let drag: { kind: 'launcher' | 'phone'; x: number; y: number; left: number; top:
 let didDrag = false;
 let controlSwipeStart = 0;
 
-function clampPosition(left: number, top: number, width: number, height: number) {
+function clampPosition(left: number, top: number, width: number, height: number, topInset = 0) {
   return {
     left: Math.max(0, Math.min(left, Math.max(0, (hostWindow?.innerWidth ?? width) - width))),
-    top: Math.max(0, Math.min(top, Math.max(0, (hostWindow?.innerHeight ?? height) - height))),
+    top: Math.max(topInset, Math.min(top, Math.max(topInset, (hostWindow?.innerHeight ?? height) - height))),
   };
 }
 function startDrag(event: PointerEvent, kind: 'launcher' | 'phone') {
@@ -185,7 +199,7 @@ function moveDrag(event: PointerEvent) {
   const position = drag.kind === 'launcher' ? launcherPosition : phonePosition;
   const width = drag.kind === 'launcher' ? 52 : (phoneFrame.value?.offsetWidth ?? 390);
   const height = drag.kind === 'launcher' ? 52 : (phoneFrame.value?.offsetHeight ?? 844);
-  Object.assign(position, clampPosition(drag.left + dx, drag.top + dy, width, height));
+  Object.assign(position, clampPosition(drag.left + dx, drag.top + dy, width, height, drag.kind === 'phone' ? 40 : 0));
 }
 function endDrag(event: PointerEvent) {
   if (drag?.pointerId !== event.pointerId) return;
@@ -199,9 +213,9 @@ function openPhone() {
     return;
   }
   const width = Math.min(390, (hostWindow?.innerWidth ?? 390) - 32);
-  const height = Math.min(844, (hostWindow?.innerHeight ?? 844) - 32);
+  const height = Math.min(844, (hostWindow?.innerHeight ?? 844) - 80);
   phonePosition.left = Math.max(0, ((hostWindow?.innerWidth ?? width) - width) / 2);
-  phonePosition.top = Math.max(0, ((hostWindow?.innerHeight ?? height) - height) / 2);
+  phonePosition.top = Math.max(40, ((hostWindow?.innerHeight ?? height) - height) / 2);
   open.value = true;
   void statStore.checkWorldbook();
 }
@@ -221,7 +235,13 @@ function onResize() {
   if (phoneFrame.value)
     Object.assign(
       phonePosition,
-      clampPosition(phonePosition.left, phonePosition.top, phoneFrame.value.offsetWidth, phoneFrame.value.offsetHeight),
+      clampPosition(
+        phonePosition.left,
+        phonePosition.top,
+        phoneFrame.value.offsetWidth,
+        phoneFrame.value.offsetHeight,
+        40,
+      ),
     );
 }
 onMounted(() => {
