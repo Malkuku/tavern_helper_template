@@ -425,6 +425,22 @@
       </div>
     </template>
 
+    <template v-else-if="subPage === 'nearby'">
+      <header class="wx-header">
+        <button class="wx-back" type="button" aria-label="返回发现" @click="subPage = null">‹</button>
+        <strong>附近的人</strong>
+      </header>
+      <div class="wx-body">
+        <button v-for="person in nearbyPeople" :key="person.id" class="wx-list-row" type="button" @click="openNearby(person)">
+          <img class="wx-avatar" :src="accounts[person.id]?.头像 || nearbyAvatar(person.id)" alt="" />
+          <strong>{{ accounts[person.id]?.昵称 || person.name }}</strong>
+          <span class="wx-muted">{{ self?.好友.includes(person.id) ? '已是好友' : '查看' }}</span>
+        </button>
+        <p v-if="!nearbyPeople.length" class="wx-empty">最近正文中没有匹配到附近的人</p>
+        <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
+      </div>
+    </template>
+
     <template v-else-if="subPage === 'add'">
       <header class="wx-header">
         <button class="wx-back" type="button" aria-label="返回通讯录" @click="subPage = null">‹</button>
@@ -460,8 +476,8 @@
           </button>
           <button
             type="button"
-            :aria-label="tab === 'contacts' ? '添加朋友' : '更多'"
-            @click="tab === 'contacts' ? (subPage = 'add') : showUnavailable('更多功能')"
+            aria-label="添加附近的人"
+            @click="openNearbyPage"
           >
             <WeChatIcon name="plus" />
           </button>
@@ -532,7 +548,7 @@
               :key="item.label"
               class="wx-list-row wx-menu-row"
               type="button"
-              @click="showUnavailable(item.label)"
+              @click="item.label === '附近的人' ? openNearbyPage() : showUnavailable(item.label)"
             >
               <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
               ><strong>{{ item.label }}</strong
@@ -709,7 +725,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import type { 微信会话, 微信数据, 微信消息, 微信消息内容 } from '../../types';
+import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 地图节点 } from '../../types';
 import {
   chatTitle,
   contentSummary,
@@ -722,6 +738,7 @@ import type { OperationEvent } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
+import { nearbyAvatars } from './nearbyAvatars';
 
 type Tab = 'chats' | 'contacts' | 'discover' | 'me';
 const tabs: { id: Tab; label: string }[] = [
@@ -981,7 +998,58 @@ function startServiceTransfer(id: string) {
 const worldTime = computed(() => store.statData?.世界?.时间 || '');
 const stickerNames = computed(() => Object.keys(self.value?.表情包 ?? {}));
 const tab = ref<Tab>('chats');
-const subPage = ref<'requests' | 'add' | null>(null);
+const subPage = ref<'requests' | 'add' | 'nearby' | null>(null);
+const nearbyText = ref('');
+const nearbyAvatarChoices = new Map<string, string>();
+function openNearbyPage() {
+  nearbyText.value = (getChatMessages(-3) || []).map(message => message.message || '').join('\n');
+  nearbyAvatarChoices.clear();
+  error.value = '';
+  subPage.value = 'nearby';
+}
+function findNode(tree: Record<string, 地图节点>, name: string): 地图节点 | null {
+  for (const [key, node] of Object.entries(tree)) {
+    if (key === name) return node;
+    const found = findNode(node.子地图 || {}, name);
+    if (found) return found;
+  }
+  return null;
+}
+function containsLocation(node: 地图节点 | null, name: string): boolean {
+  return !!node && Object.entries(node.子地图 || {}).some(([key, child]) => key === name || containsLocation(child, name));
+}
+const nearbyPeople = computed(() => {
+  const data = store.statData;
+  if (!data) return [];
+  const location = data.世界.地图索引;
+  const entries = [
+    ...Object.entries(data.角色.主要角色).map(([id, person]) => ({ id, name: id, person })),
+    ...Object.entries(data.角色.次要角色).filter(([id]) => id !== '$template').map(([id, person]) => ({ id, name: person.名称 || id, person })),
+  ];
+  return entries.filter(({ person }) =>
+    person.在场 === true ||
+    person.名称检索词?.some(word => word === '$all' || (!!word && nearbyText.value.includes(word))) ||
+    person.区域检索词?.some(area => area === '$all' || area === location || containsLocation(findNode(data.地图, area), location)),
+  );
+});
+function nearbyAvatar(id: string): string {
+  let avatar = nearbyAvatarChoices.get(id);
+  if (!avatar) {
+    avatar = nearbyAvatars[Math.floor(Math.random() * nearbyAvatars.length)];
+    nearbyAvatarChoices.set(id, avatar);
+  }
+  return avatar;
+}
+async function openNearby(person: { id: string; name: string }) {
+  error.value = '';
+  try {
+    await store.ensureNearbyAccount(person.id, person.name, nearbyAvatar(person.id));
+    if (self.value?.好友.includes(person.id)) openChat(privateChatKey(person.id));
+    else cardView.value = person.id;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '创建账号失败。';
+  }
+}
 const selectedKey = ref<string | null>(null);
 const selectedSession = computed<微信会话 | null>(() => {
   if (!selectedKey.value) return null;
