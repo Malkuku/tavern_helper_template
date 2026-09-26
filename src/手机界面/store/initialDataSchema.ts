@@ -1,9 +1,18 @@
 ﻿import { z } from 'zod';
 import type { 地图节点, 角色人设, stat_data, 微信会话, 微信消息内容 } from '../types';
+import { sanitizeMapSvg } from '../../创意工坊/scenario/map';
 
 const stringRecord = z.record(z.string(), z.string());
 const number = z.number().finite();
-const item = z.strictObject({ 描述: z.string(), 作用: z.string(), 数量: number });
+const svgIcon = z.string().refine(value => {
+  try {
+    sanitizeMapSvg(value);
+    return true;
+  } catch {
+    return false;
+  }
+}, '图标必须是安全的完整 SVG');
+const item = z.strictObject({ 图标: svgIcon.optional(), 描述: z.string(), 作用: z.string(), 数量: number });
 const skillLevel = z.strictObject({ 战力评分: number, 描述: z.string(), 升级消耗: number });
 const stage = z.strictObject({ 当前等级: number, 累计经验: number, 描述: stringRecord });
 const bodyPart = z.strictObject({
@@ -42,6 +51,7 @@ export const mainRoleSchema = z.strictObject({
 
 const mapNode: z.ZodType<地图节点> = z.lazy(() =>
   z.strictObject({
+    图标: svgIcon,
     名称检索词: z.array(z.string()),
     描述: z.string(),
     详情: z.array(z.string()),
@@ -92,7 +102,10 @@ export const initialStatDataSchema = z.strictObject({
       当前评级: z.string(),
       金钱: number,
       恶堕积分: number,
-      技能: z.record(z.string(), z.strictObject({ 当前等级: number, 等级表: z.record(z.string(), skillLevel) })),
+      技能: z.record(
+        z.string(),
+        z.strictObject({ 图标: svgIcon.optional(), 当前等级: number, 等级表: z.record(z.string(), skillLevel) }),
+      ),
       物品: z.record(z.string(), item),
     }),
   }),

@@ -25,6 +25,18 @@ assert.ok(Object.keys(assembled.data.地图).length > 0);
 assert.equal(assembled.data.系统.版本, '1.0.0');
 assert.equal(assembled.data.角色.user.技能.战败收容.当前等级, 1);
 assert.equal(assembled.data.仓库.组织制恢复剂.数量, 3);
+function checkMapIcons(nodes: Record<string, { 图标: string; 子地图: Record<string, any> }>) {
+  for (const node of Object.values(nodes)) {
+    assert.match(node.图标, /^<svg\b[\s\S]*<\/svg>$/);
+    checkMapIcons(node.子地图);
+  }
+}
+checkMapIcons(assembled.data.地图);
+for (const table of [assembled.data.仓库, assembled.data.角色.user.物品, assembled.data.角色.user.技能]) {
+  for (const value of Object.values(table) as { 图标?: string }[]) {
+    assert.match(value.图标 ?? '', /^<svg\b[\s\S]*<\/svg>$/);
+  }
+}
 for (const name of Object.keys(assembled.data.角色.主要角色)) {
   assert.ok(assembled.data.角色.主要角色[name].基础信息);
   assert.ok(assembled.data.手机.微信.账号.user.好友.includes(name));
@@ -49,4 +61,9 @@ assert.throws(() => reconcileWorldbookStatData({ 作者: 987 }, withEntry('角�
 const extraField = structuredClone(roleRegistry);
 extraField[opening.内容配置.角色[1]].data.身份认知描述 = { 当前状态: false };
 assert.throws(() => reconcileWorldbookStatData({ 作者: 987 }, withEntry('角色资源', extraField)), /身份认知描述/);
+const badMapIcon = JSON.parse(load('地图资源'));
+badMapIcon[opening.内容配置.地图].data.故事城市.图标 = '<svg onload="alert(1)"></svg>';
+assert.throws(() => reconcileWorldbookStatData({ 作者: 987 }, withEntry('地图资源', badMapIcon)), /图标/);
+delete badMapIcon[opening.内容配置.地图].data.故事城市.图标;
+assert.throws(() => reconcileWorldbookStatData({ 作者: 987 }, withEntry('地图资源', badMapIcon)), /图标/);
 console.log('魔法少女唯一开局资产组装验证通过');

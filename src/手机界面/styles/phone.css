@@ -594,19 +594,6 @@ textarea.utility-input {
   border-radius: 10px;
   padding: 9px 16px;
 }
-.map-preview {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 260px;
-  border-radius: 22px;
-  background: linear-gradient(145deg, #c8eadb, #a9d5e8);
-  color: #255d78;
-}
-.map-preview span {
-  font-size: 78px;
-}
 .utility-screen audio {
   width: 100%;
 }

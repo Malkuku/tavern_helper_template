@@ -86,6 +86,8 @@ export interface 次要角色人设 {
 }
 
 export interface 地图节点 {
+  /** 完整安全 SVG；旧楼层缺失时由视图提供默认图形。 */
+  图标: string;
   名称检索词: string[];
   描述: string;
   详情: string[];
@@ -114,11 +116,15 @@ export interface 技能等级 {
 }
 
 export interface 技能 {
+  /** 完整的安全 SVG 字符串；旧存档可缺失。 */
+  图标?: string;
   当前等级: number;
   等级表: Record<string, 技能等级>;
 }
 
 export interface 物品 {
+  /** 完整的安全 SVG 字符串；旧存档可缺失。 */
+  图标?: string;
   描述: string;
   作用: string;
   数量: number;

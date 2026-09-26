@@ -572,6 +572,166 @@
   color: #b6375a;
   font-size: 12px;
 }
+.data-app .inventory-toolbar {
+  display: grid;
+  gap: 10px;
+  padding: 0 0 14px;
+}
+.data-app .inventory-toolbar .data-pages {
+  width: 100%;
+}
+.data-app .inventory-toolbar .data-pages small {
+  margin-left: 4px;
+  opacity: 0.7;
+}
+.data-app .inventory-search {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e8e2ec;
+  border-radius: 12px;
+  background: #fff;
+  color: #342d40;
+  font: inherit;
+  font-size: 13px;
+}
+.data-app .inventory-search:focus {
+  border-color: #b78bd3;
+  outline: none;
+}
+.data-app .inventory-list {
+  padding-top: 12px;
+}
+.data-app .inventory-list .item-card {
+  padding: 12px;
+}
+.data-app .inventory-item-button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #342840;
+  text-align: left;
+  cursor: pointer;
+}
+.data-app .inventory-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 39px;
+  height: 39px;
+  border-radius: 11px;
+  background: #f2eafa;
+  color: #78549a;
+}
+.data-app .inventory-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.data-app .inventory-item-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.data-app .inventory-item-copy strong {
+  font-size: 14px;
+}
+.data-app .inventory-item-copy small {
+  overflow: hidden;
+  color: #948a9b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-app .inventory-detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1edf2;
+}
+.data-app .inventory-transfer {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 13px;
+}
+.data-app .inventory-transfer label {
+  color: #8f799d;
+  font-size: 11px;
+}
+.data-app .inventory-transfer input {
+  display: block;
+  box-sizing: border-box;
+  width: 78px;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid #e2d7e9;
+  border-radius: 9px;
+  font: inherit;
+}
+.data-app .inventory-transfer button,
+.data-app .inventory-pending button.primary {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: #6e548d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.data-app .inventory-pending {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  border-color: #d9bce8;
+}
+.data-app .inventory-pending div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.data-app .inventory-pending strong {
+  font-size: 12px;
+}
+.data-app .inventory-pending small {
+  color: #988b9f;
+  font-size: 10px;
+}
+.data-app .inventory-pending button:not(.primary) {
+  border: 0;
+  background: transparent;
+  color: #7957a0;
+  font-size: 12px;
+}
+.data-app .inventory-pending button:disabled,
+.data-app .inventory-transfer button:disabled {
+  opacity: 0.55;
+}
+.data-app .inventory-notice {
+  margin: 0 0 10px;
+  color: #74558a;
+  font-size: 12px;
+}
+.data-app .inventory-empty {
+  min-height: 30%;
+}
+.data-app .skill-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 5px;
+}
+.data-app .skill-title h3 {
+  margin: 0;
+}
 @media (max-width: 600px) {
   .data-app .data-header {
     height: calc(104px + env(safe-area-inset-top));

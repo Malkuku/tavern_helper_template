@@ -20,6 +20,7 @@ import {
 } from '../apps/wechat/wechatData';
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
+import { applyInventoryTransfers, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import { reconcileWorldbookStatData } from './worldbookInit';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
@@ -134,6 +135,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function unlockCharacterInfo(kind: CharacterKind, key: string, field: string): Promise<boolean> {
     return changeCharacterData(data => applyCharacterUnlock(data, kind, key, field));
+  }
+
+  async function transferInventory(transfers: InventoryTransfer[]): Promise<void> {
+    if (!transfers.length) return;
+    await changeCharacterData(data => applyInventoryTransfers(data, transfers));
   }
 
   async function sendWeChatMessage(
@@ -591,6 +597,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     update,
     saveProfileBaseInfo,
     unlockCharacterInfo,
+    transferInventory,
     sendWeChatMessage,
     confirmWeChatSend,
     discardWeChatDraft,

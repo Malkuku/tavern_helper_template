@@ -8,12 +8,6 @@
       <button class="utility-action" type="button" @click="saveDraft">保存草稿</button>
       <p v-if="notice" role="status">{{ notice }}</p>
     </template>
-    <template v-else-if="app === '地图'">
-      <div class="map-preview">
-        <span>⌖</span><strong>{{ world?.地图索引 || '未知区域' }}</strong>
-      </div>
-      <p>当前位置：{{ world?.地点 || '未设置' }}</p>
-    </template>
     <template v-else-if="app === '照片' || app === '相机'">
       <label class="utility-action file-picker"
         >{{ app === '相机' ? '拍照或选取图片' : '添加照片'

@@ -9,7 +9,10 @@
       <div class="item-heading">
         <div>
           <span class="item-kicker">已习得技能</span>
-          <h3>{{ name }}</h3>
+          <div class="skill-title">
+            <InventoryIcon :svg="skill.图标" />
+            <h3>{{ name }}</h3>
+          </div>
         </div>
         <span class="stage-level">Lv. {{ skill.当前等级 }}</span>
       </div>
@@ -38,6 +41,7 @@
 import type { 技能, stat_data } from '../../types';
 import { computed } from 'vue';
 import { entries } from './entries';
+import InventoryIcon from './InventoryIcon.vue';
 
 const props = defineProps<{ data: stat_data }>();
 const skillEntries = computed(() => Object.entries(props.data.角色?.user?.技能 ?? {}) as [string, 技能][]);

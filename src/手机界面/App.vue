@@ -78,8 +78,10 @@
                 :app="activeApp"
               />
 
+              <MapApp v-else-if="activeApp === '地图'" :key="activeApp" />
+
               <PhoneExtras
-                v-else-if="['信息', '照片', '相机', '地图', '设置', '浏览器', '音乐', '文件'].includes(activeApp)"
+                v-else-if="['信息', '照片', '相机', '设置', '浏览器', '音乐', '文件'].includes(activeApp)"
                 :key="activeApp"
                 :app="activeApp"
                 @wallpaper-changed="wallpaper = $event"
@@ -130,6 +132,7 @@ import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
 import PhoneExtras from './apps/PhoneExtras.vue';
+import MapApp from './apps/map/MapApp.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import { apps, dockApps, isDataApp } from './desktopApps';
