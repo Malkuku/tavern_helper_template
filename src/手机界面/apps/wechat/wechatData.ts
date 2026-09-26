@@ -121,6 +121,10 @@ export function privateKey(a: string, b: string): string {
   return a === 'user' ? privateChatKey(b) : b === 'user' ? privateChatKey(a) : `私聊:${[a, b].sort().join('&')}`;
 }
 
+function matchesPrivateKey(key: string, a: string, b: string): boolean {
+  return key === privateKey(a, b) || (a !== 'user' && b !== 'user' && key === `私聊:${b}&${a}`);
+}
+
 export function normalizeWeChatIds(current: 微信数据): 微信数据 {
   const next = klona(current);
   for (const [key, session] of Object.entries(next.会话))
@@ -135,6 +139,16 @@ export function normalizeWeChatIds(current: 微信数据): 微信数据 {
       throw new Error('待发送消息的楼层 ID 与会话末尾不一致。');
     next.准备发送.楼层ID = expected;
   }
+  return next;
+}
+
+export function deleteWeChatFromFloor(current: 微信数据, conversation: string, floorId: number): 微信数据 {
+  const next = normalizeWeChatIds(current);
+  const session = next.会话[conversation];
+  if (!session || !Number.isSafeInteger(floorId) || floorId < 1 || floorId > session.消息.length)
+    throw new Error('要删除的微信楼层不存在。');
+  if (next.准备发送?.会话 === conversation) throw new Error('请先处理当前会话的待发送消息。');
+  session.消息.splice(floorId - 1);
   return next;
 }
 
@@ -244,7 +258,7 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
           if (
             event.会话信息.类型 !== '私聊' ||
             event.会话信息.成员.length !== 2 ||
-            privateKey(event.会话信息.成员[0], event.会话信息.成员[1]) !== event.会话
+            !matchesPrivateKey(event.会话, event.会话信息.成员[0], event.会话信息.成员[1])
           )
             throw new Error('新私聊会话信息无效。');
           session = next.会话[event.会话] = { ...klona(event.会话信息), 消息: [] };
@@ -307,13 +321,10 @@ function applyOperationInPlace(next: 微信数据, event: OperationEvent): void 
   }
   if (event.操作 === '好友申请' || event.操作 === '通过好友申请' || event.操作 === '拒绝好友申请') {
     const other = event.目标;
-    if (
-      typeof other !== 'string' ||
-      !next.账号[other] ||
-      other === event.操作者 ||
-      event.会话 !== privateKey(event.操作者, other)
-    )
-      throw new Error('好友操作目标无效。');
+    if (typeof other !== 'string' || !next.账号[other] || other === event.操作者)
+      throw new Error(`好友操作目标无效：账号 ${String(other)} 不存在或与操作者相同。`);
+    if (!matchesPrivateKey(event.会话, event.操作者, other))
+      throw new Error(`好友操作会话无效：${event.会话} 不是双方的私聊。`);
     const session =
       next.会话[event.会话] ??
       (next.会话[event.会话] = {

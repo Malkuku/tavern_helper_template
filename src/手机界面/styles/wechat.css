@@ -954,11 +954,13 @@
   position: absolute;
   inset: 0;
   z-index: 20;
-  background: #0006;
+  background: transparent;
+  pointer-events: none;
   display: grid;
   place-items: center;
 }
 .wechat .wx-message-menu {
+  pointer-events: auto;
   display: flex;
   gap: 1px;
   padding: 4px;
@@ -1127,6 +1129,131 @@
   background: var(--wx-panel);
   color: var(--wx-text);
 }
+.wechat .wx-details-page {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding-top: 52px;
+  background: var(--wx-gap);
+  color: var(--wx-text);
+}
+.wechat .wx-details-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.wechat .wx-detail-members {
+  display: flex;
+  gap: 18px;
+  padding: 22px 16px;
+  background: var(--wx-panel);
+}
+.wechat .wx-detail-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 60px;
+  font-size: 13px;
+}
+.wechat .wx-detail-member .wx-avatar {
+  width: 52px;
+  height: 52px;
+}
+.wechat .wx-detail-add {
+  width: 52px;
+  height: 52px;
+  border: 1px dashed var(--wx-muted);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wx-text);
+  font-size: 35px;
+  line-height: 1;
+}
+.wechat .wx-detail-section {
+  margin-top: 10px;
+  background: var(--wx-panel);
+}
+.wechat .wx-detail-row,
+.wechat .wx-detail-edit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 52px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--wx-line);
+  background: transparent;
+  color: var(--wx-text);
+  text-align: left;
+  font-size: 16px;
+}
+.wechat .wx-detail-row span {
+  color: var(--wx-muted);
+  font-size: 26px;
+}
+.wechat .wx-detail-edit {
+  gap: 12px;
+}
+.wechat .wx-detail-edit input {
+  min-width: 0;
+  max-width: 65%;
+  padding: 7px;
+  border: 0;
+  background: var(--wx-gap);
+  color: var(--wx-text);
+}
+.wechat .wx-detail-image {
+  padding: 12px 16px;
+}
+.wechat .wx-detail-image img {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.wechat .wx-detail-results {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.wechat .wx-detail-results div {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--wx-line);
+}
+.wechat .wx-group-choice {
+  display: flex;
+  gap: 12px;
+}
+.wechat .wx-group-choice input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--wx-green);
+}
+.wechat .wx-group-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--wx-panel);
+}
+.wechat .wx-group-footer button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--wx-nav);
+  color: var(--wx-text);
+}
+.wechat .wx-group-footer button:last-child {
+  background: var(--wx-green);
+  color: #fff;
+}
+.wechat .wx-group-footer button:disabled {
+  opacity: 0.5;
+}
 .wechat .wx-contact-picker {
   position: absolute;
   inset: 0;
@@ -1135,6 +1262,58 @@
   flex-direction: column;
   background: var(--wx-gap);
   color: var(--wx-text);
+}
+.wechat .wx-contact-picker.wx-floating-picker {
+  inset: 50% auto auto 50%;
+  width: min(320px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  height: min(340px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--wx-line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #0004;
+  overflow: hidden;
+}
+.wechat .wx-floating-picker header {
+  min-height: 42px;
+  font-size: 15px;
+}
+.wechat .wx-floating-picker header button {
+  font-size: 26px;
+}
+.wechat .wx-floating-picker > input {
+  margin: 7px 10px;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.wechat .wx-floating-picker .wx-picker-list {
+  flex: 1;
+}
+.wechat .wx-floating-picker .wx-picker-list button {
+  min-height: 46px;
+  padding: 5px 10px;
+  font-size: 14px;
+}
+.wechat .wx-floating-picker .wx-picker-list .wx-avatar {
+  width: 32px;
+  height: 32px;
+}
+.wechat .wx-floating-picker .wx-picker-confirm {
+  position: static;
+  flex: none;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 0;
+  box-shadow: 0 -2px 8px #0002;
+  font-size: 13px;
+}
+.wechat .wx-floating-picker .wx-picker-confirm > p {
+  margin: 0;
+  padding: 6px;
+  font-size: 12px;
+}
+.wechat .wx-floating-picker .wx-picker-buttons button {
+  min-width: 64px;
 }
 .wechat .wx-contact-picker header {
   display: flex;

@@ -9,6 +9,7 @@ import {
   applyWeChatOperation,
   applyWeChatLogs,
   decideFriendRequest,
+  deleteWeChatFromFloor,
   logConfirmsPending,
   mergeStickerSnapshot,
   normalizeWeChatIds,
@@ -23,6 +24,8 @@ import { reconcileWorldbookStatData } from './worldbookInit';
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
   const wechatLogError = ref('');
+  const failedWeChatMessageId = ref<number | null>(null);
+  const failedWeChatLogIndex = ref<number | null>(null);
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
@@ -147,6 +150,62 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
+  async function deleteWeChatFloor(conversation: string, floorId: number) {
+    const lastId = getLastMessageId();
+    const originals = getChatMessages(`0-${lastId}`).filter(
+      message => message.role === 'assistant' && message.message.includes('<WeChatLog>'),
+    );
+    const edits = originals
+      .map(message => ({
+        message_id: message.message_id,
+        message: message.message.replace(/<WeChatLog>\s*([\s\S]*?)\s*<\/WeChatLog>/g, (tag, json: string) => {
+          let log;
+          try {
+            log = JSON.parse(json);
+          } catch {
+            return tag;
+          }
+          if (!Array.isArray(log.事件)) return tag;
+          const events = log.事件.filter((event: any) => event.会话 !== conversation || event.楼层ID < floorId);
+          return events.length === log.事件.length
+            ? tag
+            : events.length
+              ? `<WeChatLog>${JSON.stringify({ ...log, 事件: events })}</WeChatLog>`
+              : '';
+        }),
+      }))
+      .filter(message => message.message !== getChatMessages(message.message_id)[0]?.message);
+    if (edits.length) await setChatMessages(edits, { refresh: 'affected' });
+    try {
+      await updateWeChat(current => deleteWeChatFromFloor(current, conversation, floorId));
+    } catch (error) {
+      if (edits.length)
+        await setChatMessages(
+          originals.map(({ message_id, message }) => ({ message_id, message })),
+          { refresh: 'affected' },
+        );
+      throw error;
+    }
+    wechatLogError.value = '';
+  }
+
+  async function clearFailedWeChatLog() {
+    const id = failedWeChatMessageId.value;
+    const index = failedWeChatLogIndex.value;
+    if (id === null || index === null) throw new Error('尚未定位到可清除的微信日志。');
+    const message = getChatMessages(id)[0];
+    if (!message || message.role !== 'assistant') throw new Error('出错的正文楼层已不存在。');
+    let tagIndex = 0;
+    const cleaned = message.message.replace(/<WeChatLog>\s*[\s\S]*?\s*<\/WeChatLog>/g, tag =>
+      tagIndex++ === index ? '' : tag,
+    );
+    if (cleaned === message.message) throw new Error('出错的微信日志已不存在。');
+    await setChatMessages([{ message_id: id, message: cleaned }], { refresh: 'affected' });
+    failedWeChatMessageId.value = null;
+    failedWeChatLogIndex.value = null;
+    wechatLogError.value = '';
+  }
+
   async function retryWeChatSend() {
     const pending = statData.value?.手机?.微信?.准备发送;
     if (!pending) throw new Error('没有待生成的微信消息。');
@@ -174,6 +233,35 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!data.世界?.时间) throw new Error('世界时间尚未设置。');
       return applyWeChatOperation(current, { ...event, 时间: data.世界.时间 });
     });
+  }
+
+  async function createWeChatGroup(name: string, members: string[]) {
+    const key = `群聊:${crypto.randomUUID()}`;
+    await updateWeChat((current, data) => {
+      if (current.准备发送) throw new Error('上一条微信仍在等待正文确认。');
+      if (!data.世界?.时间) throw new Error('世界时间尚未设置。');
+      if (!members.length || members.some(id => !current.账号.user.好友.includes(id)))
+        throw new Error('请选择至少一位好友加入群聊。');
+      let next = applyWeChatOperation(current, {
+        类型: '操作',
+        操作: '创建群聊',
+        会话: key,
+        操作者: 'user',
+        名称: name,
+        时间: data.世界.时间,
+      });
+      for (const id of members)
+        next = applyWeChatOperation(next, {
+          类型: '操作',
+          操作: '邀请进群',
+          会话: key,
+          操作者: 'user',
+          目标: id,
+          时间: data.世界.时间,
+        });
+      return next;
+    });
+    return key;
   }
 
   async function addWeChatSticker(name: string, source: string) {
@@ -230,13 +318,33 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) return;
     const message = getChatMessages(messageId)[0];
     if (!message || message.role !== 'assistant' || !message.message.includes('<WeChatLog>')) return;
-    const logs = parseWeChatLogs(message.message);
+    const tags = [...message.message.matchAll(/<WeChatLog>\s*[\s\S]*?\s*<\/WeChatLog>/g)];
+    const logs = tags.map((match, index) => {
+      try {
+        return parseWeChatLogs(match[0])[0];
+      } catch (error) {
+        failedWeChatLogIndex.value = index;
+        throw error;
+      }
+    });
+    if ([...message.message.matchAll(/<WeChatLog>/g)].length !== tags.length)
+      throw new Error('正文中的 WeChatLog 标签未闭合，无法自动定位清理范围。');
     if (!logs.length) return;
     await waitGlobalInitialized('Mvu');
     if (generation !== chatGeneration) return;
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
     if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，正文增量仍待处理。');
     const current = normalizeWeChatIds(previous.stat_data.手机.微信);
+    for (let index = 0; index < logs.length; index++) {
+      try {
+        const prefix = logs.slice(0, index + 1);
+        const pendingLogs = unappliedWeChatLogs(current, prefix);
+        if (pendingLogs.length) applyWeChatLogs(current, pendingLogs);
+      } catch (error) {
+        failedWeChatLogIndex.value = index;
+        throw error;
+      }
+    }
     let remaining;
     try {
       remaining = unappliedWeChatLogs(current, logs);
@@ -256,14 +364,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) return;
     await writeStatData(data, previous);
     wechatLogError.value = '';
+    failedWeChatLogIndex.value = null;
   }
 
   function scheduleWeChatLog(messageId?: number) {
     const generation = chatGeneration;
+    failedWeChatLogIndex.value = null;
     void queueWeChatWork(async () => {
       const id = messageId ?? getLastMessageId();
       if (id >= 0) await processWeChatMessage(id, generation);
     }).catch(error => {
+      failedWeChatMessageId.value = messageId ?? getLastMessageId();
       wechatLogError.value = error instanceof Error ? error.message : '微信正文增量处理失败';
       console.error('微信正文增量处理失败', error);
     });
@@ -328,6 +439,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     chatGeneration++;
     statData.value = null;
     wechatLogError.value = '';
+    failedWeChatMessageId.value = null;
+    failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     scheduleRefresh();
@@ -375,6 +488,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   return {
     statData,
     wechatLogError,
+    failedWeChatMessageId,
+    clearFailedWeChatLog,
+    deleteWeChatFloor,
+    createWeChatGroup,
     refresh,
     initialize,
     checkWorldbook,

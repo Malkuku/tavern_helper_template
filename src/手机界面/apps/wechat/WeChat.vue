@@ -1,6 +1,9 @@
 <template>
   <div class="wechat" :class="{ 'wx-dark': darkMode }">
-    <p v-if="store.wechatLogError" class="wx-log-error" role="alert">微信消息同步失败：{{ store.wechatLogError }}</p>
+    <p v-if="store.wechatLogError" class="wx-log-error" role="alert">
+      微信消息同步失败：{{ store.wechatLogError }}
+      <button type="button" @click="clearFailedLog">清除本楼微信日志</button>
+    </p>
     <template v-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回微信" @click="selectedKey = null">
@@ -17,7 +20,7 @@
           </svg>
         </button>
         <strong>{{ selectedTitle }}</strong>
-        <button class="wx-chat-more" type="button" aria-label="聊天详情" @click="detailsOpen = true">
+        <button class="wx-chat-more" type="button" aria-label="聊天详情" @click="openDetails">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="5" cy="12" r="1.5" />
             <circle cx="12" cy="12" r="1.5" />
@@ -128,6 +131,7 @@
           >
             引用
           </button>
+          <button type="button" role="menuitem" @click="deleteMessageFloor">删除本楼及后续消息</button>
         </div>
       </div>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
@@ -258,7 +262,7 @@
           </div>
         </div>
       </div>
-      <div v-if="forwarding" class="wx-contact-picker">
+      <div v-if="forwarding" class="wx-contact-picker wx-floating-picker">
         <header>
           <button
             type="button"
@@ -290,14 +294,102 @@
           </div>
         </div>
       </div>
-      <div v-if="detailsOpen" class="wx-action-panel">
-        <strong>聊天详情</strong
-        ><span>成员：{{ selectedSession.成员.map(id => accounts[id]?.昵称 || id).join('、') }}</span
-        ><template v-if="selectedSession.类型 === '群聊'"
-          ><button v-for="[id, account] in inviteCandidates" :key="id" type="button" @click="invite(id)">
-            邀请 {{ account.昵称 || id }} 进群
-          </button></template
-        ><button type="button" @click="detailsOpen = false">关闭</button>
+      <div v-if="detailsOpen" class="wx-details-page">
+        <header class="wx-header">
+          <button
+            class="wx-back"
+            type="button"
+            aria-label="返回聊天"
+            @click="
+              detailsOpen = false;
+              groupPickerOpen = false;
+            "
+          >
+            ‹</button
+          ><strong>{{ groupPickerOpen ? '发起群聊' : '聊天信息' }}</strong>
+        </header>
+        <template v-if="groupPickerOpen">
+          <label class="wx-search"
+            ><span>⌕</span><input v-model="groupQuery" aria-label="搜索好友" placeholder="搜索"
+          /></label>
+          <div class="wx-section-label">选择群聊中的朋友</div>
+          <div class="wx-details-scroll">
+            <label v-for="[id, account] in groupCandidates" :key="id" class="wx-list-row wx-group-choice"
+              ><input v-model="groupMembers" type="checkbox" :value="id" /><WeChatAvatar
+                :id="id"
+                :accounts="accounts"
+              /><strong>{{ account.昵称 || id }}</strong></label
+            >
+            <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
+          </div>
+          <div class="wx-group-footer">
+            <button type="button" @click="groupPickerOpen = false">取消</button
+            ><button type="button" :disabled="!groupMembers.length || sending" @click="createGroup">
+              完成（{{ groupMembers.length }}）
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="wx-details-scroll">
+            <div class="wx-detail-members">
+              <div v-for="id in selectedSession.成员.filter(id => id !== 'user')" :key="id" class="wx-detail-member">
+                <WeChatAvatar :id="id" :accounts="accounts" /><small>{{ accounts[id]?.昵称 || id }}</small>
+              </div>
+              <button
+                type="button"
+                class="wx-detail-add"
+                :aria-label="selectedSession.类型 === '群聊' ? '邀请好友' : '发起群聊'"
+                @click="openGroupPicker"
+              >
+                ＋
+              </button>
+            </div>
+            <div v-if="detailImage" class="wx-detail-section wx-detail-image">
+              <img :src="detailImage" alt="自定义聊天图片" />
+            </div>
+            <div class="wx-detail-section">
+              <label class="wx-detail-edit"
+                >查找聊天记录<input v-model="detailSearch" placeholder="搜索消息内容"
+              /></label>
+              <div v-if="detailSearch.trim()" class="wx-detail-results">
+                <div v-for="item in detailSearchResults" :key="item.楼层ID">
+                  {{ item.发送者 === 'user' ? '我' : accounts[item.发送者]?.昵称 || item.发送者 }}：{{
+                    contentSummary(item.内容)
+                  }}
+                </div>
+                <small v-if="!detailSearchResults.length">没有匹配的消息</small>
+              </div>
+            </div>
+            <div class="wx-detail-section">
+              <label class="wx-detail-row"
+                >消息免打扰 <input v-model="detailMuted" type="checkbox" @change="saveAppearance" /></label
+              ><label class="wx-detail-row"
+                >置顶聊天 <input v-model="detailPinned" type="checkbox" @change="saveAppearance"
+              /></label>
+            </div>
+            <div class="wx-detail-section">
+              <label class="wx-detail-edit"
+                >显示昵称<input
+                  v-model="detailName"
+                  :placeholder="selectedSession.名称 || selectedTitle"
+                  @change="saveAppearance" /></label
+              ><label class="wx-detail-edit"
+                >显示图片<input type="file" accept="image/*" @change="setDetailImage" /></label
+              ><button
+                v-if="detailImage"
+                type="button"
+                class="wx-detail-row"
+                @click="
+                  detailImage = '';
+                  saveAppearance();
+                "
+              >
+                移除自定义图片
+              </button>
+            </div>
+            <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
+          </div>
+        </template>
       </div>
     </template>
 
@@ -386,7 +478,13 @@
             type="button"
             @click="openChat(item.key)"
           >
-            <span v-if="item.group" class="wx-avatar wx-group-avatar">群</span>
+            <img
+              v-if="chatAppearance[item.key]?.image"
+              class="wx-avatar"
+              :src="chatAppearance[item.key].image"
+              alt=""
+            />
+            <span v-else-if="item.group" class="wx-avatar wx-group-avatar">群</span>
             <WeChatAvatar v-else :id="item.avatarId" :accounts="accounts" />
             <span class="wx-row-main"
               ><strong>{{ item.title }}</strong
@@ -605,6 +703,16 @@ const forwarding = ref<微信消息 | null>(null);
 const forwardQuery = ref('');
 const forwardDestination = ref<string | null>(null);
 const detailsOpen = ref(false);
+type ChatAppearance = { name?: string; image?: string; muted?: boolean; pinned?: boolean };
+const chatAppearance = ref<Record<string, ChatAppearance>>({});
+const detailName = ref('');
+const detailSearch = ref('');
+const detailImage = ref('');
+const detailMuted = ref(false);
+const detailPinned = ref(false);
+const groupPickerOpen = ref(false);
+const groupQuery = ref('');
+const groupMembers = ref<string[]>([]);
 const voiceOpen = ref(false);
 const voiceText = ref('');
 const voiceDuration = ref('');
@@ -700,8 +808,13 @@ function showUnavailable(label: string) {
 function syncTheme() {
   darkMode.value = getVariables({ type: 'script', script_id: getScriptId() })?.darkMode === true;
 }
+function loadAppearance() {
+  const value = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWeChatAppearance;
+  chatAppearance.value = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
 onMounted(() => {
   syncTheme();
+  loadAppearance();
   eventOn('mag_variable_update_ended', syncTheme);
   eventOn(tavern_events.GENERATION_STARTED, onGenerationStart);
   eventOn(tavern_events.GENERATION_ENDED, onGenerationEnd);
@@ -739,7 +852,7 @@ const selectedSession = computed<微信会话 | null>(() => {
 });
 const selectedTitle = computed(() =>
   selectedKey.value && selectedSession.value && wechat.value
-    ? chatTitle(selectedKey.value, selectedSession.value, wechat.value)
+    ? chatAppearance.value[selectedKey.value]?.name || chatTitle(selectedKey.value, selectedSession.value, wechat.value)
     : '聊天',
 );
 const pending = computed(() => (wechat.value?.准备发送?.会话 === selectedKey.value ? wechat.value.准备发送 : null));
@@ -751,7 +864,7 @@ const chats = computed(() =>
       const last = session.消息.at(-1);
       return {
         key,
-        title: chatTitle(key, session, wechat.value!),
+        title: chatAppearance.value[key]?.name || chatTitle(key, session, wechat.value!),
         group: session.类型 === '群聊',
         avatarId: session.类型 === '私聊' ? session.成员.find(id => id !== 'user') || 'user' : 'user',
         preview: last
@@ -762,7 +875,11 @@ const chats = computed(() =>
         time: last?.时间 || '',
       };
     })
-    .sort((a, b) => b.time.localeCompare(a.time)),
+    .sort(
+      (a, b) =>
+        Number(!!chatAppearance.value[b.key]?.pinned) - Number(!!chatAppearance.value[a.key]?.pinned) ||
+        b.time.localeCompare(a.time),
+    ),
 );
 const contacts = computed(() =>
   (self.value?.好友 ?? [])
@@ -777,6 +894,16 @@ const filteredCardCandidates = computed(() =>
 const filteredForwardChats = computed(() => chats.value.filter(item => item.title.includes(forwardQuery.value.trim())));
 const inviteCandidates = computed(() =>
   cardCandidates.value.filter(([id]) => self.value?.好友.includes(id) && !selectedSession.value?.成员.includes(id)),
+);
+const groupCandidates = computed(() =>
+  (selectedSession.value?.类型 === '群聊' ? inviteCandidates.value : contacts.value).filter(([id, account]) =>
+    `${id} ${account.昵称}`.includes(groupQuery.value.trim()),
+  ),
+);
+const detailSearchResults = computed(() =>
+  (selectedSession.value?.消息 || [])
+    .filter(isWeChatMessage)
+    .filter(item => contentSummary(item.内容).includes(detailSearch.value.trim())),
 );
 const incomingRequests = computed(() =>
   Object.entries(wechat.value?.会话 ?? {})
@@ -862,6 +989,88 @@ function openChat(key: string) {
   error.value = '';
   scrollBottom();
 }
+function openDetails() {
+  detailSearch.value = '';
+  const appearance = chatAppearance.value[selectedKey.value || ''] || {};
+  detailName.value = appearance.name || '';
+  detailImage.value = appearance.image || '';
+  detailMuted.value = !!appearance.muted;
+  detailPinned.value = !!appearance.pinned;
+  groupPickerOpen.value = false;
+  detailsOpen.value = true;
+}
+async function saveAppearance() {
+  if (!selectedKey.value) return;
+  const key = selectedKey.value;
+  const appearance = {
+    name: detailName.value.trim(),
+    image: detailImage.value,
+    muted: detailMuted.value,
+    pinned: detailPinned.value,
+  };
+  try {
+    await updateVariablesWith(
+      variables => ({
+        ...variables,
+        magicGirlWeChatAppearance: { ...(variables.magicGirlWeChatAppearance || {}), [key]: appearance },
+      }),
+      { type: 'script', script_id: getScriptId() },
+    );
+    chatAppearance.value = { ...chatAppearance.value, [key]: appearance };
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '保存聊天外观失败。';
+  }
+}
+async function setDetailImage(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    detailImage.value = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('图片读取失败。'));
+      reader.readAsDataURL(file);
+    });
+    await saveAppearance();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '保存图片失败。';
+  }
+  input.value = '';
+}
+function openGroupPicker() {
+  groupQuery.value = '';
+  groupMembers.value =
+    selectedSession.value?.类型 === '私聊' ? selectedSession.value.成员.filter(id => id !== 'user') : [];
+  groupPickerOpen.value = true;
+}
+async function createGroup() {
+  if (!groupMembers.value.length || sending.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    if (selectedSession.value?.类型 === '群聊' && selectedKey.value) {
+      for (const id of groupMembers.value)
+        await store.performWeChatOperation({
+          类型: '操作',
+          操作: '邀请进群',
+          操作者: 'user',
+          会话: selectedKey.value,
+          目标: id,
+          时间: worldTime.value,
+        });
+      groupPickerOpen.value = false;
+    } else {
+      const name = groupMembers.value.map(id => accounts.value[id]?.昵称 || id).join('、');
+      const key = await store.createWeChatGroup(name, groupMembers.value);
+      openChat(key);
+    }
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '创建群聊失败。';
+  } finally {
+    sending.value = false;
+  }
+}
 function openCard(id: string) {
   if (!accounts.value[id]) {
     error.value = '名片中的账号不存在。';
@@ -924,11 +1133,6 @@ async function resolvePayment(operation: '领取红包' | '领取转账' | '退�
 async function poke(id: string) {
   if (!selectedKey.value || id === 'user') return;
   await performOperation({ 操作: '拍一拍', 操作者: 'user', 目标: id, 会话: selectedKey.value });
-}
-async function invite(id: string) {
-  if (!selectedKey.value) return;
-  await performOperation({ 操作: '邀请进群', 操作者: 'user', 会话: selectedKey.value, 目标: id });
-  if (!error.value) detailsOpen.value = false;
 }
 function startForward(message: 微信消息) {
   forwarding.value = message;
@@ -1033,6 +1237,25 @@ async function sendMessage() {
 function quoteMessage(message: 微信消息) {
   quoted.value = message;
   stickerOpen.value = false;
+}
+async function deleteMessageFloor() {
+  const message = messageMenu.value;
+  if (!message || !selectedKey.value) return;
+  messageMenu.value = null;
+  error.value = '';
+  try {
+    await store.deleteWeChatFloor(selectedKey.value, message.楼层ID);
+    quoted.value = null;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '删除失败。';
+  }
+}
+async function clearFailedLog() {
+  try {
+    await store.clearFailedWeChatLog();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '清除失败日志失败。';
+  }
 }
 async function sendSticker(name: string) {
   if (!selectedKey.value || sending.value) return;

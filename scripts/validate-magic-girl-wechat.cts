@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   applyWeChatLogs,
   applyWeChatOperation,
+  deleteWeChatFromFloor,
   logConfirmsPending,
   normalizeWeChatIds,
   parseWeChatLogs,
@@ -143,4 +144,15 @@ const other = applyWeChatLogs(
 );
 assert.equal(other.会话['私聊:user&凛'].消息[0].楼层ID, 1);
 assert.equal(other.会话[key].消息.at(-1)?.楼层ID, 6);
+const truncated = deleteWeChatFromFloor(other, key, 5);
+assert.deepEqual(truncated.会话[key].消息.map(item => item.楼层ID), [1, 2, 3, 4]);
+assert.equal(truncated.会话['私聊:user&凛'].消息.length, 1);
+assert.throws(() => deleteWeChatFromFloor(other, key, 7), /不存在/);
+const npcAccounts = structuredClone(empty);
+npcAccounts.账号.索菲亚 = account('索菲亚', []);
+const npcRequest = applyWeChatLogs(npcAccounts, parse([{
+    类型: '操作', 楼层ID: 1, 操作: '好友申请', 会话: '私聊:索菲亚&小鸟游琉璃',
+    时间: time, 操作者: '小鸟游琉璃', 目标: '索菲亚', 验证消息: '小鸟游琉璃。',
+  }]));
+assert.equal(npcRequest.会话['私聊:索菲亚&小鸟游琉璃'].消息.length, 1);
 console.log('微信会话楼层 ID 验证通过');
