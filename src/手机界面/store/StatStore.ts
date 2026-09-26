@@ -21,6 +21,46 @@ import {
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { reconcileWorldbookStatData } from './worldbookInit';
 
+function paymentCents(content: unknown, kind: '红包' | '转账'): number {
+  if (typeof content !== 'string') throw new Error('款项金额无效。');
+  const match = content.match(new RegExp(`^<${kind} 金额="(\\d+(?:\\.\\d{1,2})?)g?">[\\s\\S]*<\\/${kind}>$`));
+  if (!match) throw new Error('款项金额无效。');
+  const [yuan, fraction = ''] = match[1].split('.');
+  const cents = Number(yuan) * 100 + Number(fraction.padEnd(2, '0'));
+  if (!Number.isSafeInteger(cents) || cents <= 0) throw new Error('款项金额无效。');
+  return cents;
+}
+
+function settlePayments(data: stat_data, before: 微信数据, after: 微信数据): void {
+  const user = data.角色?.user;
+  if (!user || !Number.isFinite(user.金钱)) throw new Error('角色金钱变量无效。');
+  let balance = Math.round(user.金钱 * 100);
+  for (const [key, session] of Object.entries(after.会话)) {
+    const oldCount = before.会话[key]?.消息.length ?? 0;
+    for (const item of session.消息.slice(oldCount)) {
+      if ('发送者' in item) {
+        if (item.发送者 === 'user') {
+          for (const content of item.内容) {
+            if (typeof content === 'string' && content.startsWith('<转账 ')) balance -= paymentCents(content, '转账');
+            if (typeof content === 'string' && content.startsWith('<红包 ')) balance -= paymentCents(content, '红包');
+          }
+        }
+        continue;
+      }
+      if (!['领取红包', '领取转账', '退回转账'].includes(item.操作)) continue;
+      if (typeof item.目标 !== 'object' || !item.目标) throw new Error('款项目标无效。');
+      const target = session.消息[item.目标.楼层ID - 1];
+      if (!target || !('发送者' in target)) throw new Error('款项目标不存在。');
+      const kind = item.操作 === '领取红包' ? '红包' : '转账';
+      const amount = paymentCents(target.内容[item.目标.内容下标], kind);
+      if (item.操作 === '退回转账' && target.发送者 === 'user') balance += amount;
+      else if (item.操作 !== '退回转账' && item.操作者 === 'user' && target.发送者 !== 'user') balance += amount;
+    }
+  }
+  if (balance < 0) throw new Error('余额不足，无法转账。');
+  user.金钱 = balance / 100;
+}
+
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
   const wechatLogError = ref('');
@@ -59,7 +99,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，请重新打开手机。');
       const data = klona(previous.stat_data) as stat_data;
-      data.手机.微信 = updater(data.手机.微信, data);
+      const before = data.手机.微信;
+      const after = updater(before, data);
+      settlePayments(data, before, after);
+      data.手机.微信 = after;
       if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
       if (beforeWrite) await beforeWrite(data);
       if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
@@ -235,6 +278,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
+  async function updateWeChatProfile(name: string, image: string) {
+    await updateWeChat(current => {
+      const next = klona(current);
+      if (!next.账号.user) throw new Error('微信 user 账号不存在。');
+      if (!name.trim()) throw new Error('名字不能为空。');
+      next.账号.user.昵称 = name.trim();
+      next.账号.user.头像 = image;
+      return next;
+    });
+  }
+
   async function createWeChatGroup(name: string, members: string[]) {
     const key = `群聊:${crypto.randomUUID()}`;
     await updateWeChat((current, data) => {
@@ -361,6 +415,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     }
     const data = klona(previous.stat_data) as stat_data;
     data.手机.微信 = applyWeChatLogs(current, remaining);
+    settlePayments(data, current, data.手机.微信);
     if (generation !== chatGeneration) return;
     await writeStatData(data, previous);
     wechatLogError.value = '';
@@ -504,6 +559,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     requestWeChatFriend,
     respondWeChatFriend,
     performWeChatOperation,
+    updateWeChatProfile,
     addWeChatSticker,
   };
 });

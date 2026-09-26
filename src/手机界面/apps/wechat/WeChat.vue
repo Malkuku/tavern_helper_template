@@ -213,9 +213,11 @@
             inputmode="decimal"
           />
         </div>
+        <p class="wx-transfer-balance">零钱余额 ¥{{ walletBalance }}</p>
+        <p v-if="transferInsufficient" class="wx-picker-error" role="alert">余额不足</p>
         <input v-model="paymentRemark" aria-label="转账说明" placeholder="添加转账说明" />
         <p v-if="error" class="wx-picker-error" role="alert">{{ error }}</p>
-        <button class="wx-transfer-submit" type="submit" :disabled="pendingLocked || sending || !worldTime">
+        <button class="wx-transfer-submit" type="submit" :disabled="pendingLocked || sending || !worldTime || transferInsufficient">
           加入待发送
         </button>
       </form>
@@ -447,7 +449,7 @@
       </div>
     </template>
 
-    <template v-else>
+    <template v-else-if="!accountPage">
       <header v-if="tab !== 'me'" class="wx-header wx-main-header">
         <strong>{{
           tab === 'chats' ? `微信${chats.length ? `(${chats.length})` : ''}` : tabs.find(item => item.id === tab)?.label
@@ -539,7 +541,7 @@
           </div>
         </template>
         <template v-else>
-          <button class="wx-profile" type="button" @click="showUnavailable('个人信息')">
+          <button class="wx-profile" type="button" @click="accountPage = 'profile'">
             <WeChatAvatar id="user" :accounts="accounts" />
             <div>
               <strong>{{ self?.昵称 || '我' }}</strong
@@ -553,7 +555,7 @@
               :key="item.label"
               class="wx-list-row wx-menu-row"
               type="button"
-              @click="showUnavailable(item.label)"
+              @click="item.label === '服务' ? (accountPage = 'services') : showUnavailable(item.label)"
             >
               <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
               ><strong>{{ item.label }}</strong
@@ -574,6 +576,92 @@
         </button>
       </nav>
     </template>
+    <section v-if="accountPage" class="wx-account-page">
+      <header class="wx-header">
+        <button
+          class="wx-back"
+          type="button"
+          aria-label="返回"
+          @click="accountPage = accountPage === 'wallet' || accountPage === 'payments' ? 'services' : null"
+        >
+          ‹</button
+        ><strong>{{
+          accountPage === 'profile'
+            ? '个人信息'
+            : accountPage === 'services'
+              ? '服务'
+              : accountPage === 'payments'
+                ? '收付款'
+                : '钱包'
+        }}</strong>
+      </header>
+      <template v-if="accountPage === 'profile'">
+        <label class="wx-account-row">头像<input type="file" accept="image/*" @change="chooseProfileImage" /></label>
+        <div v-if="profileImage" class="wx-account-preview"><img :src="profileImage" alt="头像预览" /></div>
+        <label class="wx-account-row">名字<input v-model="profileName" maxlength="40" aria-label="名字" /></label>
+        <div class="wx-account-row">微信号 <span>user</span></div>
+        <button class="wx-account-save" type="button" :disabled="savingProfile" @click="saveProfile">保存</button>
+      </template>
+      <template v-else-if="accountPage === 'services'">
+        <div class="wx-service-card">
+          <button type="button" @click="accountPage = 'payments'"><span>▣</span>收付款</button
+          ><button type="button" @click="accountPage = 'wallet'">
+            <span>▱</span>钱包<small>¥{{ walletBalance }}</small>
+          </button>
+        </div>
+        <div class="wx-service-group">
+          <p>金融理财</p>
+          <button
+            v-for="label in ['信用卡还款', '微粒贷借钱', '理财通', '保险服务']"
+            :key="label"
+            type="button"
+            @click="showUnavailable(label)"
+          >
+            {{ label }}
+          </button>
+        </div>
+        <div class="wx-service-group">
+          <p>生活服务</p>
+          <button
+            v-for="label in ['手机充值', '生活缴费', 'Q币充值', '城市服务', '腾讯公益', '医疗健康']"
+            :key="label"
+            type="button"
+            @click="showUnavailable(label)"
+          >
+            {{ label }}
+          </button>
+        </div>
+        <div class="wx-service-group">
+          <p>交通出行</p>
+          <button
+            v-for="label in ['出行服务', '火车票机票', '滴滴出行', '酒店民宿']"
+            :key="label"
+            type="button"
+            @click="showUnavailable(label)"
+          >
+            {{ label }}
+          </button>
+        </div>
+      </template>
+      <template v-else-if="accountPage === 'payments'"
+        ><div class="wx-wallet-card">
+          <span>零钱余额</span><strong>¥{{ walletBalance }}</strong
+          ><small>选择好友发起转账；收到的款项在聊天中确认收款</small>
+        </div>
+        <div class="wx-service-group wx-payment-contacts">
+          <p>转账给好友</p>
+          <button v-for="[id, account] in contacts" :key="id" type="button" @click="startServiceTransfer(id)">
+            {{ account.昵称 || id }}
+          </button>
+        </div></template
+      >
+      <template v-else
+        ><div class="wx-wallet-card">
+          <span>零钱</span><strong>¥{{ walletBalance }}</strong>
+        </div></template
+      >
+      <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
+    </section>
     <div v-if="unavailable" class="wx-dialog-backdrop" @click.self="unavailable = ''">
       <div class="wx-dialog" role="alertdialog" aria-modal="true">
         <p>{{ unavailable }}暂未开放</p>
@@ -685,6 +773,12 @@ const generating = ref(false);
 const extrasOpen = ref(false);
 const paymentKind = ref<'转账' | null>(null);
 const paymentAmount = ref('');
+const transferInsufficient = computed(() => {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(paymentAmount.value)) return false;
+  const amountCents = Math.round(Number(paymentAmount.value) * 100);
+  const balanceCents = Math.round((store.statData?.角色?.user?.金钱 ?? 0) * 100);
+  return amountCents > balanceCents;
+});
 const paymentRemark = ref('');
 const paymentView = ref<{
   message: 微信消息;
@@ -728,8 +822,12 @@ function openExtra(label: string) {
 }
 async function sendPayment() {
   if (!paymentKind.value || !selectedKey.value || sending.value) return;
-  if (!/^\d+(?:\.\d+)?$/.test(paymentAmount.value) || Number(paymentAmount.value) <= 0) {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(paymentAmount.value) || Number(paymentAmount.value) <= 0) {
     error.value = '请输入有效金额。';
+    return;
+  }
+  if (transferInsufficient.value) {
+    error.value = '余额不足。';
     return;
   }
   if (/[<>]/.test(paymentRemark.value)) {
@@ -836,6 +934,50 @@ const store = useMagicGirlStatStore();
 const wechat = computed(() => store.statData?.手机?.微信);
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
 const self = computed(() => accounts.value.user);
+const accountPage = ref<'profile' | 'services' | 'wallet' | 'payments' | null>(null);
+const profileName = ref('');
+const profileImage = ref('');
+const savingProfile = ref(false);
+const walletBalance = computed(() => (store.statData?.角色?.user?.金钱 ?? 0).toFixed(2));
+watch(accountPage, page => {
+  if (page === 'profile') {
+    profileName.value = self.value?.昵称 || '';
+    profileImage.value = self.value?.头像 || '';
+  }
+  error.value = '';
+});
+async function chooseProfileImage(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  try {
+    profileImage.value = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('无法读取头像。'));
+      reader.readAsDataURL(file);
+    });
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '无法读取头像。';
+  }
+}
+async function saveProfile() {
+  if (savingProfile.value) return;
+  savingProfile.value = true;
+  error.value = '';
+  try {
+    await store.updateWeChatProfile(profileName.value, profileImage.value);
+    accountPage.value = null;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '保存个人信息失败。';
+  } finally {
+    savingProfile.value = false;
+  }
+}
+function startServiceTransfer(id: string) {
+  accountPage.value = null;
+  openChat(privateChatKey(id));
+  paymentKind.value = '转账';
+}
 const worldTime = computed(() => store.statData?.世界?.时间 || '');
 const stickerNames = computed(() => Object.keys(self.value?.表情包 ?? {}));
 const tab = ref<Tab>('chats');
