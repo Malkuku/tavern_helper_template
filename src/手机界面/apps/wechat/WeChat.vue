@@ -217,7 +217,11 @@
         <p v-if="transferInsufficient" class="wx-picker-error" role="alert">余额不足</p>
         <input v-model="paymentRemark" aria-label="转账说明" placeholder="添加转账说明" />
         <p v-if="error" class="wx-picker-error" role="alert">{{ error }}</p>
-        <button class="wx-transfer-submit" type="submit" :disabled="pendingLocked || sending || !worldTime || transferInsufficient">
+        <button
+          class="wx-transfer-submit"
+          type="submit"
+          :disabled="pendingLocked || sending || !worldTime || transferInsufficient"
+        >
           加入待发送
         </button>
       </form>
@@ -431,7 +435,13 @@
         <strong>附近的人</strong>
       </header>
       <div class="wx-body">
-        <button v-for="person in nearbyPeople" :key="person.id" class="wx-list-row" type="button" @click="openNearby(person)">
+        <button
+          v-for="person in nearbyPeople"
+          :key="person.id"
+          class="wx-list-row"
+          type="button"
+          @click="openNearby(person)"
+        >
           <img class="wx-avatar" :src="accounts[person.id]?.头像 || nearbyAvatar(person.id)" alt="" />
           <strong>{{ accounts[person.id]?.昵称 || person.name }}</strong>
           <span class="wx-muted">{{ self?.好友.includes(person.id) ? '已是好友' : '查看' }}</span>
@@ -474,11 +484,7 @@
           <button type="button" aria-label="搜索" @click="searchOpen = !searchOpen">
             <WeChatIcon name="search" />
           </button>
-          <button
-            type="button"
-            aria-label="添加附近的人"
-            @click="openNearbyPage"
-          >
+          <button type="button" aria-label="添加附近的人" @click="openNearbyPage">
             <WeChatIcon name="plus" />
           </button>
         </div>
@@ -509,6 +515,7 @@
               ><small>{{ item.preview }}</small></span
             >
             <time>{{ displayTime(item.time) }}</time>
+            <span v-if="store.unreadChatKeys.includes(item.key)" class="wx-row-unread" aria-label="未读消息"></span>
           </button>
           <p v-if="!visibleChats.length" class="wx-empty">暂无会话，可从通讯录选择好友开始聊天。</p>
         </template>
@@ -589,6 +596,11 @@
           @click="selectTab(item.id)"
         >
           <span class="wx-tab-icon"><WeChatIcon :name="item.id" /></span><small>{{ item.label }}</small>
+          <span
+            v-if="item.id === 'chats' && store.unreadChatKeys.length"
+            class="wx-tab-unread"
+            aria-label="未读消息"
+          ></span>
         </button>
       </nav>
     </template>
@@ -739,6 +751,8 @@ import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import { nearbyAvatars } from './nearbyAvatars';
+
+const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
 
 type Tab = 'chats' | 'contacts' | 'discover' | 'me';
 const tabs: { id: Tab; label: string }[] = [
@@ -936,6 +950,7 @@ onMounted(() => {
   eventOn(tavern_events.GENERATION_STOPPED, onGenerationEnd);
 });
 onUnmounted(() => {
+  store.setActiveWeChatConversation(null);
   eventRemoveListener('mag_variable_update_ended', syncTheme);
   eventRemoveListener(tavern_events.GENERATION_STARTED, onGenerationStart);
   eventRemoveListener(tavern_events.GENERATION_ENDED, onGenerationEnd);
@@ -1016,7 +1031,9 @@ function findNode(tree: Record<string, 地图节点>, name: string): 地图节�
   return null;
 }
 function containsLocation(node: 地图节点 | null, name: string): boolean {
-  return !!node && Object.entries(node.子地图 || {}).some(([key, child]) => key === name || containsLocation(child, name));
+  return (
+    !!node && Object.entries(node.子地图 || {}).some(([key, child]) => key === name || containsLocation(child, name))
+  );
 }
 const nearbyPeople = computed(() => {
   const data = store.statData;
@@ -1024,12 +1041,17 @@ const nearbyPeople = computed(() => {
   const location = data.世界.地图索引;
   const entries = [
     ...Object.entries(data.角色.主要角色).map(([id, person]) => ({ id, name: id, person })),
-    ...Object.entries(data.角色.次要角色).filter(([id]) => id !== '$template').map(([id, person]) => ({ id, name: person.名称 || id, person })),
+    ...Object.entries(data.角色.次要角色)
+      .filter(([id]) => id !== '$template')
+      .map(([id, person]) => ({ id, name: person.名称 || id, person })),
   ];
-  return entries.filter(({ person }) =>
-    person.在场 === true ||
-    person.名称检索词?.some(word => word === '$all' || (!!word && nearbyText.value.includes(word))) ||
-    person.区域检索词?.some(area => area === '$all' || area === location || containsLocation(findNode(data.地图, area), location)),
+  return entries.filter(
+    ({ person }) =>
+      person.在场 === true ||
+      person.名称检索词?.some(word => word === '$all' || (!!word && nearbyText.value.includes(word))) ||
+      person.区域检索词?.some(
+        area => area === '$all' || area === location || containsLocation(findNode(data.地图, area), location),
+      ),
   );
 });
 function nearbyAvatar(id: string): string {
@@ -1531,6 +1553,26 @@ async function respondFriend(id: string, accept: boolean) {
   }
 }
 watch(() => selectedSession.value?.消息.length, scrollBottom);
+watch(selectedKey, key => store.setActiveWeChatConversation(key));
+watch(
+  () => selectedSession.value?.消息.length,
+  () => {
+    if (selectedKey.value) store.setActiveWeChatConversation(selectedKey.value);
+  },
+);
+let handledOpenRequest = 0;
+watch(
+  [() => props.openRequest, wechat],
+  ([request, data]) => {
+    if (!request || request.id === handledOpenRequest || !data?.会话[request.key]?.成员.includes('user')) return;
+    handledOpenRequest = request.id;
+    tab.value = 'chats';
+    subPage.value = null;
+    accountPage.value = null;
+    openChat(request.key);
+  },
+  { immediate: true },
+);
 </script>
 
 <style src="../../styles/wechat.css"></style>

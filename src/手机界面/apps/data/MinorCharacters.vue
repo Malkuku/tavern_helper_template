@@ -2,7 +2,6 @@
   <div class="data-intro monitor-intro">
     <span>PEOPLE OBSERVER</span>
     <h1>人物观测</h1>
-    <p>按故事进展记录身边的人</p>
   </div>
   <div v-if="minorEntries.length" class="data-sections">
     <div class="minor-list" aria-label="选择次要角色">

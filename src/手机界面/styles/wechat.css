@@ -82,6 +82,22 @@
 .wx-chat-row {
   gap: 12px;
 }
+.wx-row-unread,
+.wx-tab-unread {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f04b4b;
+}
+.wx-tab-unread {
+  position: absolute;
+  top: 5px;
+  left: calc(50% + 12px);
+}
+.wx-tabs button {
+  position: relative;
+}
 .wx-avatar {
   display: grid;
   flex: none;

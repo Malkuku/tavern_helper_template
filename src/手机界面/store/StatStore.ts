@@ -21,6 +21,13 @@ import {
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyInventoryTransfers, type InventoryTransfer } from '../apps/data/inventoryTransfer';
+import {
+  initialReadCursors,
+  latestNotifiableMessage,
+  reconcileReadCursors,
+  unreadConversationKeys,
+  type ReadCursors,
+} from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
@@ -66,6 +73,8 @@ function settlePayments(data: stat_data, before: 微信数据, after: 微信数�
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
   const wechatLogError = ref('');
+  const unreadChatKeys = ref<string[]>([]);
+  const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
   const failedWeChatLogIndex = ref<number | null>(null);
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
@@ -73,6 +82,83 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let chatGeneration = 0;
   let statWriteQueue = Promise.resolve();
   let stickerSyncQueued = false;
+  let readChatId: string | null = null;
+  let readCursors: ReadCursors = {};
+  let activeWeChatConversation: string | null = null;
+
+  function persistReadCursors() {
+    if (!readChatId) return;
+    const chatId = readChatId;
+    const cursors = { ...readCursors };
+    try {
+      updateVariablesWith(
+        variables => ({
+          ...variables,
+          magicGirlWeChatRead: { ...(variables.magicGirlWeChatRead || {}), [chatId]: cursors },
+        }),
+        { type: 'script', script_id: getScriptId() },
+      );
+    } catch (error) {
+      console.error('微信已读位置保存失败', error);
+    }
+  }
+
+  function syncWeChatNotifications(previous: 微信数据 | null, current: 微信数据) {
+    const chatId = SillyTavern.getCurrentChatId();
+    if (readChatId !== chatId) {
+      readChatId = chatId;
+      previous = null;
+      activeWeChatConversation = null;
+      wechatNotification.value = null;
+      let stored: unknown;
+      try {
+        stored = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWeChatRead?.[chatId];
+      } catch (error) {
+        console.error('微信已读位置读取失败', error);
+      }
+      readCursors =
+        stored && typeof stored === 'object' && !Array.isArray(stored)
+          ? reconcileReadCursors(current, stored as ReadCursors)
+          : initialReadCursors(current);
+      if (!stored) persistReadCursors();
+    } else {
+      const next = reconcileReadCursors(current, readCursors);
+      if (Object.entries(next).some(([key, value]) => readCursors[key] !== value)) {
+        readCursors = next;
+        persistReadCursors();
+      }
+    }
+    if (activeWeChatConversation && current.会话[activeWeChatConversation]) markWeChatRead(activeWeChatConversation);
+    unreadChatKeys.value = unreadConversationKeys(current, readCursors);
+    let appearance: Record<string, { muted?: boolean }> = {};
+    try {
+      appearance = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWeChatAppearance || {};
+    } catch (error) {
+      console.error('微信会话外观读取失败', error);
+    }
+    const latest = latestNotifiableMessage(previous, current, activeWeChatConversation, appearance);
+    if (latest) wechatNotification.value = latest;
+  }
+
+  function markWeChatRead(key: string) {
+    const session = statData.value?.手机?.微信?.会话[key];
+    if (!session?.成员.includes('user') || !readChatId) return;
+    if (readCursors[key] !== session.消息.length) {
+      readCursors = { ...readCursors, [key]: session.消息.length };
+      persistReadCursors();
+    }
+    unreadChatKeys.value = unreadChatKeys.value.filter(item => item !== key);
+    if (wechatNotification.value?.key === key) wechatNotification.value = null;
+  }
+
+  function setActiveWeChatConversation(key: string | null) {
+    activeWeChatConversation = key;
+    if (key) markWeChatRead(key);
+  }
+
+  function dismissWeChatNotification() {
+    wechatNotification.value = null;
+  }
 
   function queueStatWork<T>(work: () => Promise<T>): Promise<T> {
     const result = statWriteQueue.then(work);
@@ -505,6 +591,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function refresh() {
     try {
+      const previousWechat = statData.value?.手机?.微信 ?? null;
       const data = getVariables({ type: 'message', message_id: -1 })?.stat_data;
       statData.value = data && typeof data === 'object' ? (data as stat_data) : null;
       if (statData.value?.手机?.微信)
@@ -512,6 +599,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           ...statData.value,
           手机: { ...statData.value.手机, 微信: normalizeWeChatIds(statData.value.手机.微信) },
         };
+      if (statData.value?.手机?.微信) syncWeChatNotifications(previousWechat, statData.value.手机.微信);
       if (statData.value?.手机?.微信?.账号?.user?.表情包) scheduleStickerSync();
       if (statData.value && pollingTimer) {
         clearInterval(pollingTimer);
@@ -536,6 +624,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function resetForChat() {
     chatGeneration++;
     statData.value = null;
+    readChatId = null;
+    readCursors = {};
+    activeWeChatConversation = null;
+    unreadChatKeys.value = [];
+    wechatNotification.value = null;
     wechatLogError.value = '';
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
@@ -585,6 +678,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   return {
     statData,
+    unreadChatKeys,
+    wechatNotification,
+    markWeChatRead,
+    setActiveWeChatConversation,
+    dismissWeChatNotification,
     wechatLogError,
     failedWeChatMessageId,
     clearFailedWeChatLog,

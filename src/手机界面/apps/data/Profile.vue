@@ -2,7 +2,6 @@
   <div class="data-intro">
     <span>个人资料</span>
     <h1>我的档案</h1>
-    <p>你的身份与故事</p>
   </div>
   <div v-if="user" class="data-sections">
     <section class="data-hero">
@@ -38,7 +37,7 @@
       <p v-else class="data-prose">{{ user.基础信息 || '暂无基本信息' }}</p>
     </section>
   </div>
-  <div v-else class="data-empty"><strong>暂无 user 数据</strong></div>
+  <div v-else class="data-empty"><strong>暂无个人资料</strong></div>
 </template>
 
 <script setup lang="ts">

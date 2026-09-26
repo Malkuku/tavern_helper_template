@@ -5,9 +5,10 @@
         v-if="!open"
         ref="launcherButton"
         class="phone-launcher"
+        :class="{ 'has-unread': statStore.unreadChatKeys.length > 0 }"
         type="button"
         :style="launcherStyle"
-        aria-label="打开手机界面，拖拽可移动"
+        :aria-label="`打开手机界面${statStore.unreadChatKeys.length ? '，有未读微信消息' : ''}，拖拽可移动`"
         @pointerdown="startDrag($event, 'launcher')"
         @pointermove="moveDrag"
         @pointerup="endDrag"
@@ -61,11 +62,12 @@
                 :key="'desktop'"
                 :date-label="dateLabel"
                 :today="worldDay"
+                :wechat-unread="statStore.unreadChatKeys.length > 0"
                 @open="activeApp = $event"
               />
 
               <main v-else-if="activeApp === '微信'" :key="'wechat'" class="wechat-screen">
-                <WeChat />
+                <WeChat :open-request="chatOpenRequest" />
               </main>
 
               <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
@@ -105,9 +107,16 @@
                 :time="time"
                 :date-label="dateLabel"
                 @close="controlCenterOpen = false"
-                @power-off="closePhone"
               />
             </Transition>
+
+            <WeChatNotification
+              v-if="statStore.wechatNotification && statStore.statData?.手机?.微信"
+              :data="statStore.statData.手机.微信"
+              :notice="statStore.wechatNotification"
+              @open="openNotificationChat"
+              @close="statStore.dismissWeChatNotification()"
+            />
 
             <button
               class="home-indicator"
@@ -122,6 +131,13 @@
         </div>
       </div>
     </Transition>
+    <WeChatNotification
+      v-if="!open && statStore.wechatNotification && statStore.statData?.手机?.微信"
+      :data="statStore.statData.手机.微信"
+      :notice="statStore.wechatNotification"
+      @open="openNotificationChat"
+      @close="statStore.dismissWeChatNotification()"
+    />
   </div>
 </template>
 
@@ -135,12 +151,15 @@ import PhoneExtras from './apps/PhoneExtras.vue';
 import MapApp from './apps/map/MapApp.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
+import WeChatNotification from './components/WeChatNotification.vue';
 import { apps, dockApps, isDataApp } from './desktopApps';
 import { readPhoneWallpaper } from './wallpaper';
 
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
 const activeApp = ref<string | null>(null);
+const chatOpenRequest = ref<{ key: string; id: number } | null>(null);
+let chatOpenRequestId = 0;
 const controlCenterOpen = ref(false);
 const brightness = ref(100);
 const wallpaper = ref('');
@@ -183,8 +202,10 @@ function activateHome() {
     return;
   }
   if (controlCenterOpen.value) controlCenterOpen.value = false;
-  else if (activeApp.value) activeApp.value = null;
-  else closePhone();
+  else if (activeApp.value) {
+    activeApp.value = null;
+    chatOpenRequest.value = null;
+  } else closePhone();
 }
 function finishHomeSwipe(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement;
@@ -192,8 +213,10 @@ function finishHomeSwipe(event: PointerEvent) {
   if (homeSwipeStart.value - event.clientY < 35) return;
   homeSwipeHandled = true;
   if (controlCenterOpen.value) controlCenterOpen.value = false;
-  else if (activeApp.value) activeApp.value = null;
-  else closePhone();
+  else if (activeApp.value) {
+    activeApp.value = null;
+    chatOpenRequest.value = null;
+  } else closePhone();
   setTimeout(() => {
     homeSwipeHandled = false;
   }, 0);
@@ -255,9 +278,23 @@ function openPhone() {
   }
   void statStore.checkWorldbook();
 }
+function openNotificationChat() {
+  const key = statStore.wechatNotification?.key;
+  const session = key && statStore.statData?.手机?.微信?.会话[key];
+  if (!key || !session?.成员.includes('user')) return;
+  if (!open.value) {
+    didDrag = false;
+    openPhone();
+  }
+  controlCenterOpen.value = false;
+  activeApp.value = '微信';
+  chatOpenRequest.value = { key, id: ++chatOpenRequestId };
+  statStore.dismissWeChatNotification();
+}
 function closePhone() {
   controlCenterOpen.value = false;
   open.value = false;
+  chatOpenRequest.value = null;
   didDrag = false;
 }
 function startControlSwipe(event: PointerEvent) {

@@ -2,7 +2,6 @@
   <div class="data-intro monitor-intro">
     <span>PERSONA MONITOR</span>
     <h1>心象监测</h1>
-    <p>记录此刻，而非预告未来</p>
   </div>
   <div v-if="mainEntries.length" class="data-selector" aria-label="选择主要角色">
     <button
@@ -33,15 +32,14 @@
     <template v-if="page === '心象'">
       <section class="monitor-heading">
         <span>01 / 当前心象</span>
-        <h3>三项人设阶段</h3>
-        <p>只呈现当前等级的表现</p>
+        <h3>心象状态</h3>
       </section>
       <section v-for="[key, stage] in stageEntries" :key="key" class="data-card monitor-card">
         <div class="monitor-card-head">
           <strong>{{ key }}</strong
           ><span>等级 {{ stage.当前等级 }}</span>
         </div>
-        <p class="data-prose">{{ currentLevelDescription(stage) || '当前等级暂无记录' }}</p>
+        <p class="data-prose">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
         <small>累计经验 {{ stage.累计经验 }}</small>
       </section>
     </template>
@@ -49,7 +47,6 @@
       <section class="monitor-heading">
         <span>02 / 状态观测</span>
         <h3>身体状态</h3>
-        <p>仅显示当前状态</p>
       </section>
       <section v-if="selectedMain.身体.特殊状态?.length" class="data-card">
         <h3>特殊状态</h3>

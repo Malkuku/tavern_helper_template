@@ -57,7 +57,6 @@
         <span>✦</span><small>手电筒 {{ controls.flashlight ? '开' : '关' }}</small>
       </button>
     </div>
-    <button class="power-off" type="button" @click="emit('powerOff')">退出手机界面</button>
   </div>
 </template>
 
@@ -65,7 +64,7 @@
 import { controls, volume } from './controlState';
 
 defineProps<{ time: string; dateLabel: string; brightness: number }>();
-const emit = defineEmits<{ close: []; powerOff: []; 'update:brightness': [value: number] }>();
+const emit = defineEmits<{ close: []; 'update:brightness': [value: number] }>();
 const connectivity = [
   { key: 'airplane', icon: '✈', label: '飞行模式' },
   { key: 'cellular', icon: '▂', label: '蜂窝网络' },

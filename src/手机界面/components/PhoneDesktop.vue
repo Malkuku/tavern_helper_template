@@ -40,6 +40,11 @@
             </span>
           </span>
           <span>{{ item.kind === 'app' ? appDisplayName(item.name) : item.name }}</span>
+          <span
+            v-if="wechatUnread && (item.kind === 'app' ? item.name === '微信' : item.apps.includes('微信'))"
+            class="desktop-unread-dot"
+            aria-label="未读微信消息"
+          ></span>
         </button>
       </div>
     </Transition>
@@ -69,6 +74,7 @@
         @click="openApp(name)"
       >
         <DesktopAppIcon :name="name" :today="today" />
+        <span v-if="wechatUnread && name === '微信'" class="desktop-unread-dot" aria-label="未读微信消息"></span>
       </button>
     </div>
 
@@ -89,6 +95,11 @@
               >
                 <DesktopAppIcon :name="name" :today="today" />
                 <span>{{ appDisplayName(name) }}</span>
+                <span
+                  v-if="wechatUnread && name === '微信'"
+                  class="desktop-unread-dot"
+                  aria-label="未读微信消息"
+                ></span>
               </button>
             </div>
           </div>
@@ -127,7 +138,7 @@ import {
 } from '../desktopLayout';
 import DesktopAppIcon from './DesktopAppIcon.vue';
 
-defineProps<{ dateLabel: string; today: number }>();
+defineProps<{ dateLabel: string; today: number; wechatUnread: boolean }>();
 const emit = defineEmits<{ open: [name: string] }>();
 const layout = ref<PhoneLayout>(defaultPhoneLayout());
 const page = ref(0);

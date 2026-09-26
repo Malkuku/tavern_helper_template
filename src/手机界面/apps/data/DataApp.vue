@@ -7,7 +7,7 @@
       <div v-if="!statStore.statData" class="data-empty">
         <span class="data-empty-mark">✧</span>
         <strong>暂无角色变量</strong>
-        <p>当前消息楼层还没有可展示的数据。</p>
+        <p>暂无可展示的角色资料。</p>
       </div>
       <MainCharacters v-else-if="app === '主要角色'" :data="statStore.statData" />
       <MinorCharacters v-else-if="app === '次要角色'" :data="statStore.statData" />
