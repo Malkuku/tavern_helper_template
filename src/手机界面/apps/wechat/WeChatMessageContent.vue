@@ -29,10 +29,8 @@
             (accounts[parseText(item).label]?.昵称 || parseText(item).label).slice(0, 1)
           }}</template></span
         >
-        <span
-          ><strong>{{ accounts[parseText(item).label]?.昵称 || parseText(item).label }}</strong
-          ><small>个人名片</small></span
-        >
+        <strong>{{ accounts[parseText(item).label]?.昵称 || parseText(item).label }}</strong>
+        <small>个人名片</small>
       </button>
       <button
         v-else-if="typeof item === 'string'"
@@ -99,7 +97,7 @@ function parseText(value: string): {
   if (payment)
     return {
       kind: payment[1] === '红包' ? 'redpacket' : 'transfer',
-      label: payment[2],
+      label: payment[2].replace(/g$/i, ''),
       detail: payment[3],
     };
   return { kind: 'text', label: '', detail: '' };
