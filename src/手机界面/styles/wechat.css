@@ -1195,7 +1195,22 @@
   padding: 22px 20px max(24px, env(safe-area-inset-bottom));
   border-radius: 12px 12px 0 0;
   background: var(--wx-nav);
-  box-shadow: 0 -50px 0 100vmax #0008;
+  box-shadow: 0 -8px 24px #0005;
+}
+.wechat .wx-picker-confirm > input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
+.wechat .wx-picker-error {
+  width: 100%;
+  margin: 0;
+  color: #e0645e;
+  font-size: 13px;
 }
 .wechat .wx-picker-preview,
 .wechat .wx-picker-confirm > p {
@@ -1405,6 +1420,34 @@
   padding: 8px 10px 10px;
   gap: 8px;
 }
+.wechat .wx-send-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-top: 1px solid var(--wx-line);
+  background: var(--wx-nav);
+  color: var(--wx-text);
+  font-size: 12px;
+}
+.wechat .wx-send-confirm span {
+  flex: 1;
+  min-width: 0;
+}
+.wechat .wx-send-confirm button {
+  flex: none;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--wx-green);
+  color: #fff;
+  font-size: 12px;
+}
+.wechat .wx-send-confirm button.wx-send-discard {
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
 .wechat .wx-compose input {
   height: 38px;
   background: var(--wx-panel);
@@ -1426,12 +1469,12 @@
   font-size: 22px;
   line-height: 1;
 }
-.wechat .wx-compose button.wx-compose-voice {
-  font-size: 11px;
-}
 .wechat .wx-compose button svg {
   width: 32px;
   height: 32px;
+}
+.wechat .wx-compose button.wx-compose-voice[aria-pressed='true'] {
+  color: var(--wx-green);
 }
 .wechat .wx-sticker-picker {
   order: 5;

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   applyWeChatLogs,
   applyWeChatOperation,
+  logConfirmsPending,
   normalizeWeChatIds,
   parseWeChatLogs,
   unappliedWeChatLogs,
@@ -71,6 +72,17 @@ assert.deepEqual(
   [1, 2, 3, 4],
 );
 assert.deepEqual(unappliedWeChatLogs(done, [...first, ...second]), []);
+
+// 连续添加的内容只在显式确认后匹配正文，顺序由同一内容数组保持。
+const batch = structuredClone(stored);
+batch.准备发送 = { 楼层ID: 3, 会话: key, 时间: time, 内容: ['第一条', '<名片 角色="凛">', '附言'], 已确认: false };
+const batchLog = parse([{ ...message(3, 'user', '第一条'), 内容: ['第一条', '<名片 角色="凛">', '附言'] }]);
+assert.equal(logConfirmsPending(batch, batchLog[0]), false);
+batch.准备发送.已确认 = true;
+assert.equal(logConfirmsPending(batch, batchLog[0]), true);
+const batchDone = applyWeChatLogs(batch, batchLog);
+assert.equal(batchDone.准备发送, null);
+assert.deepEqual((batchDone.会话[key].消息[2] as { 内容: string[] }).内容, ['第一条', '<名片 角色="凛">', '附言']);
 
 // 同文、同时间仍可占用两个不同楼层；同 ID 改写必须报错。
 const same = parse([message(5, 'user', '在吗'), message(6, 'user', '在吗')]);

@@ -193,6 +193,7 @@ export function logConfirmsPending(current: 微信数据, log: WeChatLog): boole
   const first = log.事件[0];
   return !!(
     pending &&
+    pending.已确认 !== false &&
     first &&
     first.类型 === '消息' &&
     first.楼层ID === pending.楼层ID &&
@@ -218,7 +219,7 @@ function confirmableWeChatTime(logTime: string, pendingTime: string): boolean {
 function pendingMismatch(current: 微信数据, log: WeChatLog): string | null {
   const pending = current.准备发送;
   const first = log.事件[0];
-  if (!pending || !first || first.类型 !== '消息' || first.发送者 !== 'user') return null;
+  if (!pending || pending.已确认 === false || !first || first.类型 !== '消息' || first.发送者 !== 'user') return null;
   if (first.楼层ID !== pending.楼层ID) return `楼层 ID 不一致（待发送：${pending.楼层ID}；正文：${first.楼层ID}）。`;
   if (first.会话 !== pending.会话) return `会话不一致（待发送：${pending.会话}；正文：${first.会话}）。`;
   if (!confirmableWeChatTime(first.时间, pending.时间))

@@ -90,15 +90,21 @@
                   contentSummary(pending.引用.内容)
                 }}
               </div>
-              <small v-if="contentIndex === pending.内容.length - 1"
-                >等待正文确认 · <button type="button" @click="retrySend">重试生成</button></small
-              >
+              <small v-if="contentIndex === pending.内容.length - 1">
+                {{ pending.已确认 === false ? '待确认发送' : '等待正文确认' }}
+                <button v-if="pending.已确认 !== false" type="button" @click="retrySend">重试生成</button>
+              </small>
             </div>
           </div>
         </template>
         <div v-if="pending && generating" class="wx-typing">
           <span class="wx-typing-dots"><i></i><i></i><i></i></span>对方正在输入中...
         </div>
+      </div>
+      <div v-if="pending?.已确认 === false" class="wx-send-confirm">
+        <span>待发送 {{ pending.内容.length }} 条给 {{ selectedTitle }}</span>
+        <button class="wx-send-discard" type="button" :disabled="sending" @click="discardDraft">清空</button>
+        <button type="button" :disabled="sending" @click="confirmSend">确认发送给对方</button>
       </div>
       <div v-if="messageMenu" class="wx-message-menu-backdrop" @click="messageMenu = null">
         <div class="wx-message-menu" role="menu" @click.stop>
@@ -136,7 +142,7 @@
           :key="name"
           class="wx-sticker-choice"
           type="button"
-          :disabled="!!pending || sending || !worldTime"
+          :disabled="pendingLocked || sending || !worldTime"
           @click="sendSticker(name)"
         >
           <img :src="self?.表情包[name]" :alt="name" /><small>{{ name }}</small>
@@ -152,19 +158,25 @@
         </form>
       </div>
       <form class="wx-compose" @submit.prevent="sendMessage">
-        <button class="wx-compose-voice" type="button" aria-label="语音" @click="voiceOpen = !voiceOpen">
+        <button
+          class="wx-compose-voice"
+          type="button"
+          aria-label="语音"
+          :aria-pressed="voiceOpen"
+          @click="voiceOpen = !voiceOpen"
+        >
           <WeChatIcon name="voice" />
         </button>
         <input
           v-model="draft"
           aria-label="输入消息"
           :placeholder="worldTime ? '' : '世界时间未设置'"
-          :disabled="!!pending || sending || !worldTime"
+          :disabled="pendingLocked || sending || !worldTime"
         />
         <button class="wx-compose-sticker" type="button" aria-label="选择表情包" @click="stickerOpen = !stickerOpen">
           <WeChatIcon name="emoji" />
         </button>
-        <button v-if="draft.trim()" type="submit" :disabled="!!pending || sending || !worldTime">发送</button>
+        <button v-if="draft.trim()" type="submit" :disabled="pendingLocked || sending || !worldTime">添加</button>
         <button
           v-else
           class="wx-compose-plus"
@@ -198,7 +210,10 @@
           />
         </div>
         <input v-model="paymentRemark" aria-label="转账说明" placeholder="添加转账说明" />
-        <button class="wx-transfer-submit" type="submit" :disabled="!!pending || sending || !worldTime">转账</button>
+        <p v-if="error" class="wx-picker-error" role="alert">{{ error }}</p>
+        <button class="wx-transfer-submit" type="submit" :disabled="pendingLocked || sending || !worldTime">
+          加入待发送
+        </button>
       </form>
       <form v-if="voiceOpen" class="wx-action-panel" @submit.prevent="sendVoice">
         <strong>发送语音消息</strong
@@ -207,7 +222,7 @@
           aria-label="语音时长"
           placeholder="时长（秒）"
           inputmode="numeric"
-        /><button type="submit" :disabled="!!pending || sending">发送</button
+        /><button type="submit" :disabled="pendingLocked || sending">添加</button
         ><button type="button" @click="voiceOpen = false">取消</button>
       </form>
       <div v-if="cardPickerOpen" class="wx-contact-picker">
@@ -235,6 +250,8 @@
               >{{ accounts[selectedCard]?.昵称 || selectedCard }}<small>个人名片</small></span
             >
           </div>
+          <input v-model="cardMessage" aria-label="名片附言" placeholder="给朋友留言（可选）" />
+          <p v-if="error" class="wx-picker-error" role="alert">{{ error }}</p>
           <div class="wx-picker-buttons">
             <button type="button" @click="selectedCard = null">取消</button
             ><button type="button" :disabled="sending" @click="sendCard(selectedCard)">发送</button>
@@ -582,6 +599,7 @@ const paymentView = ref<{
 const cardView = ref<string | null>(null);
 const cardPickerOpen = ref(false);
 const cardQuery = ref('');
+const cardMessage = ref('');
 const selectedCard = ref<string | null>(null);
 const forwarding = ref<微信消息 | null>(null);
 const forwardQuery = ref('');
@@ -595,6 +613,7 @@ function openExtra(label: string) {
   if (label === '转账') paymentKind.value = label;
   else if (label === '名片') {
     cardQuery.value = '';
+    cardMessage.value = '';
     selectedCard.value = null;
     cardPickerOpen.value = true;
   } else showUnavailable(label);
@@ -611,16 +630,20 @@ async function sendPayment() {
   }
   sending.value = true;
   error.value = '';
+  const conversation = selectedKey.value;
+  const content = [`<转账 金额="${paymentAmount.value}">${paymentRemark.value}</转账>`];
+  let accepted = false;
   try {
-    await store.sendWeChatMessage(selectedKey.value, [
-      `<${paymentKind.value} 金额="${paymentAmount.value}">${paymentRemark.value}</${paymentKind.value}>`,
-    ]);
-    paymentKind.value = null;
-    paymentAmount.value = '';
-    paymentRemark.value = '';
+    await store.sendWeChatMessage(conversation, content);
+    accepted = true;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '发送失败';
   } finally {
+    if (accepted) {
+      paymentKind.value = null;
+      paymentAmount.value = '';
+      paymentRemark.value = '';
+    }
     sending.value = false;
   }
 }
@@ -720,6 +743,7 @@ const selectedTitle = computed(() =>
     : '聊天',
 );
 const pending = computed(() => (wechat.value?.准备发送?.会话 === selectedKey.value ? wechat.value.准备发送 : null));
+const pendingLocked = computed(() => !!pending.value && pending.value.已确认 !== false);
 const chats = computed(() =>
   Object.entries(wechat.value?.会话 ?? {})
     .filter(([, session]) => session.成员?.includes('user'))
@@ -883,13 +907,19 @@ async function performOperation(event: Omit<OperationEvent, '类型' | '时间'>
 async function resolvePayment(operation: '领取红包' | '领取转账' | '退回转账') {
   const view = paymentView.value;
   if (!view || !selectedKey.value) return;
+  const conversation = selectedKey.value;
   await performOperation({
     操作: operation,
     操作者: 'user',
-    会话: selectedKey.value,
+    会话: conversation,
     目标: { 楼层ID: view.message.楼层ID, 内容下标: view.index },
   });
-  if (!error.value) paymentView.value = null;
+  const updated = wechat.value?.会话[conversation]?.消息.find(
+    item => isWeChatMessage(item) && item.楼层ID === view.message.楼层ID,
+  );
+  if (!error.value || (updated && isWeChatMessage(updated) && updated.特殊内容状态?.[view.index])) {
+    paymentView.value = null;
+  }
 }
 async function poke(id: string) {
   if (!selectedKey.value || id === 'user') return;
@@ -920,6 +950,7 @@ async function sendForward(destination: string) {
     await store.sendWeChatMessage(destination, [forwarded]);
     forwarding.value = null;
     forwardDestination.value = null;
+    openChat(destination);
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '转发失败。';
   } finally {
@@ -930,13 +961,20 @@ async function sendCard(id: string) {
   if (!selectedKey.value) return;
   sending.value = true;
   error.value = '';
+  const conversation = selectedKey.value;
+  const content = [`<名片 角色="${id}">`, ...(cardMessage.value.trim() ? [cardMessage.value.trim()] : [])];
+  let accepted = false;
   try {
-    await store.sendWeChatMessage(selectedKey.value, [`<名片 角色="${id}">`]);
-    cardPickerOpen.value = false;
-    selectedCard.value = null;
+    await store.sendWeChatMessage(conversation, content);
+    accepted = true;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '名片发送失败。';
   } finally {
+    if (accepted) {
+      cardPickerOpen.value = false;
+      selectedCard.value = null;
+      cardMessage.value = '';
+    }
     sending.value = false;
   }
 }
@@ -1017,6 +1055,30 @@ async function retrySend() {
     await store.retryWeChatSend();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '重试失败';
+  }
+}
+async function confirmSend() {
+  if (sending.value || !pending.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.confirmWeChatSend();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '确认发送失败。';
+  } finally {
+    sending.value = false;
+  }
+}
+async function discardDraft() {
+  if (sending.value || !pending.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.discardWeChatDraft();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '清空待发送消息失败。';
+  } finally {
+    sending.value = false;
   }
 }
 async function requestFriend(id: string) {

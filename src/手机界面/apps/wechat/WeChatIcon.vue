@@ -78,7 +78,8 @@
     </template>
     <template v-else-if="name === 'voice'">
       <circle cx="12" cy="12" r="9" />
-      <path d="M8 9c2 1.5 2 4.5 0 6m4-8c3 2.5 3 7.5 0 10m4-12c4 3.5 4 10.5 0 14" />
+      <circle cx="7.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <path d="M10 9a4 4 0 0 1 0 6M13 6.7a7 7 0 0 1 0 10.6" />
     </template>
     <template v-else-if="name === 'emoji'">
       <circle cx="12" cy="12" r="9" />

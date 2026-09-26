@@ -71,7 +71,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   ) {
     const generation = chatGeneration;
     await updateWeChat((current, stat) => {
-      if (current.准备发送) throw new Error('上一条微信仍在等待生成，请先重试或等待完成。');
+      if (current.准备发送 && current.准备发送.已确认 !== false)
+        throw new Error('上一批微信仍在等待正文确认，请先重试或等待完成。');
+      if (current.准备发送 && current.准备发送.会话 !== conversation) throw new Error('请先确认当前会话的待发送消息。');
       const worldTime = stat.世界?.时间;
       if (!worldTime) throw new Error('世界时间尚未设置，无法发送微信。');
       const session = current.会话[conversation];
@@ -95,11 +97,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           throw new Error('目标私聊不存在或对方不是好友。');
       }
       const wechat = normalizeWeChatIds(current);
+      if (wechat.准备发送) {
+        if (quote) throw new Error('引用只能添加在本批消息的第一项。');
+        wechat.准备发送.内容.push(...klona(content));
+        return wechat;
+      }
       wechat.准备发送 = {
         楼层ID: (wechat.会话[conversation]?.消息.length ?? 0) + 1,
         会话: conversation,
         时间: worldTime,
         内容: klona(content),
+        已确认: false,
         ...(quote
           ? {
               引用: {
@@ -115,11 +123,34 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       return wechat;
     });
     if (generation !== chatGeneration) throw new Error('聊天已切换，请返回原聊天重试发送。');
+  }
+
+  async function confirmWeChatSend() {
+    const generation = chatGeneration;
+    await updateWeChat(current => {
+      if (!current.准备发送) throw new Error('没有待发送的微信消息。');
+      if (current.准备发送.已确认 !== false) throw new Error('这批微信消息已经确认，请等待正文或重试生成。');
+      const wechat = klona(current);
+      wechat.准备发送!.已确认 = true;
+      return wechat;
+    });
+    if (generation !== chatGeneration) throw new Error('聊天已切换，请返回原聊天重试发送。');
     await eventEmit('Chat_On_WeChat');
   }
 
+  async function discardWeChatDraft() {
+    await updateWeChat(current => {
+      if (!current.准备发送 || current.准备发送.已确认 !== false) throw new Error('没有可清空的待发送微信消息。');
+      const wechat = klona(current);
+      wechat.准备发送 = null;
+      return wechat;
+    });
+  }
+
   async function retryWeChatSend() {
-    if (!statData.value?.手机?.微信?.准备发送) throw new Error('没有待生成的微信消息。');
+    const pending = statData.value?.手机?.微信?.准备发送;
+    if (!pending) throw new Error('没有待生成的微信消息。');
+    if (pending.已确认 === false) throw new Error('请先确认发送这批微信消息。');
     await eventEmit('Chat_On_WeChat');
   }
 
@@ -350,6 +381,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     replace,
     update,
     sendWeChatMessage,
+    confirmWeChatSend,
+    discardWeChatDraft,
     retryWeChatSend,
     requestWeChatFriend,
     respondWeChatFriend,
