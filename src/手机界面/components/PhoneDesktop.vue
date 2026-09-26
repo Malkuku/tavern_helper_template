@@ -5,9 +5,9 @@
       <strong>{{ dateLabel }}</strong>
     </div>
 
-    <div class="app-grid" data-layout-empty="true">
+    <div class="app-grid" data-layout-empty="true" @touchstart.passive="startPageTouch" @touchend="endPageTouch">
       <button
-        v-for="item in layout.desktop"
+        v-for="item in visibleItems"
         :key="itemKey(item)"
         class="app-tile"
         :class="{
@@ -42,7 +42,16 @@
     </div>
 
     <div class="home-spacer" data-layout-empty="true"></div>
-    <div class="page-dots" aria-hidden="true"><span></span><span></span></div>
+    <div class="page-dots" aria-label="桌面分页">
+      <button
+        v-for="index in pageCount"
+        :key="index"
+        type="button"
+        :class="{ active: page === index - 1 }"
+        :aria-label="`第${index}页`"
+        @click="page = index - 1"
+      ></button>
+    </div>
     <div class="dock" data-layout-dock-empty="true">
       <button
         v-for="name in layout.dock"
@@ -63,7 +72,7 @@
       </button>
     </div>
 
-    <div v-if="selectedFolder" class="folder-overlay" @click.self="folderId = null">
+    <div v-if="selectedFolder" class="folder-overlay" data-layout-empty="true" @click.self="folderId = null">
       <section class="folder-panel" :aria-label="selectedFolder.name">
         <div class="folder-header">
           <input v-model="selectedFolder.name" aria-label="文件夹名称" maxlength="20" @change="saveLayout" />
@@ -71,12 +80,17 @@
         </div>
         <div class="folder-grid">
           <div v-for="name in selectedFolder.apps" :key="name" class="folder-app">
-            <button type="button" class="app-tile" @click="openApp(name)">
+            <button
+              type="button"
+              class="app-tile"
+              @pointerdown="startIconDrag($event, { kind: 'app', name })"
+              @pointermove="moveIconDrag"
+              @pointerup="endIconDrag"
+              @pointercancel="cancelIconDrag"
+              @click="openApp(name)"
+            >
               <DesktopAppIcon :name="name" :today="today" />
               <span>{{ name }}</span>
-            </button>
-            <button class="folder-remove" type="button" :aria-label="`将${name}移出文件夹`" @click="moveOut(name)">
-              移出
             </button>
           </div>
         </div>
@@ -96,14 +110,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { apps, dockApps } from '../desktopApps';
 import {
   defaultPhoneLayout,
   itemKey,
   movePhoneItem,
   normalizePhoneLayout,
-  takeAppOutOfFolder,
   type DesktopItem,
   type DragItem,
   type DropTarget,
@@ -114,6 +127,22 @@ import DesktopAppIcon from './DesktopAppIcon.vue';
 defineProps<{ dateLabel: string; today: number }>();
 const emit = defineEmits<{ open: [name: string] }>();
 const layout = ref<PhoneLayout>(defaultPhoneLayout());
+const page = ref(0);
+const pageSize = 12;
+const pageCount = computed(() => Math.max(1, Math.ceil(layout.value.desktop.length / pageSize)));
+const visibleItems = computed(() => layout.value.desktop.slice(page.value * pageSize, (page.value + 1) * pageSize));
+watch(pageCount, count => {
+  if (page.value >= count) page.value = count - 1;
+});
+let pageTouchX = 0;
+function startPageTouch(event: TouchEvent) {
+  pageTouchX = event.changedTouches[0]?.clientX ?? 0;
+}
+function endPageTouch(event: TouchEvent) {
+  if (drag.value?.moved) return;
+  const dx = (event.changedTouches[0]?.clientX ?? pageTouchX) - pageTouchX;
+  if (Math.abs(dx) > 50) page.value = Math.max(0, Math.min(pageCount.value - 1, page.value + (dx < 0 ? 1 : -1)));
+}
 const folderId = ref<string | null>(null);
 const selectedFolder = computed(
   () =>
@@ -165,12 +194,6 @@ function openItem(item: DesktopItem) {
   if (item.kind === 'folder') folderId.value = item.id;
   else emit('open', item.name);
 }
-function moveOut(name: string) {
-  if (!folderId.value) return;
-  layout.value = takeAppOutOfFolder(layout.value, folderId.value, name);
-  if (!selectedFolder.value) folderId.value = null;
-  saveLayout();
-}
 function startIconDrag(event: PointerEvent, source: DragItem) {
   if (event.button !== 0) return;
   drag.value = {
@@ -208,6 +231,8 @@ function targetAt(event: PointerEvent): DropTarget | null {
     };
   }
   if (element?.closest('[data-layout-dock-empty]')) return { zone: 'dock-empty' };
+  if (folderId.value && element?.closest('.folder-overlay') && !element?.closest('.folder-panel'))
+    return { zone: 'empty' };
   if (element?.closest('[data-layout-empty]')) return { zone: 'empty' };
   return null;
 }
@@ -235,6 +260,7 @@ function endIconDrag(event: PointerEvent) {
       const next = movePhoneItem(layout.value, current.source, target, crypto.randomUUID());
       if (next !== layout.value) {
         layout.value = next;
+        if (!selectedFolder.value) folderId.value = null;
         saveLayout();
       }
     }

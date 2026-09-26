@@ -90,7 +90,7 @@
             </button>
           </header>
 
-          <PhoneDesktop v-if="!activeApp" :date-label="dateLabel" :today="now.getDate()" @open="activeApp = $event" />
+          <PhoneDesktop v-if="!activeApp" :date-label="dateLabel" :today="worldDay" @open="activeApp = $event" />
 
           <main v-else-if="activeApp === '微信'" class="wechat-screen">
             <WeChat />
@@ -100,12 +100,12 @@
             <DataApp :app="activeApp" @back="activeApp = null" />
           </main>
 
+          <PhoneUtilities v-else-if="['备忘录', '电话', '日历', '天气'].includes(activeApp)" :app="activeApp" />
+
           <main v-else class="app-screen">
             <button class="back-button" type="button" @click="activeApp = null">‹ 桌面</button>
             <div class="app-placeholder">
-              <span class="placeholder-icon" :style="{ background: selectedApp?.color }">{{
-                activeApp === '日历' ? now.getDate() : selectedApp?.icon
-              }}</span>
+              <span class="placeholder-icon" :style="{ background: selectedApp?.color }">{{ selectedApp?.icon }}</span>
               <h1>{{ activeApp }}</h1>
               <p>应用内容待接入</p>
             </div>
@@ -121,11 +121,11 @@
           />
 
           <button
-            v-if="!activeApp"
             class="home-indicator"
             type="button"
-            aria-label="返回桌面"
-            @click="activeApp = null"
+            :aria-label="activeApp ? '返回桌面' : '退出手机'"
+            :title="activeApp ? '返回桌面' : '退出手机'"
+            @click="activeApp ? (activeApp = null) : closePhone()"
           ></button>
         </div>
       </div>
@@ -138,6 +138,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useMagicGirlStatStore } from './store/StatStore';
 import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
+import PhoneUtilities from './apps/PhoneUtilities.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import { apps, dockApps, isDataApp } from './desktopApps';
@@ -153,15 +154,22 @@ const launcherStyle = computed(() => ({ left: launcherPosition.left + 'px', top:
 const phoneStyle = computed(() => ({ left: phonePosition.left + 'px', top: phonePosition.top + 'px' }));
 const phoneFrame = ref<HTMLElement>();
 const launcherButton = ref<HTMLElement>();
-const now = ref(new Date());
+const worldTime = computed(() => statStore.statData?.世界?.时间 ?? '');
+const worldParts = computed(() =>
+  /(?:\d{4}[-/年])?(\d{1,2})[-/月](\d{1,2})[日\sT]+(\d{1,2}):(\d{2})/.exec(worldTime.value),
+);
 const time = computed(() =>
-  now.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+  worldParts.value
+    ? `${worldParts.value[3].padStart(2, '0')}:${worldParts.value[4]}`
+    : (worldTime.value.match(/\b\d{1,2}:\d{2}\b/)?.[0] ?? '--:--'),
 );
 const dateLabel = computed(() =>
-  now.value.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }),
+  worldParts.value
+    ? `${Number(worldParts.value[1])}月${Number(worldParts.value[2])}日`
+    : worldTime.value || '世界时间未设置',
 );
+const worldDay = computed(() => Number(worldParts.value?.[2]) || 1);
 const selectedApp = computed(() => [...apps, ...dockApps].find(app => app.name === activeApp.value));
-let clock: ReturnType<typeof setInterval> | undefined;
 let hostWindow: Window | null = null;
 let drag: { kind: 'launcher' | 'phone'; x: number; y: number; left: number; top: number; pointerId: number } | null =
   null;
@@ -247,13 +255,9 @@ function onResize() {
 onMounted(() => {
   hostWindow = launcherButton.value?.ownerDocument.defaultView ?? null;
   hostWindow?.addEventListener('resize', onResize);
-  clock = setInterval(() => {
-    now.value = new Date();
-  }, 60_000);
 });
 onUnmounted(() => {
   hostWindow?.removeEventListener('resize', onResize);
-  if (clock) clearInterval(clock);
 });
 </script>
 
