@@ -7,6 +7,7 @@ import {
   parseWeChatLogs,
   privateChatKey,
   privateKey,
+  unappliedWeChatLogs,
 } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
 
@@ -108,4 +109,62 @@ const pendingLog = parseWeChatLogs(
 );
 assert.equal(logConfirmsPending(ready, pendingLog[0]), true);
 assert.equal(applyWeChatLogs(ready, pendingLog).准备发送, null);
+const advancedReady = structuredClone(ready);
+advancedReady.准备发送!.时间 = '2026-9-26T03:10[6]';
+const advancedLog = structuredClone(pendingLog);
+advancedLog[0].事件[0].时间 = '2026-09-26T03:12[6]';
+assert.equal(logConfirmsPending(advancedReady, advancedLog[0]), true);
+const advancedApplied = applyWeChatLogs(advancedReady, advancedLog);
+assert.equal(advancedApplied.准备发送, null);
+assert.equal(advancedApplied.会话[userChat].消息[0].时间, '2026-09-26T03:12[6]');
+const earlierLog = structuredClone(advancedLog);
+earlierLog[0].事件[0].时间 = '2026-09-26T03:09[6]';
+assert.throws(() => applyWeChatLogs(advancedReady, earlierLog), /正文时间早于待发送时间/);
+const wrongContentLog = structuredClone(advancedLog);
+if (wrongContentLog[0].事件[0].类型 === '消息') wrongContentLog[0].事件[0].内容 = ['别的消息'];
+assert.throws(() => applyWeChatLogs(advancedReady, wrongContentLog), /内容不一致/);
+
+const birdChat = privateChatKey('小鸟游琉璃');
+const birdReady: 微信数据 = structuredClone(initial);
+birdReady.账号['小鸟游琉璃'] = account('小鸟游琉璃');
+birdReady.账号.user.好友.push('小鸟游琉璃');
+birdReady.账号['小鸟游琉璃'].好友.push('user');
+const firstLog = parseWeChatLogs(
+  `<WeChatLog>${JSON.stringify({
+    事件: [
+      {
+        类型: '消息',
+        会话: birdChat,
+        会话信息: { 类型: '私聊', 成员: ['user', '小鸟游琉璃'] },
+        发送者: 'user',
+        时间: time,
+        内容: ['你好？'],
+      },
+      { 类型: '消息', 会话: birdChat, 发送者: '小鸟游琉璃', 时间: '2026-09-26T03:12[6]', 内容: ['？', '有事直说'] },
+    ],
+  })}</WeChatLog>`,
+);
+const secondLog = parseWeChatLogs(
+  `<WeChatLog>${JSON.stringify({
+    事件: [
+      { 类型: '消息', 会话: birdChat, 发送者: 'user', 时间: '2026-09-26T03:13[6]', 内容: ['<名片 角色="索菲亚">'] },
+      {
+        类型: '消息',
+        会话: birdChat,
+        发送者: '小鸟游琉璃',
+        时间: '2026-09-26T03:15[6]',
+        内容: ['柊索菲亚？', '你跟她搭上线了。', '大半夜推她名片，想让我做什么。'],
+      },
+    ],
+  })}</WeChatLog>`,
+);
+const birdAfterFirst = applyWeChatLogs(birdReady, firstLog);
+const appended = [...firstLog, ...secondLog];
+const remaining = unappliedWeChatLogs(birdAfterFirst, appended, JSON.stringify(firstLog));
+assert.deepEqual(remaining[0].事件, secondLog[0].事件);
+assert.equal(applyWeChatLogs(birdAfterFirst, remaining).会话[birdChat].消息.length, 4);
+assert.deepEqual(unappliedWeChatLogs(birdAfterFirst, firstLog, JSON.stringify(firstLog)), []);
+const edited = structuredClone(appended);
+edited[0].事件[0].内容 = ['改写'];
+assert.throws(() => unappliedWeChatLogs(birdAfterFirst, edited, JSON.stringify(firstLog)), /旧增量仍在变量中/);
 console.log('微信会话消息流验证通过');

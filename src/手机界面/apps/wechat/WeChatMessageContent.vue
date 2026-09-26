@@ -32,8 +32,8 @@
         v-else-if="typeof item === 'string'"
         type="button"
         class="wx-rich wx-payment"
-        :class="{ 'wx-payment-done': states?.[index] }"
-        @click="emit('open-payment', index)"
+        :class="{ 'wx-payment-done': states?.[index + startIndex] }"
+        @click="emit('open-payment', index + startIndex)"
       >
         <span class="wx-payment-icon">{{ parseText(item).kind === 'redpacket' ? '🧧' : '¥' }}</span>
         <span class="wx-payment-body"
@@ -42,7 +42,7 @@
         >
         <span class="wx-payment-amount">{{ parseText(item).label }}</span>
         <small class="wx-payment-status">{{
-          states?.[index] || (parseText(item).kind === 'redpacket' ? '领取红包' : '确认收款')
+          states?.[index + startIndex] || (parseText(item).kind === 'redpacket' ? '领取红包' : '确认收款')
         }}</small>
       </button>
       <details v-else class="wx-rich wx-forward">
@@ -72,9 +72,10 @@ const props = withDefaults(
     accounts: 微信数据['账号'];
     sender: string;
     depth?: number;
+    startIndex?: number;
     states?: 微信消息['特殊内容状态'];
   }>(),
-  { depth: 0, states: undefined },
+  { depth: 0, startIndex: 0, states: undefined },
 );
 const emit = defineEmits<{ 'open-card': [id: string]; 'open-payment': [index: number] }>();
 

@@ -12,54 +12,70 @@
         <template v-for="(message, index) in selectedSession.消息" :key="index">
           <time v-if="showMessageTime(index)" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
           <div v-if="!isWeChatMessage(message)" class="wx-system-tip">{{ operationSummary(message) }}</div>
-          <div v-else class="wx-message" :class="{ mine: message.发送者 === 'user' }">
-            <button
-              v-if="message.发送者 !== 'user'"
-              class="wx-avatar-action"
-              type="button"
-              :aria-label="`拍一拍${accounts[message.发送者]?.昵称 || message.发送者}`"
-              @click="poke(message.发送者)"
+          <template v-else>
+            <div
+              v-for="(part, contentIndex) in message.内容"
+              :key="contentIndex"
+              class="wx-message"
+              :class="{ mine: message.发送者 === 'user' }"
             >
-              <WeChatAvatar :id="message.发送者" :accounts="accounts" />
-            </button>
-            <WeChatAvatar v-else :id="message.发送者" :accounts="accounts" />
-            <div class="wx-message-main">
-              <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
-                accounts[message.发送者]?.昵称 || message.发送者
-              }}</small>
-              <div class="wx-bubble">
-                <div v-if="message.引用" class="wx-rich wx-quote">
-                  <small>引用 {{ accounts[message.引用.发送者]?.昵称 || message.引用.发送者 }}</small>
-                  <WeChatMessageContent :items="message.引用.内容" :accounts="accounts" :sender="message.引用.发送者" />
+              <button
+                v-if="message.发送者 !== 'user'"
+                class="wx-avatar-action"
+                type="button"
+                :aria-label="`拍一拍${accounts[message.发送者]?.昵称 || message.发送者}`"
+                @click="poke(message.发送者)"
+              >
+                <WeChatAvatar :id="message.发送者" :accounts="accounts" />
+              </button>
+              <WeChatAvatar v-else :id="message.发送者" :accounts="accounts" />
+              <div class="wx-message-main">
+                <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
+                  accounts[message.发送者]?.昵称 || message.发送者
+                }}</small>
+                <div class="wx-bubble">
+                  <div v-if="contentIndex === 0 && message.引用" class="wx-rich wx-quote">
+                    <small>引用 {{ accounts[message.引用.发送者]?.昵称 || message.引用.发送者 }}</small>
+                    <WeChatMessageContent
+                      :items="message.引用.内容"
+                      :accounts="accounts"
+                      :sender="message.引用.发送者"
+                    />
+                  </div>
+                  <WeChatMessageContent
+                    :items="[part]"
+                    :accounts="accounts"
+                    :sender="message.发送者"
+                    :states="message.特殊内容状态"
+                    :start-index="contentIndex"
+                    @open-payment="openPayment(message, $event)"
+                    @open-card="openCard"
+                  />
                 </div>
-                <WeChatMessageContent
-                  :items="message.内容"
-                  :accounts="accounts"
-                  :sender="message.发送者"
-                  :states="message.特殊内容状态"
-                  @open-payment="openPayment(message, $event)"
-                  @open-card="openCard"
-                />
+                <div class="wx-message-meta">
+                  <button type="button" @click="quoteMessage({ ...message, 内容: [part] })">引用</button>
+                  <button type="button" @click="startForward({ ...message, 内容: [part] })">转发</button>
+                </div>
               </div>
-              <div class="wx-message-meta">
-                <button type="button" @click="quoteMessage(message)">引用</button>
-                <button type="button" @click="startForward(message)">转发</button>
+            </div>
+          </template>
+        </template>
+        <template v-if="pending">
+          <div v-for="(part, contentIndex) in pending.内容" :key="contentIndex" class="wx-message mine wx-pending">
+            <WeChatAvatar id="user" :accounts="accounts" />
+            <div class="wx-message-main">
+              <div class="wx-bubble">
+                <div v-if="contentIndex === 0 && pending.引用" class="wx-rich wx-quote">
+                  引用 {{ pending.引用.发送者 }}：{{ contentSummary(pending.引用.内容) }}
+                </div>
+                <WeChatMessageContent :items="[part]" :accounts="accounts" sender="user" />
               </div>
+              <small v-if="contentIndex === pending.内容.length - 1"
+                >等待正文确认 · <button type="button" @click="retrySend">重试生成</button></small
+              >
             </div>
           </div>
         </template>
-        <div v-if="pending" class="wx-message mine wx-pending">
-          <WeChatAvatar id="user" :accounts="accounts" />
-          <div class="wx-message-main">
-            <div class="wx-bubble">
-              <div v-if="pending.引用" class="wx-rich wx-quote">
-                引用 {{ pending.引用.发送者 }}：{{ contentSummary(pending.引用.内容) }}
-              </div>
-              <WeChatMessageContent :items="pending.内容" :accounts="accounts" sender="user" />
-            </div>
-            <small>等待正文确认 · <button type="button" @click="retrySend">重试生成</button></small>
-          </div>
-        </div>
         <div v-if="pending && generating" class="wx-typing">
           <span class="wx-typing-dots"><i></i><i></i><i></i></span>对方正在输入中...
         </div>

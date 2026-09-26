@@ -15,6 +15,7 @@ import {
   parseWeChatLogs,
   privateChatKey,
   sendFriendRequest,
+  unappliedWeChatLogs,
 } from '../apps/wechat/wechatData';
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { reconcileWorldbookStatData } from './worldbookInit';
@@ -200,17 +201,18 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       }
       return;
     }
-    if (markers[key] && markers[key] !== signature) {
-      const oldLogs = JSON.parse(markers[key]);
-      if (logMessagesPresent(previous.stat_data.手机.微信, oldLogs))
-        throw new Error(`第 ${messageId} 楼的微信日志已变更，旧增量仍在变量中，不能自动重复应用。`);
+    let remaining;
+    try {
+      remaining = unappliedWeChatLogs(previous.stat_data.手机.微信, logs, markers[key]);
+    } catch (error) {
+      throw new Error(`第 ${messageId} 楼的${error instanceof Error ? error.message : '微信日志处理失败'}`);
     }
     const data = klona(previous.stat_data) as stat_data;
-    data.手机.微信 = applyWeChatLogs(data.手机.微信, logs);
+    data.手机.微信 = applyWeChatLogs(data.手机.微信, remaining);
     if (generation !== chatGeneration) return;
     await writeStatData(data, previous);
     wechatLogError.value = '';
-    updateVariablesWith(
+    await updateVariablesWith(
       variables => ({
         ...variables,
         magicGirlWeChatAppliedLogs: { ...(variables.magicGirlWeChatAppliedLogs ?? {}), [key]: signature },

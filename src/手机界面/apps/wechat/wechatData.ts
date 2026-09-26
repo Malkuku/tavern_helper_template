@@ -83,6 +83,28 @@ export function parseWeChatLogs(content: string): WeChatLog[] {
   });
 }
 
+export function unappliedWeChatLogs(current: 微信数据, logs: WeChatLog[], previousSignature?: string): WeChatLog[] {
+  if (!previousSignature) return logs;
+  let previousLogs: WeChatLog[];
+  try {
+    previousLogs = JSON.parse(previousSignature);
+    if (!Array.isArray(previousLogs)) throw new Error();
+  } catch {
+    throw new Error('已应用微信日志的记录无效，不能自动重复应用。');
+  }
+  const oldEvents = previousLogs.flatMap(log => log.事件);
+  const newEvents = logs.flatMap(log => log.事件);
+  if (logMessagesPresent(current, previousLogs)) {
+    if (
+      oldEvents.length > newEvents.length ||
+      oldEvents.some((event, index) => JSON.stringify(event) !== JSON.stringify(newEvents[index]))
+    )
+      throw new Error('微信日志已变更，旧增量仍在变量中，不能自动重复应用。');
+    return newEvents.length === oldEvents.length ? [] : [{ 事件: newEvents.slice(oldEvents.length) }];
+  }
+  return logs;
+}
+
 export function privateChatKey(otherId: string): string {
   return `私聊:user&${otherId}`;
 }
@@ -150,19 +172,21 @@ export function logConfirmsPending(current: 微信数据, log: WeChatLog): boole
     first.类型 === '消息' &&
     first.会话 === pending.会话 &&
     first.发送者 === 'user' &&
-    sameWeChatTime(first.时间, pending.时间) &&
+    confirmableWeChatTime(first.时间, pending.时间) &&
     JSON.stringify(first.内容) === JSON.stringify(pending.内容) &&
     JSON.stringify(first.引用) === JSON.stringify(pending.引用)
   );
 }
 
-function sameWeChatTime(a: string, b: string): boolean {
-  if (a === b) return true;
-  const canonical = (value: string) => {
+function confirmableWeChatTime(logTime: string, pendingTime: string): boolean {
+  if (logTime === pendingTime) return true;
+  const sortable = (value: string) => {
     const match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}:\d{2}\[\d\])$/);
-    return match ? `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}T${match[4]}` : null;
+    return match ? `${match[1]}${match[2].padStart(2, '0')}${match[3].padStart(2, '0')}${match[4].slice(0, 5)}` : null;
   };
-  return canonical(a) !== null && canonical(a) === canonical(b);
+  const actual = sortable(logTime);
+  const pending = sortable(pendingTime);
+  return actual !== null && pending !== null && actual >= pending;
 }
 
 function pendingMismatch(current: 微信数据, log: WeChatLog): string | null {
@@ -170,7 +194,8 @@ function pendingMismatch(current: 微信数据, log: WeChatLog): string | null {
   const first = log.事件[0];
   if (!pending || !first || first.类型 !== '消息' || first.发送者 !== 'user') return null;
   if (first.会话 !== pending.会话) return `会话不一致（待发送：${pending.会话}；正文：${first.会话}）。`;
-  if (!sameWeChatTime(first.时间, pending.时间)) return `时间不一致（待发送：${pending.时间}；正文：${first.时间}）。`;
+  if (!confirmableWeChatTime(first.时间, pending.时间))
+    return `正文时间早于待发送时间或格式无效（待发送：${pending.时间}；正文：${first.时间}）。`;
   if (JSON.stringify(first.内容) !== JSON.stringify(pending.内容))
     return `内容不一致（待发送：${JSON.stringify(pending.内容)}；正文：${JSON.stringify(first.内容)}）。`;
   if (JSON.stringify(first.引用) !== JSON.stringify(pending.引用)) return '引用不一致。';
