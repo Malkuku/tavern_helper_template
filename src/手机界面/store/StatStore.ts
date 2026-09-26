@@ -142,8 +142,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (generation !== chatGeneration) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous) throw new Error('当前楼层尚无 MVU 数据。');
-      if (!previous.stat_data && Reflect.get(previous, '作者') !== 987) return;
-      const { data, changed } = reconcileWorldbookStatData(previous.stat_data, entries);
+      const current = previous.stat_data;
+      if (!current) return;
+      const firstInitialization = Object.keys(current).length === 1 && current.作者 === 987;
+      const { data, changed } = reconcileWorldbookStatData(firstInitialization ? undefined : current, entries);
       if (!changed) return;
       const next = { ...previous, stat_data: data };
       // 检查后立即向当前楼层发起写入，避免聊天切换期间提交过期数据。

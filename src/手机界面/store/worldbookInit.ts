@@ -158,9 +158,16 @@ export function reconcileWorldbookStatData(
 ): { data: JsonRecord; changed: boolean } {
   const initTags = parseTags(uniqueEntry(entries, '[initvar]'));
   let initialData: JsonRecord | undefined;
-  if (!isRecord(current)) {
+  const needsWorldTime = !isRecord(current) || !isRecord(current.世界) || !current.世界.时间;
+  if (needsWorldTime) {
     const parsed = JSON.parse(uniqueEntry(entries, 'StatData').content) as unknown;
-    if (!isRecord(parsed)) throw new Error('StatData 必须是 JSON 对象。');
+    if (
+      !isRecord(parsed) ||
+      !isRecord(parsed.世界) ||
+      typeof parsed.世界.时间 !== 'string' ||
+      !parsed.世界.时间
+    )
+      throw new Error('StatData 必须包含非空的世界.时间。');
     initialData = parsed;
   }
   const version = readVersion(uniqueEntry(entries, '当前世界书版本').content);
@@ -187,6 +194,10 @@ export function reconcileWorldbookStatData(
 
   const data = isRecord(current) ? klona(current) : klona(initialData!);
   const before = JSON.stringify(data);
+  if (needsWorldTime) {
+    if (!isRecord(data.世界)) data.世界 = {};
+    data.世界.时间 = initialData!.世界.时间;
+  }
   const updateStatic = data.系统?.版本 !== version;
   if (isRecord(data.系统)) {
     delete data.系统.商店待刷新;
