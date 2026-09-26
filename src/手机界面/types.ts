@@ -1,6 +1,5 @@
 /**
- * 人设目录中 <JSON path="..."> 字段对应的数据结构。
- * dynamic="true" 是模板元数据，不会成为运行时 JSON 的属性。
+ * 唯一开局组装后写入 stat_data.角色 的数据结构。
  */
 
 export interface 魔法少女形态 {

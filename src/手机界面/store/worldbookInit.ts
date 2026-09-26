@@ -1,264 +1,123 @@
-import { klona } from 'klona';
-import { privateKey } from '../apps/wechat/wechatData';
+﻿import { klona } from 'klona';
+import { z } from 'zod';
+import { initialStatDataSchema } from './initialDataSchema';
 
-type JsonRecord = Record<string, any>;
-type TaggedValue = { path: string[]; value: unknown; dynamic: boolean };
+type JsonRecord = Record<string, unknown>;
 type ConfigEntry = Pick<WorldbookEntry, 'name' | 'content'>;
 
-const rolePrefix = '<人设配置>';
+const scenarioSchema = z
+  .object({
+    author: z.string(),
+    key: z.string().min(1),
+    desc: z.string(),
+    可用: z.literal(true),
+    内容配置: z
+      .object({
+        世界: z.record(z.string(), z.unknown()),
+        角色: z.array(z.uuid()).min(1),
+        地图: z.uuid(),
+        仓库: z.record(z.string(), z.unknown()),
+      })
+      .strict(),
+  })
+  .strict();
+const openingSchema = z.record(z.uuid(), scenarioSchema);
+const openingDocumentSchema = z.object({ 固定数据: z.record(z.string(), z.unknown()), 开场白: openingSchema }).strict();
+const roleEntrySchema = z
+  .object({
+    author: z.string(),
+    key: z.string().min(1),
+    desc: z.string(),
+    type: z.enum(['user', '主要角色', '次要角色']),
+    data: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+const registrySchema = z.record(z.uuid(), roleEntrySchema);
+const mapRegistrySchema = z.record(
+  z.uuid(),
+  z.object({ author: z.string(), desc: z.string(), data: z.record(z.string(), z.unknown()) }).strict(),
+);
 
 function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function parseTags(entry: ConfigEntry): TaggedValue[] {
-  const tags = [...entry.content.matchAll(/<JSON\b([^>]*)>([\s\S]*?)<\/JSON>/g)];
-  const openCount = [...entry.content.matchAll(/<JSON\b/g)].length;
-  if (tags.length !== openCount || (!tags.length && entry.name !== '[initvar]'))
-    throw new Error(`世界书条目 ${entry.name} 的 JSON 标签缺失或未闭合。`);
-  const paths = new Set<string>();
-  return tags.map(([, attributes, raw]) => {
-    const attrs = Object.fromEntries(
-      [...attributes.matchAll(/([\w]+)="([^"]*)"/g)].map(([, key, value]) => [key, value]),
-    );
-    const path = attrs.path;
-    if (!path?.startsWith('$.') || !attrs.type)
-      throw new Error(`世界书条目 ${entry.name} 的 JSON 标签缺少 path 或 type。`);
-    if (paths.has(path)) throw new Error(`世界书条目 ${entry.name} 重复声明 ${path}。`);
-    paths.add(path);
-    const segments = path.slice(2).split('.');
-    if (
-      segments.some(
-        segment => !segment || segment === '__proto__' || segment === 'prototype' || segment === 'constructor',
-      )
-    ) {
-      throw new Error(`世界书条目 ${entry.name} 的路径无效：${path}。`);
-    }
-    const content = raw.trim();
-    let value: unknown;
-    switch (attrs.type) {
-      case 'string':
-        value = content;
-        break;
-      case 'number':
-        value = Number(content);
-        if (!content || !Number.isFinite(value)) throw new Error(`${path} 不是有效数字。`);
-        break;
-      case 'boolean':
-        if (content !== 'true' && content !== 'false') throw new Error(`${path} 不是有效布尔值。`);
-        value = content === 'true';
-        break;
-      case 'json':
-        try {
-          value = JSON.parse(content);
-        } catch (cause) {
-          throw new Error(`${path} 不是有效 JSON。`, { cause });
-        }
-        break;
-      default:
-        throw new Error(`${path} 使用了未知类型 ${attrs.type}。`);
-    }
-    return { path: segments, value, dynamic: attrs.dynamic === 'true' };
-  });
-}
-
-function fillMissing(target: JsonRecord, source: JsonRecord): void {
-  for (const [key, value] of Object.entries(source)) {
-    if (!(key in target)) target[key] = klona(value);
-    else if (isRecord(target[key]) && isRecord(value)) fillMissing(target[key], value);
+function readJsonEntry(entries: ConfigEntry[], name: string): unknown {
+  const matches = entries.filter(entry => entry.name === name);
+  if (matches.length !== 1) throw new Error(`主世界书需要且只能有一个 ${name} 条目。`);
+  try {
+    return JSON.parse(matches[0].content);
+  } catch (cause) {
+    throw new Error(`${name} 不是有效 JSON。`, { cause });
   }
-}
-
-function migrateBasicInfo(value: unknown): unknown {
-  if (!isRecord(value)) return value;
-  return Object.entries(value)
-    .map(([key, item]) => `${key}：${typeof item === 'string' ? item : JSON.stringify(item)}`)
-    .join('\n');
 }
 
 function seedWechatFriends(data: JsonRecord): void {
-  const accounts = data.手机?.微信?.账号;
-  const mainRoles = data.角色?.主要角色;
-  if (!isRecord(accounts) || !isRecord(mainRoles)) throw new Error('微信账号或主要角色变量结构无效。');
-  const mainIds = Object.keys(mainRoles).filter(id => id !== 'user');
-  const created = new Set<string>();
+  const phone = data.手机;
+  const wechat = isRecord(phone) ? phone.微信 : undefined;
+  const accountMap = isRecord(wechat) ? wechat.账号 : undefined;
+  const sessions = isRecord(wechat) ? wechat.会话 : undefined;
+  const mainRoles = (data.角色 as JsonRecord).主要角色 as JsonRecord;
+  if (!isRecord(accountMap) || Object.keys(accountMap).length) throw new Error('唯一开局必须提供空的微信账号表。');
+  if (!isRecord(sessions) || Object.keys(sessions).length || !isRecord(wechat) || wechat.准备发送 !== null)
+    throw new Error('唯一开局必须提供空的微信会话与发送缓冲。');
+  const mainIds = Object.keys(mainRoles);
   for (const id of ['user', ...mainIds]) {
-    const defaults = {
+    accountMap[id] = {
       昵称: id === 'user' ? '我' : id,
       头像: '',
       表情包: {},
-      好友: [],
+      好友: id === 'user' ? mainIds : ['user'],
     };
-    if (!isRecord(accounts[id])) {
-      accounts[id] = defaults;
-      created.add(id);
-    } else {
-      fillMissing(accounts[id], defaults);
-    }
   }
-  for (const id of mainIds) {
-    if (!created.has('user') && !created.has(id)) continue;
-    const userFriends = accounts.user.好友;
-    const roleFriends = accounts[id].好友;
-    if (!Array.isArray(userFriends) || !Array.isArray(roleFriends))
-      throw new Error(`微信账号 user 或 ${id} 的好友字段不是数组。`);
-    if (!userFriends.includes(id)) userFriends.push(id);
-    if (!roleFriends.includes('user')) roleFriends.push('user');
-  }
-  const sessions = data.手机.微信.会话;
-  const requests = new Map<string, { from: string; to: string; message: string }>();
-  for (const [id, account] of Object.entries(accounts)) {
-    if (!isRecord(account)) continue;
-    const legacy = account.好友请求;
-    if (!isRecord(legacy)) continue;
-    for (const [to, request] of Object.entries(legacy.发出 || {})) {
-      if (accounts[to])
-        requests.set(`${id}\u0000${to}`, {
-          from: id,
-          to,
-          message: isRecord(request) ? String(request.验证消息 || '') : '',
-        });
-    }
-    for (const [from, request] of Object.entries(legacy.收到 || {})) {
-      if (accounts[from] && !requests.has(`${from}\u0000${id}`))
-        requests.set(`${from}\u0000${id}`, {
-          from,
-          to: id,
-          message: isRecord(request) ? String(request.验证消息 || '') : '',
-        });
-    }
-  }
-  if (requests.size && (!isRecord(sessions) || !data.世界?.时间))
-    throw new Error('旧好友请求迁移需要微信会话与世界时间。');
-  for (const { from, to, message } of requests.values()) {
-    const key = privateKey(from, to);
-    const session = sessions[key] ?? (sessions[key] = { 类型: '私聊', 成员: key.slice(3).split('&'), 消息: [] });
-    if (!Array.isArray(session.消息)) throw new Error(`旧好友请求的会话 ${key} 无效。`);
-    const lastRequest = [...session.消息]
-      .reverse()
-      .find(
-        (item: JsonRecord) =>
-          item?.操作 === '好友申请' || item?.操作 === '通过好友申请' || item?.操作 === '拒绝好友申请',
-      );
-    if (!lastRequest || lastRequest.操作 !== '好友申请')
-      session.消息.push({ 时间: data.世界.时间, 操作: '好友申请', 操作者: from, 目标: to, 验证消息: message });
-  }
-  for (const account of Object.values(accounts)) if (isRecord(account)) delete account.好友请求;
 }
 
-function applyTag(target: JsonRecord, tag: TaggedValue, updateStatic: boolean): void {
-  let parent = target;
-  for (const segment of tag.path.slice(0, -1)) {
-    if (!isRecord(parent[segment])) parent[segment] = {};
-    parent = parent[segment];
-  }
-  const key = tag.path.at(-1)!;
-  if (!(key in parent)) parent[key] = klona(tag.value);
-  else if (tag.dynamic || !updateStatic) {
-    if (isRecord(parent[key]) && isRecord(tag.value)) fillMissing(parent[key], tag.value);
-  } else parent[key] = klona(tag.value);
-}
-
-function uniqueEntry(entries: ConfigEntry[], name: string): ConfigEntry {
-  const matches = entries.filter(entry => entry.name === name);
-  if (matches.length !== 1) throw new Error(`主世界书需要且只能有一个 ${name} 条目。`);
-  return matches[0];
-}
-
-function readVersion(content: string): string {
-  const matches = [...content.matchAll(/^version:\s*([^\s#]+)\s*$/gm)];
-  if (matches.length !== 1) throw new Error('当前世界书版本条目需要且只能声明一个 version。');
-  return matches[0][1];
-}
-
-const missingDefaults: JsonRecord = {
-  角色: { 主要角色: {}, 次要角色: {} },
-  地图: {},
-  世界: { 时间: '', 地点: '', 天气: '', 地图索引: '' },
-  仓库: {},
-  任务: {},
-  商店: {},
-  技能商店: {},
-  系统: {
-    商店下次刷新时间: '',
-    商店主动刷新次数: 0,
-    任务下次刷新时间: '',
-    任务主动刷新次数: 0,
-    技能下次刷新时间: '',
-    技能主动刷新次数: 0,
-  },
-  手机: { 微信: { 账号: {}, 会话: {}, 准备发送: null } },
-};
-
-/** 只依据主世界书配置生成下一份变量；发生解析错误时不修改原对象。 */
+/** 仅为新聊天组装一次初始变量；已有运行状态保持原样。 */
 export function reconcileWorldbookStatData(
   current: unknown,
   entries: ConfigEntry[],
 ): { data: JsonRecord; changed: boolean } {
-  const initTags = parseTags(uniqueEntry(entries, '[initvar]'));
-  let initialData: JsonRecord | undefined;
-  const needsWorldTime = !isRecord(current) || !isRecord(current.世界) || !current.世界.时间;
-  if (needsWorldTime) {
-    const parsed = JSON.parse(uniqueEntry(entries, 'StatData').content) as unknown;
-    if (!isRecord(parsed) || !isRecord(parsed.世界) || typeof parsed.世界.时间 !== 'string' || !parsed.世界.时间)
-      throw new Error('StatData 必须包含非空的世界.时间。');
-    initialData = parsed;
-  }
-  const version = readVersion(uniqueEntry(entries, '当前世界书版本').content);
-  const roleEntries = entries.filter(entry => entry.name.startsWith(rolePrefix));
-  if (!roleEntries.some(entry => entry.name === `${rolePrefix}user`)) throw new Error('主世界书缺少 <人设配置>user。');
-
-  const roleConfigs = roleEntries.map(entry => {
-    const name = entry.name.slice(rolePrefix.length);
-    if (!name || name.includes('.')) throw new Error(`无效的人设配置名称：${entry.name}。`);
-    if (roleEntries.filter(candidate => candidate.name === entry.name).length !== 1)
-      throw new Error(`重复的人设配置：${entry.name}。`);
-    const root = name === 'user' ? ['角色', 'user'] : ['角色', '主要角色', name];
-    const tags = parseTags(entry);
-    if (
-      tags.some(tag => {
-        if (name === 'user' && ['仓库', '任务'].includes(tag.path[0]) && tag.path.length === 1) return false;
-        return root.some((segment, index) => tag.path[index] !== segment) || tag.path.length <= root.length;
-      })
-    ) {
-      throw new Error(`${entry.name} 包含不属于该人物的 JSON path。`);
-    }
-    return { root, tags };
-  });
-
-  const data = isRecord(current) ? klona(current) : klona(initialData!);
-  const before = JSON.stringify(data);
-  if (needsWorldTime) {
-    if (!isRecord(data.世界)) data.世界 = {};
-    data.世界.时间 = initialData!.世界.时间;
-  }
-  const updateStatic = data.系统?.版本 !== version;
-  if (isRecord(data.系统)) {
-    delete data.系统.商店待刷新;
-    delete data.系统.任务待刷新;
-    delete data.系统.技能待刷新;
-  }
-  if (isRecord(data.角色)) {
-    if (isRecord(data.角色.user) && '基础信息' in data.角色.user)
-      data.角色.user.基础信息 = migrateBasicInfo(data.角色.user.基础信息);
-    if (isRecord(data.角色.主要角色)) {
-      for (const role of Object.values(data.角色.主要角色)) {
-        if (isRecord(role) && '基础信息' in role) role.基础信息 = migrateBasicInfo(role.基础信息);
-      }
-    }
-  }
-  for (const tag of initTags) applyTag(data, tag, updateStatic);
-  for (const { root, tags } of roleConfigs) {
-    const original = root.reduce<unknown>((value, key) => (isRecord(value) ? value[key] : undefined), current);
-    if (original === undefined) {
-      // 人物不存在时完整采用模板，动态默认值也必须写入。
-      for (const tag of tags) applyTag(data, tag, true);
+  if (!isRecord(current)) throw new Error('当前楼层 stat_data 缺失或无效。');
+  if (Object.keys(current).length !== 1 || current.作者 !== 987) return { data: klona(current), changed: false };
+  const openingDocument = openingDocumentSchema.parse(readJsonEntry(entries, '<配置>唯一开局'));
+  const fixed = openingDocument.固定数据;
+  const openingEntries = Object.values(openingDocument.开场白);
+  if (openingEntries.length !== 1) throw new Error('主世界书必须且只能有一个可用开局。');
+  const opening = openingEntries[0];
+  const registry = registrySchema.parse(readJsonEntry(entries, '<配置>角色资源'));
+  const maps = mapRegistrySchema.parse(readJsonEntry(entries, '<配置>地图资源'));
+  const map = maps[opening.内容配置.地图];
+  if (!map) throw new Error(`唯一开局引用的地图资源不存在：${opening.内容配置.地图}。`);
+  const selected = new Set<string>();
+  const roles: JsonRecord = { 主要角色: {}, 次要角色: {} };
+  for (const id of opening.内容配置.角色) {
+    if (selected.has(id)) throw new Error(`唯一开局重复引用角色资源：${id}。`);
+    selected.add(id);
+    const entry = registry[id];
+    if (!entry) throw new Error(`唯一开局引用的角色资源不存在：${id}。`);
+    if (entry.type === 'user') {
+      if (entry.key !== 'user' || roles.user) throw new Error('唯一开局必须且只能引用一个 user。');
+      roles.user = klona(entry.data);
     } else {
-      for (const tag of tags) applyTag(data, tag, updateStatic);
+      const bucket = roles[entry.type] as JsonRecord;
+      if (bucket[entry.key]) throw new Error(`唯一开局重复角色身份：${entry.type}.${entry.key}。`);
+      bucket[entry.key] = klona(entry.data);
     }
   }
-  fillMissing(data, missingDefaults);
+  if (!roles.user) throw new Error('唯一开局缺少 user 角色。');
+  if (fixed.世界 !== undefined || fixed.角色 !== undefined || fixed.地图 !== undefined)
+    throw new Error('基础数据不能预置世界、角色或地图。');
+  if (!isRecord(fixed.仓库) || Object.keys(fixed.仓库).length)
+    throw new Error('基础数据必须提供空仓库；开局仓库由开场内容配置提供。');
+  const data: JsonRecord = {
+    ...klona(fixed),
+    世界: klona(opening.内容配置.世界),
+    角色: roles,
+    地图: klona(map.data),
+    仓库: klona(opening.内容配置.仓库),
+  };
   seedWechatFriends(data);
-  data.系统.版本 = version;
-  return { data, changed: JSON.stringify(data) !== before };
+  const parsed = initialStatDataSchema.safeParse(data);
+  if (!parsed.success) throw new Error(`唯一开局组装结果不符合手机变量契约：${z.prettifyError(parsed.error)}`);
+  return { data: parsed.data as unknown as JsonRecord, changed: true };
 }
