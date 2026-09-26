@@ -905,6 +905,225 @@
 .wechat .wx-message-main:hover .wx-message-meta {
   height: auto;
 }
+.wechat .wx-message-meta {
+  height: auto;
+  padding-top: 2px;
+}
+.wechat .wx-message-meta button {
+  padding: 4px 5px;
+  color: var(--wx-muted);
+}
+.wechat .wx-avatar-action {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.wechat .wx-system-tip,
+.wechat .wx-recalled {
+  margin: 8px auto 15px;
+  color: var(--wx-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.wechat .wx-recalled {
+  margin: 4px 0;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #8882;
+}
+.wechat .wx-payment,
+.wechat .wx-contact-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(260px, 70vw);
+  min-height: 72px;
+  border: 0;
+  padding: 11px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.wechat .wx-payment {
+  flex-wrap: wrap;
+  background: #e29b45;
+}
+.wechat .wx-payment-done {
+  background: #b8a48b;
+}
+.wechat .wx-payment-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 7px;
+  background: #ffffff3b;
+  font-size: 25px;
+}
+.wechat .wx-payment-body {
+  flex: 1;
+  min-width: 0;
+}
+.wechat .wx-payment-body strong,
+.wechat .wx-contact-card strong {
+  font-size: 15px;
+}
+.wechat .wx-payment-body small,
+.wechat .wx-contact-card small {
+  display: block;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wechat .wx-payment-amount {
+  font-size: 13px;
+}
+.wechat .wx-payment-status {
+  flex: 1 0 100%;
+  border-top: 1px solid #ffffff55;
+  padding-top: 5px;
+  font-size: 11px;
+}
+.wechat .wx-contact-card {
+  background: var(--wx-panel);
+  color: var(--wx-text);
+  border: 1px solid var(--wx-line);
+}
+.wechat .wx-contact-card-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 5px;
+  background: #8aaebd;
+  color: #fff;
+  font-size: 19px;
+}
+.wechat .wx-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 12px;
+  border-top: 1px solid var(--wx-line);
+  background: var(--wx-nav);
+  font-size: 13px;
+}
+.wechat .wx-action-panel button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+  text-align: left;
+}
+.wechat .wx-action-panel input {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--wx-line);
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
+.wechat .wx-payment-compose {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--wx-line);
+  background: var(--wx-nav);
+}
+.wechat .wx-payment-compose strong {
+  grid-column: 1 / -1;
+  font-size: 14px;
+}
+.wechat .wx-payment-compose input {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid var(--wx-line);
+  border-radius: 5px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
+.wechat .wx-payment-compose button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--wx-green);
+  color: #fff;
+}
+.wechat .wx-payment-compose button:last-child {
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
+.wechat .wx-payment-dialog,
+.wechat .wx-card-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(86%, 300px);
+  padding: 28px 18px 20px;
+  border-radius: 13px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+  text-align: center;
+  box-shadow: 0 15px 40px #0004;
+}
+.wechat .wx-payment-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 15px;
+  background: #e59e45;
+  color: #fff;
+  font-size: 35px;
+}
+.wechat .wx-payment-dialog b {
+  font-size: 28px;
+}
+.wechat .wx-payment-dialog p {
+  margin: 0;
+  font-size: 13px;
+}
+.wechat .wx-payment-dialog small,
+.wechat .wx-card-dialog small {
+  color: var(--wx-muted);
+}
+.wechat .wx-payment-dialog-actions {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  margin-top: 10px;
+}
+.wechat .wx-payment-dialog-actions button,
+.wechat .wx-card-dialog button {
+  flex: 1;
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--wx-green);
+  color: #fff;
+}
+.wechat .wx-payment-dialog-actions button + button {
+  background: #ddd;
+  color: #444;
+}
+.wechat .wx-dialog-close {
+  position: absolute;
+  right: 10px;
+  top: 7px;
+  border: 0;
+  background: none;
+  color: var(--wx-muted);
+  font-size: 25px;
+}
 .wechat .wx-time-divider {
   display: block;
   margin: 20px 0 15px;

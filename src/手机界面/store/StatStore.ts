@@ -6,6 +6,7 @@ import { klona } from 'klona';
 import type { stat_data, 微信数据, 微信消息内容 } from '../types';
 import {
   addSticker,
+  applyWeChatOperation,
   applyWeChatLogs,
   decideFriendRequest,
   logMessagesPresent,
@@ -15,6 +16,7 @@ import {
   privateChatKey,
   sendFriendRequest,
 } from '../apps/wechat/wechatData';
+import type { OperationEvent } from '../apps/wechat/wechatData';
 import { reconcileWorldbookStatData } from './worldbookInit';
 
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
@@ -99,6 +101,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function respondWeChatFriend(id: string, accept: boolean) {
     await updateWeChat(current => decideFriendRequest(current, id, accept));
+  }
+
+  async function performWeChatOperation(event: OperationEvent) {
+    await updateWeChat((current, data) => {
+      if (current.准备发送) throw new Error('上一条微信仍在等待正文确认。');
+      if (!data.世界?.时间) throw new Error('世界时间尚未设置。');
+      return applyWeChatOperation(current, { ...event, 时间: data.世界.时间 });
+    });
   }
 
   async function addWeChatSticker(name: string, source: string) {
@@ -314,6 +324,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     retryWeChatSend,
     requestWeChatFriend,
     respondWeChatFriend,
+    performWeChatOperation,
     addWeChatSticker,
   };
 });

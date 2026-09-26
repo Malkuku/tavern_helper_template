@@ -5,24 +5,46 @@
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回微信" @click="selectedKey = null">‹</button>
         <strong>{{ selectedTitle }}</strong>
-        <button class="wx-chat-more" type="button" aria-label="聊天详情" @click="showUnavailable('聊天详情')">
-          •••
-        </button>
+        <button class="wx-chat-more" type="button" aria-label="聊天详情" @click="detailsOpen = true">•••</button>
       </header>
       <div ref="messagesElement" class="wx-messages">
         <p v-if="!selectedSession.消息.length && !pending" class="wx-empty">还没有消息，发一条开始聊天。</p>
         <template v-for="(message, index) in selectedSession.消息" :key="index">
           <time v-if="showMessageTime(index)" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
-          <div class="wx-message" :class="{ mine: message.发送者 === 'user' }">
-            <WeChatAvatar :id="message.发送者" :accounts="accounts" />
+          <div v-if="message.系统提示" class="wx-system-tip">{{ contentSummary(message.内容) }}</div>
+          <div v-else class="wx-message" :class="{ mine: message.发送者 === 'user' }">
+            <button
+              v-if="message.发送者 !== 'user'"
+              class="wx-avatar-action"
+              type="button"
+              :aria-label="`拍一拍${accounts[message.发送者]?.昵称 || message.发送者}`"
+              @click="poke(message.发送者)"
+            >
+              <WeChatAvatar :id="message.发送者" :accounts="accounts" />
+            </button>
+            <WeChatAvatar v-else :id="message.发送者" :accounts="accounts" />
             <div class="wx-message-main">
               <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
                 accounts[message.发送者]?.昵称 || message.发送者
               }}</small>
-              <div class="wx-bubble">
-                <WeChatMessageContent :items="message.内容" :accounts="accounts" :sender="message.发送者" />
+              <div v-if="message.已撤回" class="wx-recalled">
+                {{ message.发送者 === 'user' ? '你' : accounts[message.发送者]?.昵称 || message.发送者 }}撤回了一条消息
               </div>
-              <div class="wx-message-meta"><button type="button" @click="quoteMessage(message)">引用</button></div>
+              <div v-else class="wx-bubble">
+                <WeChatMessageContent
+                  :items="message.内容"
+                  :accounts="accounts"
+                  :sender="message.发送者"
+                  :states="message.特殊内容状态"
+                  @open-payment="openPayment(message, $event)"
+                  @open-card="openCard"
+                />
+              </div>
+              <div v-if="!message.已撤回 && !message.系统提示" class="wx-message-meta">
+                <button type="button" @click="quoteMessage(message)">引用</button>
+                <button type="button" @click="startForward(message)">转发</button>
+                <button v-if="message.发送者 === 'user'" type="button" @click="recall(message)">撤回</button>
+              </div>
             </div>
           </div>
         </template>
@@ -67,7 +89,7 @@
         </form>
       </div>
       <form class="wx-compose" @submit.prevent="sendMessage">
-        <button class="wx-compose-voice" type="button" aria-label="语音" @click="showUnavailable('语音')">
+        <button class="wx-compose-voice" type="button" aria-label="语音" @click="voiceOpen = !voiceOpen">
           <WeChatIcon name="voice" />
         </button>
         <input
@@ -91,9 +113,47 @@
         </button>
       </form>
       <div v-if="extrasOpen" class="wx-chat-extras">
-        <button v-for="item in extraActions" :key="item.label" type="button" @click="showUnavailable(item.label)">
+        <button v-for="item in extraActions" :key="item.label" type="button" @click="openExtra(item.label)">
           <span><WeChatIcon :name="item.icon" /></span>{{ item.label }}
         </button>
+      </div>
+      <form v-if="paymentKind" class="wx-payment-compose" @submit.prevent="sendPayment">
+        <strong>发送{{ paymentKind }}</strong>
+        <input v-model="paymentAmount" aria-label="金额" placeholder="金额（g）" inputmode="decimal" />
+        <input v-model="paymentRemark" aria-label="备注" placeholder="备注" />
+        <button type="submit" :disabled="!!pending || sending || !worldTime">发送</button>
+        <button type="button" @click="paymentKind = null">取消</button>
+      </form>
+      <form v-if="voiceOpen" class="wx-action-panel" @submit.prevent="sendVoice">
+        <strong>发送语音消息</strong
+        ><input v-model="voiceText" aria-label="语音转写内容" placeholder="输入语音转写内容" /><input
+          v-model="voiceDuration"
+          aria-label="语音时长"
+          placeholder="时长（秒）"
+          inputmode="numeric"
+        /><button type="submit" :disabled="!!pending || sending">发送</button
+        ><button type="button" @click="voiceOpen = false">取消</button>
+      </form>
+      <div v-if="cardPickerOpen" class="wx-action-panel">
+        <strong>发送名片</strong
+        ><button v-for="[id, account] in cardCandidates" :key="id" type="button" @click="sendCard(id)">
+          {{ account.昵称 || id }}</button
+        ><button type="button" @click="cardPickerOpen = false">取消</button>
+      </div>
+      <div v-if="forwarding" class="wx-action-panel">
+        <strong>转发到</strong
+        ><button v-for="item in chats" :key="item.key" type="button" @click="sendForward(item.key)">
+          {{ item.title }}</button
+        ><button type="button" @click="forwarding = null">取消</button>
+      </div>
+      <div v-if="detailsOpen" class="wx-action-panel">
+        <strong>聊天详情</strong
+        ><span>成员：{{ selectedSession.成员.map(id => accounts[id]?.昵称 || id).join('、') }}</span
+        ><template v-if="selectedSession.类型 === '群聊'"
+          ><button v-for="[id, account] in inviteCandidates" :key="id" type="button" @click="invite(id)">
+            邀请 {{ account.昵称 || id }} 进群
+          </button></template
+        ><button type="button" @click="detailsOpen = false">关闭</button>
       </div>
     </template>
 
@@ -283,6 +343,41 @@
         <button type="button" @click="unavailable = ''">知道了</button>
       </div>
     </div>
+    <div v-if="paymentView" class="wx-dialog-backdrop" @click.self="paymentView = null">
+      <div class="wx-payment-dialog" role="dialog" aria-modal="true" aria-label="款项详情">
+        <button class="wx-dialog-close" type="button" @click="paymentView = null">×</button
+        ><span class="wx-payment-dialog-icon">{{ paymentView.kind === '红包' ? '🧧' : '¥' }}</span
+        ><strong>{{ paymentView.kind === '红包' ? '微信红包' : '微信转账' }}</strong
+        ><b>{{ paymentView.amount }}</b>
+        <p>{{ paymentView.remark || '恭喜发财，大吉大利' }}</p>
+        <small>{{ paymentView.status || '待处理' }}</small>
+        <div v-if="paymentView.message.发送者 !== 'user' && !paymentView.status" class="wx-payment-dialog-actions">
+          <button
+            type="button"
+            :disabled="sending"
+            @click="resolvePayment(paymentView.kind === '红包' ? '领取红包' : '领取转账')"
+          >
+            {{ paymentView.kind === '红包' ? '开红包' : '确认收款' }}</button
+          ><button
+            v-if="paymentView.kind === '转账'"
+            type="button"
+            :disabled="sending"
+            @click="resolvePayment('退回转账')"
+          >
+            退回
+          </button>
+        </div>
+      </div>
+    </div>
+    <div v-if="cardView" class="wx-dialog-backdrop" @click.self="cardView = null">
+      <div class="wx-card-dialog" role="dialog" aria-modal="true" aria-label="联系人名片">
+        <WeChatAvatar :id="cardView" :accounts="accounts" /><strong>{{ accounts[cardView]?.昵称 || cardView }}</strong
+        ><small>微信号：{{ cardView }}</small
+        ><button v-if="self?.好友.includes(cardView)" type="button" @click="openCardChat">发消息</button
+        ><button v-else-if="!self?.好友请求?.发出?.[cardView]" type="button" @click="requestCardFriend">添加朋友</button
+        ><small v-else>好友申请已发送</small><button type="button" @click="cardView = null">关闭</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -291,6 +386,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容 } from '../../types';
 import { chatTitle, contentSummary, privateChatKey } from './wechatData';
+import type { OperationEvent } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
@@ -343,6 +439,55 @@ const unavailable = ref('');
 const searchOpen = ref(false);
 const generating = ref(false);
 const extrasOpen = ref(false);
+const paymentKind = ref<'红包' | '转账' | null>(null);
+const paymentAmount = ref('');
+const paymentRemark = ref('');
+const paymentView = ref<{
+  message: 微信消息;
+  index: number;
+  kind: '红包' | '转账';
+  amount: string;
+  remark: string;
+  status?: string;
+} | null>(null);
+const cardView = ref<string | null>(null);
+const cardPickerOpen = ref(false);
+const forwarding = ref<微信消息 | null>(null);
+const detailsOpen = ref(false);
+const voiceOpen = ref(false);
+const voiceText = ref('');
+const voiceDuration = ref('');
+function openExtra(label: string) {
+  extrasOpen.value = false;
+  if (label === '红包' || label === '转账') paymentKind.value = label;
+  else if (label === '名片') cardPickerOpen.value = true;
+  else showUnavailable(label);
+}
+async function sendPayment() {
+  if (!paymentKind.value || !selectedKey.value || sending.value) return;
+  if (!/^\d+(?:\.\d+)?$/.test(paymentAmount.value) || Number(paymentAmount.value) <= 0) {
+    error.value = '请输入有效金额。';
+    return;
+  }
+  if (/[<>]/.test(paymentRemark.value)) {
+    error.value = '备注不能包含尖括号。';
+    return;
+  }
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.sendWeChatMessage(selectedKey.value, [
+      `<${paymentKind.value} 金额="${paymentAmount.value}g">${paymentRemark.value}</${paymentKind.value}>`,
+    ]);
+    paymentKind.value = null;
+    paymentAmount.value = '';
+    paymentRemark.value = '';
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '发送失败';
+  } finally {
+    sending.value = false;
+  }
+}
 const extraActions = [
   { label: '相册', icon: 'photo' },
   { label: '拍摄', icon: 'camera' },
@@ -351,6 +496,7 @@ const extraActions = [
   { label: '红包', icon: 'redpacket' },
   { label: '礼物', icon: 'gift' },
   { label: '转账', icon: 'transfer' },
+  { label: '名片', icon: 'contacts' },
   { label: '收藏', icon: 'favorite' },
 ];
 const stickerFileInput = ref<HTMLInputElement>();
@@ -463,6 +609,10 @@ const contacts = computed(() =>
     .map(id => [id, accounts.value[id]] as const)
     .sort((a, b) => (a[1].昵称 || a[0]).localeCompare(b[1].昵称 || b[0], 'zh-CN')),
 );
+const cardCandidates = computed(() => Object.entries(accounts.value).filter(([id]) => id !== 'user'));
+const inviteCandidates = computed(() =>
+  cardCandidates.value.filter(([id]) => !selectedSession.value?.成员.includes(id)),
+);
 const incomingRequests = computed(() => Object.entries(self.value?.好友请求?.收到 ?? {}));
 const outgoingRequests = computed(() => Object.entries(self.value?.好友请求?.发出 ?? {}));
 const addCandidates = computed(() =>
@@ -510,8 +660,146 @@ function openChat(key: string) {
   quoted.value = null;
   stickerOpen.value = false;
   extrasOpen.value = false;
+  detailsOpen.value = false;
+  cardView.value = null;
   error.value = '';
   scrollBottom();
+}
+function openCard(id: string) {
+  if (!accounts.value[id]) {
+    error.value = '名片中的账号不存在。';
+    return;
+  }
+  cardView.value = id;
+}
+function openCardChat() {
+  if (!cardView.value) return;
+  openContact(cardView.value);
+}
+async function requestCardFriend() {
+  if (!cardView.value) return;
+  await requestFriend(cardView.value);
+  if (!error.value) cardView.value = null;
+}
+function openPayment(message: 微信消息, index: number) {
+  const item = message.内容[index];
+  if (typeof item !== 'string') return;
+  const match = item.match(/^<(红包|转账) 金额="([^"]+)">([\s\S]*?)<\/\1>$/);
+  if (!match) return;
+  paymentView.value = {
+    message,
+    index,
+    kind: match[1] as '红包' | '转账',
+    amount: match[2],
+    remark: match[3],
+    status: message.特殊内容状态?.[index],
+  };
+}
+async function performOperation(event: Omit<OperationEvent, '类型' | '时间'>) {
+  if (sending.value || !selectedKey.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.performWeChatOperation({ 类型: '操作', 时间: worldTime.value, ...event });
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '微信操作失败。';
+  } finally {
+    sending.value = false;
+  }
+}
+async function resolvePayment(operation: '领取红包' | '领取转账' | '退回转账') {
+  const view = paymentView.value;
+  if (!view || !selectedKey.value) return;
+  await performOperation({
+    操作: operation,
+    操作者: 'user',
+    会话: selectedKey.value,
+    目标: { 发送者: view.message.发送者, 时间: view.message.时间 },
+  });
+  if (!error.value) paymentView.value = null;
+}
+async function poke(id: string) {
+  if (!selectedKey.value || id === 'user') return;
+  await performOperation({ 操作: '拍一拍', 操作者: 'user', 目标: id, 会话: selectedKey.value });
+}
+async function recall(message: 微信消息) {
+  if (!selectedKey.value) return;
+  await performOperation({
+    操作: '撤回消息',
+    操作者: 'user',
+    会话: selectedKey.value,
+    目标: { 发送者: 'user', 时间: message.时间 },
+  });
+}
+async function invite(id: string) {
+  if (!selectedKey.value) return;
+  await performOperation({ 操作: '邀请进群', 操作者: 'user', 会话: selectedKey.value, 对象: id });
+  if (!error.value) detailsOpen.value = false;
+}
+function startForward(message: 微信消息) {
+  forwarding.value = message;
+}
+async function sendForward(destination: string) {
+  const source = selectedSession.value;
+  const message = forwarding.value;
+  if (!source || !message || !selectedKey.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    const snapshot = { 发送者: message.发送者, 时间: message.时间, 内容: message.内容 };
+    const forwarded: 微信消息内容 =
+      source.类型 === '私聊'
+        ? { 转发: { 私聊: { 成员: [...source.成员], 消息: [snapshot] } } }
+        : { 转发: { 群聊: { 名称: source.名称 || selectedKey.value, 成员: [...source.成员], 消息: [snapshot] } } };
+    await store.sendWeChatMessage(destination, [forwarded]);
+    forwarding.value = null;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '转发失败。';
+  } finally {
+    sending.value = false;
+  }
+}
+async function sendCard(id: string) {
+  if (!selectedKey.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.sendWeChatMessage(selectedKey.value, [`<名片 角色="${id}">`]);
+    cardPickerOpen.value = false;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '名片发送失败。';
+  } finally {
+    sending.value = false;
+  }
+}
+async function sendVoice() {
+  if (
+    !selectedKey.value ||
+    !voiceText.value.trim() ||
+    !/^\d+$/.test(voiceDuration.value) ||
+    Number(voiceDuration.value) <= 0
+  ) {
+    error.value = '请填写语音转写内容和有效时长。';
+    return;
+  }
+  if (/[<>]/.test(voiceText.value)) {
+    error.value = '转写内容不能包含尖括号。';
+    return;
+  }
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.sendWeChatMessage(selectedKey.value, [
+      `<语音 时长="${voiceDuration.value}s">${voiceText.value.trim()}</语音>`,
+    ]);
+    voiceOpen.value = false;
+    voiceText.value = '';
+    voiceDuration.value = '';
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '语音消息发送失败。';
+  } finally {
+    sending.value = false;
+  }
 }
 function openContact(id: string) {
   openChat(privateChatKey(id));

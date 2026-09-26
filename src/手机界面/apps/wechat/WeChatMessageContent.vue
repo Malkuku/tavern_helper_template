@@ -14,10 +14,37 @@
         />
         <span v-else>表情包 · {{ parseText(item).label }}</span>
       </div>
-      <div v-else-if="typeof item === 'string'" class="wx-rich wx-payment">
-        <strong>{{ parseText(item).kind === 'redpacket' ? '红包' : '转账' }} · {{ parseText(item).label }}</strong>
-        <span>{{ parseText(item).detail }}</span>
-      </div>
+      <button
+        v-else-if="typeof item === 'string' && parseText(item).kind === 'card'"
+        type="button"
+        class="wx-rich wx-contact-card"
+        @click="emit('open-card', parseText(item).label)"
+      >
+        <span class="wx-contact-card-avatar">{{
+          (accounts[parseText(item).label]?.昵称 || parseText(item).label).slice(0, 1)
+        }}</span>
+        <span
+          ><strong>{{ accounts[parseText(item).label]?.昵称 || parseText(item).label }}</strong
+          ><small>个人名片</small></span
+        >
+      </button>
+      <button
+        v-else-if="typeof item === 'string'"
+        type="button"
+        class="wx-rich wx-payment"
+        :class="{ 'wx-payment-done': states?.[index] }"
+        @click="emit('open-payment', index)"
+      >
+        <span class="wx-payment-icon">{{ parseText(item).kind === 'redpacket' ? '🧧' : '¥' }}</span>
+        <span class="wx-payment-body"
+          ><strong>{{ parseText(item).kind === 'redpacket' ? '微信红包' : '微信转账' }}</strong
+          ><small>{{ parseText(item).detail || parseText(item).label }}</small></span
+        >
+        <span class="wx-payment-amount">{{ parseText(item).label }}</span>
+        <small class="wx-payment-status">{{
+          states?.[index] || (parseText(item).kind === 'redpacket' ? '领取红包' : '确认收款')
+        }}</small>
+      </button>
       <div v-else-if="'引用' in item" class="wx-rich wx-quote">
         <small>引用 {{ accounts[item.引用.发送者]?.昵称 || item.引用.发送者 }}</small>
         <WeChatMessageContent
@@ -51,12 +78,19 @@
 import type { 微信数据, 微信消息, 微信消息内容, 微信转发内容 } from '../../types';
 
 const props = withDefaults(
-  defineProps<{ items: 微信消息内容[]; accounts: 微信数据['账号']; sender: string; depth?: number }>(),
-  { depth: 0 },
+  defineProps<{
+    items: 微信消息内容[];
+    accounts: 微信数据['账号'];
+    sender: string;
+    depth?: number;
+    states?: 微信消息['特殊内容状态'];
+  }>(),
+  { depth: 0, states: undefined },
 );
+const emit = defineEmits<{ 'open-card': [id: string]; 'open-payment': [index: number] }>();
 
 function parseText(value: string): {
-  kind: 'text' | 'voice' | 'sticker' | 'redpacket' | 'transfer';
+  kind: 'text' | 'voice' | 'sticker' | 'redpacket' | 'transfer' | 'card';
   label: string;
   detail: string;
 } {
@@ -64,8 +98,15 @@ function parseText(value: string): {
   if (voice) return { kind: 'voice', label: voice[1], detail: voice[2] };
   const sticker = value.match(/^<表情包>([\s\S]*?)<\/表情包>$/);
   if (sticker) return { kind: 'sticker', label: sticker[1], detail: '' };
+  const card = value.match(/^<名片\s+角色="([^"]+)">$/);
+  if (card) return { kind: 'card', label: card[1], detail: '' };
   const payment = value.match(/^<(红包|转账)\s+金额="([^"]+)">([\s\S]*?)<\/\1>$/);
-  if (payment) return { kind: payment[1] === '红包' ? 'redpacket' : 'transfer', label: payment[2], detail: payment[3] };
+  if (payment)
+    return {
+      kind: payment[1] === '红包' ? 'redpacket' : 'transfer',
+      label: payment[2],
+      detail: payment[3],
+    };
   return { kind: 'text', label: '', detail: '' };
 }
 
