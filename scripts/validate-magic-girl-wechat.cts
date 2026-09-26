@@ -167,4 +167,29 @@ assert.deepEqual(unappliedWeChatLogs(birdAfterFirst, firstLog, JSON.stringify(fi
 const edited = structuredClone(appended);
 edited[0].事件[0].内容 = ['改写'];
 assert.throws(() => unappliedWeChatLogs(birdAfterFirst, edited, JSON.stringify(firstLog)), /旧增量仍在变量中/);
+
+// 聊天标记缺失时，同一楼层的旧日志仍可能已经写入 MVU；第二条日志才属于本次发送。
+const continuousFirst = structuredClone(firstLog);
+if (continuousFirst[0].事件[0].类型 === '消息') continuousFirst[0].事件[0].内容 = ['在吗'];
+const continuousStored = applyWeChatLogs(birdReady, continuousFirst);
+continuousStored.准备发送 = { 会话: birdChat, 时间: time, 内容: ['想你了不可以吗？'] };
+const continuousSecond = parseWeChatLogs(
+  `<WeChatLog>${JSON.stringify({
+    事件: [
+      { 类型: '消息', 会话: birdChat, 发送者: 'user', 时间: time, 内容: ['想你了不可以吗？'] },
+      { 类型: '消息', 会话: birdChat, 发送者: '小鸟游琉璃', 时间: '2026-09-26T03:12[6]', 内容: ['少来'] },
+    ],
+  })}</WeChatLog>`,
+);
+const continuousNew = unappliedWeChatLogs(continuousStored, [...continuousFirst, ...continuousSecond]);
+assert.deepEqual(continuousNew[0].事件, continuousSecond[0].事件);
+const continuousApplied = applyWeChatLogs(continuousStored, continuousNew);
+assert.equal(continuousApplied.准备发送, null);
+assert.equal(continuousApplied.会话[birdChat].消息.length, 4);
+const missingOld = structuredClone(continuousStored);
+missingOld.会话[birdChat].消息 = [];
+assert.throws(
+  () => applyWeChatLogs(missingOld, unappliedWeChatLogs(missingOld, [...continuousFirst, ...continuousSecond])),
+  /内容不一致/,
+);
 console.log('微信会话消息流验证通过');

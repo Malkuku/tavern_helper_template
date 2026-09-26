@@ -84,7 +84,17 @@ export function parseWeChatLogs(content: string): WeChatLog[] {
 }
 
 export function unappliedWeChatLogs(current: 微信数据, logs: WeChatLog[], previousSignature?: string): WeChatLog[] {
-  if (!previousSignature) return logs;
+  if (!previousSignature) {
+    // 聊天级标记可能尚未写入，但正文已追加下一条增量。只跳过已落库且位于
+    // 本次待发送消息之前的完整事件，避免把上一轮 user 消息重新拿来确认发送。
+    if (current.准备发送) {
+      const events = logs.flatMap(log => log.事件);
+      const pendingIndex = events.findIndex(event => logConfirmsPending(current, { 事件: [event] }));
+      if (pendingIndex > 0 && logMessagesPresent(current, [{ 事件: events.slice(0, pendingIndex) }]))
+        return [{ 事件: events.slice(pendingIndex) }];
+    }
+    return logs;
+  }
   let previousLogs: WeChatLog[];
   try {
     previousLogs = JSON.parse(previousSignature);
@@ -355,7 +365,8 @@ export function logMessagesPresent(current: 微信数据, logs: WeChatLog[]): bo
             isWeChatMessage(message) &&
             message.发送者 === item.发送者 &&
             message.时间 === item.时间 &&
-            JSON.stringify(message.内容) === JSON.stringify(item.内容),
+            JSON.stringify(message.内容) === JSON.stringify(item.内容) &&
+            JSON.stringify(message.引用) === JSON.stringify(item.引用),
         );
       }
       return (current.会话[item.会话]?.消息 ?? []).some(

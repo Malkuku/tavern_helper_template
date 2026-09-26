@@ -20,9 +20,15 @@
         class="wx-rich wx-contact-card"
         @click="emit('open-card', parseText(item).label)"
       >
-        <span class="wx-contact-card-avatar">{{
-          (accounts[parseText(item).label]?.昵称 || parseText(item).label).slice(0, 1)
-        }}</span>
+        <span class="wx-contact-card-avatar"
+          ><img
+            v-if="accounts[parseText(item).label]?.头像"
+            :src="accounts[parseText(item).label].头像"
+            alt=""
+          /><template v-else>{{
+            (accounts[parseText(item).label]?.昵称 || parseText(item).label).slice(0, 1)
+          }}</template></span
+        >
         <span
           ><strong>{{ accounts[parseText(item).label]?.昵称 || parseText(item).label }}</strong
           ><small>个人名片</small></span
@@ -35,15 +41,14 @@
         :class="{ 'wx-payment-done': states?.[index + startIndex] }"
         @click="emit('open-payment', index + startIndex)"
       >
-        <span class="wx-payment-icon">{{ parseText(item).kind === 'redpacket' ? '🧧' : '¥' }}</span>
+        <span class="wx-payment-icon">{{ parseText(item).kind === 'redpacket' ? '🧧' : '⇄' }}</span>
         <span class="wx-payment-body"
-          ><strong>{{ parseText(item).kind === 'redpacket' ? '微信红包' : '微信转账' }}</strong
-          ><small>{{ parseText(item).detail || parseText(item).label }}</small></span
+          ><strong>{{ parseText(item).kind === 'redpacket' ? '微信红包' : `¥${parseText(item).label}` }}</strong
+          ><small>{{
+            states?.[index + startIndex] || (parseText(item).kind === 'redpacket' ? '领取红包' : '你发起了一笔转账')
+          }}</small></span
         >
-        <span class="wx-payment-amount">{{ parseText(item).label }}</span>
-        <small class="wx-payment-status">{{
-          states?.[index + startIndex] || (parseText(item).kind === 'redpacket' ? '领取红包' : '确认收款')
-        }}</small>
+        <small class="wx-payment-status">{{ parseText(item).kind === 'redpacket' ? '红包' : '转账' }}</small>
       </button>
       <details v-else class="wx-rich wx-forward">
         <summary>转发的{{ '私聊' in item.转发 ? '私聊' : '群聊' }}记录 · {{ forwardMessages(item).length }} 条</summary>

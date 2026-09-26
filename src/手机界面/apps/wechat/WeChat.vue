@@ -33,15 +33,14 @@
                 <small v-if="selectedSession.类型 === '群聊' && message.发送者 !== 'user'">{{
                   accounts[message.发送者]?.昵称 || message.发送者
                 }}</small>
-                <div class="wx-bubble">
-                  <div v-if="contentIndex === 0 && message.引用" class="wx-rich wx-quote">
-                    <small>引用 {{ accounts[message.引用.发送者]?.昵称 || message.引用.发送者 }}</small>
-                    <WeChatMessageContent
-                      :items="message.引用.内容"
-                      :accounts="accounts"
-                      :sender="message.引用.发送者"
-                    />
-                  </div>
+                <div
+                  class="wx-bubble"
+                  @contextmenu.prevent="openMessageMenu(message, part)"
+                  @touchstart.passive="startMessageHold(message, part)"
+                  @touchend="cancelMessageHold"
+                  @touchmove="cancelMessageHold"
+                  @touchcancel="cancelMessageHold"
+                >
                   <WeChatMessageContent
                     :items="[part]"
                     :accounts="accounts"
@@ -52,9 +51,9 @@
                     @open-card="openCard"
                   />
                 </div>
-                <div class="wx-message-meta">
-                  <button type="button" @click="quoteMessage({ ...message, 内容: [part] })">引用</button>
-                  <button type="button" @click="startForward({ ...message, 内容: [part] })">转发</button>
+                <div v-if="contentIndex === 0 && message.引用" class="wx-rich wx-quote">
+                  <small>{{ accounts[message.引用.发送者]?.昵称 || message.引用.发送者 }}：</small>
+                  <span>{{ contentSummary(message.引用.内容) }}</span>
                 </div>
               </div>
             </div>
@@ -65,10 +64,12 @@
             <WeChatAvatar id="user" :accounts="accounts" />
             <div class="wx-message-main">
               <div class="wx-bubble">
-                <div v-if="contentIndex === 0 && pending.引用" class="wx-rich wx-quote">
-                  引用 {{ pending.引用.发送者 }}：{{ contentSummary(pending.引用.内容) }}
-                </div>
                 <WeChatMessageContent :items="[part]" :accounts="accounts" sender="user" />
+              </div>
+              <div v-if="contentIndex === 0 && pending.引用" class="wx-rich wx-quote">
+                {{ accounts[pending.引用.发送者]?.昵称 || pending.引用.发送者 }}：{{
+                  contentSummary(pending.引用.内容)
+                }}
               </div>
               <small v-if="contentIndex === pending.内容.length - 1"
                 >等待正文确认 · <button type="button" @click="retrySend">重试生成</button></small
@@ -78,6 +79,30 @@
         </template>
         <div v-if="pending && generating" class="wx-typing">
           <span class="wx-typing-dots"><i></i><i></i><i></i></span>对方正在输入中...
+        </div>
+      </div>
+      <div v-if="messageMenu" class="wx-message-menu-backdrop" @click="messageMenu = null">
+        <div class="wx-message-menu" role="menu" @click.stop>
+          <button
+            type="button"
+            role="menuitem"
+            @click="
+              startForward(messageMenu);
+              messageMenu = null;
+            "
+          >
+            转发
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            @click="
+              quoteMessage(messageMenu);
+              messageMenu = null;
+            "
+          >
+            引用
+          </button>
         </div>
       </div>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
@@ -137,11 +162,24 @@
         </button>
       </div>
       <form v-if="paymentKind" class="wx-payment-compose" @submit.prevent="sendPayment">
-        <strong>发送{{ paymentKind }}</strong>
-        <input v-model="paymentAmount" aria-label="金额" placeholder="金额（g）" inputmode="decimal" />
-        <input v-model="paymentRemark" aria-label="备注" placeholder="备注" />
-        <button type="submit" :disabled="!!pending || sending || !worldTime">发送</button>
-        <button type="button" @click="paymentKind = null">取消</button>
+        <button class="wx-transfer-back" type="button" @click="paymentKind = null">‹</button>
+        <div class="wx-transfer-recipient">
+          <span>转账给 {{ selectedTitle }}</span
+          ><WeChatAvatar :id="selectedSession.成员.find(id => id !== 'user') || 'user'" :accounts="accounts" />
+        </div>
+        <label class="wx-transfer-label" for="wx-transfer-amount">转账金额</label>
+        <div class="wx-transfer-amount">
+          ¥
+          <input
+            id="wx-transfer-amount"
+            v-model="paymentAmount"
+            aria-label="金额"
+            placeholder="0.00"
+            inputmode="decimal"
+          />
+        </div>
+        <input v-model="paymentRemark" aria-label="转账说明" placeholder="添加转账说明" />
+        <button class="wx-transfer-submit" type="submit" :disabled="!!pending || sending || !worldTime">转账</button>
       </form>
       <form v-if="voiceOpen" class="wx-action-panel" @submit.prevent="sendVoice">
         <strong>发送语音消息</strong
@@ -360,10 +398,10 @@
     <div v-if="paymentView" class="wx-dialog-backdrop" @click.self="paymentView = null">
       <div class="wx-payment-dialog" role="dialog" aria-modal="true" aria-label="款项详情">
         <button class="wx-dialog-close" type="button" @click="paymentView = null">×</button
-        ><span class="wx-payment-dialog-icon">{{ paymentView.kind === '红包' ? '🧧' : '¥' }}</span
+        ><span class="wx-payment-dialog-icon">{{ paymentView.kind === '红包' ? '🧧' : '⇄' }}</span
         ><strong>{{ paymentView.kind === '红包' ? '微信红包' : '微信转账' }}</strong
         ><b>{{ paymentView.amount }}</b>
-        <p>{{ paymentView.remark || '恭喜发财，大吉大利' }}</p>
+        <p>{{ paymentView.remark || (paymentView.kind === '红包' ? '微信红包' : '转账') }}</p>
         <small>{{ paymentView.status || '待处理' }}</small>
         <div v-if="paymentView.message.发送者 !== 'user' && !paymentView.status" class="wx-payment-dialog-actions">
           <button
@@ -460,7 +498,7 @@ const unavailable = ref('');
 const searchOpen = ref(false);
 const generating = ref(false);
 const extrasOpen = ref(false);
-const paymentKind = ref<'红包' | '转账' | null>(null);
+const paymentKind = ref<'转账' | null>(null);
 const paymentAmount = ref('');
 const paymentRemark = ref('');
 const paymentView = ref<{
@@ -480,7 +518,7 @@ const voiceText = ref('');
 const voiceDuration = ref('');
 function openExtra(label: string) {
   extrasOpen.value = false;
-  if (label === '红包' || label === '转账') paymentKind.value = label;
+  if (label === '转账') paymentKind.value = label;
   else if (label === '名片') cardPickerOpen.value = true;
   else showUnavailable(label);
 }
@@ -514,7 +552,6 @@ const extraActions = [
   { label: '拍摄', icon: 'camera' },
   { label: '视频通话', icon: 'video-call' },
   { label: '位置', icon: 'location' },
-  { label: '红包', icon: 'redpacket' },
   { label: '礼物', icon: 'gift' },
   { label: '转账', icon: 'transfer' },
   { label: '名片', icon: 'contacts' },
@@ -670,6 +707,20 @@ const requestMessage = ref('');
 const error = ref('');
 const sending = ref(false);
 const quoted = ref<微信消息 | null>(null);
+const messageMenu = ref<微信消息 | null>(null);
+let messageHoldTimer: ReturnType<typeof setTimeout> | undefined;
+function openMessageMenu(message: 微信消息, part: 微信消息内容) {
+  cancelMessageHold();
+  messageMenu.value = { ...message, 内容: [part] };
+}
+function startMessageHold(message: 微信消息, part: 微信消息内容) {
+  cancelMessageHold();
+  messageHoldTimer = setTimeout(() => openMessageMenu(message, part), 500);
+}
+function cancelMessageHold() {
+  if (messageHoldTimer) clearTimeout(messageHoldTimer);
+  messageHoldTimer = undefined;
+}
 const stickerOpen = ref(false);
 const messagesElement = ref<HTMLElement>();
 
@@ -694,6 +745,7 @@ function openChat(key: string) {
   selectedKey.value = key;
   draft.value = '';
   quoted.value = null;
+  messageMenu.value = null;
   stickerOpen.value = false;
   extrasOpen.value = false;
   detailsOpen.value = false;
