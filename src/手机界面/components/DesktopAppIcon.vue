@@ -1,7 +1,7 @@
 <template>
   <span
     class="app-icon"
-    :class="{ 'wechat-icon': name === '微信', 'calendar-icon': name === '日历' }"
+    :class="{ 'wechat-icon': name === '微信', 'calendar-icon': name === '日历', 'map-icon': name === '地图' }"
     :style="{ background: app?.color }"
     aria-hidden="true"
   >
@@ -16,6 +16,17 @@
       <ellipse cx="14" cy="24" rx="7" ry="11" fill="#8fc078" transform="rotate(90 14 24)" />
       <ellipse cx="17" cy="17" rx="7" ry="11" fill="#d3c36a" transform="rotate(135 17 17)" />
       <circle cx="24" cy="24" r="7" fill="#fff" />
+    </svg>
+    <svg v-else-if="name === '地图'" class="desktop-map-icon" viewBox="0 0 58 58" aria-hidden="true">
+      <path d="M0 0h58v58H0z" fill="#e8f5fc" />
+      <path d="M0 0h25v22H0z" fill="#d5edcf" />
+      <path d="M35 0h23v25H35z" fill="#cceaf4" />
+      <path d="M0 34h21v24H0z" fill="#e0f1da" />
+      <path d="M32 36h26v22H32z" fill="#cae9d4" />
+      <path d="M27 0v58M0 27h58M0 44h18M40 27v31" fill="none" stroke="#fff" stroke-width="5" />
+      <path d="m11 35 36-24-13 37-8-14-15 1Z" fill="#1769d4" />
+      <path d="m11 35 36-24-21 23Z" fill="#3e95f4" />
+      <path d="m26 34 21-23-13 37Z" fill="#0b55b8" />
     </svg>
     <span v-else-if="name === '日历'" class="calendar-date">{{ today }}</span>
     <template v-else-if="name !== '微信'">{{ app?.icon }}</template>
@@ -56,5 +67,15 @@ const app = computed(() => [...apps, ...dockApps].find(item => item.name === pro
   font-size: 30px;
   font-weight: 600;
   line-height: 1;
+}
+
+.map-icon {
+  overflow: hidden;
+}
+
+.desktop-map-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 </style>

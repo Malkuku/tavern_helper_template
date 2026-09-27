@@ -20,7 +20,7 @@ export const apps = [
   { name: '照片', icon: '', color: 'linear-gradient(145deg, #fff, #e6e8ed)' },
   { name: '相机', icon: '◎', color: 'linear-gradient(145deg, #8e929a, #525761)' },
   { name: '日历', icon: '', color: 'linear-gradient(145deg, #fff, #eef0f2)' },
-  { name: '地图', icon: '⌖', color: 'linear-gradient(145deg, #6ad5b7, #4b8ef4)' },
+  { name: '地图', icon: '', color: '#e8f5fc' },
   { name: '天气', icon: '☀', color: 'linear-gradient(145deg, #68c6ff, #2277e8)' },
   { name: '备忘录', icon: '≡', color: 'linear-gradient(180deg, #ffd95e 22%, #fff 22%)' },
   { name: '设置', icon: '⚙', color: 'linear-gradient(145deg, #a9aeb8, #626976)' },

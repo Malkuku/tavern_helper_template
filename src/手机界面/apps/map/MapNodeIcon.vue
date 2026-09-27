@@ -10,7 +10,7 @@ import { sanitizeMapSvg } from '../../../创意工坊/scenario/map';
 
 const props = defineProps<{ svg?: string }>();
 const fallback =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>';
+  '<svg viewBox="0 0 24 24"><path d="M12 22c-2.1-2.7-7-8.1-7-13a7 7 0 0 1 14 0c0 4.9-4.9 10.3-7 13Z" fill="#2785e8"/><circle cx="12" cy="9" r="3" fill="#fff"/></svg>';
 const markup = computed(() => {
   try {
     return props.svg ? sanitizeMapSvg(props.svg) : fallback;
