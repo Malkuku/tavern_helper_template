@@ -13,7 +13,14 @@ const svgIcon = z.string().refine(value => {
   }
 }, '图标必须是安全的完整 SVG');
 const item = z.strictObject({ 图标: svgIcon.optional(), 描述: z.string(), 作用: z.string(), 数量: number });
-const skillLevel = z.strictObject({ 战力评分: number, 描述: z.string(), 升级消耗: number });
+export const skillSchema = z.strictObject({
+  图标: svgIcon.optional(),
+  描述: z.string(),
+  战力评级贡献: number,
+  作用: z.string(),
+  价格: number,
+  适用评级: z.string(),
+});
 const stage = z.strictObject({ 当前等级: number, 累计经验: number, 描述: stringRecord });
 const bodyPart = z.strictObject({
   当前状态: z.string(),
@@ -76,10 +83,7 @@ export const userRoleSchema = z.strictObject({
   当前评级: z.string(),
   金钱: number,
   恶堕积分: number,
-  技能: z.record(
-    z.string(),
-    z.strictObject({ 图标: svgIcon.optional(), 当前等级: number, 等级表: z.record(z.string(), skillLevel) }),
-  ),
+  技能: z.record(z.string(), skillSchema),
   物品: z.record(z.string(), item),
 });
 
@@ -138,16 +142,7 @@ export const initialStatDataSchema = z.strictObject({
       类别: z.enum(['战斗', '成人BDSM', '特殊']),
     }),
   ),
-  技能商店: z.record(
-    z.string(),
-    z.strictObject({
-      描述: z.string(),
-      作用: z.string(),
-      价格: number,
-      适用评级: z.string(),
-      等级表: z.record(z.string(), skillLevel),
-    }),
-  ),
+  技能商店: z.record(z.string(), skillSchema),
   系统: z.strictObject({
     版本: z.string(),
     商店下次刷新时间: z.string(),

@@ -5,9 +5,11 @@ import {
   normalizePhoneLayout,
   takeAppOutOfFolder,
 } from '../src/手机界面/desktopLayout';
+import { apps } from '../src/手机界面/desktopApps';
 
 const initial = defaultPhoneLayout();
-assert.equal(initial.desktop.length, 14);
+assert.equal(initial.desktop.length, apps.length);
+assert.ok(initial.desktop.some(item => item.kind === 'app' && item.name === '技能商店'));
 assert.equal(initial.dock.length, 4);
 
 const reordered = movePhoneItem(
@@ -60,9 +62,9 @@ const docked = movePhoneItem(
 assert.ok(docked.dock.includes('技能'));
 assert.ok(docked.desktop.some(item => item.kind === 'app' && item.name === '电话'));
 
-const movedToSecondPage = movePhoneItem(initial, { kind: 'app', name: '微信' }, { zone: 'page', index: 14 }, 'unused');
-assert.equal(movedToSecondPage.desktop[13].kind, 'app');
-assert.equal(movedToSecondPage.desktop[13].kind === 'app' ? movedToSecondPage.desktop[13].name : '', '微信');
+const movedToSecondPage = movePhoneItem(initial, { kind: 'app', name: '微信' }, { zone: 'page', index: 12 }, 'unused');
+assert.equal(movedToSecondPage.desktop[12].kind, 'app');
+assert.equal(movedToSecondPage.desktop[12].kind === 'app' ? movedToSecondPage.desktop[12].name : '', '微信');
 assert.equal(movedToSecondPage.desktop.length, initial.desktop.length);
 
 const bad = normalizePhoneLayout({

@@ -1,0 +1,127 @@
+import { z } from 'zod';
+import type { 可购技能, stat_data } from '../../types';
+import { skillSchema } from '../../store/initialDataSchema';
+
+const shopSchema = z.record(z.string().min(1), skillSchema);
+const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[[1-7]\]$/;
+
+function parseWorldTime(time: string): Date {
+  const match = timePattern.exec(time);
+  if (!match) throw new Error('世界时间格式无效，无法刷新技能商店。');
+  const [, year, month, day, hour, minute] = match;
+  const date = new Date(Date.UTC(+year, +month - 1, +day, +hour, +minute));
+  if (
+    date.getUTCFullYear() !== +year ||
+    date.getUTCMonth() !== +month - 1 ||
+    date.getUTCDate() !== +day ||
+    date.getUTCHours() !== +hour ||
+    date.getUTCMinutes() !== +minute
+  )
+    throw new Error('世界时间日期无效，无法刷新技能商店。');
+  return date;
+}
+
+function nextMonday(date: Date): string {
+  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  next.setUTCDate(next.getUTCDate() + ((8 - next.getUTCDay()) % 7 || 7));
+  return `${next.getUTCFullYear()}-${next.getUTCMonth() + 1}-${next.getUTCDate()}T00:00[1]`;
+}
+
+export function refreshQuote(data: stat_data): { next: string; count: number; price: number } {
+  const now = parseWorldTime(data.世界.时间);
+  const next = data.系统.技能下次刷新时间;
+  const count = !next || now >= parseWorldTime(next) ? 0 : data.系统.技能主动刷新次数;
+  if (!Number.isSafeInteger(count) || count < 0) throw new Error('技能刷新次数无效。');
+  const price = count === 0 ? 0 : 20 * 2 ** (count - 1);
+  if (!Number.isSafeInteger(price)) throw new Error('技能刷新价格超出有效范围。');
+  return { next: nextMonday(now), count, price };
+}
+
+function validPrice(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+export function parseSkillResult(message: string, owned: stat_data['角色']['user']['技能']): Record<string, 可购技能> {
+  const tags = [...message.matchAll(/<skillVariable>\s*([\s\S]*?)\s*<\/skillVariable>/g)];
+  if (tags.length !== 1 || [...message.matchAll(/<skillVariable>/g)].length !== 1)
+    throw new Error('技能生成结果必须包含且只包含一个完整的 skillVariable 标签。');
+  let raw: unknown;
+  try {
+    raw = JSON.parse(tags[0][1]);
+  } catch {
+    throw new Error('技能生成结果不是合法 JSON。');
+  }
+  const parsed = shopSchema.safeParse(raw);
+  if (!parsed.success) throw new Error('技能生成字段无效。');
+  const entries = Object.entries(parsed.data);
+  if (entries.length !== 6) throw new Error('技能生成结果必须恰好包含 6 个不同名称的技能。');
+  const overlap = entries.filter(([name]) => Object.hasOwn(owned, name));
+  if (overlap.length < (Object.keys(owned).length ? 1 : 0) || overlap.length > Math.min(3, Object.keys(owned).length))
+    throw new Error('升级技能数量必须为 1～3 个，且只能来自当前持有技能。');
+  for (const [name, item] of entries) {
+    if (
+      !name.trim() ||
+      !item.描述.trim() ||
+      !item.作用.trim() ||
+      !item.适用评级.trim() ||
+      !validPrice(item.价格) ||
+      !Number.isFinite(item.战力评级贡献) ||
+      item.战力评级贡献 < 0
+    )
+      throw new Error(`技能「${name}」的内容或数值无效。`);
+    if (owned[name] && item.战力评级贡献 <= owned[name].战力评级贡献)
+      throw new Error(`技能「${name}」的升级版战力评级贡献必须提高。`);
+    if (!item.图标 || /<(?:title|desc)\b/i.test(item.图标) || item.图标.replace(/<[^>]+>/g, '').trim())
+      throw new Error(`技能「${name}」必须提供不含文字的 SVG 图标。`);
+    const rootTag = /^<svg\b([^>]*)>/i.exec(item.图标.trim());
+    const viewBox = rootTag && /\bviewBox\s*=\s*["']([^"']+)["']/.exec(rootTag[1]);
+    const numbers = viewBox?.[1].trim().split(/\s+/).map(Number);
+    if (
+      !numbers ||
+      numbers.length !== 4 ||
+      numbers.some(value => !Number.isFinite(value)) ||
+      numbers[2] <= 0 ||
+      numbers[2] !== numbers[3]
+    )
+      throw new Error(`技能「${name}」的图标必须使用正方形 viewBox。`);
+  }
+  return parsed.data;
+}
+
+export function applySkillRefresh(data: stat_data, message: string): void {
+  const shop = parseSkillResult(message, data.角色.user.技能);
+  const quote = refreshQuote(data);
+  if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < quote.price)
+    throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
+  data.技能商店 = shop;
+  data.角色.user.恶堕积分 -= quote.price;
+  data.系统.技能下次刷新时间 = quote.next;
+  data.系统.技能主动刷新次数 = quote.count + 1;
+}
+
+export function buySkill(data: stat_data, name: string): void {
+  const item = data.技能商店[name];
+  if (!item) throw new Error('商店中没有这项技能。');
+  if (!validPrice(item.价格)) throw new Error('技能价格无效。');
+  const current = data.角色.user.技能[name];
+  if (current && item.战力评级贡献 <= current.战力评级贡献) throw new Error('升级版战力评级贡献必须高于当前版本。');
+  const balance = data.角色.user.恶堕积分;
+  if (!Number.isSafeInteger(balance) || balance < item.价格) throw new Error('恶堕积分不足。');
+  const price = (current?.价格 ?? 0) + item.价格;
+  if (!validPrice(price)) throw new Error('累计技能价格无效。');
+  data.角色.user.恶堕积分 -= item.价格;
+  data.角色.user.技能[name] = { ...item, 价格: price };
+  delete data.技能商店[name];
+}
+
+export function sellSkill(data: stat_data, name: string): number {
+  const item = data.角色.user.技能[name];
+  if (!item) throw new Error('当前没有这项技能。');
+  if (!validPrice(item.价格)) throw new Error('技能累计价格无效。');
+  const refund = Math.floor(item.价格 / 2);
+  const balance = data.角色.user.恶堕积分;
+  if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(balance + refund)) throw new Error('恶堕积分余额无效。');
+  data.角色.user.恶堕积分 += refund;
+  delete data.角色.user.技能[name];
+  return refund;
+}

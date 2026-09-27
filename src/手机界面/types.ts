@@ -107,17 +107,14 @@ export interface 世界数据 {
   地图索引: string;
 }
 
-export interface 技能等级 {
-  战力评分: number;
-  描述: string;
-  升级消耗: number;
-}
-
 export interface 技能 {
-  /** 完整的安全 SVG 字符串；旧存档可缺失。 */
+  /** 完整的安全 SVG 字符串。 */
   图标?: string;
-  当前等级: number;
-  等级表: Record<string, 技能等级>;
+  描述: string;
+  战力评级贡献: number;
+  作用: string;
+  价格: number;
+  适用评级: string;
 }
 
 export interface 物品 {
@@ -145,11 +142,12 @@ export interface 商店道具 {
 }
 
 export interface 可购技能 {
+  图标?: string;
   描述: string;
+  战力评级贡献: number;
   作用: string;
   价格: number;
   适用评级: string;
-  等级表: Record<string, 技能等级>;
 }
 
 export interface 系统数据 {
@@ -163,9 +161,9 @@ export interface 系统数据 {
   任务下次刷新时间: 世界时间;
   /** 前端维护；主动刷新第 n 次花费 4 * 2^(n-1) 积分，每日自动刷新后归零。 */
   任务主动刷新次数: number;
-  /** 前端维护；到期时 EJS 显示技能生成规则。每周一 00:00 刷新。 */
+  /** 手机商店计价的下次周一 00:00；到期只重置报价，不自动生成。 */
   技能下次刷新时间: 世界时间;
-  /** 前端维护；主动刷新第 n 次花费 20 * 2^(n-1) 积分，每周自动刷新后归零。 */
+  /** 本周已成功手动刷新的次数；价格依次为 0、20、40、80……。 */
   技能主动刷新次数: number;
 }
 

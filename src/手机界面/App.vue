@@ -74,6 +74,10 @@
                 <RoleEditor ref="roleEditorRef" @leave="leaveRoleEditor" />
               </main>
 
+              <main v-else-if="activeApp === '技能商店'" :key="'skill-shop'" class="data-app-screen">
+                <SkillShop />
+              </main>
+
               <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
                 <DataApp :app="activeApp" />
               </main>
@@ -151,6 +155,7 @@ import { useMagicGirlStatStore } from './store/StatStore';
 import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
 import RoleEditor from './apps/roleEditor/RoleEditor.vue';
+import SkillShop from './apps/skillShop/SkillShop.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
 import PhoneExtras from './apps/PhoneExtras.vue';
 import MapApp from './apps/map/MapApp.vue';

@@ -32,6 +32,12 @@ import {
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
+import {
+  applySkillRefresh,
+  buySkill as applySkillPurchase,
+  refreshQuote,
+  sellSkill as applySkillSale,
+} from '../apps/skillShop/skillShop';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
@@ -76,6 +82,9 @@ function settlePayments(data: stat_data, before: 微信数据, after: 微信数�
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
   const wechatLogError = ref('');
+  const skillRefreshError = ref('');
+  const skillRefreshing = ref(false);
+  let skillRefreshStartMessageId = -1;
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
@@ -233,6 +242,43 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function transferInventory(transfers: InventoryTransfer[]): Promise<void> {
     if (!transfers.length) return;
     await changeCharacterData(data => applyInventoryTransfers(data, transfers));
+  }
+
+  async function refreshSkillShop() {
+    if (skillRefreshing.value) throw new Error('技能商店正在刷新，请等待本次生成完成。');
+    const generation = chatGeneration;
+    await waitGlobalInitialized('Mvu');
+    if (generation !== chatGeneration) throw new Error('聊天已切换，技能刷新已取消。');
+    const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
+    if (!current?.角色?.user || !current.系统) throw new Error('技能商店变量尚未初始化。');
+    const quote = refreshQuote(current);
+    if (!Number.isSafeInteger(current.角色.user.恶堕积分) || current.角色.user.恶堕积分 < quote.price)
+      throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
+    if (generation !== chatGeneration) throw new Error('聊天已切换，技能刷新已取消。');
+    skillRefreshError.value = '';
+    skillRefreshing.value = true;
+    skillRefreshStartMessageId = getLastMessageId();
+    try {
+      await eventEmit('Chat_On_SkillShop');
+    } catch (error) {
+      skillRefreshing.value = false;
+      skillRefreshError.value = error instanceof Error ? error.message : '技能商店刷新事件触发失败。';
+      throw error;
+    }
+  }
+
+  function cancelSkillRefresh() {
+    if (!skillRefreshing.value) return;
+    skillRefreshing.value = false;
+    skillRefreshError.value = '已取消等待；迟到的技能生成结果不会结算。';
+  }
+
+  async function purchaseSkill(name: string) {
+    await changeCharacterData(data => applySkillPurchase(data, name));
+  }
+
+  async function sellOwnedSkill(name: string): Promise<number> {
+    return changeCharacterData(data => applySkillSale(data, name));
   }
 
   async function sendWeChatMessage(
@@ -592,6 +638,47 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
+  function scheduleSkillResult(messageId?: number) {
+    if (!skillRefreshing.value) return;
+    const generation = chatGeneration;
+    void queueStatWork(async () => {
+      if (!skillRefreshing.value) return;
+      const id = messageId ?? getLastMessageId();
+      if (id < 0 || generation !== chatGeneration) return;
+      const message = getChatMessages(id)[0];
+      if (!message || message.role !== 'assistant' || !message.message.includes('<skillVariable')) return;
+      if (skillRefreshing.value && id <= skillRefreshStartMessageId) return;
+      await waitGlobalInitialized('Mvu');
+      if (generation !== chatGeneration) return;
+      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (!previous?.stat_data?.系统 || !previous.stat_data.角色?.user) throw new Error('技能商店变量尚未初始化。');
+      const data = klona(previous.stat_data) as stat_data;
+      applySkillRefresh(data, message.message);
+      if (generation !== chatGeneration || !skillRefreshing.value) return;
+      await writeStatData(data, previous);
+      skillRefreshing.value = false;
+      skillRefreshError.value = '';
+    }).catch(error => {
+      skillRefreshing.value = false;
+      skillRefreshError.value = error instanceof Error ? error.message : '技能生成结果无效。';
+      console.error('技能商店生成结果处理失败', error);
+    });
+  }
+
+  function onSkillGenerationEnd(messageId?: number) {
+    scheduleSkillResult(messageId);
+    if (!skillRefreshing.value) return;
+    setTimeout(() => {
+      if (!skillRefreshing.value) return;
+      const id = messageId ?? getLastMessageId();
+      const message = id >= 0 ? getChatMessages(id)[0] : null;
+      if (id <= skillRefreshStartMessageId || !message?.message.includes('<skillVariable')) {
+        skillRefreshing.value = false;
+        skillRefreshError.value = '本次生成没有返回技能商店结果';
+      }
+    }, 800);
+  }
+
   async function checkWorldbook() {
     const generation = ++chatGeneration;
     try {
@@ -658,6 +745,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     unreadChatKeys.value = [];
     wechatNotification.value = null;
     wechatLogError.value = '';
+    skillRefreshError.value = '';
+    skillRefreshing.value = false;
+    skillRefreshStartMessageId = -1;
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -680,8 +770,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     eventOn(tavern_events.MESSAGE_DELETED, scheduleRefresh);
     eventOn(tavern_events.CHAT_CHANGED, resetForChat);
     eventOn(tavern_events.GENERATION_ENDED, scheduleWeChatLog);
+    eventOn(tavern_events.GENERATION_ENDED, onSkillGenerationEnd);
+    eventOn(tavern_events.GENERATION_STOPPED, onSkillGenerationEnd);
     eventOn(tavern_events.MESSAGE_RECEIVED, scheduleWeChatLog);
+    eventOn(tavern_events.MESSAGE_RECEIVED, scheduleSkillResult);
     eventOn(tavern_events.MESSAGE_UPDATED, scheduleWeChatLog);
+    eventOn(tavern_events.MESSAGE_UPDATED, scheduleSkillResult);
     eventOn(KatEvents.kat_mvu_update_finished, scheduleWeChatLog);
     eventOn('mag_variable_update_ended', () => scheduleWeChatLog());
     scheduleWeChatLog();
@@ -712,6 +806,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     setActiveWeChatConversation,
     dismissWeChatNotification,
     wechatLogError,
+    skillRefreshError,
+    skillRefreshing,
     failedWeChatMessageId,
     clearFailedWeChatLog,
     deleteWeChatFloor,
@@ -725,6 +821,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     changeRuntimeMinorRole,
     unlockCharacterInfo,
     transferInventory,
+    refreshSkillShop,
+    cancelSkillRefresh,
+    purchaseSkill,
+    sellOwnedSkill,
     sendWeChatMessage,
     confirmWeChatSend,
     discardWeChatDraft,

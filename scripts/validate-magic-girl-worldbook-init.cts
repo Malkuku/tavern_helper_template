@@ -23,7 +23,8 @@ assert.throws(() => reconcileWorldbookStatData(undefined, entries), /stat_data �
 assert.equal(Object.keys(assembled.data.角色.主要角色).length, 3);
 assert.ok(Object.keys(assembled.data.地图).length > 0);
 assert.equal(assembled.data.系统.版本, '1.0.0');
-assert.equal(assembled.data.角色.user.技能.战败收容.当前等级, 1);
+assert.equal(assembled.data.角色.user.技能.战败收容.战力评级贡献, 2);
+assert.equal(assembled.data.角色.user.技能.战败收容.价格, 0);
 assert.equal(assembled.data.仓库.组织制恢复剂.数量, 3);
 function checkMapIcons(nodes: Record<string, { 图标: string; 子地图: Record<string, any> }>) {
   for (const node of Object.values(nodes)) {
