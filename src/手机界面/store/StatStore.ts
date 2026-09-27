@@ -22,7 +22,7 @@ import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
-import { applyInventoryTransfers, type InventoryTransfer } from '../apps/data/inventoryTransfer';
+import { applyInventoryTransfers, type InventorySide, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import {
   initialReadCursors,
   latestNotifiableMessage,
@@ -38,6 +38,12 @@ import {
   refreshQuote,
   sellSkill as applySkillSale,
 } from '../apps/skillShop/skillShop';
+import {
+  applyItemRefresh,
+  buyItem as applyItemPurchase,
+  itemRefreshQuote,
+  sellItem as applyItemSale,
+} from '../apps/itemShop/itemShop';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
@@ -85,6 +91,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const skillRefreshError = ref('');
   const skillRefreshing = ref(false);
   let skillRefreshStartMessageId = -1;
+  const itemRefreshError = ref('');
+  const itemRefreshing = ref(false);
+  let itemRefreshStartMessageId = -1;
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
@@ -244,27 +253,39 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(data => applyInventoryTransfers(data, transfers));
   }
 
-  async function refreshSkillShop() {
-    if (skillRefreshing.value) throw new Error('技能商店正在刷新，请等待本次生成完成。');
+  async function refreshGeneratedShop(kind: '技能' | '道具') {
+    if (skillRefreshing.value || itemRefreshing.value) throw new Error('商店正在刷新，请等待本次生成完成。');
     const generation = chatGeneration;
     await waitGlobalInitialized('Mvu');
-    if (generation !== chatGeneration) throw new Error('聊天已切换，技能刷新已取消。');
+    if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
     const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
-    if (!current?.角色?.user || !current.系统) throw new Error('技能商店变量尚未初始化。');
-    const quote = refreshQuote(current);
+    if (!current?.角色?.user || !current.系统) throw new Error('商店变量尚未初始化。');
+    const quote = kind === '技能' ? refreshQuote(current) : itemRefreshQuote(current);
     if (!Number.isSafeInteger(current.角色.user.恶堕积分) || current.角色.user.恶堕积分 < quote.price)
       throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
-    if (generation !== chatGeneration) throw new Error('聊天已切换，技能刷新已取消。');
-    skillRefreshError.value = '';
-    skillRefreshing.value = true;
-    skillRefreshStartMessageId = getLastMessageId();
+    if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
+    if (skillRefreshing.value || itemRefreshing.value) throw new Error('商店正在刷新，请等待本次生成完成。');
+    const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
+    const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
+    refreshError.value = '';
+    refreshing.value = true;
+    if (kind === '技能') skillRefreshStartMessageId = getLastMessageId();
+    else itemRefreshStartMessageId = getLastMessageId();
     try {
-      await eventEmit('Chat_On_SkillShop');
+      await eventEmit(kind === '技能' ? 'Chat_On_SkillShop' : 'Chat_On_ItemShop');
     } catch (error) {
-      skillRefreshing.value = false;
-      skillRefreshError.value = error instanceof Error ? error.message : '技能商店刷新事件触发失败。';
+      refreshing.value = false;
+      refreshError.value = error instanceof Error ? error.message : `${kind}商店刷新事件触发失败。`;
       throw error;
     }
+  }
+
+  async function refreshSkillShop() {
+    await refreshGeneratedShop('技能');
+  }
+
+  async function refreshItemShop() {
+    await refreshGeneratedShop('道具');
   }
 
   function cancelSkillRefresh() {
@@ -273,12 +294,26 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     skillRefreshError.value = '已取消等待；迟到的技能生成结果不会结算。';
   }
 
+  function cancelItemRefresh() {
+    if (!itemRefreshing.value) return;
+    itemRefreshing.value = false;
+    itemRefreshError.value = '已取消等待；迟到的道具生成结果不会结算。';
+  }
+
   async function purchaseSkill(name: string) {
     await changeCharacterData(data => applySkillPurchase(data, name));
   }
 
   async function sellOwnedSkill(name: string): Promise<number> {
     return changeCharacterData(data => applySkillSale(data, name));
+  }
+
+  async function purchaseItem(name: string, quantity: number) {
+    await changeCharacterData(data => applyItemPurchase(data, name, quantity));
+  }
+
+  async function sellOwnedItem(side: InventorySide, name: string, quantity: number): Promise<number> {
+    return changeCharacterData(data => applyItemSale(data, side, name, quantity));
   }
 
   async function sendWeChatMessage(
@@ -638,43 +673,52 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  function scheduleSkillResult(messageId?: number) {
-    if (!skillRefreshing.value) return;
+  function scheduleShopResult(kind: '技能' | '道具', messageId?: number) {
+    const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
+    const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
+    const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
+    const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
+    if (!refreshing.value) return;
     const generation = chatGeneration;
     void queueStatWork(async () => {
-      if (!skillRefreshing.value) return;
+      if (!refreshing.value) return;
       const id = messageId ?? getLastMessageId();
       if (id < 0 || generation !== chatGeneration) return;
       const message = getChatMessages(id)[0];
-      if (!message || message.role !== 'assistant' || !message.message.includes('<skillVariable')) return;
-      if (skillRefreshing.value && id <= skillRefreshStartMessageId) return;
+      if (!message || message.role !== 'assistant' || !message.message.includes(marker)) return;
+      if (id <= startMessageId) return;
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
-      if (!previous?.stat_data?.系统 || !previous.stat_data.角色?.user) throw new Error('技能商店变量尚未初始化。');
+      if (!previous?.stat_data?.系统 || !previous.stat_data.角色?.user) throw new Error(`${kind}商店变量尚未初始化。`);
       const data = klona(previous.stat_data) as stat_data;
-      applySkillRefresh(data, message.message);
-      if (generation !== chatGeneration || !skillRefreshing.value) return;
+      if (kind === '技能') applySkillRefresh(data, message.message);
+      else applyItemRefresh(data, message.message);
+      if (generation !== chatGeneration || !refreshing.value) return;
       await writeStatData(data, previous);
-      skillRefreshing.value = false;
-      skillRefreshError.value = '';
+      refreshing.value = false;
+      refreshError.value = '';
     }).catch(error => {
-      skillRefreshing.value = false;
-      skillRefreshError.value = error instanceof Error ? error.message : '技能生成结果无效。';
-      console.error('技能商店生成结果处理失败', error);
+      refreshing.value = false;
+      refreshError.value = error instanceof Error ? error.message : `${kind}生成结果无效。`;
+      console.error(`${kind}商店生成结果处理失败`, error);
     });
   }
 
-  function onSkillGenerationEnd(messageId?: number) {
-    scheduleSkillResult(messageId);
-    if (!skillRefreshing.value) return;
+  function onShopGenerationEnd(kind: '技能' | '道具', messageId?: number) {
+    scheduleShopResult(kind, messageId);
+    const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
+    const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
+    const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
+    const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
+    if (!refreshing.value) return;
     setTimeout(() => {
-      if (!skillRefreshing.value) return;
+      if (!refreshing.value) return;
       const id = messageId ?? getLastMessageId();
       const message = id >= 0 ? getChatMessages(id)[0] : null;
-      if (id <= skillRefreshStartMessageId || !message?.message.includes('<skillVariable')) {
-        skillRefreshing.value = false;
-        skillRefreshError.value = '本次生成没有返回技能商店结果';
+      if (id <= startMessageId || !message?.message.includes(marker)) {
+        refreshing.value = false;
+        refreshError.value = `本次生成没有返回${kind}商店结果`;
       }
     }, 800);
   }
@@ -748,6 +792,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     skillRefreshError.value = '';
     skillRefreshing.value = false;
     skillRefreshStartMessageId = -1;
+    itemRefreshError.value = '';
+    itemRefreshing.value = false;
+    itemRefreshStartMessageId = -1;
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -770,12 +817,24 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     eventOn(tavern_events.MESSAGE_DELETED, scheduleRefresh);
     eventOn(tavern_events.CHAT_CHANGED, resetForChat);
     eventOn(tavern_events.GENERATION_ENDED, scheduleWeChatLog);
-    eventOn(tavern_events.GENERATION_ENDED, onSkillGenerationEnd);
-    eventOn(tavern_events.GENERATION_STOPPED, onSkillGenerationEnd);
+    eventOn(tavern_events.GENERATION_ENDED, (id?: number) => {
+      onShopGenerationEnd('技能', id);
+      onShopGenerationEnd('道具', id);
+    });
+    eventOn(tavern_events.GENERATION_STOPPED, (id?: number) => {
+      onShopGenerationEnd('技能', id);
+      onShopGenerationEnd('道具', id);
+    });
     eventOn(tavern_events.MESSAGE_RECEIVED, scheduleWeChatLog);
-    eventOn(tavern_events.MESSAGE_RECEIVED, scheduleSkillResult);
+    eventOn(tavern_events.MESSAGE_RECEIVED, (id?: number) => {
+      scheduleShopResult('技能', id);
+      scheduleShopResult('道具', id);
+    });
     eventOn(tavern_events.MESSAGE_UPDATED, scheduleWeChatLog);
-    eventOn(tavern_events.MESSAGE_UPDATED, scheduleSkillResult);
+    eventOn(tavern_events.MESSAGE_UPDATED, (id?: number) => {
+      scheduleShopResult('技能', id);
+      scheduleShopResult('道具', id);
+    });
     eventOn(KatEvents.kat_mvu_update_finished, scheduleWeChatLog);
     eventOn('mag_variable_update_ended', () => scheduleWeChatLog());
     scheduleWeChatLog();
@@ -808,6 +867,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     wechatLogError,
     skillRefreshError,
     skillRefreshing,
+    itemRefreshError,
+    itemRefreshing,
     failedWeChatMessageId,
     clearFailedWeChatLog,
     deleteWeChatFloor,
@@ -825,6 +886,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     cancelSkillRefresh,
     purchaseSkill,
     sellOwnedSkill,
+    refreshItemShop,
+    cancelItemRefresh,
+    purchaseItem,
+    sellOwnedItem,
     sendWeChatMessage,
     confirmWeChatSend,
     discardWeChatDraft,

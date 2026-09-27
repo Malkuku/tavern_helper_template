@@ -49,12 +49,16 @@
           <span>作用</span>
           <p>{{ item.作用 }}</p>
         </div>
+        <p class="item-meta">{{ item.评级 }} 级 · 单件基准价 {{ item.价格 }} 积分 · 当前耐久 {{ item.耐久 }}</p>
         <div class="inventory-transfer">
           <label>数量 <input v-model.number="quantity" type="number" min="1" :max="item.数量" step="1" /></label>
           <button type="button" class="primary" :disabled="saving" @click="stageTransfer(name, item)">
             {{ activeSide === '随身物品' ? '存入仓库' : '取出随身' }}
           </button>
         </div>
+        <button v-if="activeSide === '随身物品'" type="button" class="inventory-use" @click="prepareUse(name, item)">
+          使用道具（填写聊天输入框）
+        </button>
       </div>
     </section>
   </div>
@@ -119,6 +123,24 @@ function stageTransfer(name: string, item: 物品) {
   quantity.value = 1;
   error.value = '';
   notice.value = `${name} 已加入待确认变更。`;
+}
+function prepareUse(name: string, item: 物品) {
+  if (!Number.isSafeInteger(quantity.value) || quantity.value < 1 || quantity.value > item.数量) {
+    error.value = `请输入 1 到 ${item.数量} 之间的整数。`;
+    return;
+  }
+  try {
+    const input = window.parent.document.querySelector<HTMLTextAreaElement>('#send_textarea');
+    if (!input) throw new Error('未找到酒馆聊天输入框。');
+    const details = { 物品名称: name, 使用数量: quantity.value, 当前耐久: item.耐久, 作用: item.作用 };
+    const prompt = `<user>决定使用${name}。\n<list>\n${JSON.stringify(details, null, 2)}\n</list>\n`;
+    input.value = [input.value.trimEnd(), prompt].filter(Boolean).join('\n');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    error.value = '';
+    notice.value = '使用意图已填入聊天输入框；发送后由剧情处理实际消耗。';
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '填写聊天输入框失败。';
+  }
 }
 function clearDraft() {
   transfers.value = [];

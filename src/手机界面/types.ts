@@ -118,11 +118,15 @@ export interface 技能 {
 }
 
 export interface 物品 {
-  /** 完整的安全 SVG 字符串；旧存档可缺失。 */
+  /** 完整的安全 SVG 字符串；叙事写入的物品可缺失。 */
   图标?: string;
   描述: string;
   作用: string;
+  评级: 'D' | 'C' | 'B' | 'A' | 'S';
+  /** 单件基准价值，单位为恶堕积分。 */
+  价格: number;
   数量: number;
+  耐久: number;
 }
 
 export interface 任务 {
@@ -133,13 +137,7 @@ export interface 任务 {
   过期时间: 世界时间;
 }
 
-export interface 商店道具 {
-  描述: string;
-  作用: string;
-  价格: number;
-  数量: number;
-  类别: '战斗' | '成人BDSM' | '特殊';
-}
+export type 商店道具 = 物品;
 
 export interface 可购技能 {
   图标?: string;

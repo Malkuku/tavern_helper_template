@@ -754,6 +754,23 @@
   padding-top: 12px;
   border-top: 1px solid #f1edf2;
 }
+.data-app .item-meta {
+  margin: 10px 0 0;
+  color: #806d83;
+  font-size: 12px;
+}
+.data-app .inventory-use {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #e8d8c8;
+  color: #5a3c39;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .data-app .inventory-transfer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

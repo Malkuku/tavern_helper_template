@@ -12,7 +12,15 @@ const svgIcon = z.string().refine(value => {
     return false;
   }
 }, '图标必须是安全的完整 SVG');
-const item = z.strictObject({ 图标: svgIcon.optional(), 描述: z.string(), 作用: z.string(), 数量: number });
+export const itemSchema = z.strictObject({
+  图标: svgIcon.optional(),
+  描述: z.string(),
+  作用: z.string(),
+  评级: z.enum(['D', 'C', 'B', 'A', 'S']),
+  价格: z.number().int().nonnegative().safe(),
+  数量: z.number().int().positive().safe(),
+  耐久: z.number().int().nonnegative().safe(),
+});
 export const skillSchema = z.strictObject({
   图标: svgIcon.optional(),
   描述: z.string(),
@@ -84,7 +92,7 @@ export const userRoleSchema = z.strictObject({
   金钱: number,
   恶堕积分: number,
   技能: z.record(z.string(), skillSchema),
-  物品: z.record(z.string(), item),
+  物品: z.record(z.string(), itemSchema),
 });
 
 const mapNode: z.ZodType<地图节点> = z.lazy(() =>
@@ -121,7 +129,7 @@ export const initialStatDataSchema = z.strictObject({
   }),
   地图: z.record(z.string(), mapNode),
   世界: z.strictObject({ 时间: z.string().min(1), 地点: z.string(), 天气: z.string(), 地图索引: z.string() }),
-  仓库: z.record(z.string(), item),
+  仓库: z.record(z.string(), itemSchema),
   任务: z.record(
     z.string(),
     z.strictObject({
@@ -132,16 +140,7 @@ export const initialStatDataSchema = z.strictObject({
       过期时间: z.string(),
     }),
   ),
-  商店: z.record(
-    z.string(),
-    z.strictObject({
-      描述: z.string(),
-      作用: z.string(),
-      价格: number,
-      数量: number,
-      类别: z.enum(['战斗', '成人BDSM', '特殊']),
-    }),
-  ),
+  商店: z.record(z.string(), itemSchema),
   技能商店: z.record(z.string(), skillSchema),
   系统: z.strictObject({
     版本: z.string(),

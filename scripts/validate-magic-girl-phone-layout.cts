@@ -1,3 +1,4 @@
+// eslint-disable-next-line import-x/no-nodejs-modules
 import assert from 'node:assert/strict';
 import {
   defaultPhoneLayout,
@@ -10,6 +11,7 @@ import { apps } from '../src/手机界面/desktopApps';
 const initial = defaultPhoneLayout();
 assert.equal(initial.desktop.length, apps.length);
 assert.ok(initial.desktop.some(item => item.kind === 'app' && item.name === '技能商店'));
+assert.ok(initial.desktop.some(item => item.kind === 'app' && item.name === '道具商店'));
 assert.equal(initial.dock.length, 4);
 
 const reordered = movePhoneItem(

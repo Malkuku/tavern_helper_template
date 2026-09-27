@@ -1,40 +1,13 @@
 import { z } from 'zod';
 import type { 可购技能, stat_data } from '../../types';
 import { skillSchema } from '../../store/initialDataSchema';
+import { weeklyShopQuote } from '../shopRefresh';
+import { isGeneratedShopIcon } from '../shopIcon';
 
 const shopSchema = z.record(z.string().min(1), skillSchema);
-const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[[1-7]\]$/;
-
-function parseWorldTime(time: string): Date {
-  const match = timePattern.exec(time);
-  if (!match) throw new Error('世界时间格式无效，无法刷新技能商店。');
-  const [, year, month, day, hour, minute] = match;
-  const date = new Date(Date.UTC(+year, +month - 1, +day, +hour, +minute));
-  if (
-    date.getUTCFullYear() !== +year ||
-    date.getUTCMonth() !== +month - 1 ||
-    date.getUTCDate() !== +day ||
-    date.getUTCHours() !== +hour ||
-    date.getUTCMinutes() !== +minute
-  )
-    throw new Error('世界时间日期无效，无法刷新技能商店。');
-  return date;
-}
-
-function nextMonday(date: Date): string {
-  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  next.setUTCDate(next.getUTCDate() + ((8 - next.getUTCDay()) % 7 || 7));
-  return `${next.getUTCFullYear()}-${next.getUTCMonth() + 1}-${next.getUTCDate()}T00:00[1]`;
-}
 
 export function refreshQuote(data: stat_data): { next: string; count: number; price: number } {
-  const now = parseWorldTime(data.世界.时间);
-  const next = data.系统.技能下次刷新时间;
-  const count = !next || now >= parseWorldTime(next) ? 0 : data.系统.技能主动刷新次数;
-  if (!Number.isSafeInteger(count) || count < 0) throw new Error('技能刷新次数无效。');
-  const price = count === 0 ? 0 : 20 * 2 ** (count - 1);
-  if (!Number.isSafeInteger(price)) throw new Error('技能刷新价格超出有效范围。');
-  return { next: nextMonday(now), count, price };
+  return weeklyShopQuote(data, '技能');
 }
 
 function validPrice(value: number): boolean {
@@ -71,19 +44,7 @@ export function parseSkillResult(message: string, owned: stat_data['角色']['us
       throw new Error(`技能「${name}」的内容或数值无效。`);
     if (owned[name] && item.战力评级贡献 <= owned[name].战力评级贡献)
       throw new Error(`技能「${name}」的升级版战力评级贡献必须提高。`);
-    if (!item.图标 || /<(?:title|desc)\b/i.test(item.图标) || item.图标.replace(/<[^>]+>/g, '').trim())
-      throw new Error(`技能「${name}」必须提供不含文字的 SVG 图标。`);
-    const rootTag = /^<svg\b([^>]*)>/i.exec(item.图标.trim());
-    const viewBox = rootTag && /\bviewBox\s*=\s*["']([^"']+)["']/.exec(rootTag[1]);
-    const numbers = viewBox?.[1].trim().split(/\s+/).map(Number);
-    if (
-      !numbers ||
-      numbers.length !== 4 ||
-      numbers.some(value => !Number.isFinite(value)) ||
-      numbers[2] <= 0 ||
-      numbers[2] !== numbers[3]
-    )
-      throw new Error(`技能「${name}」的图标必须使用正方形 viewBox。`);
+    if (!isGeneratedShopIcon(item.图标)) throw new Error(`技能「${name}」的图标必须使用正方形 viewBox。`);
   }
   return parsed.data;
 }
