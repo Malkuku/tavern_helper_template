@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import { findPhoneMapPath, layoutPhoneMap, listPhoneMap } from '../src/手机界面/apps/map/phoneMap';
+import { locationShare, parseLocationShare } from '../src/手机界面/apps/map/locationShare';
 import type { 地图节点 } from '../src/手机界面/types';
 
 const root = 'O:/St Working/角色卡开发/魔法少女恶堕/魔法少女恶堕/系统配置/地图资源.json';
@@ -18,6 +19,12 @@ assert.deepEqual(
   findPhoneMapPath(map, '学校')?.map(entry => entry.name),
   ['故事城市', '学园区', '学校'],
 );
+const shared = locationShare('学校');
+assert.equal(shared, '<位置 key="学校">');
+assert.equal(parseLocationShare(shared), '学校');
+assert.equal(findPhoneMapPath(map, parseLocationShare(shared)!)?.at(-1)?.name, '学校');
+assert.equal(parseLocationShare('<位置 key="不存在" />'), null);
+assert.equal(parseLocationShare(locationShare('引号"与\\')), '引号"与\\');
 for (const entry of all) {
   assert.equal(sanitizeMapSvg(entry.path.at(-1).node.图标), entry.path.at(-1).node.图标);
 }

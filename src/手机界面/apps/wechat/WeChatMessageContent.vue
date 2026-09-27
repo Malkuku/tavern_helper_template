@@ -33,6 +33,18 @@
         <small>个人名片</small>
       </button>
       <button
+        v-else-if="typeof item === 'string' && parseText(item).kind === 'location'"
+        type="button"
+        class="wx-rich wx-location-card"
+        @click="emit('open-location', parseText(item).label)"
+      >
+        <span class="wx-location-pin">⌖</span
+        ><span
+          ><strong>{{ parseText(item).label }}</strong
+          ><small>查看地图位置</small></span
+        >
+      </button>
+      <button
         v-else-if="typeof item === 'string'"
         type="button"
         class="wx-rich wx-payment"
@@ -58,6 +70,7 @@
             :accounts="accounts"
             :sender="message.发送者"
             :depth="depth + 1"
+            @open-location="emit('open-location', $event)"
           />
           <span v-else>[消息]</span>
         </div>
@@ -68,6 +81,7 @@
 
 <script setup lang="ts">
 import type { 微信数据, 微信消息, 微信消息内容, 微信转发内容 } from '../../types';
+import { parseLocationShare } from '../map/locationShare';
 
 const props = withDefaults(
   defineProps<{
@@ -80,10 +94,14 @@ const props = withDefaults(
   }>(),
   { depth: 0, startIndex: 0, states: undefined },
 );
-const emit = defineEmits<{ 'open-card': [id: string]; 'open-payment': [index: number] }>();
+const emit = defineEmits<{
+  'open-card': [id: string];
+  'open-payment': [index: number];
+  'open-location': [key: string];
+}>();
 
 function parseText(value: string): {
-  kind: 'text' | 'voice' | 'sticker' | 'redpacket' | 'transfer' | 'card';
+  kind: 'text' | 'voice' | 'sticker' | 'redpacket' | 'transfer' | 'card' | 'location';
   label: string;
   detail: string;
 } {
@@ -93,6 +111,8 @@ function parseText(value: string): {
   if (sticker) return { kind: 'sticker', label: sticker[1], detail: '' };
   const card = value.match(/^<名片\s+角色="([^"]+)">$/);
   if (card) return { kind: 'card', label: card[1], detail: '' };
+  const location = parseLocationShare(value);
+  if (location) return { kind: 'location', label: location, detail: '' };
   const payment = value.match(/^<(红包|转账)\s+金额="([^"]+)">([\s\S]*?)<\/\1>$/);
   if (payment)
     return {

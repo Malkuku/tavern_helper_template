@@ -1,7 +1,9 @@
+// eslint-disable-next-line import-x/no-nodejs-modules
 import assert from 'node:assert/strict';
 import {
   applyWeChatLogs,
   applyWeChatOperation,
+  contentSummary,
   deleteWeChatFromFloor,
   logConfirmsPending,
   normalizeWeChatIds,
@@ -9,6 +11,7 @@ import {
   unappliedWeChatLogs,
 } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
+import { locationShare } from '../src/手机界面/apps/map/locationShare';
 
 const time = '2026-09-26T03:10[6]';
 const key = '私聊:user&小鸟游琉璃';
@@ -32,6 +35,9 @@ const message = (id: number, sender: string, content: string, extra: object = {}
   ...extra,
 });
 const parse = (events: object[]) => parseWeChatLogs(`<WeChatLog>${JSON.stringify({ 事件: events })}</WeChatLog>`);
+assert.deepEqual(parse([message(1, 'user', locationShare('学园区'))])[0].事件[0].内容, [locationShare('学园区')]);
+assert.equal(contentSummary([locationShare('学园区')]), '[位置] 学园区');
+assert.throws(() => parse([message(1, 'user', '<位置 key="">')]));
 const first = parse([
   message(1, 'user', '在吗', { 会话信息: { 类型: '私聊', 成员: ['user', '小鸟游琉璃'] } }),
   message(2, '小鸟游琉璃', '在'),
@@ -145,14 +151,28 @@ const other = applyWeChatLogs(
 assert.equal(other.会话['私聊:user&凛'].消息[0].楼层ID, 1);
 assert.equal(other.会话[key].消息.at(-1)?.楼层ID, 6);
 const truncated = deleteWeChatFromFloor(other, key, 5);
-assert.deepEqual(truncated.会话[key].消息.map(item => item.楼层ID), [1, 2, 3, 4]);
+assert.deepEqual(
+  truncated.会话[key].消息.map(item => item.楼层ID),
+  [1, 2, 3, 4],
+);
 assert.equal(truncated.会话['私聊:user&凛'].消息.length, 1);
 assert.throws(() => deleteWeChatFromFloor(other, key, 7), /不存在/);
 const npcAccounts = structuredClone(empty);
 npcAccounts.账号.索菲亚 = account('索菲亚', []);
-const npcRequest = applyWeChatLogs(npcAccounts, parse([{
-    类型: '操作', 楼层ID: 1, 操作: '好友申请', 会话: '私聊:索菲亚&小鸟游琉璃',
-    时间: time, 操作者: '小鸟游琉璃', 目标: '索菲亚', 验证消息: '小鸟游琉璃。',
-  }]));
+const npcRequest = applyWeChatLogs(
+  npcAccounts,
+  parse([
+    {
+      类型: '操作',
+      楼层ID: 1,
+      操作: '好友申请',
+      会话: '私聊:索菲亚&小鸟游琉璃',
+      时间: time,
+      操作者: '小鸟游琉璃',
+      目标: '索菲亚',
+      验证消息: '小鸟游琉璃。',
+    },
+  ]),
+);
 assert.equal(npcRequest.会话['私聊:索菲亚&小鸟游琉璃'].消息.length, 1);
 console.log('微信会话楼层 ID 验证通过');

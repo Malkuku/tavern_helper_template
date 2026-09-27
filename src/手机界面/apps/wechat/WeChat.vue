@@ -71,6 +71,7 @@
                     :start-index="contentIndex"
                     @open-payment="openPayment(message, $event)"
                     @open-card="openCard"
+                    @open-location="openLocation"
                   />
                 </div>
                 <div v-if="contentIndex === 0 && message.引用" class="wx-rich wx-quote">
@@ -86,7 +87,12 @@
             <WeChatAvatar id="user" :accounts="accounts" />
             <div class="wx-message-main">
               <div class="wx-bubble" :class="{ 'wx-bubble-special': isSpecialCard(part) }">
-                <WeChatMessageContent :items="[part]" :accounts="accounts" sender="user" />
+                <WeChatMessageContent
+                  :items="[part]"
+                  :accounts="accounts"
+                  sender="user"
+                  @open-location="openLocation"
+                />
               </div>
               <div v-if="contentIndex === 0 && pending.引用" class="wx-rich wx-quote">
                 {{ accounts[pending.引用.发送者]?.昵称 || pending.引用.发送者 }}：{{
@@ -195,6 +201,25 @@
         <button v-for="item in extraActions" :key="item.label" type="button" @click="openExtra(item.label)">
           <span><WeChatIcon :name="item.icon" /></span>{{ item.label }}
         </button>
+      </div>
+      <div v-if="locationPickerOpen" class="wx-location-picker">
+        <div class="wx-location-picker-head">
+          <strong>分享地图位置</strong><button type="button" @click="locationPickerOpen = false">关闭</button>
+        </div>
+        <input v-model="locationQuery" type="search" aria-label="搜索地图位置" placeholder="搜索地点 key" />
+        <div class="wx-location-options">
+          <button
+            v-for="entry in filteredLocations"
+            :key="entry.path.map(item => item.name).join('/')"
+            type="button"
+            :disabled="sending || pendingLocked"
+            @click="sendLocation(entry.name)"
+          >
+            <strong>{{ entry.name }}</strong
+            ><small>{{ entry.path.map(item => item.name).join(' / ') }}</small>
+          </button>
+          <p v-if="!filteredLocations.length">没有可分享的地图节点</p>
+        </div>
       </div>
       <form v-if="paymentKind" class="wx-payment-compose" @submit.prevent="sendPayment">
         <button class="wx-transfer-back" type="button" @click="paymentKind = null">‹</button>
@@ -751,8 +776,11 @@ import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import { nearbyAvatars } from './nearbyAvatars';
+import { findPhoneMapPath, listPhoneMap } from '../map/phoneMap';
+import { locationShare } from '../map/locationShare';
 
 const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
+const emit = defineEmits<{ 'open-map': [key: string] }>();
 
 type Tab = 'chats' | 'contacts' | 'discover' | 'me';
 const tabs: { id: Tab; label: string }[] = [
@@ -841,10 +869,15 @@ const groupMembers = ref<string[]>([]);
 const voiceOpen = ref(false);
 const voiceText = ref('');
 const voiceDuration = ref('');
+const locationPickerOpen = ref(false);
+const locationQuery = ref('');
 function openExtra(label: string) {
   extrasOpen.value = false;
   if (label === '转账') paymentKind.value = label;
-  else if (label === '名片') {
+  else if (label === '位置') {
+    locationQuery.value = '';
+    locationPickerOpen.value = true;
+  } else if (label === '名片') {
     cardQuery.value = '';
     cardMessage.value = '';
     selectedCard.value = null;
@@ -1011,6 +1044,34 @@ function startServiceTransfer(id: string) {
   paymentKind.value = '转账';
 }
 const worldTime = computed(() => store.statData?.世界?.时间 || '');
+const filteredLocations = computed(() =>
+  listPhoneMap(store.statData?.地图 ?? {}).filter(entry => entry.name.includes(locationQuery.value.trim())),
+);
+function openLocation(key: string) {
+  if (!findPhoneMapPath(store.statData?.地图 ?? {}, key)) {
+    error.value = `地图中找不到位置 key：${key}`;
+    return;
+  }
+  error.value = '';
+  emit('open-map', key);
+}
+async function sendLocation(key: string) {
+  if (!selectedKey.value || sending.value) return;
+  if (!findPhoneMapPath(store.statData?.地图 ?? {}, key)) {
+    error.value = `地图中找不到位置 key：${key}`;
+    return;
+  }
+  sending.value = true;
+  error.value = '';
+  try {
+    await store.sendWeChatMessage(selectedKey.value, [locationShare(key)]);
+    locationPickerOpen.value = false;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '位置分享失败。';
+  } finally {
+    sending.value = false;
+  }
+}
 const stickerNames = computed(() => Object.keys(self.value?.表情包 ?? {}));
 const tab = ref<Tab>('chats');
 const subPage = ref<'requests' | 'add' | 'nearby' | null>(null);
@@ -1174,7 +1235,7 @@ type SelectedMessage = 微信消息 & { 内容下标?: number };
 const quoted = ref<SelectedMessage | null>(null);
 const messageMenu = ref<SelectedMessage | null>(null);
 function isSpecialCard(item: 微信消息内容): boolean {
-  return typeof item === 'string' && /^<(?:转账|红包|名片)(?:\s|>)/.test(item);
+  return typeof item === 'string' && /^<(?:转账|红包|名片|位置)(?:\s|>)/.test(item);
 }
 let messageHoldTimer: ReturnType<typeof setTimeout> | undefined;
 function openMessageMenu(message: 微信消息, part: 微信消息内容, index: number) {

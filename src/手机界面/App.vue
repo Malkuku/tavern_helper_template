@@ -67,7 +67,7 @@
               />
 
               <main v-else-if="activeApp === '微信'" :key="'wechat'" class="wechat-screen">
-                <WeChat :open-request="chatOpenRequest" />
+                <WeChat :open-request="chatOpenRequest" @open-map="openMapLocation" />
               </main>
 
               <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
@@ -80,7 +80,7 @@
                 :app="activeApp"
               />
 
-              <MapApp v-else-if="activeApp === '地图'" :key="activeApp" />
+              <MapApp v-else-if="activeApp === '地图'" :key="activeApp" :open-request="mapOpenRequest" />
 
               <PhoneExtras
                 v-else-if="['信息', '照片', '相机', '设置', '浏览器', '音乐', '文件'].includes(activeApp)"
@@ -159,7 +159,13 @@ const open = ref(false);
 const statStore = useMagicGirlStatStore();
 const activeApp = ref<string | null>(null);
 const chatOpenRequest = ref<{ key: string; id: number } | null>(null);
+const mapOpenRequest = ref<{ key: string; id: number } | null>(null);
 let chatOpenRequestId = 0;
+let mapOpenRequestId = 0;
+function openMapLocation(key: string) {
+  mapOpenRequest.value = { key, id: ++mapOpenRequestId };
+  activeApp.value = '地图';
+}
 const controlCenterOpen = ref(false);
 const brightness = ref(100);
 const wallpaper = ref('');
@@ -205,6 +211,7 @@ function activateHome() {
   else if (activeApp.value) {
     activeApp.value = null;
     chatOpenRequest.value = null;
+    mapOpenRequest.value = null;
   } else closePhone();
 }
 function finishHomeSwipe(event: PointerEvent) {
@@ -216,6 +223,7 @@ function finishHomeSwipe(event: PointerEvent) {
   else if (activeApp.value) {
     activeApp.value = null;
     chatOpenRequest.value = null;
+    mapOpenRequest.value = null;
   } else closePhone();
   setTimeout(() => {
     homeSwipeHandled = false;
@@ -295,6 +303,7 @@ function closePhone() {
   controlCenterOpen.value = false;
   open.value = false;
   chatOpenRequest.value = null;
+  mapOpenRequest.value = null;
   didDrag = false;
 }
 function startControlSwipe(event: PointerEvent) {

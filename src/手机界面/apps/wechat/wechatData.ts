@@ -1,5 +1,6 @@
 import { klona } from 'klona';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 微信消息流项, 微信操作 } from '../../types';
+import { parseLocationShare } from '../map/locationShare';
 
 type MessageEvent = 微信消息 & { 类型: '消息'; 会话: string; 会话信息?: Pick<微信会话, '类型' | '名称' | '成员'> };
 export type OperationEvent = { 类型: '操作'; 操作: string; 时间: string; [key: string]: any };
@@ -12,7 +13,7 @@ function record(value: unknown): value is Record<string, any> {
 }
 
 function messageContent(value: unknown, depth = 0): value is 微信消息内容 {
-  if (typeof value === 'string') return true;
+  if (typeof value === 'string') return !value.startsWith('<位置') || parseLocationShare(value) !== null;
   if (!record(value) || depth > 3) return false;
   if (record(value.转发)) {
     const forwarded = value.转发.私聊 ?? value.转发.群聊;
@@ -195,6 +196,7 @@ export function contentSummary(content: 微信消息内容[]): string {
         if (item.startsWith('<红包')) return '[红包]';
         if (item.startsWith('<转账')) return '[转账]';
         if (item.startsWith('<名片')) return '[名片]';
+        if (parseLocationShare(item)) return `[位置] ${parseLocationShare(item)}`;
         return item;
       }
       return '[转发]';

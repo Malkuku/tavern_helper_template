@@ -941,11 +941,13 @@
   display: none;
 }
 .wechat .wx-contact-card,
-.wechat .wx-payment {
+.wechat .wx-payment,
+.wechat .wx-location-card {
   position: relative;
 }
 .wechat .wx-message.mine .wx-contact-card::after,
-.wechat .wx-message.mine .wx-payment::after {
+.wechat .wx-message.mine .wx-payment::after,
+.wechat .wx-message.mine .wx-location-card::after {
   content: '';
   position: absolute;
   top: 13px;
@@ -956,7 +958,8 @@
   background: inherit;
 }
 .wechat .wx-message:not(.mine) .wx-contact-card::after,
-.wechat .wx-message:not(.mine) .wx-payment::after {
+.wechat .wx-message:not(.mine) .wx-payment::after,
+.wechat .wx-message:not(.mine) .wx-location-card::after {
   content: '';
   position: absolute;
   top: 13px;
@@ -1029,7 +1032,8 @@
   background: #8882;
 }
 .wechat .wx-payment,
-.wechat .wx-contact-card {
+.wechat .wx-contact-card,
+.wechat .wx-location-card {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1074,6 +1078,73 @@
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.wechat .wx-location-card {
+  background: #dcece6;
+  color: #254f47;
+}
+.wechat .wx-location-card::after {
+  background: #dcece6 !important;
+}
+.wechat .wx-location-pin {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: #8dc8b5;
+  font-size: 30px;
+}
+.wechat .wx-location-card > span:last-child {
+  min-width: 0;
+}
+.wechat .wx-location-card strong,
+.wechat .wx-location-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wechat .wx-location-card small {
+  color: #547a72;
+}
+.wechat .wx-location-picker {
+  max-height: 230px;
+  padding: 10px;
+  background: #fff;
+}
+.wechat .wx-location-picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.wechat .wx-location-picker-head button {
+  border: 0;
+  background: none;
+  color: #5b7790;
+}
+.wechat .wx-location-picker input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d8e1e8;
+  border-radius: 7px;
+}
+.wechat .wx-location-options {
+  max-height: 150px;
+  overflow-y: auto;
+}
+.wechat .wx-location-options button {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 7px;
+  border: 0;
+  border-bottom: 1px solid #edf0f2;
+  background: white;
+  text-align: left;
+}
+.wechat .wx-location-options small {
+  color: #758493;
 }
 .wechat .wx-payment-amount {
   font-size: 13px;

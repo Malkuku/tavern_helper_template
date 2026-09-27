@@ -19,6 +19,8 @@ import {
   unappliedWeChatLogs,
 } from '../apps/wechat/wechatData';
 import type { OperationEvent } from '../apps/wechat/wechatData';
+import { parseLocationShare } from '../apps/map/locationShare';
+import { findPhoneMapPath } from '../apps/map/phoneMap';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyInventoryTransfers, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import {
@@ -235,6 +237,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   ) {
     const generation = chatGeneration;
     await updateWeChat((current, stat) => {
+      for (const item of content) {
+        if (typeof item !== 'string' || !item.startsWith('<位置')) continue;
+        const key = parseLocationShare(item);
+        if (!key || !findPhoneMapPath(stat.地图 ?? {}, key))
+          throw new Error('位置分享必须使用当前地图中存在的节点 key。');
+      }
       if (current.准备发送 && current.准备发送.已确认 !== false)
         throw new Error('上一批微信仍在等待正文确认，请先重试或等待完成。');
       if (current.准备发送 && current.准备发送.会话 !== conversation) throw new Error('请先确认当前会话的待发送消息。');
@@ -518,11 +526,26 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
     if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，正文增量仍待处理。');
     const current = normalizeWeChatIds(previous.stat_data.手机.微信);
+    const validateLocations = (entries: typeof logs) => {
+      for (const log of entries)
+        for (const event of log.事件) {
+          if (event.类型 !== '消息') continue;
+          for (const item of event.内容) {
+            if (typeof item !== 'string' || !item.startsWith('<位置')) continue;
+            const key = parseLocationShare(item);
+            if (!key || !findPhoneMapPath(previous.stat_data.地图 ?? {}, key))
+              throw new Error('微信位置分享的 key 不存在于当前地图。');
+          }
+        }
+    };
     for (let index = 0; index < logs.length; index++) {
       try {
         const prefix = logs.slice(0, index + 1);
         const pendingLogs = unappliedWeChatLogs(current, prefix);
-        if (pendingLogs.length) applyWeChatLogs(current, pendingLogs);
+        if (pendingLogs.length) {
+          validateLocations(pendingLogs);
+          applyWeChatLogs(current, pendingLogs);
+        }
       } catch (error) {
         failedWeChatLogIndex.value = index;
         throw error;
