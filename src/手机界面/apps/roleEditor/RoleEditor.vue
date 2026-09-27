@@ -5,7 +5,52 @@
       <div v-if="error" class="pre-notice error" role="alert">{{ error }}</div>
       <div v-if="notice" class="pre-notice" role="status">{{ notice }}</div>
 
-      <template v-if="!draft">
+      <template v-if="runtimeMinorDraft">
+        <button type="button" class="pre-back" @click="backToList">‹ 当前剧情次要角色</button>
+        <section class="pre-card">
+          <h2>{{ runtimeMinorKey }}</h2>
+          <p class="pre-hint">修改会直接写入当前剧情变量，不会更改主世界书资源。</p>
+          <label class="pre-check"><input v-model="runtimeMinorDraft.在场" type="checkbox" />在场</label>
+          <label
+            >身份（每行一项）<textarea
+              :value="runtimeMinorDraft.身份.join('\n')"
+              @input="setMinorList('身份', $event)"
+            ></textarea>
+          </label>
+          <label>背景<textarea v-model="runtimeMinorDraft.背景" rows="4"></textarea></label>
+          <label>外貌<textarea v-model="runtimeMinorDraft.外貌" rows="4"></textarea></label>
+          <label>性格<textarea v-model="runtimeMinorDraft.性格" rows="4"></textarea></label>
+          <label
+            >名称检索词（每行一项）<textarea
+              :value="runtimeMinorDraft.名称检索词.join('\n')"
+              @input="setMinorList('名称检索词', $event)"
+            ></textarea>
+          </label>
+          <label
+            >区域检索词（每行一项）<textarea
+              :value="runtimeMinorDraft.区域检索词.join('\n')"
+              @input="setMinorList('区域检索词', $event)"
+            ></textarea>
+          </label>
+          <label
+            >身体开发状态（每行一项）<textarea
+              :value="runtimeMinorDraft.身体开发状态.join('\n')"
+              @input="setMinorList('身体开发状态', $event)"
+            ></textarea>
+          </label>
+          <label
+            >能力描述（每行一项）<textarea
+              :value="runtimeMinorDraft.能力描述.join('\n')"
+              @input="setMinorList('能力描述', $event)"
+            ></textarea>
+          </label>
+        </section>
+        <div class="pre-actions">
+          <button type="button" class="primary" :disabled="busy" @click="requestMinorSave">保存到当前剧情</button>
+          <button type="button" class="pre-danger" :disabled="busy" @click="requestMinorDelete">删除次要角色</button>
+        </div>
+      </template>
+      <template v-else-if="!draft">
         <section class="pre-intro">
           <h1>角色编辑器</h1>
           <p>编辑角色资源并保存到主世界书。加入和替换会写入当前剧情。</p>
@@ -18,6 +63,23 @@
           </select>
           <button type="button" @click="startNew">＋ 新建角色</button>
         </div>
+        <section class="pre-card">
+          <h2>当前剧情次要角色</h2>
+          <p class="pre-hint">编辑或删除当前楼层变量中的角色。</p>
+          <div v-if="!Object.keys(runtime.次要角色 ?? {}).length" class="pre-empty">当前剧情没有次要角色</div>
+          <button
+            v-for="key in Object.keys(runtime.次要角色 ?? {})"
+            :key="key"
+            type="button"
+            class="pre-row"
+            @click="openRuntimeMinor(key)"
+          >
+            <span class="pre-row-main"
+              ><strong>{{ key }}</strong
+              ><small>当前剧情变量</small></span
+            ><span class="pre-row-arrow">›</span>
+          </button>
+        </section>
         <div v-if="loading" class="pre-empty">正在读取角色资源…</div>
         <div v-else-if="!rows.length" class="pre-empty">主世界书中还没有角色资源</div>
         <button v-for="row in rows" :key="row.id" type="button" class="pre-row" @click="openRole(row.id)">
@@ -149,6 +211,9 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { klona } from 'klona';
 import RoleAvatar from '../../../尘史使徒/UI/components/common/RoleAvatar.vue';
+import { useMagicGirlStatStore } from '../../store/StatStore';
+import { minorRoleSchema } from '../../store/initialDataSchema';
+import type { 次要角色人设 } from '../../types';
 import {
   applyPhoneRoleToRuntime,
   getPhoneRuntimeRoles,
@@ -161,10 +226,14 @@ import {
 } from './roleAssets';
 
 const emit = defineEmits<{ dirty: [value: boolean]; leave: [] }>();
+const statStore = useMagicGirlStatStore();
 const registry = ref<PhoneRoleRegistry>({});
 const runtime = ref<Record<string, any>>({});
 const activeId = ref('');
 const draft = ref<PhoneRoleAsset | null>(null);
+const runtimeMinorKey = ref('');
+const runtimeMinorDraft = ref<次要角色人设 | null>(null);
+const runtimeMinorOriginal = ref<次要角色人设 | null>(null);
 const originalJson = ref('');
 const loading = ref(false);
 const busy = ref(false);
@@ -173,16 +242,24 @@ const notice = ref('');
 const newType = ref<PhoneRoleType>('主要角色');
 const fullData = ref(false);
 const dataJson = ref('');
-type Dialog = { kind: 'save' | 'runtime' | 'discard'; title: string; body: string; action: string; fields: string[] };
+type Dialog = {
+  kind: 'save' | 'runtime' | 'minor-save' | 'minor-delete' | 'discard';
+  title: string;
+  body: string;
+  action: string;
+  fields: string[];
+};
 const dialog = ref<Dialog | null>(null);
 const leaving = ref(false);
 const refreshing = ref(false);
 const rows = computed(() => Object.entries(registry.value).map(([id, asset]) => ({ id, asset })));
 const dirty = computed(
   () =>
-    !!draft.value &&
-    (JSON.stringify(draft.value) !== originalJson.value ||
-      (fullData.value && dataJson.value !== JSON.stringify(draft.value.data, null, 2))),
+    (!!runtimeMinorDraft.value &&
+      JSON.stringify(runtimeMinorDraft.value) !== JSON.stringify(runtimeMinorOriginal.value)) ||
+    (!!draft.value &&
+      (JSON.stringify(draft.value) !== originalJson.value ||
+        (fullData.value && dataJson.value !== JSON.stringify(draft.value.data, null, 2)))),
 );
 watch(dirty, value => emit('dirty', value), { immediate: true });
 const runtimeExists = computed(() => {
@@ -233,6 +310,9 @@ function defaultData(type: PhoneRoleType): Record<string, any> {
   };
 }
 function setDraft(id: string, asset: PhoneRoleAsset | null) {
+  runtimeMinorKey.value = '';
+  runtimeMinorDraft.value = null;
+  runtimeMinorOriginal.value = null;
   activeId.value = id;
   draft.value = asset
     ? { ...klona(asset), meta: klona(asset.meta ?? { avatar: '', color: '#C9B485', avatarStyle: 'auto' }) }
@@ -242,6 +322,52 @@ function setDraft(id: string, asset: PhoneRoleAsset | null) {
   fullData.value = false;
   error.value = '';
   notice.value = '';
+}
+function openRuntimeMinor(key: string) {
+  const role = runtime.value.次要角色?.[key] as 次要角色人设 | undefined;
+  if (!role) return;
+  runtimeMinorKey.value = key;
+  runtimeMinorOriginal.value = klona(role);
+  runtimeMinorDraft.value = klona(role);
+  error.value = '';
+  notice.value = '';
+}
+function setMinorList(field: '身份' | '名称检索词' | '区域检索词' | '身体开发状态' | '能力描述', event: Event) {
+  if (runtimeMinorDraft.value)
+    runtimeMinorDraft.value[field] = (event.target as HTMLTextAreaElement).value
+      .split('\n')
+      .map(item => item.trim())
+      .filter(Boolean);
+}
+function requestMinorSave() {
+  if (!runtimeMinorDraft.value || !runtimeMinorOriginal.value) return;
+  const checked = minorRoleSchema.safeParse(runtimeMinorDraft.value);
+  if (!checked.success) {
+    error.value = `次要角色数据无效：${checked.error.message}`;
+    return;
+  }
+  const fields = changedFields(runtimeMinorOriginal.value, checked.data);
+  if (!fields.length) {
+    notice.value = '没有需要保存的修改。';
+    return;
+  }
+  dialog.value = {
+    kind: 'minor-save',
+    title: '保存次要角色',
+    body: `将${runtimeMinorKey.value}的修改写入当前剧情变量。`,
+    action: '确认保存',
+    fields,
+  };
+}
+function requestMinorDelete() {
+  if (!runtimeMinorDraft.value) return;
+  dialog.value = {
+    kind: 'minor-delete',
+    title: '删除次要角色',
+    body: `从当前剧情变量中删除${runtimeMinorKey.value}。主世界书资源不会改变。`,
+    action: '确认删除',
+    fields: [],
+  };
 }
 async function reload() {
   if (dirty.value) {
@@ -258,11 +384,14 @@ async function reload() {
   loading.value = true;
   error.value = '';
   try {
-    registry.value = await loadPhoneRoleAssets();
-    runtime.value = await getPhoneRuntimeRoles();
+    const [assetsResult, runtimeResult] = await Promise.allSettled([loadPhoneRoleAssets(), getPhoneRuntimeRoles()]);
+    registry.value = assetsResult.status === 'fulfilled' ? assetsResult.value : {};
+    runtime.value = runtimeResult.status === 'fulfilled' ? runtimeResult.value : {};
     setDraft('', null);
-  } catch (cause) {
-    error.value = messageOf(cause);
+    error.value = [assetsResult, runtimeResult]
+      .filter(result => result.status === 'rejected')
+      .map(result => messageOf((result as PromiseRejectedResult).reason))
+      .join('；');
   } finally {
     loading.value = false;
   }
@@ -392,7 +521,15 @@ async function confirmDialog() {
   busy.value = true;
   error.value = '';
   try {
-    if (action.kind === 'save') {
+    if (action.kind === 'minor-save' || action.kind === 'minor-delete') {
+      if (!runtimeMinorOriginal.value || !runtimeMinorDraft.value) throw new Error('次要角色草稿已失效。');
+      const key = runtimeMinorKey.value;
+      const next = action.kind === 'minor-delete' ? null : minorRoleSchema.parse(runtimeMinorDraft.value);
+      await statStore.changeRuntimeMinorRole(key, runtimeMinorOriginal.value, next);
+      runtime.value = await getPhoneRuntimeRoles();
+      setDraft('', null);
+      notice.value = next ? '当前剧情次要角色已保存。' : '当前剧情次要角色已删除。';
+    } else if (action.kind === 'save') {
       const next = candidate();
       const id = activeId.value || crypto.randomUUID();
       await savePhoneRoleAsset(id, next, activeId.value ? registry.value[id] : undefined);

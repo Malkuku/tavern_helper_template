@@ -83,6 +83,10 @@
   cursor: default;
   opacity: 0.48;
 }
+.pre-actions .pre-danger {
+  color: #a84d59;
+  border-color: #e9c8cf;
+}
 .pre-row {
   display: flex;
   align-items: center;

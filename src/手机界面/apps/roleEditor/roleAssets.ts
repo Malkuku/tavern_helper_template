@@ -2,7 +2,7 @@ import { klona } from 'klona';
 import { z } from 'zod';
 import { MvuUtil } from '../../../Utils/MvuUtil';
 import { mainRoleSchema, minorRoleSchema, roleMetaSchema, userRoleSchema } from '../../store/initialDataSchema';
-import type { 角色元数据 } from '../../types';
+import type { 角色元数据, 次要角色人设, stat_data } from '../../types';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 
 export const ROLE_ENTRY_NAME = '<配置>角色资源';
@@ -86,6 +86,14 @@ export async function savePhoneRoleAsset(id: string, asset: PhoneRoleAsset, orig
 
 export function runtimeRoleOf(asset: PhoneRoleAsset): Record<string, unknown> {
   return { ...klona(asset.data), meta: klona(asset.meta ?? { avatar: '', color: '#C9B485', avatarStyle: 'auto' }) };
+}
+
+export function changeRuntimeMinorRole(data: stat_data, key: string, original: 次要角色人设, next: 次要角色人设 | null): void {
+  const roles = data.角色.次要角色;
+  if (JSON.stringify(roles[key]) !== JSON.stringify(original))
+    throw new Error('次要角色已被其他操作修改，请刷新后重试。');
+  if (next === null) delete roles[key];
+  else roles[key] = minorRoleSchema.parse(next);
 }
 
 export function applyPhoneRoleToStatData(

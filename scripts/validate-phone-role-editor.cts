@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { reconcileWorldbookStatData } from '../src/手机界面/store/worldbookInit';
 import {
   applyPhoneRoleToStatData,
+  changeRuntimeMinorRole,
   loadPhoneRoleAssets,
   parseRoleRegistry,
   savePhoneRoleAsset,
@@ -58,6 +59,14 @@ assert.equal(
   wechatRoleAvatar(replaced.角色.次要角色[minor.key].meta, minor.key),
 );
 assert.throws(() => validateRoleAsset({ ...minor, data: { ...minor.data, 非法: true } } as any), /角色数据不符合/);
+const runtimeEdited = structuredClone(added);
+changeRuntimeMinorRole(runtimeEdited, minor.key, added.角色.次要角色[minor.key], { ...added.角色.次要角色[minor.key], 背景: '已修改' });
+assert.equal(runtimeEdited.角色.次要角色[minor.key].背景, '已修改');
+assert.throws(() => changeRuntimeMinorRole(runtimeEdited, minor.key, added.角色.次要角色[minor.key], null), /其他操作修改/);
+assert.ok(runtimeEdited.角色.次要角色[minor.key]);
+changeRuntimeMinorRole(runtimeEdited, minor.key, structuredClone(runtimeEdited.角色.次要角色[minor.key]), null);
+assert.equal(runtimeEdited.角色.次要角色[minor.key], undefined);
+assert.ok(runtimeEdited.手机.微信.账号[minor.key]);
 
 const uuid = Object.keys(registry)[0];
 let current = [

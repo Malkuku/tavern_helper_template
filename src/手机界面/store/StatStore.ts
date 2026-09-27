@@ -3,7 +3,7 @@ import { KatEvents } from '@/Constants/KatEvent';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { klona } from 'klona';
-import type { stat_data, 微信数据, 微信消息, 微信消息内容 } from '../types';
+import type { stat_data, 微信数据, 微信消息, 微信消息内容, 次要角色人设 } from '../types';
 import {
   addSticker,
   applyWeChatOperation,
@@ -31,6 +31,7 @@ import {
   type ReadCursors,
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
+import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
@@ -219,6 +220,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(data => {
       data.角色.user.基础信息.背景 = value;
     });
+  }
+
+  async function changeRuntimeMinorRole(key: string, original: 次要角色人设, next: 次要角色人设 | null) {
+    await changeCharacterData(data => applyRuntimeMinorChange(data, key, original, next));
   }
 
   async function unlockCharacterInfo(kind: CharacterKind, key: string, field: string): Promise<boolean> {
@@ -717,6 +722,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     replace,
     update,
     saveProfileBaseInfo,
+    changeRuntimeMinorRole,
     unlockCharacterInfo,
     transferInventory,
     sendWeChatMessage,
