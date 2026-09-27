@@ -92,8 +92,6 @@ const mapNode: z.ZodType<地图节点> = z.lazy(() =>
     名称检索词: z.array(z.string()),
     描述: z.string(),
     详情: z.array(z.string()),
-    危机等级: z.string(),
-    危机描述: z.string(),
     方位: z.strictObject({ x: z.tuple([number, number]), y: z.tuple([number, number]), z: z.tuple([number, number]) }),
     子地图: z.record(z.string(), mapNode),
   }),

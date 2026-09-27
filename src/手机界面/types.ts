@@ -93,8 +93,6 @@ export interface 地图节点 {
   名称检索词: string[];
   描述: string;
   详情: string[];
-  危机等级: string;
-  危机描述: string;
   方位: { x: [number, number]; y: [number, number]; z: [number, number] };
   子地图: Record<string, 地图节点>;
 }

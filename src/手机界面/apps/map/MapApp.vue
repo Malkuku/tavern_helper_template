@@ -69,7 +69,6 @@
             <button type="button" aria-label="关闭地点详情" @click="selectedName = ''">×</button>
           </div>
           <p>{{ selected.描述 || '暂无地点描述' }}</p>
-          <p v-if="selected.危机描述" class="phone-map-crisis">{{ selected.危机描述 }}</p>
           <ul v-if="selected.详情?.length">
             <li v-for="(detail, index) in selected.详情" :key="index">{{ detail }}</li>
           </ul>
@@ -456,9 +455,6 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
 }
 .phone-map-detail p {
   margin: 8px 0 0;
-}
-.phone-map-detail .phone-map-crisis {
-  color: #937a5a;
 }
 .phone-map-detail ul {
   margin: 8px 0 0;
