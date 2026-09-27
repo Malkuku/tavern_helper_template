@@ -34,13 +34,15 @@ const minor = {
   type: '次要角色',
   meta: { avatar: 'https://example.com/avatar.png', color: '#aabbcc', avatarStyle: '2' },
   data: {
-    名称: '测试次要角色',
-    名称检索词: ['$all'],
-    区域检索词: ['$all'],
+    名称检索词: [],
+    区域检索词: [],
     在场: true,
-    简介: '',
-    性格: { 社交表现: '', 行动逻辑: '', 思维习惯: '', 人际距离: '', 道德底色: '' },
-    能力描述: '',
+    身份: ['测试身份'],
+    背景: '',
+    外貌: '',
+    性格: '',
+    身体开发状态: [],
+    能力描述: [],
   },
 } as const;
 assert.equal(validateRoleAsset(minor as any).key, minor.key);

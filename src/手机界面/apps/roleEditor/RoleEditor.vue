@@ -101,15 +101,17 @@
             <textarea v-model="dataJson" class="pre-json" spellcheck="false" aria-label="完整角色数据 JSON"></textarea>
           </template>
           <template v-else-if="draft.type === 'user'">
-            <label>基础信息<textarea v-model="draft.data.基础信息" rows="5"></textarea></label>
+            <label>背景<textarea v-model="draft.data.基础信息.背景" rows="5"></textarea></label>
+            <label>外貌<textarea v-model="draft.data.外貌" rows="4"></textarea></label>
+            <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
             <label>当前评级<input v-model="draft.data.当前评级" /></label>
             <label>初始金钱<input v-model.number="draft.data.金钱" type="number" /></label>
             <label>初始恶堕积分<input v-model.number="draft.data.恶堕积分" type="number" /></label>
           </template>
           <template v-else-if="draft.type === '主要角色'">
-            <label>基础信息<textarea v-model="draft.data.基础信息" rows="4"></textarea></label>
+            <label>姓名<input v-model="draft.data.基础信息.姓名" /></label>
+            <label>背景<textarea v-model="draft.data.基础信息.背景" rows="4"></textarea></label>
             <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
-            <label>背景<textarea v-model="draft.data.背景" rows="4"></textarea></label>
             <label>核心创伤<textarea v-model="draft.data.核心创伤" rows="4"></textarea></label>
             <label>整体印象<textarea v-model="draft.data.外貌.整体印象" rows="3"></textarea></label>
             <label>日常外貌<textarea v-model="draft.data.外貌.日常外貌" rows="3"></textarea></label>
@@ -117,12 +119,10 @@
             <label class="pre-check"><input v-model="draft.data.在场" type="checkbox" />初始在场</label>
           </template>
           <template v-else>
-            <label>名称<input v-model="draft.data.名称" /></label>
-            <label>简介<textarea v-model="draft.data.简介" rows="4"></textarea></label>
-            <label>能力描述<textarea v-model="draft.data.能力描述" rows="4"></textarea></label>
-            <label v-for="field in personalityFields" :key="field"
-              >{{ field }}<textarea v-model="draft.data.性格[field]" rows="2"></textarea>
-            </label>
+            <label>背景<textarea v-model="draft.data.背景" rows="4"></textarea></label>
+            <label>外貌<textarea v-model="draft.data.外貌" rows="4"></textarea></label>
+            <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
+            <p class="pre-hint">身份、身体开发状态和能力描述可在“编辑完整数据”中逐项修改。</p>
             <label class="pre-check"><input v-model="draft.data.在场" type="checkbox" />初始在场</label>
           </template>
         </section>
@@ -173,7 +173,6 @@ const notice = ref('');
 const newType = ref<PhoneRoleType>('主要角色');
 const fullData = ref(false);
 const dataJson = ref('');
-const personalityFields = ['社交表现', '行动逻辑', '思维习惯', '人际距离', '道德底色'] as const;
 type Dialog = { kind: 'save' | 'runtime' | 'discard'; title: string; body: string; action: string; fields: string[] };
 const dialog = ref<Dialog | null>(null);
 const leaving = ref(false);
@@ -195,29 +194,39 @@ const runtimeExists = computed(() => {
 });
 
 function defaultData(type: PhoneRoleType): Record<string, any> {
-  if (type === 'user') return { 基础信息: '', 当前评级: '', 金钱: 0, 恶堕积分: 0, 技能: {}, 物品: {} };
+  if (type === 'user')
+    return {
+      基础信息: { 身份: [], 背景: '' },
+      外貌: '',
+      性格: '',
+      当前评级: '',
+      金钱: 0,
+      恶堕积分: 0,
+      技能: {},
+      物品: {},
+    };
   if (type === '次要角色')
     return {
-      名称: '',
-      名称检索词: ['$all'],
-      区域检索词: ['$all'],
+      名称检索词: [],
+      区域检索词: [],
       在场: false,
-      简介: '',
-      性格: Object.fromEntries(personalityFields.map(field => [field, ''])),
-      能力描述: '',
+      身份: [],
+      背景: '',
+      外貌: '',
+      性格: '',
+      身体开发状态: [],
+      能力描述: [],
     };
-  const part = () => ({ 当前状态: '', 当前等级: 0, 累计经验: 0, 特征: '', 描述: {} });
+  const part = () => ({ 当前状态: '', 特征: '', 开发程度: '' });
   const stage = () => ({ 当前等级: 0, 累计经验: 0, 描述: {} });
   return {
     在场: false,
-    是否变身魔法少女: false,
     名称检索词: ['$all'],
     区域检索词: ['$all'],
-    基础信息: '',
+    基础信息: { 姓名: '', 身份: [], 背景: '' },
     外貌: { 整体印象: '', 日常外貌: '', 魔法少女形态: { 正常: '', 恶堕: '' } },
-    身体: { 特殊状态: [], 开发状态: { 小穴: part(), 口穴: part(), 菊穴: part(), 胸部: part() } },
+    身体: { 特殊状态: [], 小穴: part(), 口穴: part(), 菊穴: part(), 胸部: part() },
     性格: '',
-    背景: '',
     核心创伤: '',
     人设阶段: { 创伤稳定度: stage(), 好感度: stage(), 恶堕度: stage() },
     魔法少女能力: { 基础能力: '', 核心能力: '', 核心能力限制: {} },
@@ -324,7 +333,6 @@ function candidate(): PhoneRoleAsset {
     }
   }
   if (!next.key.trim()) throw new Error('请填写角色身份键。');
-  if (next.type === '次要角色' && !next.data.名称) next.data.名称 = next.key;
   return validateRoleAsset(next);
 }
 function requestSave() {

@@ -35,7 +35,9 @@
           </button>
         </div>
       </template>
-      <p v-else class="data-prose">{{ user.基础信息 || '暂无基本信息' }}</p>
+      <p v-else class="data-prose">{{ user.基础信息.身份.join('、') }}<br />{{ user.基础信息.背景 || '暂无基本信息' }}</p>
+      <p class="data-prose">{{ user.外貌 }}</p>
+      <p class="data-prose">{{ user.性格 }}</p>
     </section>
   </div>
   <div v-else class="data-empty"><strong>暂无个人资料</strong></div>
@@ -54,13 +56,13 @@ const saving = ref(false);
 const draft = ref('');
 const error = ref('');
 watch(
-  () => props.data.角色?.user?.基础信息,
+  () => props.data.角色?.user?.基础信息.背景,
   value => {
     if (!editing.value) draft.value = value ?? '';
   },
 );
 function startEdit() {
-  draft.value = user.value?.基础信息 ?? '';
+  draft.value = user.value?.基础信息.背景 ?? '';
   error.value = '';
   editing.value = true;
 }

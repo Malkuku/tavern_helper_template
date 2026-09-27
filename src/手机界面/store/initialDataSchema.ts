@@ -17,10 +17,8 @@ const skillLevel = z.strictObject({ 战力评分: number, 描述: z.string(), �
 const stage = z.strictObject({ 当前等级: number, 累计经验: number, 描述: stringRecord });
 const bodyPart = z.strictObject({
   当前状态: z.string(),
-  当前等级: number,
-  累计经验: number,
   特征: z.string(),
-  描述: stringRecord,
+  开发程度: z.string(),
 });
 
 export const roleMetaSchema = z.strictObject({
@@ -32,10 +30,9 @@ export const roleMetaSchema = z.strictObject({
 export const mainRoleSchema = z.strictObject({
   meta: roleMetaSchema.optional(),
   在场: z.boolean(),
-  是否变身魔法少女: z.boolean(),
   名称检索词: z.array(z.string()),
   区域检索词: z.array(z.string()),
-  基础信息: z.string(),
+  基础信息: z.strictObject({ 姓名: z.string(), 身份: z.array(z.string()), 背景: z.string() }),
   外貌: z.strictObject({
     整体印象: z.string(),
     日常外貌: z.string(),
@@ -43,10 +40,12 @@ export const mainRoleSchema = z.strictObject({
   }),
   身体: z.strictObject({
     特殊状态: z.array(z.unknown()),
-    开发状态: z.strictObject({ 小穴: bodyPart, 口穴: bodyPart, 菊穴: bodyPart, 胸部: bodyPart }),
+    小穴: bodyPart,
+    口穴: bodyPart,
+    菊穴: bodyPart,
+    胸部: bodyPart,
   }),
   性格: z.string(),
-  背景: z.string(),
   核心创伤: z.string(),
   人设阶段: z.strictObject({ 创伤稳定度: stage, 好感度: stage, 恶堕度: stage }),
   魔法少女能力: z.strictObject({
@@ -58,24 +57,22 @@ export const mainRoleSchema = z.strictObject({
 
 export const minorRoleSchema = z.strictObject({
   meta: roleMetaSchema.optional(),
-  名称: z.string(),
   名称检索词: z.array(z.string()),
   区域检索词: z.array(z.string()),
   在场: z.boolean(),
-  简介: z.string(),
-  性格: z.strictObject({
-    社交表现: z.string(),
-    行动逻辑: z.string(),
-    思维习惯: z.string(),
-    人际距离: z.string(),
-    道德底色: z.string(),
-  }),
-  能力描述: z.string(),
+  身份: z.array(z.string()),
+  背景: z.string(),
+  外貌: z.string(),
+  性格: z.string(),
+  身体开发状态: z.array(z.string()),
+  能力描述: z.array(z.string()),
 });
 
 export const userRoleSchema = z.strictObject({
   meta: roleMetaSchema.optional(),
-  基础信息: z.string(),
+  基础信息: z.strictObject({ 身份: z.array(z.string()), 背景: z.string() }),
+  外貌: z.string(),
+  性格: z.string(),
   当前评级: z.string(),
   金钱: number,
   恶堕积分: number,
@@ -90,6 +87,7 @@ const mapNode: z.ZodType<地图节点> = z.lazy(() =>
   z.strictObject({
     图标: svgIcon,
     名称检索词: z.array(z.string()),
+    区域检索词: z.array(z.string()),
     描述: z.string(),
     详情: z.array(z.string()),
     方位: z.strictObject({ x: z.tuple([number, number]), y: z.tuple([number, number]), z: z.tuple([number, number]) }),

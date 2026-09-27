@@ -15,22 +15,27 @@ export interface 外貌 {
 
 export interface 身体部位开发状态 {
   当前状态: string;
-  当前等级: number;
-  累计经验: number;
   特征: string;
-  描述: Record<string, string>;
+  开发程度: string;
 }
 
-export interface 身体开发状态 {
+export interface 身体 {
+  特殊状态: unknown[];
   小穴: 身体部位开发状态;
   口穴: 身体部位开发状态;
   菊穴: 身体部位开发状态;
   胸部: 身体部位开发状态;
 }
 
-export interface 身体 {
-  特殊状态: unknown[];
-  开发状态: 身体开发状态;
+export interface 角色基础信息 {
+  姓名: string;
+  身份: string[];
+  背景: string;
+}
+
+export interface 主角基础信息 {
+  身份: string[];
+  背景: string;
 }
 
 export interface 阶段状态 {
@@ -55,42 +60,35 @@ export interface 魔法少女能力 {
 export interface 角色人设 {
   meta?: 角色元数据;
   在场: boolean;
-  是否变身魔法少女: boolean;
   名称检索词: string[];
   区域检索词: string[];
-  基础信息: string;
+  基础信息: 角色基础信息;
   外貌: 外貌;
   身体: 身体;
   性格: string;
-  背景: string;
   核心创伤: string;
   人设阶段: 人设阶段;
   魔法少女能力: 魔法少女能力;
 }
 
-export interface 性格分段 {
-  社交表现: string;
-  行动逻辑: string;
-  思维习惯: string;
-  人际距离: string;
-  道德底色: string;
-}
-
 export interface 次要角色人设 {
   meta?: 角色元数据;
-  名称: string;
   名称检索词: string[];
   区域检索词: string[];
   在场: boolean;
-  简介: string;
-  性格: 性格分段;
-  能力描述: string;
+  身份: string[];
+  背景: string;
+  外貌: string;
+  性格: string;
+  身体开发状态: string[];
+  能力描述: string[];
 }
 
 export interface 地图节点 {
   /** 完整安全 SVG；旧楼层缺失时由视图提供默认图形。 */
   图标: string;
   名称检索词: string[];
+  区域检索词: string[];
   描述: string;
   详情: string[];
   方位: { x: [number, number]; y: [number, number]; z: [number, number] };
@@ -173,7 +171,9 @@ export interface 系统数据 {
 
 export interface 用户数据 {
   meta?: 角色元数据;
-  基础信息: string;
+  基础信息: 主角基础信息;
+  外貌: string;
+  性格: string;
   当前评级: string;
   金钱: number;
   恶堕积分: number;

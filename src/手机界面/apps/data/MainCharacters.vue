@@ -21,7 +21,7 @@
       <h2>{{ selectedMainKey }}</h2>
       <div class="data-badges">
         <span :class="selectedMain.在场 ? 'badge-live' : ''">{{ selectedMain.在场 ? '在场' : '未在场' }}</span
-        ><span>{{ selectedMain.是否变身魔法少女 ? '魔法少女形态' : '日常形态' }}</span>
+        >
       </div>
     </section>
     <nav class="data-pages" aria-label="角色档案分页">
@@ -55,11 +55,11 @@
       <section v-for="[key, part] in bodyEntries" :key="key" class="data-card monitor-card">
         <div class="monitor-card-head">
           <strong>{{ key }}</strong
-          ><span>等级 {{ part.当前等级 }}</span>
+          >
         </div>
         <p class="monitor-state">{{ part.当前状态 }}</p>
         <p v-if="part.特征" class="data-prose">{{ part.特征 }}</p>
-        <p v-if="currentLevelDescription(part)" class="data-prose">{{ currentLevelDescription(part) }}</p>
+        <p v-if="part.开发程度" class="data-prose">{{ part.开发程度 }}</p>
       </section>
     </template>
     <template v-else>
@@ -70,7 +70,7 @@
       </section>
       <section class="data-card">
         <h3>基础信息</h3>
-        <p class="data-prose">{{ selectedMain.基础信息 || '暂无记录' }}</p>
+        <p class="data-prose">{{ selectedMain.基础信息.姓名 }} · {{ selectedMain.基础信息.身份.join('、') }}</p>
       </section>
       <section class="data-card">
         <h3>整体印象</h3>
@@ -86,7 +86,7 @@
         ><p class="data-prose">{{ selectedMain.性格 || '暂无记录' }}</p></LockedField
       >
       <LockedField kind="主要角色" :character-key="selectedMainKey!" field="背景"
-        ><p class="data-prose">{{ selectedMain.背景 || '暂无记录' }}</p></LockedField
+        ><p class="data-prose">{{ selectedMain.基础信息.背景 || '暂无记录' }}</p></LockedField
       >
       <LockedField kind="主要角色" :character-key="selectedMainKey!" field="核心能力">
         <p class="data-prose">{{ selectedMain.魔法少女能力.核心能力 || '暂无记录' }}</p>
@@ -119,7 +119,11 @@ const selectedMainKey = computed(() =>
 );
 const selectedMain = computed(() => mainEntries.value.find(([key]) => key === selectedMainKey.value)?.[1]);
 const stageEntries = computed(() => entries(selectedMain.value?.人设阶段));
-const bodyEntries = computed(() => entries(selectedMain.value?.身体?.开发状态));
+const bodyEntries = computed(() =>
+  selectedMain.value
+    ? (['小穴', '口穴', '菊穴', '胸部'] as const).map(key => [key, selectedMain.value!.身体[key]] as const)
+    : [],
+);
 watch(selectedMainKey, () => {
   page.value = '心象';
 });

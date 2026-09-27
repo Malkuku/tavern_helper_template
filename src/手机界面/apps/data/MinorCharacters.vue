@@ -12,9 +12,9 @@
         :class="{ active: selectedMinorKey === key }"
         @click="selectedKey = key"
       >
-        <span class="minor-avatar">{{ (person.名称 || key).slice(0, 1) }}</span>
+        <span class="minor-avatar">{{ key.slice(0, 1) }}</span>
         <span class="minor-list-copy"
-          ><strong>{{ person.名称 || key }}</strong
+          ><strong>{{ key }}</strong
           ><small>{{ person.在场 ? '当前在场' : '当前未在场' }}</small></span
         >
         <span class="minor-presence">›</span>
@@ -23,7 +23,7 @@
     <template v-if="selectedMinor">
       <section class="data-hero monitor-hero minor-hero">
         <div class="hero-overline">人物信号 · {{ selectedMinor.在场 ? '在线' : '离线' }}</div>
-        <h2>{{ selectedMinor.名称 || selectedMinorKey }}</h2>
+        <h2>{{ selectedMinorKey }}</h2>
         <div class="data-badges">
           <span :class="selectedMinor.在场 ? 'badge-live' : ''">{{ selectedMinor.在场 ? '在场' : '未在场' }}</span>
         </div>
@@ -38,8 +38,16 @@
           <h3>当前记录</h3>
         </section>
         <section class="data-card">
-          <h3>简介</h3>
-          <p class="data-prose">{{ selectedMinor.简介 || '暂无记录' }}</p>
+          <h3>身份</h3>
+          <p class="data-prose">{{ selectedMinor.身份.join('、') || '暂无记录' }}</p>
+        </section>
+        <section class="data-card">
+          <h3>背景</h3>
+          <p class="data-prose">{{ selectedMinor.背景 || '暂无记录' }}</p>
+        </section>
+        <section class="data-card">
+          <h3>外貌</h3>
+          <p class="data-prose">{{ selectedMinor.外貌 || '暂无记录' }}</p>
         </section>
       </template>
       <template v-else>
@@ -49,14 +57,17 @@
           <p>重要信息需使用恶堕积分解锁</p>
         </section>
         <LockedField kind="次要角色" :character-key="selectedMinorKey!" field="性格侧写">
-          <div v-for="[key, value] in entries(selectedMinor.性格)" :key="key" class="data-field">
-            <span>{{ key }}</span>
-            <p>{{ value }}</p>
-          </div>
+          <p class="data-prose">{{ selectedMinor.性格 || '暂无记录' }}</p>
         </LockedField>
         <LockedField kind="次要角色" :character-key="selectedMinorKey!" field="能力描述">
-          <p class="data-prose">{{ selectedMinor.能力描述 || '暂无记录' }}</p>
+          <p v-for="(ability, index) in selectedMinor.能力描述" :key="index" class="data-prose">{{ ability }}</p>
+          <p v-if="!selectedMinor.能力描述.length" class="data-prose">暂无记录</p>
         </LockedField>
+        <section class="data-card">
+          <h3>身体开发状态</h3>
+          <p v-for="(state, index) in selectedMinor.身体开发状态" :key="index" class="data-prose">{{ state }}</p>
+          <p v-if="!selectedMinor.身体开发状态.length" class="data-prose">暂无记录</p>
+        </section>
       </template>
     </template>
   </div>
@@ -69,7 +80,6 @@
 <script setup lang="ts">
 import type { 次要角色人设, stat_data } from '../../types';
 import { computed, ref, watch } from 'vue';
-import { entries } from './entries';
 import LockedField from './LockedField.vue';
 
 const props = defineProps<{ data: stat_data }>();

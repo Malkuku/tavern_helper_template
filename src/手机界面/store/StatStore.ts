@@ -217,7 +217,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function saveProfileBaseInfo(value: string) {
     await changeCharacterData(data => {
-      data.角色.user.基础信息 = value;
+      data.角色.user.基础信息.背景 = value;
     });
   }
 
