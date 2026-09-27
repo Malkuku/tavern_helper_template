@@ -53,6 +53,7 @@ export interface 魔法少女能力 {
 }
 
 export interface 角色人设 {
+  meta?: 角色元数据;
   在场: boolean;
   是否变身魔法少女: boolean;
   名称检索词: string[];
@@ -76,6 +77,7 @@ export interface 性格分段 {
 }
 
 export interface 次要角色人设 {
+  meta?: 角色元数据;
   名称: string;
   名称检索词: string[];
   区域检索词: string[];
@@ -172,12 +174,19 @@ export interface 系统数据 {
 }
 
 export interface 用户数据 {
+  meta?: 角色元数据;
   基础信息: string;
   当前评级: string;
   金钱: number;
   恶堕积分: number;
   技能: Record<string, 技能>;
   物品: Record<string, 物品>;
+}
+
+export interface 角色元数据 {
+  avatar: string;
+  color: string;
+  avatarStyle?: 'auto' | '0' | '1' | '2' | '3' | '4' | '5';
 }
 
 /**

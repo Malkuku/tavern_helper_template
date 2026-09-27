@@ -1,6 +1,7 @@
 ﻿import { klona } from 'klona';
 import { z } from 'zod';
-import { initialStatDataSchema } from './initialDataSchema';
+import { initialStatDataSchema, roleMetaSchema } from './initialDataSchema';
+import { wechatRoleAvatar } from '../../尘史使徒/UI/components/common/roleAvatarFallback';
 
 type JsonRecord = Record<string, unknown>;
 type ConfigEntry = Pick<WorldbookEntry, 'name' | 'content'>;
@@ -29,6 +30,7 @@ const roleEntrySchema = z
     key: z.string().min(1),
     desc: z.string(),
     type: z.enum(['user', '主要角色', '次要角色']),
+    meta: roleMetaSchema.optional(),
     data: z.record(z.string(), z.unknown()),
   })
   .strict();
@@ -57,15 +59,17 @@ function seedWechatFriends(data: JsonRecord): void {
   const wechat = isRecord(phone) ? phone.微信 : undefined;
   const accountMap = isRecord(wechat) ? wechat.账号 : undefined;
   const sessions = isRecord(wechat) ? wechat.会话 : undefined;
-  const mainRoles = (data.角色 as JsonRecord).主要角色 as JsonRecord;
+  const roles = data.角色 as JsonRecord;
+  const mainRoles = roles.主要角色 as JsonRecord;
   if (!isRecord(accountMap) || Object.keys(accountMap).length) throw new Error('唯一开局必须提供空的微信账号表。');
   if (!isRecord(sessions) || Object.keys(sessions).length || !isRecord(wechat) || wechat.准备发送 !== null)
     throw new Error('唯一开局必须提供空的微信会话与发送缓冲。');
   const mainIds = Object.keys(mainRoles);
   for (const id of ['user', ...mainIds]) {
+    const role = (id === 'user' ? roles.user : mainRoles[id]) as { meta?: z.infer<typeof roleMetaSchema> } | undefined;
     accountMap[id] = {
       昵称: id === 'user' ? '我' : id,
-      头像: '',
+      头像: wechatRoleAvatar(role?.meta, id),
       表情包: {},
       好友: id === 'user' ? mainIds : ['user'],
     };
@@ -97,11 +101,11 @@ export function reconcileWorldbookStatData(
     if (!entry) throw new Error(`唯一开局引用的角色资源不存在：${id}。`);
     if (entry.type === 'user') {
       if (entry.key !== 'user' || roles.user) throw new Error('唯一开局必须且只能引用一个 user。');
-      roles.user = klona(entry.data);
+      roles.user = { ...klona(entry.data), ...(entry.meta ? { meta: klona(entry.meta) } : {}) };
     } else {
       const bucket = roles[entry.type] as JsonRecord;
       if (bucket[entry.key]) throw new Error(`唯一开局重复角色身份：${entry.type}.${entry.key}。`);
-      bucket[entry.key] = klona(entry.data);
+      bucket[entry.key] = { ...klona(entry.data), ...(entry.meta ? { meta: klona(entry.meta) } : {}) };
     }
   }
   if (!roles.user) throw new Error('唯一开局缺少 user 角色。');

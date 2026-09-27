@@ -32,6 +32,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { roleAvatarFallbackIndex } from './roleAvatarFallback';
 
 const props = withDefaults(
   defineProps<{ src?: string; alt?: string; seed?: string; fallbackStyle?: string; themeColor?: string }>(),
@@ -45,12 +46,7 @@ const props = withDefaults(
 );
 const failed = ref(false);
 const themeColor = computed(() => (/^#[0-9a-fA-F]{6}$/.test(props.themeColor) ? props.themeColor : '#C9B485'));
-const fallbackIndex = computed(() => {
-  if (/^[0-5]$/.test(props.fallbackStyle)) return Number(props.fallbackStyle);
-  let hash = 2166136261;
-  for (const char of props.seed || props.alt) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return (hash >>> 0) % 6;
-});
+const fallbackIndex = computed(() => roleAvatarFallbackIndex(props.fallbackStyle, props.seed || props.alt));
 watch(
   () => props.src,
   () => (failed.value = false),

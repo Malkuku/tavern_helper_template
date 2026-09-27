@@ -70,6 +70,10 @@
                 <WeChat :open-request="chatOpenRequest" @open-map="openMapLocation" />
               </main>
 
+              <main v-else-if="activeApp === '角色编辑器'" :key="'role-editor'" class="role-editor-screen">
+                <RoleEditor ref="roleEditorRef" @leave="leaveRoleEditor" />
+              </main>
+
               <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
                 <DataApp :app="activeApp" />
               </main>
@@ -146,6 +150,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useMagicGirlStatStore } from './store/StatStore';
 import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
+import RoleEditor from './apps/roleEditor/RoleEditor.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
 import PhoneExtras from './apps/PhoneExtras.vue';
 import MapApp from './apps/map/MapApp.vue';
@@ -158,6 +163,10 @@ import { readPhoneWallpaper } from './wallpaper';
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
 const activeApp = ref<string | null>(null);
+const roleEditorRef = ref<InstanceType<typeof RoleEditor> | null>(null);
+function leaveRoleEditor() {
+  activeApp.value = null;
+}
 const chatOpenRequest = ref<{ key: string; id: number } | null>(null);
 const mapOpenRequest = ref<{ key: string; id: number } | null>(null);
 let chatOpenRequestId = 0;
@@ -208,6 +217,7 @@ function activateHome() {
     return;
   }
   if (controlCenterOpen.value) controlCenterOpen.value = false;
+  else if (activeApp.value === '角色编辑器') roleEditorRef.value?.requestLeave();
   else if (activeApp.value) {
     activeApp.value = null;
     chatOpenRequest.value = null;
@@ -220,6 +230,7 @@ function finishHomeSwipe(event: PointerEvent) {
   if (homeSwipeStart.value - event.clientY < 35) return;
   homeSwipeHandled = true;
   if (controlCenterOpen.value) controlCenterOpen.value = false;
+  else if (activeApp.value === '角色编辑器') roleEditorRef.value?.requestLeave();
   else if (activeApp.value) {
     activeApp.value = null;
     chatOpenRequest.value = null;

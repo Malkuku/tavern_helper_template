@@ -23,7 +23,14 @@ const bodyPart = z.strictObject({
   描述: stringRecord,
 });
 
+export const roleMetaSchema = z.strictObject({
+  avatar: z.string(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  avatarStyle: z.enum(['auto', '0', '1', '2', '3', '4', '5']).optional(),
+});
+
 export const mainRoleSchema = z.strictObject({
+  meta: roleMetaSchema.optional(),
   在场: z.boolean(),
   是否变身魔法少女: z.boolean(),
   名称检索词: z.array(z.string()),
@@ -48,6 +55,36 @@ export const mainRoleSchema = z.strictObject({
     核心能力限制: stringRecord,
   }),
 }) satisfies z.ZodType<角色人设>;
+
+export const minorRoleSchema = z.strictObject({
+  meta: roleMetaSchema.optional(),
+  名称: z.string(),
+  名称检索词: z.array(z.string()),
+  区域检索词: z.array(z.string()),
+  在场: z.boolean(),
+  简介: z.string(),
+  性格: z.strictObject({
+    社交表现: z.string(),
+    行动逻辑: z.string(),
+    思维习惯: z.string(),
+    人际距离: z.string(),
+    道德底色: z.string(),
+  }),
+  能力描述: z.string(),
+});
+
+export const userRoleSchema = z.strictObject({
+  meta: roleMetaSchema.optional(),
+  基础信息: z.string(),
+  当前评级: z.string(),
+  金钱: number,
+  恶堕积分: number,
+  技能: z.record(
+    z.string(),
+    z.strictObject({ 图标: svgIcon.optional(), 当前等级: number, 等级表: z.record(z.string(), skillLevel) }),
+  ),
+  物品: z.record(z.string(), item),
+});
 
 const mapNode: z.ZodType<地图节点> = z.lazy(() =>
   z.strictObject({
@@ -79,35 +116,8 @@ const session: z.ZodType<微信会话> = z.custom<微信会话>(
 export const initialStatDataSchema = z.strictObject({
   角色: z.strictObject({
     主要角色: z.record(z.string(), mainRoleSchema),
-    次要角色: z.record(
-      z.string(),
-      z.strictObject({
-        名称: z.string(),
-        名称检索词: z.array(z.string()),
-        区域检索词: z.array(z.string()),
-        在场: z.boolean(),
-        简介: z.string(),
-        性格: z.strictObject({
-          社交表现: z.string(),
-          行动逻辑: z.string(),
-          思维习惯: z.string(),
-          人际距离: z.string(),
-          道德底色: z.string(),
-        }),
-        能力描述: z.string(),
-      }),
-    ),
-    user: z.strictObject({
-      基础信息: z.string(),
-      当前评级: z.string(),
-      金钱: number,
-      恶堕积分: number,
-      技能: z.record(
-        z.string(),
-        z.strictObject({ 图标: svgIcon.optional(), 当前等级: number, 等级表: z.record(z.string(), skillLevel) }),
-      ),
-      物品: z.record(z.string(), item),
-    }),
+    次要角色: z.record(z.string(), minorRoleSchema),
+    user: userRoleSchema,
   }),
   地图: z.record(z.string(), mapNode),
   世界: z.strictObject({ 时间: z.string().min(1), 地点: z.string(), 天气: z.string(), 地图索引: z.string() }),
