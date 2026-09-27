@@ -22,15 +22,11 @@
       <rect x="8" y="16" width="32" height="25" rx="5" />
       <path d="M17 16v-4a7 7 0 0 1 14 0v4M8 25h32M24 25v7" />
     </template>
-    <template v-else-if="kind === '仓库'">
-      <path d="m6 18 18-10 18 10v22H6V18Z" />
-      <path d="M17 40V25h14v15M6 20h36M22 31h4" />
-    </template>
   </svg>
 </template>
 
 <script setup lang="ts">
-defineProps<{ kind: '主要角色' | '次要角色' | '我的档案' | '技能' | '随身物品' | '仓库' }>();
+defineProps<{ kind: '主要角色' | '次要角色' | '我的档案' | '技能' | '随身物品' }>();
 </script>
 
 <style scoped>

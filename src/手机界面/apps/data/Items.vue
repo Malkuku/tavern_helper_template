@@ -1,7 +1,7 @@
 <template>
   <div class="data-intro inventory-intro">
     <span>物资管理</span>
-    <h1>随身与仓库</h1>
+    <h1>物品管理</h1>
     <p>查看物品，选择数量后存入或取出。</p>
   </div>
   <div class="inventory-toolbar">
@@ -26,10 +26,12 @@
     <div>
       <strong>待确认变更 {{ transfers.length }} 项</strong><small>确认后写入当前楼层</small>
     </div>
-    <button type="button" :disabled="saving" @click="clearDraft">撤销</button>
-    <button type="button" class="primary" :disabled="saving" @click="save">
-      {{ saving ? '保存中…' : '确认变更' }}
-    </button>
+    <div class="inventory-pending-actions">
+      <button type="button" :disabled="saving" @click="clearDraft">撤销</button>
+      <button type="button" class="primary" :disabled="saving" @click="save">
+        {{ saving ? '保存中…' : '确认变更' }}
+      </button>
+    </div>
   </div>
   <div v-if="visibleItems.length" class="data-sections inventory-list">
     <section v-for="[name, item] in visibleItems" :key="name" class="data-card item-card">
@@ -69,10 +71,10 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { applyInventoryTransfers, inventoryOf, type InventorySide, type InventoryTransfer } from './inventoryTransfer';
 import InventoryIcon from './InventoryIcon.vue';
 
-const props = defineProps<{ data: stat_data; app: InventorySide }>();
+const props = defineProps<{ data: stat_data }>();
 const sides: InventorySide[] = ['随身物品', '仓库'];
 const store = useMagicGirlStatStore();
-const activeSide = ref<InventorySide>(props.app);
+const activeSide = ref<InventorySide>('随身物品');
 const selectedName = ref('');
 const quantity = ref(1);
 const query = ref('');
@@ -138,10 +140,6 @@ async function save() {
     saving.value = false;
   }
 }
-watch(
-  () => props.app,
-  value => selectSide(value),
-);
 watch(
   () => props.data,
   () => {

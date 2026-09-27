@@ -7,29 +7,29 @@ import {
 } from '../src/手机界面/desktopLayout';
 
 const initial = defaultPhoneLayout();
-assert.equal(initial.desktop.length, 15);
+assert.equal(initial.desktop.length, 14);
 assert.equal(initial.dock.length, 4);
 
 const reordered = movePhoneItem(
   initial,
   { kind: 'app', name: '微信' },
-  { zone: 'desktop', key: 'app:仓库', placement: 'after' },
+  { zone: 'desktop', key: 'app:随身物品', placement: 'after' },
   'unused',
 );
 assert.equal(
   reordered.desktop.findIndex(item => item.kind === 'app' && item.name === '微信'),
-  reordered.desktop.findIndex(item => item.kind === 'app' && item.name === '仓库') + 1,
+  reordered.desktop.findIndex(item => item.kind === 'app' && item.name === '随身物品') + 1,
 );
 assert.equal(initial.desktop[0].kind, 'app');
 
 const grouped = movePhoneItem(
   reordered,
   { kind: 'app', name: '技能' },
-  { zone: 'desktop', key: 'app:仓库', placement: 'inside' },
+  { zone: 'desktop', key: 'app:随身物品', placement: 'inside' },
   'folder-1',
 );
 const folder = grouped.desktop.find(item => item.kind === 'folder' && item.id === 'folder-1');
-assert.deepEqual(folder?.kind === 'folder' ? folder.apps : [], ['仓库', '技能']);
+assert.deepEqual(folder?.kind === 'folder' ? folder.apps : [], ['随身物品', '技能']);
 const added = movePhoneItem(
   grouped,
   { kind: 'app', name: '微信' },
@@ -37,7 +37,7 @@ const added = movePhoneItem(
   'unused',
 );
 assert.deepEqual(added.desktop.find(item => item.kind === 'folder' && item.id === 'folder-1')?.apps, [
-  '仓库',
+  '随身物品',
   '技能',
   '微信',
 ]);
@@ -47,7 +47,7 @@ assert.deepEqual(restored, added);
 const removed = takeAppOutOfFolder(added, 'folder-1', '技能');
 assert.ok(removed.desktop.some(item => item.kind === 'app' && item.name === '技能'));
 assert.deepEqual(removed.desktop.find(item => item.kind === 'folder' && item.id === 'folder-1')?.apps, [
-  '仓库',
+  '随身物品',
   '微信',
 ]);
 
@@ -60,9 +60,9 @@ const docked = movePhoneItem(
 assert.ok(docked.dock.includes('技能'));
 assert.ok(docked.desktop.some(item => item.kind === 'app' && item.name === '电话'));
 
-const movedToSecondPage = movePhoneItem(initial, { kind: 'app', name: '微信' }, { zone: 'page', index: 15 }, 'unused');
-assert.equal(movedToSecondPage.desktop[14].kind, 'app');
-assert.equal(movedToSecondPage.desktop[14].kind === 'app' ? movedToSecondPage.desktop[14].name : '', '微信');
+const movedToSecondPage = movePhoneItem(initial, { kind: 'app', name: '微信' }, { zone: 'page', index: 14 }, 'unused');
+assert.equal(movedToSecondPage.desktop[13].kind, 'app');
+assert.equal(movedToSecondPage.desktop[13].kind === 'app' ? movedToSecondPage.desktop[13].name : '', '微信');
 assert.equal(movedToSecondPage.desktop.length, initial.desktop.length);
 
 const bad = normalizePhoneLayout({
@@ -76,5 +76,16 @@ const bad = normalizePhoneLayout({
 const names = [...bad.dock, ...bad.desktop.flatMap(item => (item.kind === 'app' ? [item.name] : item.apps))];
 assert.equal(new Set(names).size, names.length);
 assert.equal(names.length, initial.desktop.length + initial.dock.length);
+
+const legacy = normalizePhoneLayout({
+  desktop: [
+    { kind: 'app', name: '仓库' },
+    { kind: 'folder', id: 'old-folder', name: '物品', apps: ['仓库', '随身物品'] },
+  ],
+  dock: ['仓库', '电话'],
+});
+assert.ok(legacy.desktop.some(item => item.kind === 'folder' && item.apps.includes('随身物品')));
+assert.ok(!legacy.desktop.some(item => item.kind === 'app' && item.name === '仓库'));
+assert.ok(!legacy.dock.includes('仓库'));
 
 console.log('手机桌面布局验证通过');

@@ -1,25 +1,26 @@
 <template>
-  <div class="data-intro">
-    <span>个人资料</span>
-    <h1>我的档案</h1>
-  </div>
-  <div v-if="user" class="data-sections">
-    <section class="data-hero">
-      <div class="hero-overline">当前身份</div>
-      <h2>我的档案</h2>
-      <div class="data-badges">
-        <span>评级 {{ user.当前评级 || '未记录' }}</span>
+  <div v-if="user" class="data-sections profile-page">
+    <section class="profile-overview" aria-label="档案概览">
+      <div class="profile-overview-heading">
+        <div>
+          <span>个人资料</span>
+          <h1>档案概览</h1>
+        </div>
+        <div class="profile-rank">
+          <span>当前评级</span>
+          <strong>{{ user.当前评级 || '未记录' }}</strong>
+        </div>
+      </div>
+      <div class="profile-resources">
+        <div>
+          <span>金钱</span><strong>{{ user.金钱 ?? '—' }}</strong>
+        </div>
+        <div>
+          <span>恶堕积分</span><strong>{{ user.恶堕积分 ?? '—' }}</strong>
+        </div>
       </div>
     </section>
-    <div class="resource-grid">
-      <div>
-        <span>金钱</span><strong>{{ user.金钱 ?? '—' }}</strong>
-      </div>
-      <div>
-        <span>恶堕积分</span><strong>{{ user.恶堕积分 ?? '—' }}</strong>
-      </div>
-    </div>
-    <section class="data-card">
+    <section class="data-card profile-info-card">
       <div class="item-heading">
         <h3>基本信息</h3>
         <button v-if="!editing" type="button" class="data-text-button" @click="startEdit">编辑</button>

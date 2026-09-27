@@ -13,7 +13,7 @@
       <MinorCharacters v-else-if="app === '次要角色'" :data="statStore.statData" />
       <Profile v-else-if="app === '我的档案'" :data="statStore.statData" />
       <Skills v-else-if="app === '技能'" :data="statStore.statData" />
-      <Items v-else-if="app === '随身物品' || app === '仓库'" :app="app" :data="statStore.statData" />
+      <Items v-else-if="app === '随身物品'" :data="statStore.statData" />
     </div>
   </div>
 </template>
