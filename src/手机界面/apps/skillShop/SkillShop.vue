@@ -13,7 +13,15 @@
         </button>
         <RefreshFeedback v-if="store.skillRefreshing" label="正在更新技能货架" />
         <p v-if="balance < quote.price" class="shop-error">积分不足，需要 {{ quote.price }} 点。</p>
-        <p v-if="store.skillRefreshError" class="shop-error">{{ store.skillRefreshError }}，可再次刷新。</p>
+        <p v-if="store.skillRefreshError" class="shop-error">{{ store.skillRefreshError }}</p>
+        <button
+          v-if="store.failedGeneratedResult?.kind === '技能'"
+          type="button"
+          class="cancel-refresh"
+          @click="run(() => store.clearFailedGeneratedResult('技能'))"
+        >
+          清除本楼失败的技能结果
+        </button>
       </section>
 
       <nav class="shop-tabs" aria-label="技能商店页面">

@@ -1,6 +1,6 @@
 // eslint-disable-next-line import-x/no-nodejs-modules
 import assert from 'node:assert/strict';
-import { isNewGenerationResult } from '../src/手机界面/apps/generationResult';
+import { isNewGenerationResult, removeGeneratedTag } from '../src/手机界面/apps/generationResult';
 
 for (const marker of ['<questVariable', '<shopVariable', '<skillVariable'] as const) {
   const tag = marker.slice(1);
@@ -41,5 +41,10 @@ for (const marker of ['<questVariable', '<shopVariable', '<skillVariable'] as co
     `${tag} 非 assistant 结果不能结算`,
   );
 }
+
+const taskTag = '<questVariable>{"任务":1}</questVariable>';
+const skillTag = '<skillVariable>{"技能":1}</skillVariable>';
+assert.equal(removeGeneratedTag(`正文${taskTag}\n${skillTag}`, taskTag), `正文\n${skillTag}`);
+assert.throws(() => removeGeneratedTag('正文', taskTag), /已被修改/);
 
 console.info('手机同楼生成结果接收验证通过。');

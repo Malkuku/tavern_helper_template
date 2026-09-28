@@ -52,7 +52,15 @@ const allowedAttributes = new Set([
   'stddeviation',
   'flood-color',
   'flood-opacity',
+  'color',
+  'pathlength',
+  'preserveaspectratio',
+  'pointer-events',
+  'display',
+  'visibility',
+  'overflow',
 ]);
+const presentationAttribute = /^(?:stroke|fill|color|clip|shape|vector|paint|font|text)-[a-z-]+$/;
 
 export function sanitizeMapSvg(markup: string): string {
   const source = markup.trim();
@@ -73,17 +81,21 @@ export function sanitizeMapSvg(markup: string): string {
     let consumed = '';
     while ((attr = attrPattern.exec(attributes))) {
       const name = attr[1].toLowerCase();
-      if (!allowedAttributes.has(name)) throw new Error(`地图 SVG 不允许属性 ${name}。`);
+      if (!allowedAttributes.has(name) && !presentationAttribute.test(name))
+        throw new Error(`地图 SVG 不允许属性 ${name}。`);
       const value = attr[2].slice(1, -1);
       if (name === 'xmlns' && (tag !== 'svg' || value !== 'http://www.w3.org/2000/svg'))
         throw new Error('地图 SVG 的 xmlns 只能使用标准 SVG 命名空间。');
       if (name !== 'xmlns' && /(?:javascript|data|https?):/i.test(value))
         throw new Error(`地图 SVG 属性 ${name} 不允许 URL 或可执行协议。`);
+      if (name !== 'filter' && /url\s*\(/i.test(value)) throw new Error(`地图 SVG 属性 ${name} 不允许资源引用。`);
       if (name === 'filter' && !/^url\(#[A-Za-z][\w.-]*\)$/.test(value))
         throw new Error('地图 SVG 的 filter 只能引用内部滤镜。');
-      if (name === 'id' && (tag !== 'filter' || !/^[A-Za-z][\w.-]*$/.test(value)))
-        throw new Error('地图 SVG 的 id 只能用于内部滤镜。');
-      if ((name === 'fill' || name === 'stroke' || name === 'flood-color') && !isSafeSvgColor(value))
+      if (name === 'id' && !/^[A-Za-z][\w.-]*$/.test(value)) throw new Error('地图 SVG 的 id 格式无效。');
+      if (
+        (name === 'fill' || name === 'stroke' || name === 'color' || name.endsWith('-color')) &&
+        !isSafeSvgColor(value)
+      )
         throw new Error(`地图 SVG 的 ${name} 颜色无效。`);
       consumed += attr[0];
     }

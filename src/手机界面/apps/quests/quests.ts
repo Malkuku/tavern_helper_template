@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { stat_data, 任务 } from '../../types';
 import { questSchema } from '../../store/initialDataSchema';
+import { InvalidGeneratedResultError } from '../generationResult';
 
 export type 任务评级 = 任务['评级'];
 const ratings = ['D', 'C', 'B', 'A', 'S'] as const;
@@ -77,7 +78,14 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
     }
   }
   const result = resultSchema.safeParse(raw);
-  if (!result.success) throw new Error('任务生成字段无效。');
+  if (!result.success) {
+    console.error(
+      '任务生成字段校验失败',
+      result.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })),
+    );
+    const issue = result.error.issues[0];
+    throw new Error(`任务生成字段无效：${issue.path.join('.')} ${issue.message}`);
+  }
   if (Object.keys(result.data).length !== 6) throw new Error('任务生成结果必须恰好包含 6 个不同名称的任务。');
   for (const name of Object.keys(result.data))
     if (Object.hasOwn(active, name)) throw new Error(`任务「${name}」已接取，不能重复生成。`);
@@ -87,7 +95,12 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
 export function refreshTasks(data: stat_data, message: string): void {
   const state = taskRefreshState(data);
   if (!state.available) throw new Error('今天的免费任务刷新次数已用完。');
-  const result = parseResult(message, data.任务);
+  let result: Record<string, 任务>;
+  try {
+    result = parseResult(message, data.任务);
+  } catch (error) {
+    throw new InvalidGeneratedResultError(error);
+  }
   data.任务候选 = result;
   data.系统.任务下次刷新时间 = state.next;
   data.系统.任务主动刷新次数 = 1;

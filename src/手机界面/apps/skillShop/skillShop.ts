@@ -4,6 +4,7 @@ import { skillSchema } from '../../store/initialDataSchema';
 import { weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { userRatingFromSkills } from '../../store/userRating';
+import { InvalidGeneratedResultError } from '../generationResult';
 
 const shopSchema = z.record(z.string().min(1), skillSchema);
 
@@ -26,7 +27,14 @@ export function parseSkillResult(message: string, owned: stat_data['角色']['us
     throw new Error('技能生成结果不是合法 JSON。');
   }
   const parsed = shopSchema.safeParse(raw);
-  if (!parsed.success) throw new Error('技能生成字段无效。');
+  if (!parsed.success) {
+    console.error(
+      '技能生成字段校验失败',
+      parsed.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })),
+    );
+    const issue = parsed.error.issues[0];
+    throw new Error(`技能生成字段无效：${issue.path.join('.')} ${issue.message}`);
+  }
   const entries = Object.entries(parsed.data);
   if (entries.length !== 6) throw new Error('技能生成结果必须恰好包含 6 个不同名称的技能。');
   const overlap = entries.filter(([name]) => Object.hasOwn(owned, name));
@@ -51,7 +59,12 @@ export function parseSkillResult(message: string, owned: stat_data['角色']['us
 }
 
 export function applySkillRefresh(data: stat_data, message: string): void {
-  const shop = parseSkillResult(message, data.角色.user.技能);
+  let shop: Record<string, 可购技能>;
+  try {
+    shop = parseSkillResult(message, data.角色.user.技能);
+  } catch (error) {
+    throw new InvalidGeneratedResultError(error);
+  }
   const quote = refreshQuote(data);
   if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < quote.price)
     throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);

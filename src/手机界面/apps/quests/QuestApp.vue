@@ -17,6 +17,14 @@
         </button>
         <RefreshFeedback v-if="store.taskRefreshing" label="正在生成任务候选" />
         <p v-if="store.taskRefreshError" class="error">{{ store.taskRefreshError }}</p>
+        <button
+          v-if="store.failedGeneratedResult?.kind === '任务'"
+          type="button"
+          class="secondary"
+          @click="run(() => store.clearFailedGeneratedResult('任务'))"
+        >
+          清除本楼失败的任务结果
+        </button>
       </section>
 
       <nav aria-label="任务页面">

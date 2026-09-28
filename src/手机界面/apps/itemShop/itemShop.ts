@@ -4,6 +4,7 @@ import { itemSchema } from '../../store/initialDataSchema';
 import { inventoryOf, mergeItemStack, sameItemSpec, type InventorySide } from '../data/inventoryTransfer';
 import { weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
+import { InvalidGeneratedResultError } from '../generationResult';
 
 const shopSchema = z.record(z.string().min(1), itemSchema);
 
@@ -22,7 +23,14 @@ export function parseItemResult(message: string, data: stat_data): Record<string
     throw new Error('道具生成结果不是合法 JSON。');
   }
   const parsed = shopSchema.safeParse(raw);
-  if (!parsed.success) throw new Error('道具生成字段无效。');
+  if (!parsed.success) {
+    console.error(
+      '道具生成字段校验失败',
+      parsed.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })),
+    );
+    const issue = parsed.error.issues[0];
+    throw new Error(`道具生成字段无效：${issue.path.join('.')} ${issue.message}`);
+  }
   const entries = Object.entries(parsed.data);
   if (entries.length !== 9) throw new Error('道具生成结果必须恰好包含 9 个不同名称的商品。');
   const previous = [data.角色.user.物品, data.仓库, data.商店];
@@ -49,7 +57,12 @@ export function parseItemResult(message: string, data: stat_data): Record<string
 }
 
 export function applyItemRefresh(data: stat_data, message: string): void {
-  const shop = parseItemResult(message, data);
+  let shop: Record<string, 物品>;
+  try {
+    shop = parseItemResult(message, data);
+  } catch (error) {
+    throw new InvalidGeneratedResultError(error);
+  }
   const quote = itemRefreshQuote(data);
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || balance < quote.price)

@@ -35,7 +35,12 @@ import {
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
-import { isNewGenerationResult } from '../apps/generationResult';
+import {
+  InvalidGeneratedResultError,
+  isNewGenerationResult,
+  latestGeneratedTag,
+  removeGeneratedTag,
+} from '../apps/generationResult';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyProfileEdit, type ProfileField } from '../apps/data/profileEdit';
 import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
@@ -70,6 +75,8 @@ import {
   refreshTasks as applyTaskRefresh,
   taskRefreshState,
 } from '../apps/quests/quests';
+
+const generationResultWaitMs = 5000;
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
@@ -135,6 +142,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const taskRefreshing = ref(false);
   let taskRefreshStartMessageId = -1;
   let taskRefreshStartMessage = '';
+  let refreshRequestSerial = 0;
+  const failedGeneratedResult = ref<{ kind: '任务' | '技能' | '道具'; messageId: number; tag: string } | null>(null);
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
@@ -419,6 +428,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function refreshGeneratedShop(kind: '技能' | '道具') {
+    if (failedGeneratedResult.value) throw new Error('请先清除本楼失败的生成结果。');
     if (skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const generation = chatGeneration;
@@ -434,10 +444,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       throw new Error('已有生成任务正在进行，请等待完成。');
     const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
-    refreshError.value = '';
-    refreshing.value = true;
     const startMessageId = getLastMessageId();
     const startMessage = startMessageId >= 0 ? (getChatMessages(startMessageId)[0]?.message ?? '') : '';
+    refreshError.value = '';
+    refreshing.value = true;
+    refreshRequestSerial++;
     if (kind === '技能') {
       skillRefreshStartMessageId = startMessageId;
       skillRefreshStartMessage = startMessage;
@@ -445,10 +456,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       itemRefreshStartMessageId = startMessageId;
       itemRefreshStartMessage = startMessage;
     }
+    console.info(`[手机${kind}商店生成] 已触发`, { startMessageId, startLength: startMessage.length });
     try {
       await eventEmit(kind === '技能' ? 'Chat_On_SkillShop' : 'Chat_On_ItemShop');
+      console.info(`[手机${kind}商店生成] 事件已返回`, { lastMessageId: getLastMessageId() });
     } catch (error) {
       refreshing.value = false;
+      refreshRequestSerial++;
       refreshError.value = error instanceof Error ? error.message : `${kind}商店刷新事件触发失败。`;
       throw error;
     }
@@ -465,12 +479,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function cancelSkillRefresh() {
     if (!skillRefreshing.value) return;
     skillRefreshing.value = false;
+    refreshRequestSerial++;
     skillRefreshError.value = '已取消等待；迟到的技能生成结果不会结算。';
   }
 
   function cancelItemRefresh() {
     if (!itemRefreshing.value) return;
     itemRefreshing.value = false;
+    refreshRequestSerial++;
     itemRefreshError.value = '已取消等待；迟到的道具生成结果不会结算。';
   }
 
@@ -527,6 +543,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function refreshTaskBoard() {
+    if (failedGeneratedResult.value) throw new Error('请先清除本楼失败的生成结果。');
     if (taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const generation = chatGeneration;
@@ -537,15 +554,23 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (!taskRefreshState(current).available) throw new Error('今天的免费任务刷新次数已用完。');
     if (taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
+    const startMessageId = getLastMessageId();
+    const startMessage = startMessageId >= 0 ? (getChatMessages(startMessageId)[0]?.message ?? '') : '';
     taskRefreshError.value = '';
     taskRefreshing.value = true;
-    taskRefreshStartMessageId = getLastMessageId();
-    taskRefreshStartMessage =
-      taskRefreshStartMessageId >= 0 ? (getChatMessages(taskRefreshStartMessageId)[0]?.message ?? '') : '';
+    refreshRequestSerial++;
+    taskRefreshStartMessageId = startMessageId;
+    taskRefreshStartMessage = startMessage;
+    console.info('[手机任务生成] 已触发', {
+      startMessageId: taskRefreshStartMessageId,
+      startLength: taskRefreshStartMessage.length,
+    });
     try {
       await eventEmit('Chat_On_Quest');
+      console.info('[手机任务生成] 事件已返回', { lastMessageId: getLastMessageId() });
     } catch (error) {
       taskRefreshing.value = false;
+      refreshRequestSerial++;
       taskRefreshError.value = error instanceof Error ? error.message : '任务刷新事件触发失败。';
       throw error;
     }
@@ -554,7 +579,29 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function cancelTaskRefresh() {
     if (!taskRefreshing.value) return;
     taskRefreshing.value = false;
+    refreshRequestSerial++;
     taskRefreshError.value = '已取消等待；迟到的任务生成结果不会结算。';
+  }
+
+  async function clearFailedGeneratedResult(kind: '任务' | '技能' | '道具', preserveError = false) {
+    const failed = failedGeneratedResult.value;
+    if (!failed || failed.kind !== kind) throw new Error('没有可清除的生成结果。');
+    const generation = chatGeneration;
+    await queueStatWork(async () => {
+      const message = getChatMessages(failed.messageId)[0];
+      if (generation !== chatGeneration || !message || message.role !== 'assistant')
+        throw new Error('聊天或出错楼层已切换，无法清除生成结果。');
+      await setChatMessages(
+        [{ message_id: failed.messageId, message: removeGeneratedTag(message.message, failed.tag) }],
+        { refresh: 'affected' },
+      );
+      if (failedGeneratedResult.value === failed) failedGeneratedResult.value = null;
+      if (!preserveError) {
+        if (kind === '任务') taskRefreshError.value = '';
+        else if (kind === '技能') skillRefreshError.value = '';
+        else itemRefreshError.value = '';
+      }
+    });
   }
 
   async function sendWeChatMessage(
@@ -957,7 +1004,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  function scheduleShopResult(kind: '技能' | '道具', messageId?: number) {
+  function scheduleShopResult(kind: '技能' | '道具', messageId?: number, source = '消息事件') {
     const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
@@ -965,87 +1012,188 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
     if (!refreshing.value) return;
     const generation = chatGeneration;
+    const requestSerial = refreshRequestSerial;
+    let failedMessageId = -1;
+    let failedTag: string | undefined;
+    console.info(`[手机${kind}商店生成] 收到${source}`, { messageId, lastMessageId: getLastMessageId() });
     void queueStatWork(async () => {
-      if (!refreshing.value) return;
+      if (!refreshing.value || requestSerial !== refreshRequestSerial) {
+        console.info(`[手机${kind}商店生成] 已取消或已结算，跳过${source}`);
+        return;
+      }
       const id = messageId ?? getLastMessageId();
       if (id < 0 || generation !== chatGeneration) return;
       const message = getChatMessages(id)[0];
-      if (!isNewGenerationResult(message, marker, startMessageId, startMessage)) return;
+      const matched = isNewGenerationResult(message, marker, startMessageId, startMessage);
+      console.info(`[手机${kind}商店生成] 检查原始楼层`, {
+        source,
+        id,
+        startMessageId,
+        role: message?.role,
+        length: message?.message.length ?? 0,
+        hasTag: message?.message.includes(marker) ?? false,
+        matched,
+      });
+      if (!matched) return;
+      failedMessageId = id;
+      failedTag = latestGeneratedTag(message.message, marker);
       await waitGlobalInitialized('Mvu');
-      if (generation !== chatGeneration) return;
+      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.系统 || !previous.stat_data.角色?.user) throw new Error(`${kind}商店变量尚未初始化。`);
       const data = klona(previous.stat_data) as stat_data;
       if (kind === '技能') applySkillRefresh(data, message.message);
       else applyItemRefresh(data, message.message);
-      if (generation !== chatGeneration || !refreshing.value) return;
+      console.info(`[手机${kind}商店生成] 结果校验通过`, { id });
+      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !refreshing.value) return;
       await writeStatData(data, previous);
       refreshing.value = false;
       refreshError.value = '';
-    }).catch(error => {
+      console.info(`[手机${kind}商店生成] 变量写入成功`, { id });
+    }).catch(async error => {
+      if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
       refreshing.value = false;
-      refreshError.value = error instanceof Error ? error.message : `${kind}生成结果无效。`;
+      const detail = error instanceof Error ? error.message : `${kind}生成结果无效。`;
+      refreshError.value = detail;
+      if (failedTag) {
+        failedGeneratedResult.value = { kind, messageId: failedMessageId, tag: failedTag };
+        if (error instanceof InvalidGeneratedResultError) {
+          try {
+            await clearFailedGeneratedResult(kind, true);
+            refreshError.value = `${detail}；失败标签已从本楼自动清除。`;
+          } catch (cleanupError) {
+            refreshError.value = `${detail}；自动清除失败，可手动清除。`;
+            console.error(`${kind}商店失败标签自动清除失败`, cleanupError);
+          }
+        }
+      }
       console.error(`${kind}商店生成结果处理失败`, error);
     });
   }
 
-  function onShopGenerationEnd(kind: '技能' | '道具', messageId?: number) {
-    scheduleShopResult(kind, messageId);
+  function onShopGenerationEnd(kind: '技能' | '道具', messageId?: number, eventName = 'GENERATION_ENDED') {
+    scheduleShopResult(kind, messageId, eventName);
     const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
     const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
     const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
     if (!refreshing.value) return;
+    const requestSerial = refreshRequestSerial;
     setTimeout(() => {
-      if (!refreshing.value) return;
+      if (!refreshing.value || requestSerial !== refreshRequestSerial) return;
       const id = messageId ?? getLastMessageId();
       const message = id >= 0 ? getChatMessages(id)[0] : null;
+      const observation = {
+        role: message?.role,
+        length: message?.message.length ?? 0,
+        hasTag: message?.message.includes(marker) ?? false,
+      };
       if (!isNewGenerationResult(message, marker, startMessageId, startMessage)) {
+        console.warn(`[手机${kind}商店生成] 结束后未找到本次结果`, {
+          id,
+          startMessageId,
+          ...observation,
+        });
         refreshing.value = false;
         refreshError.value = `本次生成没有返回${kind}商店结果`;
+      } else {
+        scheduleShopResult(kind, id, '生成结束复查');
       }
-    }, 800);
+    }, generationResultWaitMs);
   }
 
-  function scheduleTaskResult(messageId?: number) {
+  function scheduleTaskResult(messageId?: number, source = '消息事件') {
     if (!taskRefreshing.value) return;
     const generation = chatGeneration;
+    const requestSerial = refreshRequestSerial;
+    let failedMessageId = -1;
+    let failedTag: string | undefined;
+    console.info('[手机任务生成] 收到' + source, { messageId, lastMessageId: getLastMessageId() });
     void queueStatWork(async () => {
-      if (!taskRefreshing.value) return;
+      if (!taskRefreshing.value || requestSerial !== refreshRequestSerial) {
+        console.info('[手机任务生成] 已取消或已结算，跳过' + source);
+        return;
+      }
       const id = messageId ?? getLastMessageId();
       if (id < 0 || generation !== chatGeneration) return;
       const message = getChatMessages(id)[0];
-      if (!isNewGenerationResult(message, '<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage)) return;
+      const matched = isNewGenerationResult(
+        message,
+        '<questVariable',
+        taskRefreshStartMessageId,
+        taskRefreshStartMessage,
+      );
+      console.info('[手机任务生成] 检查原始楼层', {
+        source,
+        id,
+        startMessageId: taskRefreshStartMessageId,
+        role: message?.role,
+        length: message?.message.length ?? 0,
+        hasTag: message?.message.includes('<questVariable') ?? false,
+        matched,
+      });
+      if (!matched) return;
+      failedMessageId = id;
+      failedTag = latestGeneratedTag(message.message, '<questVariable');
       await waitGlobalInitialized('Mvu');
-      if (generation !== chatGeneration || !taskRefreshing.value) return;
+      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !taskRefreshing.value) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.系统 || !previous.stat_data.任务候选) throw new Error('任务变量尚未初始化。');
       const data = klona(previous.stat_data) as stat_data;
       applyTaskRefresh(data, message.message);
-      if (generation !== chatGeneration || !taskRefreshing.value) return;
+      console.info('[手机任务生成] 结果校验通过', { id });
+      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !taskRefreshing.value) return;
       await writeStatData(data, previous);
       taskRefreshing.value = false;
       taskRefreshError.value = '';
-    }).catch(error => {
+      console.info('[手机任务生成] 变量写入成功', { id });
+    }).catch(async error => {
+      if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
       taskRefreshing.value = false;
-      taskRefreshError.value = error instanceof Error ? error.message : '任务生成结果无效。';
+      const detail = error instanceof Error ? error.message : '任务生成结果无效。';
+      taskRefreshError.value = detail;
+      if (failedTag) {
+        failedGeneratedResult.value = { kind: '任务', messageId: failedMessageId, tag: failedTag };
+        if (error instanceof InvalidGeneratedResultError) {
+          try {
+            await clearFailedGeneratedResult('任务', true);
+            taskRefreshError.value = `${detail}；失败标签已从本楼自动清除。`;
+          } catch (cleanupError) {
+            taskRefreshError.value = `${detail}；自动清除失败，可手动清除。`;
+            console.error('任务失败标签自动清除失败', cleanupError);
+          }
+        }
+      }
       console.error('任务生成结果处理失败', error);
     });
   }
 
-  function onTaskGenerationEnd(messageId?: number) {
-    scheduleTaskResult(messageId);
+  function onTaskGenerationEnd(messageId?: number, eventName = 'GENERATION_ENDED') {
+    scheduleTaskResult(messageId, eventName);
     if (!taskRefreshing.value) return;
+    const requestSerial = refreshRequestSerial;
     setTimeout(() => {
-      if (!taskRefreshing.value) return;
+      if (!taskRefreshing.value || requestSerial !== refreshRequestSerial) return;
       const id = messageId ?? getLastMessageId();
       const message = id >= 0 ? getChatMessages(id)[0] : null;
+      const observation = {
+        role: message?.role,
+        length: message?.message.length ?? 0,
+        hasTag: message?.message.includes('<questVariable') ?? false,
+      };
       if (!isNewGenerationResult(message, '<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage)) {
+        console.warn('[手机任务生成] 结束后未找到本次结果', {
+          id,
+          startMessageId: taskRefreshStartMessageId,
+          ...observation,
+        });
         taskRefreshing.value = false;
         taskRefreshError.value = '本次生成没有返回任务结果';
+      } else {
+        scheduleTaskResult(id, '生成结束复查');
       }
-    }, 800);
+    }, generationResultWaitMs);
   }
 
   async function checkWorldbook() {
@@ -1153,6 +1301,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function resetForChat() {
     chatGeneration++;
+    refreshRequestSerial++;
     worldbookCheckGeneration++;
     worldbookReady = false;
     initializationNoticePending.value = false;
@@ -1177,6 +1326,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     taskRefreshing.value = false;
     taskRefreshStartMessageId = -1;
     taskRefreshStartMessage = '';
+    failedGeneratedResult.value = null;
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -1206,24 +1356,34 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       onTaskGenerationEnd(id);
     });
     eventOn(tavern_events.GENERATION_STOPPED, (id?: number) => {
-      onShopGenerationEnd('技能', id);
-      onShopGenerationEnd('道具', id);
-      onTaskGenerationEnd(id);
+      onShopGenerationEnd('技能', id, 'GENERATION_STOPPED');
+      onShopGenerationEnd('道具', id, 'GENERATION_STOPPED');
+      onTaskGenerationEnd(id, 'GENERATION_STOPPED');
     });
     eventOn(tavern_events.MESSAGE_RECEIVED, scheduleWeChatLog);
     eventOn(tavern_events.MESSAGE_RECEIVED, (id?: number) => {
-      scheduleShopResult('技能', id);
-      scheduleShopResult('道具', id);
-      scheduleTaskResult(id);
+      scheduleShopResult('技能', id, 'MESSAGE_RECEIVED');
+      scheduleShopResult('道具', id, 'MESSAGE_RECEIVED');
+      scheduleTaskResult(id, 'MESSAGE_RECEIVED');
     });
     eventOn(tavern_events.MESSAGE_UPDATED, scheduleWeChatLog);
     eventOn(tavern_events.MESSAGE_UPDATED, (id?: number) => {
-      scheduleShopResult('技能', id);
-      scheduleShopResult('道具', id);
-      scheduleTaskResult(id);
+      scheduleShopResult('技能', id, 'MESSAGE_UPDATED');
+      scheduleShopResult('道具', id, 'MESSAGE_UPDATED');
+      scheduleTaskResult(id, 'MESSAGE_UPDATED');
     });
     eventOn(KatEvents.kat_mvu_update_finished, scheduleWeChatLog);
     eventOn('mag_variable_update_ended', () => scheduleWeChatLog());
+    eventOn(KatEvents.kat_mvu_update_finished, () => {
+      scheduleShopResult('技能', undefined, 'MVU 更新完成');
+      scheduleShopResult('道具', undefined, 'MVU 更新完成');
+      scheduleTaskResult(undefined, 'MVU 更新完成');
+    });
+    eventOn('mag_variable_update_ended', () => {
+      scheduleShopResult('技能', undefined, '变量更新完成');
+      scheduleShopResult('道具', undefined, '变量更新完成');
+      scheduleTaskResult(undefined, '变量更新完成');
+    });
     scheduleWeChatLog();
     void checkWorldbook();
     return () => {
@@ -1263,6 +1423,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     itemRefreshing,
     taskRefreshError,
     taskRefreshing,
+    failedGeneratedResult,
+    clearFailedGeneratedResult,
     failedWeChatMessageId,
     clearFailedWeChatLog,
     deleteWeChatFloor,

@@ -188,8 +188,9 @@
           <WeChatIcon name="emoji" />
         </button>
         <button v-if="draft.trim()" type="submit" :disabled="pendingLocked || sending || !worldTime">添加</button>
+        <button v-else-if="pending?.已确认 === false" type="submit" :disabled="sending">发送</button>
         <button
-          v-else
+          v-if="!draft.trim()"
           class="wx-compose-plus"
           type="button"
           aria-label="更多聊天功能"
@@ -1600,7 +1601,11 @@ async function scrollBottom() {
 }
 async function sendMessage() {
   const text = draft.value.trim();
-  if (!text || !selectedKey.value || sending.value) return;
+  if (!selectedKey.value || sending.value) return;
+  if (!text) {
+    if (pending.value?.已确认 === false) await confirmSend();
+    return;
+  }
   sending.value = true;
   error.value = '';
   try {
