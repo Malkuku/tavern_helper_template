@@ -675,7 +675,7 @@
           aria-label="更多"
           @click="showUnavailable('更多')"
         >
-          •••
+          <WeChatIcon name="more" />
         </button>
         <button
           v-if="accountPage === 'wallet'"

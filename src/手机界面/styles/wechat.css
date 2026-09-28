@@ -2644,8 +2644,15 @@
   font-size: 16px;
 }
 .wechat .wx-services-page .wx-account-header-action {
-  font-size: 23px;
-  letter-spacing: 2px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.wechat .wx-services-page .wx-account-header-action svg {
+  width: 22px;
+  height: 22px;
 }
 .wechat .wx-wallet-group {
   margin-bottom: 10px;

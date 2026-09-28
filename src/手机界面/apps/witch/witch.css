@@ -263,7 +263,7 @@
 }
 .witch-main-action,
 .witch-app :is(.intro, .shop-intro, .item-shop-intro) > button:first-of-type,
-.witch-app :is(.card, .shop-card, .item-shop-card) > button:not(.secondary, .text-button, .danger),
+.witch-app :is(.card, .shop-card, .item-shop-card) > button:not(.secondary, .text-button, .danger, .entry-toggle),
 .witch-app .primary,
 .witch-app .unlock-button {
   border-color: #ee87b0 !important;

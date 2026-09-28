@@ -50,13 +50,13 @@
       <h3>身份</h3>
       <p class="data-prose">{{ user.基础信息.身份.join('、') || '暂无记录' }}</p>
     </section>
-    <section class="data-card profile-info-card">
+    <section v-for="field in editableFields" :key="field" class="data-card profile-info-card">
       <div class="item-heading">
-        <h3>背景</h3>
-        <button v-if="!editing" type="button" class="data-text-button" @click="startEdit">编辑</button>
+        <h3>{{ field }}</h3>
+        <button v-if="!editingField" type="button" class="data-text-button" @click="startEdit(field)">编辑</button>
       </div>
-      <template v-if="editing">
-        <textarea v-model="draft" class="profile-editor" aria-label="背景" rows="6"></textarea>
+      <template v-if="editingField === field">
+        <textarea v-model="draft" class="profile-editor" :aria-label="field" rows="6"></textarea>
         <p v-if="error" class="data-error" role="alert">{{ error }}</p>
         <div class="profile-actions">
           <button type="button" :disabled="saving" @click="cancelEdit">取消</button>
@@ -65,15 +65,7 @@
           </button>
         </div>
       </template>
-      <p v-else class="data-prose">{{ user.基础信息.背景 || '暂无记录' }}</p>
-    </section>
-    <section class="data-card profile-info-card">
-      <h3>外貌</h3>
-      <p class="data-prose">{{ user.外貌 || '暂无记录' }}</p>
-    </section>
-    <section class="data-card profile-info-card">
-      <h3>性格</h3>
-      <p class="data-prose">{{ user.性格 || '暂无记录' }}</p>
+      <p v-else class="data-prose">{{ profileFieldValue(user, field) || '暂无记录' }}</p>
     </section>
   </div>
   <div v-else class="data-empty"><strong>暂无个人资料</strong></div>
@@ -81,37 +73,36 @@
 
 <script setup lang="ts">
 import type { stat_data } from '../../types';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
+import { profileFieldValue, type ProfileField } from './profileEdit';
 
 const props = defineProps<{ data: stat_data }>();
 const user = computed(() => props.data.角色?.user);
 const statStore = useMagicGirlStatStore();
-const editing = ref(false);
+const editableFields: ProfileField[] = ['背景', '外貌', '性格'];
+const editingField = ref<ProfileField | null>(null);
 const saving = ref(false);
 const draft = ref('');
 const error = ref('');
-watch(
-  () => props.data.角色?.user?.基础信息.背景,
-  value => {
-    if (!editing.value) draft.value = value ?? '';
-  },
-);
-function startEdit() {
-  draft.value = user.value?.基础信息.背景 ?? '';
+function startEdit(field: ProfileField) {
+  if (!user.value) return;
+  draft.value = profileFieldValue(user.value, field);
   error.value = '';
-  editing.value = true;
+  editingField.value = field;
 }
 function cancelEdit() {
-  editing.value = false;
+  editingField.value = null;
   error.value = '';
 }
 async function save() {
+  const field = editingField.value;
+  if (!field || saving.value) return;
   saving.value = true;
   error.value = '';
   try {
-    await statStore.saveProfileBaseInfo(draft.value);
-    editing.value = false;
+    await statStore.saveProfileField(field, draft.value);
+    editingField.value = null;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '保存失败，请重试。';
   } finally {

@@ -30,6 +30,11 @@
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v10M7 12h10" />
     </template>
+    <template v-else-if="name === 'more'">
+      <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </template>
     <template v-else-if="name === 'chevron'"><path d="m9 5 7 7-7 7" /></template>
     <template v-else-if="name === 'new-friend'">
       <circle cx="10" cy="8" r="3" />

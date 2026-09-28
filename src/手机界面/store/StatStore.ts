@@ -36,6 +36,7 @@ import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
+import { applyProfileEdit, type ProfileField } from '../apps/data/profileEdit';
 import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
 import { applyInventoryTransfers, type InventorySide, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import {
@@ -345,9 +346,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  async function saveProfileBaseInfo(value: string) {
+  async function saveProfileField(field: ProfileField, value: string) {
     await changeCharacterData(data => {
-      data.角色.user.基础信息.背景 = value;
+      applyProfileEdit(data, field, value);
     });
   }
 
@@ -1254,7 +1255,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     setPhoneOpen,
     replace,
     update,
-    saveProfileBaseInfo,
+    saveProfileField,
     changeRuntimeMinorRole,
     unlockCharacterInfo,
     chooseFirstTarget,
