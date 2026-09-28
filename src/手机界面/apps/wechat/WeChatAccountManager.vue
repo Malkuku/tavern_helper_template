@@ -9,6 +9,14 @@
       <button type="submit">进入</button>
     </form>
     <div v-else class="wx-manager-body">
+      <div class="wx-manager-upload">
+        <strong>图片库</strong>
+        <p>先上传图片，再在下方设为头像或表情包。图片可供多个账号使用。</p>
+        <label class="wx-manager-upload-button"
+          >＋ 上传图片<input type="file" accept="image/*" @change="upload"
+        /></label>
+        <p v-if="notice" class="wx-manager-note" role="status">{{ notice }}</p>
+      </div>
       <label
         >账号
         <select v-model="selectedId">
@@ -44,8 +52,6 @@
         </label>
         <button type="button" :disabled="saving" @click="save">保存账号</button>
       </template>
-      <strong>图片库</strong>
-      <label>上传图片<input type="file" accept="image/*" @change="upload" /></label>
       <p class="wx-manager-note">图片库属于脚本，可能被其他聊天引用。清理前请确认其他聊天也不再使用。</p>
       <div class="wx-manager-library">
         <div v-for="[url, data] in images" :key="url" class="wx-manager-image">
@@ -56,7 +62,6 @@
         </div>
       </div>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
-      <p v-if="notice" class="wx-manager-note" role="status">{{ notice }}</p>
     </div>
   </section>
 </template>

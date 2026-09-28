@@ -203,24 +203,12 @@
           <span><WeChatIcon :name="item.icon" /></span>{{ item.label }}
         </button>
       </div>
-      <div v-if="locationPickerOpen" class="wx-location-picker">
-        <div class="wx-location-picker-head">
-          <strong>分享地图位置</strong><button type="button" @click="locationPickerOpen = false">关闭</button>
+      <div v-if="locationPickerOpen" class="wx-map-picker">
+        <div class="wx-map-picker-head">
+          <strong>选择分享的位置</strong><button type="button" @click="locationPickerOpen = false">取消</button>
         </div>
-        <input v-model="locationQuery" type="search" aria-label="搜索地图位置" placeholder="搜索地点 key" />
-        <div class="wx-location-options">
-          <button
-            v-for="entry in filteredLocations"
-            :key="entry.path.map(item => item.name).join('/')"
-            type="button"
-            :disabled="sending || pendingLocked"
-            @click="sendLocation(entry.name)"
-          >
-            <strong>{{ entry.name }}</strong
-            ><small>{{ entry.path.map(item => item.name).join(' / ') }}</small>
-          </button>
-          <p v-if="!filteredLocations.length">没有可分享的地图节点</p>
-        </div>
+        <MapApp selectable @select="sendLocation" />
+        <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </div>
       <form v-if="paymentKind" class="wx-payment-compose" @submit.prevent="sendPayment">
         <button class="wx-transfer-back" type="button" @click="paymentKind = null">‹</button>
@@ -522,6 +510,13 @@
       <div class="wx-body" :class="{ 'wx-me-body': tab === 'me' }">
         <template v-if="!wechat"><p class="wx-empty">当前楼层尚无微信数据，请重新打开手机完成初始化。</p></template>
         <template v-else-if="tab === 'chats'">
+          <button v-if="incomingRequests.length" class="wx-request-banner" type="button" @click="subPage = 'requests'">
+            <span class="wx-feature-icon orange"><WeChatIcon name="new-friend" /></span>
+            <span
+              ><strong>新的朋友</strong><small>{{ incomingRequests.length }} 条好友申请等待处理</small></span
+            >
+            <i class="wx-request-dot" aria-label="新好友申请"></i>
+          </button>
           <label v-if="searchOpen" class="wx-search"
             ><span>⌕</span><input v-model="query" aria-label="搜索聊天" placeholder="搜索会话"
           /></label>
@@ -556,6 +551,7 @@
           <button class="wx-list-row wx-contact-feature" type="button" @click="subPage = 'requests'">
             <span class="wx-feature-icon orange"><WeChatIcon name="new-friend" /></span><strong>新的朋友</strong>
             <span v-if="incomingRequests.length" class="wx-count">{{ incomingRequests.length }}</span>
+            <i v-if="incomingRequests.length" class="wx-request-dot" aria-label="新好友申请"></i>
           </button>
           <button
             v-for="item in contactFeatures"
@@ -634,6 +630,11 @@
             class="wx-tab-unread"
             aria-label="未读消息"
           ></span>
+          <span
+            v-if="item.id === 'contacts' && incomingRequests.length"
+            class="wx-tab-unread"
+            aria-label="新好友申请"
+          ></span>
         </button>
       </nav>
     </template>
@@ -657,9 +658,14 @@
         }}</strong>
       </header>
       <template v-if="accountPage === 'profile'">
-        <label class="wx-account-row">头像<input type="file" accept="image/*" @change="chooseProfileImage" /></label>
-        <div v-if="profileImage" class="wx-account-preview">
-          <img :src="resolveWechatImage(profileImage)" alt="头像预览" />
+        <div class="wx-avatar-upload">
+          <strong>头像</strong><small>选择一张图片作为微信头像，保存后对好友可见</small>
+          <label class="wx-upload-target">
+            <img v-if="profileImage" :src="resolveWechatImage(profileImage)" alt="头像预览" />
+            <span v-else class="wx-upload-placeholder">＋</span>
+            <span>选择图片</span><input type="file" accept="image/*" @change="chooseProfileImage" />
+          </label>
+          <p v-if="profileImageNotice" role="status">{{ profileImageNotice }}</p>
         </div>
         <label class="wx-account-row">名字<input v-model="profileName" maxlength="40" aria-label="名字" /></label>
         <div class="wx-account-row">微信号 <span>user</span></div>
@@ -726,8 +732,15 @@
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
     </section>
     <div v-if="unavailable" class="wx-dialog-backdrop" @click.self="unavailable = ''">
-      <div class="wx-dialog" role="alertdialog" aria-modal="true">
-        <p>{{ unavailable }}暂未开放</p>
+      <div
+        class="wx-dialog wx-unavailable-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="wx-unavailable-title"
+      >
+        <span class="wx-dialog-symbol" aria-hidden="true">⌁</span>
+        <strong id="wx-unavailable-title">{{ unavailable }}</strong>
+        <p>这个功能暂未开放</p>
         <button type="button" @click="unavailable = ''">知道了</button>
       </div>
     </div>
@@ -771,7 +784,6 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { isDiscoveredTarget, visibleWeChatData } from '../../store/discoveredTargets';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 地图节点 } from '../../types';
 import {
@@ -789,8 +801,9 @@ import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
 import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
 import { nearbyAvatars } from './nearbyAvatars';
-import { findPhoneMapPath, listPhoneMap } from '../map/phoneMap';
+import { findPhoneMapPath } from '../map/phoneMap';
 import { locationShare } from '../map/locationShare';
+import MapApp from '../map/MapApp.vue';
 
 const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
 const emit = defineEmits<{ 'open-map': [key: string] }>();
@@ -884,12 +897,11 @@ const voiceOpen = ref(false);
 const voiceText = ref('');
 const voiceDuration = ref('');
 const locationPickerOpen = ref(false);
-const locationQuery = ref('');
 function openExtra(label: string) {
   extrasOpen.value = false;
   if (label === '转账') paymentKind.value = label;
   else if (label === '位置') {
-    locationQuery.value = '';
+    error.value = '';
     locationPickerOpen.value = true;
   } else if (label === '名片') {
     cardQuery.value = '';
@@ -1006,18 +1018,20 @@ function onGenerationEnd() {
   generating.value = false;
 }
 const store = useMagicGirlStatStore();
-const wechat = computed(() => visibleWeChatData(store.statData));
+const wechat = computed(() => store.statData?.手机?.微信 ?? null);
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
 const self = computed(() => accounts.value.user);
 const accountPage = ref<'profile' | 'services' | 'wallet' | 'payments' | null>(null);
 const profileName = ref('');
 const profileImage = ref('');
+const profileImageNotice = ref('');
 const savingProfile = ref(false);
 const walletBalance = computed(() => (store.statData?.角色?.user?.金钱 ?? 0).toFixed(2));
 watch(accountPage, page => {
   if (page === 'profile') {
     profileName.value = self.value?.昵称 || '';
     profileImage.value = self.value?.头像 || '';
+    profileImageNotice.value = '';
   }
   error.value = '';
 });
@@ -1026,6 +1040,7 @@ async function chooseProfileImage(event: Event) {
   if (!file) return;
   try {
     profileImage.value = storeWechatImage(await readWechatImageFile(file));
+    profileImageNotice.value = '图片已选好，点击下方保存后生效。';
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '无法读取头像。';
   }
@@ -1049,9 +1064,6 @@ function startServiceTransfer(id: string) {
   paymentKind.value = '转账';
 }
 const worldTime = computed(() => store.statData?.世界?.时间 || '');
-const filteredLocations = computed(() =>
-  listPhoneMap(store.statData?.地图 ?? {}).filter(entry => entry.name.includes(locationQuery.value.trim())),
-);
 function openLocation(key: string) {
   if (!findPhoneMapPath(store.statData?.地图 ?? {}, key)) {
     error.value = `地图中找不到位置 key：${key}`;
@@ -1106,11 +1118,9 @@ const nearbyPeople = computed(() => {
   if (!data) return [];
   const location = data.世界.地图索引;
   const entries = [
-    ...Object.entries(data.角色.主要角色)
-      .filter(([id]) => isDiscoveredTarget(data, id))
-      .map(([id, person]) => ({ id, name: id, person })),
+    ...Object.entries(data.角色.主要角色).map(([id, person]) => ({ id, name: id, person })),
     ...Object.entries(data.角色.次要角色)
-      .filter(([id]) => id !== '$template' && isDiscoveredTarget(data, id))
+      .filter(([id]) => id !== '$template')
       .map(([id, person]) => ({ id, name: person.名称 || id, person })),
   ];
   return entries.filter(

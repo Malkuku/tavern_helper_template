@@ -72,6 +72,9 @@
           <ul v-if="selected.详情?.length">
             <li v-for="(detail, index) in selected.详情" :key="index">{{ detail }}</li>
           </ul>
+          <button v-if="selectable" class="phone-map-select" type="button" @click="emit('select', selectedName)">
+            分享这个位置
+          </button>
         </section>
       </div>
     </template>
@@ -87,7 +90,8 @@ import { findPhoneMapPath, layoutPhoneMap, listPhoneMap, type MapEntry } from '.
 import MapNodeIcon from './MapNodeIcon.vue';
 
 const store = useMagicGirlStatStore();
-const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
+const props = defineProps<{ openRequest?: { key: string; id: number } | null; selectable?: boolean }>();
+const emit = defineEmits<{ select: [key: string] }>();
 const map = computed(() => store.statData?.地图 ?? {});
 const world = computed(() => store.statData?.世界);
 const trail = ref<MapEntry[]>([]);
@@ -459,6 +463,16 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
 .phone-map-detail ul {
   margin: 8px 0 0;
   padding-left: 17px;
+}
+.phone-map-select {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #08a85d;
+  color: white;
+  font-weight: 700;
 }
 .phone-map-empty {
   color: #91a0b0;
