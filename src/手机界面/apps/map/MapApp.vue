@@ -37,6 +37,7 @@
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
         @pointercancel="onPointerUp"
+        @dragstart.prevent
       >
         <div class="phone-map-hint" aria-hidden="true">拖动查看周边</div>
         <div class="phone-map-layer" :style="{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }">
@@ -365,6 +366,7 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
     radial-gradient(circle at 25% 18%, #dff5ec 0, transparent 36%),
     radial-gradient(circle at 80% 75%, #e6e9fb 0, transparent 40%), #eaf2f7;
   touch-action: none;
+  user-select: none;
 }
 .phone-map-layer {
   position: absolute;

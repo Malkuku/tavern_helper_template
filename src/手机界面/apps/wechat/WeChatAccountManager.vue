@@ -37,7 +37,7 @@
               ><small>{{ entry.hasAccount ? entry.id : `未建号 · ${entry.id}` }}</small></span
             >
           </button>
-          <p v-if="!filteredAccounts.length" class="wx-manager-empty">没有找到账号。</p>
+          <p v-if="!filteredRoster.length" class="wx-manager-empty">没有找到账号。</p>
         </div>
       </section>
       <nav class="wx-manager-tabs" aria-label="管理内容">

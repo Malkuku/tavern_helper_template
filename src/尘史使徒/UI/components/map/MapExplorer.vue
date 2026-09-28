@@ -8,6 +8,7 @@
       @mousemove="move"
       @mouseup="up"
       @mouseleave="up"
+      @dragstart.prevent
       @touchstart="touchStart"
       @touchmove.prevent="touchMove"
       @touchend="touchEnd"
@@ -140,7 +141,7 @@ const props = withDefaults(
     currentLocation?: string;
     iconSize?: number;
     iconShape?: 'none' | 'circle' | 'rounded' | 'square';
-      }>(),
+  }>(),
   {
     mode: 'preview',
     currentLocation: '',
