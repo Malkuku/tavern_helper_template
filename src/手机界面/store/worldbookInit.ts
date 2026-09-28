@@ -57,25 +57,21 @@ function readJsonEntry(entries: ConfigEntry[], name: string): unknown {
   }
 }
 
-function seedWechatFriends(data: JsonRecord): void {
+function completeWechatAccounts(data: JsonRecord): void {
   const phone = data.手机;
   const wechat = isRecord(phone) ? phone.微信 : undefined;
   const accountMap = isRecord(wechat) ? wechat.账号 : undefined;
-  const sessions = isRecord(wechat) ? wechat.会话 : undefined;
+  if (!isRecord(accountMap)) throw new Error('唯一开局缺少微信账号表。');
   const roles = data.角色 as JsonRecord;
-  const mainRoles = roles.主要角色 as JsonRecord;
-  if (!isRecord(accountMap) || Object.keys(accountMap).length) throw new Error('唯一开局必须提供空的微信账号表。');
-  if (!isRecord(sessions) || Object.keys(sessions).length || !isRecord(wechat) || wechat.准备发送 !== null)
-    throw new Error('唯一开局必须提供空的微信会话与发送缓冲。');
-  const mainIds = Object.keys(mainRoles);
-  for (const id of ['user', ...mainIds]) {
-    const role = (id === 'user' ? roles.user : mainRoles[id]) as { meta?: z.infer<typeof roleMetaSchema> } | undefined;
-    accountMap[id] = {
-      昵称: id === 'user' ? '我' : id,
-      头像: wechatRoleAvatar(role?.meta, id),
-      表情包: {},
-      好友: id === 'user' ? mainIds : ['user'],
-    };
+  if (!('user' in accountMap)) accountMap.user = { 昵称: '我', 表情包: {}, 好友: [] };
+  for (const [id, account] of Object.entries(accountMap)) {
+    if (!isRecord(account) || account.头像 !== undefined) continue;
+    const main = roles.主要角色 as JsonRecord;
+    const minor = roles.次要角色 as JsonRecord;
+    const role = (id === 'user' ? roles.user : (main[id] ?? minor[id])) as
+      | { meta?: z.infer<typeof roleMetaSchema> }
+      | undefined;
+    account.头像 = wechatRoleAvatar(role?.meta, id);
   }
 }
 
@@ -129,7 +125,7 @@ export function reconcileWorldbookStatData(
   };
   const startWeek = taskWeekKey((data.世界 as { 时间: string }).时间);
   data.任务统计 = { 开始周: startWeek, 本周: emptyTaskWeek(startWeek), 上周: null };
-  seedWechatFriends(data);
+  completeWechatAccounts(data);
   const parsed = initialStatDataSchema.safeParse(data);
   if (!parsed.success) throw new Error(`唯一开局组装结果不符合手机变量契约：${z.prettifyError(parsed.error)}`);
   return { data: parsed.data as unknown as JsonRecord, changed: true };

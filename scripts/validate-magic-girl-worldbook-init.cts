@@ -85,6 +85,18 @@ assert.deepEqual(assembled.data.系统.已发现目标, []);
 assert.equal(assembled.data.角色.user.技能.战败收容.战力评级贡献, 2);
 assert.equal(assembled.data.角色.user.技能.战败收容.价格, 0);
 assert.deepEqual(assembled.data.仓库, opening.内容配置.仓库);
+assert.deepEqual(Object.keys(assembled.data.手机.微信.账号), Object.keys(openingDocument.固定数据.手机.微信.账号));
+assert.deepEqual(assembled.data.手机.微信.账号.user.好友, ['林沐沐']);
+assert.deepEqual(assembled.data.手机.微信.账号.林沐沐.好友, ['user']);
+assert.equal(assembled.data.手机.微信.账号.林沐沐.昵称, '沐沐');
+assert.ok(assembled.data.手机.微信.账号['987'].头像);
+assert.deepEqual(assembled.data.手机.微信.会话, openingDocument.固定数据.手机.微信.会话);
+const emptyWechatOpening = structuredClone(openingDocument);
+emptyWechatOpening.固定数据.手机.微信.账号 = {};
+emptyWechatOpening.固定数据.手机.微信.会话 = {};
+const emptyWechat = reconcileWorldbookStatData({ 作者: 987 }, withEntry('唯一开局', emptyWechatOpening)).data as any;
+assert.deepEqual(Object.keys(emptyWechat.手机.微信.账号), ['user']);
+assert.deepEqual(emptyWechat.手机.微信.账号.user.好友, []);
 function checkMapIcons(nodes: Record<string, { 图标: string; 子地图: Record<string, any> }>) {
   for (const node of Object.values(nodes)) {
     assert.match(node.图标, /^<svg\b[\s\S]*<\/svg>$/);
@@ -103,8 +115,6 @@ for (const name of Object.keys(assembled.data.角色.主要角色)) {
     (value: any) => value.type === '主要角色' && value.key === name,
   ) as any;
   assert.equal(assembled.data.角色.主要角色[name].当前评级, asset.data.当前评级);
-  assert.ok(assembled.data.手机.微信.账号.user.好友.includes(name));
-  assert.deepEqual(assembled.data.手机.微信.账号[name].好友, ['user']);
 }
 assembled.data.角色.主要角色.鹭见凛.在场 = true;
 assert.equal(reconcileWorldbookStatData(assembled.data, entries).data.角色.主要角色.鹭见凛.在场, true);
