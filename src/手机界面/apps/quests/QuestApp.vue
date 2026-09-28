@@ -15,6 +15,7 @@
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消等待
         </button>
+        <RefreshFeedback v-if="store.taskRefreshing" label="正在生成任务候选" />
         <p v-if="store.taskRefreshError" class="error">{{ store.taskRefreshError }}</p>
       </section>
 
@@ -100,6 +101,7 @@
 import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskRefreshState, taskWeekStats, type 任务评级 } from './quests';
+import RefreshFeedback from '../witch/RefreshFeedback.vue';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'board' | 'active' | 'stats'>(Object.keys(store.statData?.任务 ?? {}).length ? 'active' : 'board');

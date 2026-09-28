@@ -11,7 +11,7 @@
       </div>
     </header>
 
-    <Transition name="witch-page" mode="out-in">
+    <Transition name="witch-page" mode="out-in" appear>
       <div :key="`${tab}:${subpage}`" class="witch-view">
         <div v-if="tab === 'home'" class="witch-home witch-scroll">
           <div class="witch-home-intro">
@@ -92,29 +92,7 @@
 
         <QuestApp v-else-if="tab === 'tasks'" />
 
-        <template v-else-if="tab === 'observe'">
-          <div class="witch-subnav" role="tablist" aria-label="观测分类">
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="subpage === '主要角色'"
-              :class="{ active: subpage === '主要角色' }"
-              @click="subpage = '主要角色'"
-            >
-              心象监测
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="subpage === '次要角色'"
-              :class="{ active: subpage === '次要角色' }"
-              @click="subpage = '次要角色'"
-            >
-              人物观测
-            </button>
-          </div>
-          <DataApp :app="subpage === '次要角色' ? '次要角色' : '主要角色'" @first-target-chosen="selectTab('tasks')" />
-        </template>
+        <DataApp v-else-if="tab === 'observe'" app="主要角色" @first-target-chosen="selectTab('tasks')" />
 
         <template v-else-if="tab === 'shop'">
           <div class="witch-subnav" role="tablist" aria-label="商店分类">
@@ -216,7 +194,7 @@ const tabs: { key: Tab; label: string }[] = [
 const store = useMagicGirlStatStore();
 const needsFirstTarget = (data: typeof store.statData) => data?.系统?.已发现目标?.length === 0;
 const tab = ref<Tab>(needsFirstTarget(store.statData) ? 'observe' : 'home');
-const subpage = ref(needsFirstTarget(store.statData) ? '主要角色' : '');
+const subpage = ref('');
 let waitingForInitialData = !store.statData;
 watch(
   () => store.statData,
@@ -225,7 +203,6 @@ watch(
     waitingForInitialData = false;
     if (needsFirstTarget(data)) {
       tab.value = 'observe';
-      subpage.value = '主要角色';
     }
   },
 );
@@ -247,7 +224,7 @@ function selectTab(next: Tab) {
   waitingForInitialData = false;
   if (tab.value === next) return;
   tab.value = next;
-  subpage.value = next === 'observe' ? '主要角色' : next === 'shop' ? '技能商店' : '我的档案';
+  subpage.value = next === 'shop' ? '技能商店' : '我的档案';
 }
 function openTasks() {
   selectTab('tasks');

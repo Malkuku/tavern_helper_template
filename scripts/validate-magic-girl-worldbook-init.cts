@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { reconcileWorldbookStatData } from '../src/手机界面/store/worldbookInit';
+import { firstTargetKeys } from '../src/手机界面/apps/data/firstTarget';
 import { sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 
 const fixtureRoot = 'O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕';
@@ -82,6 +83,7 @@ assert.equal(
 assert.ok(Object.keys(assembled.data.地图).length > 0);
 assert.equal(assembled.data.系统.版本, '1.0.0');
 assert.deepEqual(assembled.data.系统.已发现目标, []);
+for (const key of firstTargetKeys) assert.ok(assembled.data.角色.主要角色[key], `${key} 应存在于当前开局`);
 assert.equal(assembled.data.角色.user.技能.战败收容.战力评级贡献, 2);
 assert.equal(assembled.data.角色.user.技能.战败收容.价格, 0);
 assert.deepEqual(assembled.data.仓库, opening.内容配置.仓库);

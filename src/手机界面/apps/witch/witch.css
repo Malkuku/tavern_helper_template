@@ -79,6 +79,7 @@
   border-bottom: 1px solid #ffffff10;
   background: #120d1ac7;
   backdrop-filter: blur(18px);
+  animation: witch-frame-enter 0.42s ease-out both;
 }
 .witch-brand {
   display: flex;
@@ -151,6 +152,7 @@
 }
 .witch-home-intro {
   margin: 0 2px 19px;
+  animation: witch-content-enter 0.38s ease-out both;
 }
 .witch-home-intro h1 {
   margin: 7px 0 5px;
@@ -179,6 +181,7 @@
   box-shadow:
     0 14px 36px #09050b6b,
     inset 0 1px #ffffff1c;
+  animation: witch-content-enter 0.42s 0.06s ease-out both;
 }
 .witch-focus-card::after {
   position: absolute;
@@ -289,6 +292,7 @@
 .witch-week {
   margin-top: 21px;
   padding: 0 3px;
+  animation: witch-content-enter 0.42s 0.12s ease-out both;
 }
 .witch-section-heading {
   margin-bottom: 10px;
@@ -296,6 +300,15 @@
 }
 .witch-section-heading strong {
   color: #ffb3d0;
+}
+.witch-week .witch-section-heading > span {
+  padding: 5px 8px;
+  border: 1px solid #e3ad66;
+  border-radius: 7px;
+  background: #634026;
+  color: #ffe2a5;
+  font-size: 11px;
+  font-weight: 800;
 }
 .witch-progress-track {
   height: 6px;
@@ -326,6 +339,7 @@
   border-radius: 17px;
   background-color: #231525 !important;
   text-align: left;
+  animation: witch-content-enter 0.42s 0.18s ease-out both;
 }
 .witch-home-link > span:first-child {
   display: grid;
@@ -352,6 +366,7 @@
   padding: 5px 6px 6px;
   border-top: 1px solid #ffffff16;
   background: #170f1d;
+  animation: witch-frame-enter 0.42s 0.08s ease-out both;
 }
 .witch-bottom-nav button {
   display: flex;
@@ -375,6 +390,10 @@
 .witch-bottom-nav svg {
   width: 22px;
   height: 22px;
+  transition: transform 0.24s ease;
+}
+.witch-bottom-nav button.active svg {
+  transform: translateY(-2px) scale(1.08);
 }
 .witch-subnav {
   display: flex;
@@ -407,16 +426,49 @@
 .witch-page-enter-active,
 .witch-page-leave-active {
   transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+    opacity 0.26s ease,
+    transform 0.26s ease;
 }
 .witch-page-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(12px);
 }
 .witch-page-leave-to {
   opacity: 0;
-  transform: translateY(-5px);
+  transform: translateY(-7px);
+}
+@keyframes witch-frame-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes witch-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes witch-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes witch-refresh-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(390%);
+  }
 }
 @keyframes witch-pulse {
   0%,
@@ -486,6 +538,14 @@
   background-position: center 30%;
   background-size: cover;
 }
+.witch-app .monitor-hero.minor-hero {
+  min-height: 105px;
+}
+.witch-app .minor-hero p {
+  margin: 0;
+  color: #eed1df;
+  font-size: 12px;
+}
 .witch-app .monitor-image-picker {
   display: flex;
   flex-wrap: wrap;
@@ -533,9 +593,7 @@
 .witch-app .first-target-slide img {
   display: block;
   width: 100%;
-  aspect-ratio: 3 / 3.2;
-  object-fit: cover;
-  object-position: center 23%;
+  height: auto;
 }
 .witch-app .first-target-caption {
   position: absolute;
@@ -552,6 +610,24 @@
 .witch-app .first-target-caption span {
   color: #ffcee3;
   font-size: 13px;
+}
+.witch-app .first-target-brief {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  text-align: left;
+}
+.witch-app .first-target-brief p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: #ead5e0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.witch-app .first-target-brief strong {
+  color: #f6a9ca;
+  font-size: 10px;
 }
 .witch-app .first-target-controls {
   display: flex;
@@ -613,6 +689,57 @@
   border-color: #85516d !important;
   background-color: #ffffff12 !important;
 }
+.witch-app .witch-refresh-feedback {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid #c8759a99;
+  border-radius: 12px;
+  background: #1e1324e8;
+  box-shadow: inset 0 1px #ffffff17;
+}
+.witch-app .witch-refresh-orbit {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #b85c8a5c;
+  border-top-color: #ffd0e3;
+  border-radius: 50%;
+  animation: witch-refresh-spin 1s linear infinite;
+}
+.witch-app .witch-refresh-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.witch-app .witch-refresh-copy strong {
+  color: #ffe1ed;
+  font-size: 12px;
+}
+.witch-app .witch-refresh-copy small {
+  color: #c9a8ba;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.witch-app .witch-refresh-track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #59334d;
+}
+.witch-app .witch-refresh-track > span {
+  display: block;
+  width: 26%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d95a94, #ffd0e3);
+  animation: witch-refresh-sweep 1.35s ease-in-out infinite;
+}
 .witch-app :is(.quest-app nav, .shop-tabs, .item-shop-tabs, .item-shop-sides, .data-pages) {
   display: flex;
   gap: 5px;
@@ -658,6 +785,9 @@
 .witch-app :is(.card, .shop-card, .item-shop-card) {
   display: grid;
   gap: 10px;
+}
+.witch-app :is(.list, .shop-list, .item-shop-list) > :is(.card, .shop-card, .item-shop-card) {
+  animation: witch-content-enter 0.34s ease-out both;
 }
 .witch-app :is(.heading, .shop-heading, .item-shop-heading, .item-heading, .monitor-card-head) {
   display: flex;
@@ -828,7 +958,7 @@
   border-color: #e586ae;
   background-color: #753d62 !important;
 }
-.witch-app :is(.selector-avatar, .minor-avatar) {
+.witch-app .selector-avatar {
   display: grid;
   place-items: center;
   flex: none;
@@ -838,6 +968,18 @@
   background: linear-gradient(135deg, #c14f89, #5b2c5f);
   color: #fff;
   font-size: 12px;
+}
+.witch-app .selector-copy {
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+.witch-app .selector-copy strong {
+  font-size: 11px;
+}
+.witch-app .selector-copy small {
+  color: #d9acc4;
+  font-size: 9px;
 }
 .witch-app .data-hero h2 {
   margin: 9px 0 12px;
@@ -918,43 +1060,6 @@
   cursor: pointer;
   color: #f5e1eb;
 }
-.witch-app .minor-list {
-  display: grid;
-  gap: 7px;
-}
-.witch-app .minor-list button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 9px;
-  border: 1px solid #60405b;
-  border-radius: 12px;
-  background-color: #211622 !important;
-  text-align: left;
-}
-.witch-app .minor-list button.active {
-  border-color: #e887b0;
-  background-color: #5c3150 !important;
-}
-.witch-app .minor-avatar {
-  width: 34px;
-  height: 34px;
-}
-.witch-app .minor-list-copy {
-  display: grid;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-.witch-app .minor-list-copy small,
-.witch-app .minor-presence {
-  overflow: hidden;
-  color: #c5aabb;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .witch-app .monitor-heading {
   padding: 5px 2px 0;
 }
@@ -965,11 +1070,94 @@
 .witch-app .monitor-card-head {
   margin-bottom: 9px;
 }
-.witch-app .monitor-state,
+.witch-app .stage-experience {
+  margin-top: 12px;
+}
+.witch-app .stage-experience-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: #d9b6c9;
+  font-size: 10px;
+}
+.witch-app .stage-experience-label strong {
+  color: #ffd0e3;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.witch-app .stage-experience-track {
+  height: 7px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #513149;
+}
+.witch-app .stage-experience-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c94d87, #ffb4d2);
+  transition: width 0.3s ease;
+}
 .witch-app .inventory-notice {
   margin: 0 0 7px;
   color: #ffa9cc;
   font-size: 11px;
+}
+.witch-app .body-observation-card .monitor-card-head {
+  margin-bottom: 13px;
+}
+.witch-app .body-observation-card .monitor-card-head strong {
+  font-size: 14px;
+}
+.witch-app .body-current {
+  padding: 11px 12px;
+  border-left: 3px solid #dd7ea8;
+  border-radius: 0 9px 9px 0;
+  background: #43253b;
+}
+.witch-app .body-current span,
+.witch-app .body-detail span {
+  display: block;
+  margin-bottom: 6px;
+  color: #efa5c5;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+.witch-app .body-current p,
+.witch-app .body-detail p,
+.witch-app .body-record-list li {
+  margin: 0;
+  color: #eadce5;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.witch-app .body-detail {
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid #5d3c56;
+}
+.witch-app .body-record-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.witch-app .body-record-list li {
+  padding: 10px 0;
+  border-top: 1px solid #5d3c56;
+}
+.witch-app .body-record-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.witch-app .body-record-list li:last-child {
+  padding-bottom: 0;
 }
 .witch-app .resource-grid {
   display: grid;
@@ -1237,5 +1425,9 @@
   .witch-app *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .witch-app .witch-refresh-orbit,
+  .witch-app .witch-refresh-track > span {
+    animation: none !important;
   }
 }

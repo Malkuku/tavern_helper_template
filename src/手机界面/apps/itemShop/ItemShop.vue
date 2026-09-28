@@ -13,6 +13,7 @@
           {{ store.itemRefreshing ? '生成中…' : quote.error ? '刷新货架' : `刷新货架 · ${quote.price} 积分` }}
         </button>
         <button v-if="store.itemRefreshing" type="button" @click="store.cancelItemRefresh()">取消等待</button>
+        <RefreshFeedback v-if="store.itemRefreshing" label="正在更新道具货架" />
         <p v-if="quote.error" class="item-shop-error">{{ quote.error }}</p>
         <p v-else-if="balance < quote.price" class="item-shop-error">积分不足，需要 {{ quote.price }} 点。</p>
         <p v-if="store.itemRefreshError" class="item-shop-error">{{ store.itemRefreshError }}，可再次刷新。</p>
@@ -109,6 +110,7 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { itemRefreshQuote } from './itemShop';
 import type { InventorySide } from '../data/inventoryTransfer';
 import InventoryIcon from '../data/InventoryIcon.vue';
+import RefreshFeedback from '../witch/RefreshFeedback.vue';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'shop' | 'sell'>('shop');

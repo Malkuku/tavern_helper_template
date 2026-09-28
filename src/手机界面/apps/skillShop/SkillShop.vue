@@ -11,6 +11,7 @@
         <button v-if="store.skillRefreshing" class="cancel-refresh" type="button" @click="store.cancelSkillRefresh()">
           取消等待
         </button>
+        <RefreshFeedback v-if="store.skillRefreshing" label="正在更新技能货架" />
         <p v-if="balance < quote.price" class="shop-error">积分不足，需要 {{ quote.price }} 点。</p>
         <p v-if="store.skillRefreshError" class="shop-error">{{ store.skillRefreshError }}，可再次刷新。</p>
       </section>
@@ -73,6 +74,7 @@ import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { refreshQuote } from './skillShop';
 import InventoryIcon from '../data/InventoryIcon.vue';
+import RefreshFeedback from '../witch/RefreshFeedback.vue';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'shop' | 'owned'>('shop');
