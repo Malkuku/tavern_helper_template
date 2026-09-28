@@ -1,6 +1,6 @@
 export const unlockPrices = {
-  主要角色: { 日常外貌: 3, 魔法形态: 5, 性格: 5, 背景: 8, 核心能力: 12, 核心创伤: 20 },
-  次要角色: { 性格侧写: 5, 能力描述: 8 },
+  主要角色: { 好感度: 2, 恶堕度: 2, 身体状态: 2, 性格: 3, 背景: 4, 核心能力: 6, 核心创伤: 8 },
+  次要角色: { 恶堕度: 2, 身体状态: 2, 性格侧写: 3, 能力描述: 4 },
 } as const;
 
 export type CharacterKind = keyof typeof unlockPrices;

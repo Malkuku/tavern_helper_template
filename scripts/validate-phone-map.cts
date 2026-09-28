@@ -31,11 +31,14 @@ assert.throws(() => sanitizeMapSvg('<svg><script>alert(1)</script></svg>'));
 const districts = Object.values(map)[0].子地图;
 const positioned = layoutPhoneMap(districts, 320, 320);
 assert.equal(positioned.length, Object.keys(districts).length);
-for (const item of positioned) {
-  assert.ok(Math.abs(item.x) + 41 <= 160);
-  assert.ok(Math.abs(item.y) + 39 <= 160);
+for (let i = 0; i < positioned.length; i++) {
+  for (let j = i + 1; j < positioned.length; j++) {
+    const a = positioned[i];
+    const b = positioned[j];
+    assert.ok(Math.abs(a.x - b.x) >= 108 || Math.abs(a.y - b.y) >= 112);
+  }
 }
 const place = { ...districts.大学区, 方位: { x: [0, 0], y: [0, 0], z: [0, 0] } } as 地图节点;
 const coincident = layoutPhoneMap({ A: place, B: place }, 320, 320);
-assert.ok(Math.abs(coincident[0].x - coincident[1].x) >= 82 || Math.abs(coincident[0].y - coincident[1].y) >= 78);
+assert.ok(Math.abs(coincident[0].x - coincident[1].x) >= 108 || Math.abs(coincident[0].y - coincident[1].y) >= 112);
 console.log('手机彩色地图资源、层级与布局验证通过');

@@ -1908,28 +1908,6 @@
 .wechat .wx-chat-header .wx-back svg {
   stroke-width: 2.8;
 }
-.wechat .wx-request-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: calc(100% - 20px);
-  margin: 10px;
-  padding: 12px;
-  border: 1px solid var(--wx-line);
-  border-radius: 12px;
-  background: var(--wx-panel);
-  color: var(--wx-text);
-  text-align: left;
-}
-.wechat .wx-request-banner > span:nth-child(2) {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-}
-.wechat .wx-request-banner small {
-  color: var(--wx-muted);
-}
 .wechat .wx-request-dot {
   display: block;
   flex: none;

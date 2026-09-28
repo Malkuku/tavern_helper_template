@@ -510,13 +510,6 @@
       <div class="wx-body" :class="{ 'wx-me-body': tab === 'me' }">
         <template v-if="!wechat"><p class="wx-empty">当前楼层尚无微信数据，请重新打开手机完成初始化。</p></template>
         <template v-else-if="tab === 'chats'">
-          <button v-if="incomingRequests.length" class="wx-request-banner" type="button" @click="subPage = 'requests'">
-            <span class="wx-feature-icon orange"><WeChatIcon name="new-friend" /></span>
-            <span
-              ><strong>新的朋友</strong><small>{{ incomingRequests.length }} 条好友申请等待处理</small></span
-            >
-            <i class="wx-request-dot" aria-label="新好友申请"></i>
-          </button>
           <label v-if="searchOpen" class="wx-search"
             ><span>⌕</span><input v-model="query" aria-label="搜索聊天" placeholder="搜索会话"
           /></label>
@@ -598,16 +591,19 @@
             </div>
             <WeChatIcon class="wx-row-chevron" name="chevron" />
           </button>
-          <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
-            <strong>账号管理</strong><WeChatIcon class="wx-row-chevron" name="chevron" />
-          </button>
           <div v-for="(group, index) in meGroups" :key="index" class="wx-menu-group">
             <button
               v-for="item in group"
               :key="item.label"
               class="wx-list-row wx-menu-row"
               type="button"
-              @click="item.label === '服务' ? (accountPage = 'services') : showUnavailable(item.label)"
+              @click="
+                item.label === '服务'
+                  ? (accountPage = 'services')
+                  : item.label === '设置'
+                    ? (accountPage = 'settings')
+                    : showUnavailable(item.label)
+              "
             >
               <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
               ><strong>{{ item.label }}</strong
@@ -654,10 +650,17 @@
               ? '服务'
               : accountPage === 'payments'
                 ? '收付款'
-                : '钱包'
+                : accountPage === 'settings'
+                  ? '设置'
+                  : '钱包'
         }}</strong>
       </header>
-      <template v-if="accountPage === 'profile'">
+      <template v-if="accountPage === 'settings'">
+        <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
+          <strong>账号管理</strong><WeChatIcon class="wx-row-chevron" name="chevron" />
+        </button>
+      </template>
+      <template v-else-if="accountPage === 'profile'">
         <div class="wx-avatar-upload">
           <strong>头像</strong><small>选择一张图片作为微信头像，保存后对好友可见</small>
           <label class="wx-upload-target">
@@ -793,6 +796,7 @@ import {
   isWeChatMessage,
   operationSummary,
   privateChatKey,
+  visibleUserChats,
 } from './wechatData';
 import type { OperationEvent } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
@@ -1021,7 +1025,7 @@ const store = useMagicGirlStatStore();
 const wechat = computed(() => store.statData?.手机?.微信 ?? null);
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
 const self = computed(() => accounts.value.user);
-const accountPage = ref<'profile' | 'services' | 'wallet' | 'payments' | null>(null);
+const accountPage = ref<'profile' | 'services' | 'wallet' | 'payments' | 'settings' | null>(null);
 const profileName = ref('');
 const profileImage = ref('');
 const profileImageNotice = ref('');
@@ -1168,8 +1172,7 @@ const selectedTitle = computed(() =>
 const pending = computed(() => (wechat.value?.准备发送?.会话 === selectedKey.value ? wechat.value.准备发送 : null));
 const pendingLocked = computed(() => !!pending.value && pending.value.已确认 !== false);
 const chats = computed(() =>
-  Object.entries(wechat.value?.会话 ?? {})
-    .filter(([, session]) => session.成员?.includes('user'))
+  (wechat.value ? visibleUserChats(wechat.value) : [])
     .map(([key, session]) => {
       const last = session.消息.at(-1);
       return {

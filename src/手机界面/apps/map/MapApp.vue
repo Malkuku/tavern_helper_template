@@ -38,6 +38,7 @@
         @pointerup="onPointerUp"
         @pointercancel="onPointerUp"
       >
+        <div class="phone-map-hint" aria-hidden="true">拖动查看周边</div>
         <div class="phone-map-layer" :style="{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }">
           <div class="phone-map-grid" aria-hidden="true"></div>
           <button
@@ -46,7 +47,11 @@
             :data-name="point.name"
             type="button"
             class="phone-map-point"
-            :class="{ selected: selectedName === point.name, current: world?.地图索引 === point.name }"
+            :class="{
+              selected: selectedName === point.name,
+              current: world?.地图索引 === point.name,
+              nested: Object.keys(visible[point.name]?.子地图 ?? {}).length > 0,
+            }"
             :style="{
               left: `calc(50% + ${point.x}px)`,
               top: `calc(50% + ${point.y}px)`,
@@ -55,11 +60,13 @@
             :aria-pressed="selectedName === point.name"
             @click="selectPoint(point.name)"
             @dblclick.prevent="enterPoint(point.name)"
-            @keydown.enter.prevent="enterPoint(point.name)"
           >
             <span class="phone-map-point-icon"><MapNodeIcon :svg="visible[point.name]?.图标" /></span>
             <strong>{{ point.name }}</strong>
-            <small v-if="world?.地图索引 === point.name">当前位置</small>
+            <span v-if="world?.地图索引 === point.name" class="phone-map-point-current">当前位置</span>
+            <small class="phone-map-point-action">
+              {{ Object.keys(visible[point.name]?.子地图 ?? {}).length ? '可进入内部 ›' : '点按查看' }}
+            </small>
           </button>
           <div v-if="!points.length" class="phone-map-no-points">该地区暂无下级地点</div>
         </div>
@@ -68,6 +75,9 @@
             <h2>{{ selectedName }}</h2>
             <button type="button" aria-label="关闭地点详情" @click="selectedName = ''">×</button>
           </div>
+          <button v-if="selectedHasChildren" class="phone-map-enter" type="button" @click="enterPoint(selectedName)">
+            进入内部地图 <span aria-hidden="true">›</span>
+          </button>
           <p>{{ selected.描述 || '暂无地点描述' }}</p>
           <ul v-if="selected.详情?.length">
             <li v-for="(detail, index) in selected.详情" :key="index">{{ detail }}</li>
@@ -106,6 +116,7 @@ let suppressClickUntil = 0;
 let lastTap = { name: '', time: 0 };
 const visible = computed(() => trail.value.at(-1)?.node.子地图 ?? map.value);
 const selected = computed<地图节点 | undefined>(() => visible.value[selectedName.value]);
+const selectedHasChildren = computed(() => Object.keys(selected.value?.子地图 ?? {}).length > 0);
 const points = computed(() => layoutPhoneMap(visible.value, canvasSize.value.width, canvasSize.value.height));
 const results = computed(() =>
   listPhoneMap(map.value)
@@ -123,13 +134,18 @@ function reset() {
   else trail.value = [];
   selectedName.value = path && visible.value[path.at(-1)!.name] ? path.at(-1)!.name : '';
   resetView();
-  void nextTick(measure);
+  void nextTick(measureAndCenterSelected);
 }
 function resetView() {
   Object.assign(view, { scale: 1, x: 0, y: 0 });
 }
 function measure() {
   if (canvas.value) canvasSize.value = { width: canvas.value.clientWidth, height: canvas.value.clientHeight };
+}
+function measureAndCenterSelected() {
+  measure();
+  const point = points.value.find(item => item.name === selectedName.value);
+  if (point) Object.assign(view, { x: -point.x, y: -point.y });
 }
 function selectPoint(name: string) {
   if (Date.now() < suppressClickUntil) return;
@@ -229,7 +245,7 @@ watch(
     trail.value = path.slice(0, -1);
     selectedName.value = key;
     resetView();
-    void nextTick(measure);
+    void nextTick(measureAndCenterSelected);
   },
   { immediate: true },
 );
@@ -363,48 +379,84 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   background-size: 25px 25px;
   pointer-events: none;
 }
+.phone-map-hint {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: #ffffffd9;
+  color: #61768b;
+  font-size: 10px;
+  pointer-events: none;
+}
 .phone-map-point {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  width: 82px;
-  height: 78px;
-  padding: 5px 2px;
-  border: 0;
-  border-radius: 15px;
-  background: transparent;
+  justify-content: center;
+  gap: 3px;
+  width: 108px;
+  height: 112px;
+  padding: 9px 7px 7px;
+  border: 1px solid #dce6ed;
+  border-radius: 18px;
+  background: #ffffffed;
+  box-shadow: 0 5px 14px #35506b18;
   color: #34435b;
   transform: translate(-50%, -50%);
+  cursor: pointer;
 }
+.phone-map-point:hover,
+.phone-map-point:focus-visible,
 .phone-map-point.selected {
-  background: #ffffffdd;
-  box-shadow: 0 5px 16px #4d6b8b25;
+  border-color: #5a9fb5;
+  background: #fff;
+  box-shadow: 0 6px 18px #315d7940;
+  outline: none;
 }
 .phone-map-point-icon {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   color: #5a78ab;
   filter: drop-shadow(0 2px 2px #56739b22);
 }
 .phone-map-point strong {
-  max-width: 78px;
+  max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.2;
+  font-size: 12px;
 }
-.phone-map-point small {
-  color: #277f70;
+.phone-map-point-action {
+  color: #657b91;
+  font-size: 10px;
+  font-weight: 700;
+}
+.phone-map-point.nested .phone-map-point-action {
+  color: #257a83;
+}
+.phone-map-point.current {
+  border-color: #52b49a;
+}
+.phone-map-point-current {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #2c9c7f;
+  color: white;
   font-size: 9px;
-  font-weight: 800;
-}
-.phone-map-point.current .phone-map-point-icon {
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px #47bc9a;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 .phone-map-no-points {
   position: absolute;
@@ -438,18 +490,31 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   margin: 0;
   font-size: 17px;
 }
-.phone-map-detail-head span {
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: #edf5f5;
-  color: #417c78;
-  font-size: 10px;
-}
 .phone-map-detail-head button {
   border: 0;
   background: transparent;
   color: #7183a1;
   font-size: 20px;
+}
+.phone-map-enter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 9px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #e2f3f0;
+  color: #176d6c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.phone-map-enter span {
+  font-size: 20px;
+  line-height: 12px;
 }
 .phone-map-detail p,
 .phone-map-detail li {

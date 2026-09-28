@@ -168,6 +168,15 @@ export function friendRequest(session: 微信会话 | undefined): 微信操作 |
   return null;
 }
 
+export function visibleUserChats(data: 微信数据): [string, 微信会话][] {
+  return Object.entries(data.会话).filter(([, session]) => {
+    if (!session.成员.includes('user')) return false;
+    if (session.类型 === '群聊') return true;
+    const other = session.成员.find(id => id !== 'user');
+    return !!other && !!data.账号.user?.好友.includes(other) && !!data.账号[other]?.好友.includes('user');
+  });
+}
+
 export function operationSummary(item: 微信操作): string {
   if (item.操作 === '好友申请') return `${item.操作者}申请添加${item.目标}为好友：${item.验证消息 || ''}`;
   if (item.操作 === '通过好友申请') return `${item.操作者}通过了${item.目标}的好友申请`;

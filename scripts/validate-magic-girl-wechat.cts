@@ -9,6 +9,7 @@ import {
   normalizeWeChatIds,
   parseWeChatLogs,
   unappliedWeChatLogs,
+  visibleUserChats,
 } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
 import { locationShare } from '../src/手机界面/apps/map/locationShare';
@@ -175,4 +176,56 @@ const npcRequest = applyWeChatLogs(
   ]),
 );
 assert.equal(npcRequest.会话['私聊:索菲亚&小鸟游琉璃'].消息.length, 1);
+const applicant = structuredClone(empty);
+applicant.账号.索菲亚 = account('索菲亚', []);
+const incoming = applyWeChatLogs(
+  applicant,
+  parse([
+    {
+      类型: '操作',
+      楼层ID: 1,
+      操作: '好友申请',
+      会话: '私聊:user&索菲亚',
+      时间: time,
+      操作者: '索菲亚',
+      目标: 'user',
+      验证消息: '请加我',
+    },
+  ]),
+);
+assert.deepEqual(visibleUserChats(incoming), [], '待处理好友申请不进入会话列表');
+const accepted = applyWeChatLogs(
+  incoming,
+  parse([
+    {
+      类型: '操作',
+      楼层ID: 2,
+      操作: '通过好友申请',
+      会话: '私聊:user&索菲亚',
+      时间: time,
+      操作者: 'user',
+      目标: '索菲亚',
+    },
+  ]),
+);
+assert.deepEqual(
+  visibleUserChats(accepted).map(([id]) => id),
+  ['私聊:user&索菲亚'],
+  '通过申请后显示私聊',
+);
+const rejected = applyWeChatLogs(
+  incoming,
+  parse([
+    {
+      类型: '操作',
+      楼层ID: 2,
+      操作: '拒绝好友申请',
+      会话: '私聊:user&索菲亚',
+      时间: time,
+      操作者: 'user',
+      目标: '索菲亚',
+    },
+  ]),
+);
+assert.deepEqual(visibleUserChats(rejected), [], '拒绝后仍不显示私聊');
 console.log('微信会话楼层 ID 验证通过');

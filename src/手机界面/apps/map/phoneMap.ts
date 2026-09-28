@@ -31,8 +31,8 @@ export function layoutPhoneMap(map: PhoneMap, width: number, height: number) {
     x: (node.方位.x[0] + node.方位.x[1]) / 2,
     y: -(node.方位.y[0] + node.方位.y[1]) / 2,
     z: (node.方位.z[0] + node.方位.z[1]) / 2,
-    width: 82,
-    height: 78,
+    width: 108,
+    height: 112,
   }));
   if (!input.length) return [];
   const availableWidth = Math.max(100, width - 28);

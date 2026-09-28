@@ -5,6 +5,57 @@
   min-height: 0;
   color: #27304b;
   background: #f6f2f9;
+  color-scheme: light;
+}
+.phone-role-editor :is(input:not([type='checkbox']), textarea, select) {
+  color-scheme: light !important;
+  color: #2d2b38 !important;
+  -webkit-text-fill-color: #2d2b38 !important;
+  background: #faf8fc !important;
+  border-color: #ded6e4 !important;
+}
+.phone-role-editor :is(input, textarea)::placeholder {
+  color: #898293 !important;
+  -webkit-text-fill-color: #898293 !important;
+}
+.phone-role-editor input[type='checkbox'] {
+  accent-color: #8765aa;
+}
+.pre-gate {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 28px 20px;
+}
+.pre-gate h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.pre-gate > p {
+  margin: 0;
+  color: #6e687b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pre-gate label {
+  color: #59416f;
+  font-size: 13px;
+  font-weight: 700;
+}
+.pre-gate input {
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 1px solid #ded6e4;
+  border-radius: 9px;
+  font-size: 14px;
+}
+.pre-gate button {
+  min-height: 40px;
+  color: #fff;
+  background: #8765aa;
+  border: 1px solid #8765aa;
+  border-radius: 10px;
+  font-weight: 700;
 }
 .pre-head {
   display: flex;

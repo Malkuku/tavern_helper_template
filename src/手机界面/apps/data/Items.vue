@@ -35,13 +35,18 @@
   </div>
   <div v-if="visibleItems.length" class="data-sections inventory-list">
     <section v-for="[name, item] in visibleItems" :key="name" class="data-card item-card">
-      <button type="button" class="inventory-item-button" @click="selectItem(name)">
-        <InventoryIcon :svg="item.图标" />
+      <button
+        type="button"
+        class="inventory-item-button"
+        :aria-expanded="selectedName === name"
+        @click="selectItem(name)"
+      >
+        <InventoryIcon :svg="item.图标" kind="道具" />
         <span class="inventory-item-copy"
-          ><strong>{{ name }}</strong
-          ><small>{{ item.描述 || '暂无描述' }}</small></span
+          ><strong>{{ name }}</strong></span
         >
         <span class="item-count">× {{ item.数量 }}</span>
+        <span class="entry-chevron" aria-hidden="true">{{ selectedName === name ? '⌃' : '⌄' }}</span>
       </button>
       <div v-if="selectedName === name" class="inventory-detail">
         <p v-if="item.描述" class="data-prose">{{ item.描述 }}</p>

@@ -6,22 +6,32 @@
   </div>
   <div v-if="skillEntries.length" class="data-sections">
     <section v-for="[name, skill] in skillEntries" :key="name" class="data-card skill-card">
-      <div class="item-heading">
+      <button
+        type="button"
+        class="item-heading entry-toggle"
+        :aria-expanded="expandedName === name"
+        @click="expandedName = expandedName === name ? '' : name"
+      >
         <div>
           <span class="item-kicker">已习得技能</span>
           <div class="skill-title">
-            <InventoryIcon :svg="skill.图标" />
+            <InventoryIcon :svg="skill.图标" kind="技能" />
             <h3>{{ name }}</h3>
           </div>
         </div>
-        <span class="stage-level">{{ skill.适用评级 }}</span>
+        <span class="entry-toggle-tail"
+          ><span class="stage-level">{{ skill.适用评级 }}</span
+          ><span aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span></span
+        >
+      </button>
+      <div v-if="expandedName === name" class="entry-details">
+        <p class="data-prose">{{ skill.描述 }}</p>
+        <div class="item-effect">
+          <span>作用</span>
+          <p>{{ skill.作用 }}</p>
+        </div>
+        <small>战力评级贡献 {{ skill.战力评级贡献 }} · 累计价格 {{ skill.价格 }}</small>
       </div>
-      <p class="data-prose">{{ skill.描述 }}</p>
-      <div class="item-effect">
-        <span>作用</span>
-        <p>{{ skill.作用 }}</p>
-      </div>
-      <small>战力评级贡献 {{ skill.战力评级贡献 }} · 累计价格 {{ skill.价格 }}</small>
     </section>
   </div>
   <div v-else class="data-empty">
@@ -32,9 +42,10 @@
 
 <script setup lang="ts">
 import type { 技能, stat_data } from '../../types';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import InventoryIcon from './InventoryIcon.vue';
 
 const props = defineProps<{ data: stat_data }>();
 const skillEntries = computed(() => Object.entries(props.data.角色?.user?.技能 ?? {}) as [string, 技能][]);
+const expandedName = ref('');
 </script>

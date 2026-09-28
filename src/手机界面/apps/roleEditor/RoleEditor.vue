@@ -1,7 +1,17 @@
 <template>
   <div class="phone-role-editor">
-    <header class="pre-head"><span>角色档案</span><button type="button" @click="reload">刷新</button></header>
-    <div class="pre-scroll">
+    <header class="pre-head">
+      <span>角色档案</span><button v-if="unlocked" type="button" @click="reload">刷新</button>
+    </header>
+    <form v-if="!unlocked" class="pre-gate" @submit.prevent="unlock">
+      <h1>角色编辑器</h1>
+      <p>这里可查看和编辑全部角色资料，可能包含剧情剧透。</p>
+      <label for="role-editor-password">进入密码</label>
+      <input id="role-editor-password" v-model="password" type="password" autocomplete="off" inputmode="numeric" />
+      <p v-if="passwordError" class="pre-notice error" role="alert">{{ passwordError }}</p>
+      <button type="submit">进入角色编辑器</button>
+    </form>
+    <div v-else class="pre-scroll">
       <div v-if="error" class="pre-notice error" role="alert">{{ error }}</div>
       <div v-if="notice" class="pre-notice" role="status">{{ notice }}</div>
 
@@ -67,9 +77,9 @@
         <section class="pre-card">
           <h2>当前剧情次要角色</h2>
           <p class="pre-hint">编辑或删除当前楼层变量中的角色。</p>
-          <div v-if="!visibleRuntimeMinorKeys.length" class="pre-empty">当前剧情没有已发现的次要角色</div>
+          <div v-if="!runtimeMinorKeys.length" class="pre-empty">当前剧情没有次要角色</div>
           <button
-            v-for="key in visibleRuntimeMinorKeys"
+            v-for="key in runtimeMinorKeys"
             :key="key"
             type="button"
             class="pre-row"
@@ -211,13 +221,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { klona } from 'klona';
 import RoleAvatar from '../../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import { roleAvatarStyleNames } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { minorRoleSchema } from '../../store/initialDataSchema';
-import { isDiscoveredTarget } from '../../store/discoveredTargets';
 import type { 次要角色人设 } from '../../types';
 import {
   applyPhoneRoleToRuntime,
@@ -232,6 +241,9 @@ import {
 
 const emit = defineEmits<{ dirty: [value: boolean]; leave: [] }>();
 const statStore = useMagicGirlStatStore();
+const unlocked = ref(false);
+const password = ref('');
+const passwordError = ref('');
 const registry = ref<PhoneRoleRegistry>({});
 const runtime = ref<Record<string, any>>({});
 const activeId = ref('');
@@ -258,14 +270,8 @@ type Dialog = {
 const dialog = ref<Dialog | null>(null);
 const leaving = ref(false);
 const refreshing = ref(false);
-const rows = computed(() =>
-  Object.entries(registry.value)
-    .filter(([, asset]) => isDiscoveredTarget(statStore.statData, asset.key))
-    .map(([id, asset]) => ({ id, asset })),
-);
-const visibleRuntimeMinorKeys = computed(() =>
-  Object.keys(runtime.value.次要角色 ?? {}).filter(key => isDiscoveredTarget(statStore.statData, key)),
-);
+const rows = computed(() => Object.entries(registry.value).map(([id, asset]) => ({ id, asset })));
+const runtimeMinorKeys = computed(() => Object.keys(runtime.value.次要角色 ?? {}));
 const dirty = computed(
   () =>
     (!!runtimeMinorDraft.value &&
@@ -275,13 +281,16 @@ const dirty = computed(
         (fullData.value && dataJson.value !== JSON.stringify(draft.value.data, null, 2)))),
 );
 watch(dirty, value => emit('dirty', value), { immediate: true });
-watch(
-  () => statStore.statData?.系统?.已发现目标,
-  () => {
-    if (activeId.value && draft.value && !isDiscoveredTarget(statStore.statData, draft.value.key)) setDraft('', null);
-    if (runtimeMinorKey.value && !isDiscoveredTarget(statStore.statData, runtimeMinorKey.value)) setDraft('', null);
-  },
-);
+function unlock() {
+  if (password.value !== '987') {
+    passwordError.value = '密码错误，请重试。';
+    return;
+  }
+  password.value = '';
+  passwordError.value = '';
+  unlocked.value = true;
+  void reload();
+}
 const runtimeExists = computed(() => {
   const asset = draft.value;
   if (!asset) return false;
@@ -629,7 +638,6 @@ function cancelDialog() {
   refreshing.value = false;
 }
 
-onMounted(reload);
 defineExpose({ requestLeave });
 </script>
 

@@ -535,8 +535,55 @@
   flex-direction: column;
   justify-content: flex-end;
   min-height: 210px;
-  background-position: center 30%;
-  background-size: cover;
+}
+.witch-app .monitor-hero::after {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: linear-gradient(90deg, #1c0d1ff0, #1c0d1f38);
+  content: '';
+  pointer-events: none;
+}
+.witch-app .monitor-hero > :not(.character-portrait) {
+  position: relative;
+  z-index: 1;
+}
+.witch-app .character-portrait {
+  position: relative;
+  width: 100%;
+  min-height: 210px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, #694363, #35243b 55%, #1b1423);
+}
+.witch-app .character-portrait-cover {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  min-height: 0;
+}
+.witch-app .character-portrait-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  color: #e4a9c9;
+}
+.witch-app .character-portrait img {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+}
+.witch-app .character-portrait img.loaded {
+  opacity: 1;
+}
+.witch-app .character-portrait-cover img {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
 }
 .witch-app .monitor-hero.minor-hero {
   min-height: 105px;
@@ -589,11 +636,6 @@
   overflow: hidden;
   border-radius: 13px;
   background: #100b16;
-}
-.witch-app .first-target-slide img {
-  display: block;
-  width: 100%;
-  height: auto;
 }
 .witch-app .first-target-caption {
   position: absolute;
@@ -799,12 +841,42 @@
 .witch-app :is(.shop-heading, .item-shop-heading) {
   justify-content: flex-start;
 }
+.witch-app :is(.shop-card, .item-shop-card, .skill-card) > .entry-toggle {
+  width: 100%;
+  min-height: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--witch-text) !important;
+  text-align: left;
+}
+.witch-app .entry-toggle-tail {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.witch-app .entry-chevron {
+  flex: none;
+  margin-left: auto;
+  color: #e8a4c0;
+  font-size: 18px;
+}
+.witch-app .entry-details {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 11px;
+  border-top: 1px solid #ffffff1c;
+}
 .witch-app :is(.shop-heading, .item-shop-heading) > div {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 .witch-app .inventory-icon {
+  position: relative;
   display: grid;
   place-items: center;
   flex: none;
@@ -816,7 +888,31 @@
   background: #3b2036;
   color: #f9b6d1;
 }
-.witch-app .inventory-icon svg {
+.witch-app .inventory-icon-skill {
+  border-color: #aa75c5;
+  background: #392445;
+  color: #d8aeef;
+}
+.witch-app .inventory-icon-item {
+  border-color: #bc8b68;
+  background: #3d2b2c;
+  color: #f0c097;
+}
+.witch-app .inventory-icon-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.witch-app .inventory-icon-glyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+}
+.witch-app .inventory-icon-glyph svg {
   display: block;
   width: 27px;
   height: 27px;
@@ -936,27 +1032,23 @@
   color: var(--witch-muted);
   font-size: 11px;
 }
-.witch-app .data-selector {
-  display: flex;
-  gap: 7px;
-  overflow-x: auto;
-  padding: 0 0 13px;
-}
-.witch-app .data-selector button {
+.witch-app .observation-switcher {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex: none;
-  min-height: 35px;
-  padding: 4px 10px 4px 4px;
-  border: 1px solid #63405a;
-  border-radius: 99px;
-  background-color: #211522 !important;
-  font-size: 11px;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 13px;
 }
-.witch-app .data-selector button.active {
-  border-color: #e586ae;
-  background-color: #753d62 !important;
+.witch-app .observation-switcher-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid #63405a;
+  border-radius: 13px;
+  background: #2c1a2e !important;
 }
 .witch-app .selector-avatar {
   display: grid;
@@ -972,14 +1064,124 @@
 .witch-app .selector-copy {
   display: grid;
   gap: 1px;
+  min-width: 0;
   text-align: left;
 }
 .witch-app .selector-copy strong {
-  font-size: 11px;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .witch-app .selector-copy small {
   color: #d9acc4;
   font-size: 9px;
+}
+.witch-app .switcher-chevron {
+  margin-left: 4px;
+  color: #eeb5ce;
+  font-size: 18px;
+  line-height: 1;
+}
+.witch-app .observation-switcher-count {
+  flex: none;
+  color: var(--witch-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.witch-app .observation-selector-overlay {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+}
+.witch-app .observation-selector-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: #100a16bb !important;
+  backdrop-filter: blur(3px);
+}
+.witch-app .observation-selector-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 75%;
+  padding: 19px 17px 22px;
+  border: 1px solid #9c5575;
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  background: linear-gradient(160deg, #352039, #1b1424 72%);
+  box-shadow: 0 -18px 48px #08040b99;
+}
+.witch-app .observation-selector-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+.witch-app .observation-selector-head small {
+  color: #e38fb4;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.witch-app .observation-selector-head h2 {
+  margin: 4px 0 0;
+  font-size: 21px;
+}
+.witch-app .observation-selector-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #4d2b47 !important;
+  font-size: 23px;
+  line-height: 1;
+}
+.witch-app .observation-selector-search {
+  flex: none;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.witch-app .observation-selector-list {
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 13px;
+  overscroll-behavior: contain;
+}
+.witch-app .observation-selector-option {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 49px;
+  margin-bottom: 6px;
+  padding: 7px 11px;
+  border: 1px solid #5d3b56;
+  border-radius: 12px;
+  background: #2a1a30 !important;
+  text-align: left;
+}
+.witch-app .observation-selector-option.active {
+  border-color: #ed91bb;
+  background: #60314f !important;
+}
+.witch-app .observation-selector-check {
+  margin-left: auto;
+  color: #ffbad7;
+  font-size: 16px;
+}
+.witch-app .observation-selector-empty {
+  margin: 18px 0;
+  color: var(--witch-muted);
+  font-size: 12px;
+  text-align: center;
 }
 .witch-app .data-hero h2 {
   margin: 9px 0 12px;
@@ -1070,35 +1272,103 @@
 .witch-app .monitor-card-head {
   margin-bottom: 9px;
 }
-.witch-app .stage-experience {
-  margin-top: 12px;
+.witch-app .observation-stage {
+  --stage-accent: #91c6d1;
+  --stage-wash: #263941;
+  padding: 15px;
+  border-color: color-mix(in srgb, var(--stage-accent) 40%, transparent);
+  background: linear-gradient(135deg, var(--stage-wash), #211725 54%, #1b1421);
 }
-.witch-app .stage-experience-label {
+.witch-app .observation-stage[data-stage='好感度'] {
+  --stage-accent: #f5a5c3;
+  --stage-wash: #442437;
+}
+.witch-app .observation-stage[data-stage='恶堕度'] {
+  --stage-accent: #c9a2e8;
+  --stage-wash: #352447;
+}
+.witch-app .observation-stage-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  color: #d9b6c9;
+  align-items: center;
+  gap: 10px;
+}
+.witch-app .observation-stage-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 35px;
+  height: 35px;
+  border: 1px solid color-mix(in srgb, var(--stage-accent) 45%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--stage-accent) 14%, transparent);
+  color: var(--stage-accent);
+  font-size: 23px;
+  line-height: 1;
+}
+.witch-app .observation-stage[data-stage='创伤稳定度'] .observation-stage-icon {
+  animation: observation-breathe 4.8s ease-in-out infinite;
+}
+.witch-app .observation-stage[data-stage='好感度'] .observation-stage-icon {
+  animation: observation-heartbeat 5s ease-in-out infinite;
+}
+.witch-app .observation-stage[data-stage='恶堕度'] .observation-stage-icon {
+  animation: observation-glimmer 5.4s ease-in-out infinite;
+}
+@keyframes observation-breathe {
+  50% {
+    box-shadow: 0 0 13px #91c6d155;
+  }
+}
+@keyframes observation-heartbeat {
+  46%,
+  54% {
+    transform: scale(1);
+  }
+  49%,
+  57% {
+    transform: scale(1.1);
+  }
+}
+@keyframes observation-glimmer {
+  50% {
+    box-shadow: 0 0 15px #c9a2e877;
+  }
+}
+.witch-app .observation-stage-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.witch-app .observation-stage-title strong {
+  font-size: 15px;
+}
+.witch-app .observation-stage-title small,
+.witch-app .observation-stage-meaning,
+.witch-app .observation-stage-level small {
+  color: #bfaebd;
   font-size: 10px;
 }
-.witch-app .stage-experience-label strong {
-  color: #ffd0e3;
-  font-size: 11px;
+.witch-app .observation-stage-level {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-left: auto;
+  color: var(--stage-accent);
+}
+.witch-app .observation-stage-level strong {
+  font-size: 23px;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-.witch-app .stage-experience-track {
-  height: 7px;
-  margin-top: 6px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: #513149;
+.witch-app .observation-stage-description {
+  margin: 13px 0 0;
+  color: #eee1e9;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
-.witch-app .stage-experience-track > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #c94d87, #ffb4d2);
-  transition: width 0.3s ease;
+.witch-app .body-unlock > .data-card {
+  margin-top: 10px;
 }
 .witch-app .inventory-notice {
   margin: 0 0 7px;
@@ -1212,15 +1482,46 @@
   justify-content: space-between;
   gap: 10px;
 }
+.witch-app .profile-overview-heading > div:first-child {
+  min-width: 0;
+}
 .witch-app .profile-overview-heading > div:first-child > span,
-.witch-app .profile-rank span,
-.witch-app .profile-resources span {
+.witch-app .profile-rank span {
   color: #e8a4c0;
   font-size: 10px;
 }
 .witch-app .profile-overview h1 {
   margin: 5px 0 0;
   font-size: 20px;
+}
+.witch-app .profile-points {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 15px;
+  padding: 7px 10px;
+  border: 1px solid #d06b9d88;
+  border-radius: 11px;
+  background: #4c2542;
+  color: #ffcae0;
+}
+.witch-app .profile-points svg {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  color: #ff9bc8;
+  filter: drop-shadow(0 0 5px #ff8ab583);
+}
+.witch-app .profile-points span {
+  font-size: 10px;
+  white-space: nowrap;
+}
+.witch-app .profile-points strong {
+  margin-left: 4px;
+  color: #fff1f7;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
 }
 .witch-app .profile-rank {
   display: grid;
@@ -1275,21 +1576,6 @@
 .witch-app .profile-rank small {
   color: #d5b8ca;
   font-size: 10px;
-}
-.witch-app .profile-resources {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 17px;
-  padding-top: 14px;
-  border-top: 1px solid #ffffff32;
-}
-.witch-app .profile-resources > div {
-  display: grid;
-  gap: 3px;
-}
-.witch-app .profile-resources strong {
-  font-size: 16px;
 }
 .witch-app .profile-editor,
 .witch-app .inventory-search {
