@@ -148,7 +148,7 @@
           <label
             >无图片时的头像样式<select v-model="draft.meta!.avatarStyle">
               <option value="auto">根据角色名称</option>
-              <option v-for="style in 6" :key="style" :value="String(style - 1)">样式 {{ style }}</option>
+              <option v-for="(name, index) in avatarStyleNames" :key="name" :value="String(index)">{{ name }}</option>
             </select></label
           >
           <p class="pre-hint">头像会用于角色档案与默认微信账号；主题颜色会用于角色对话框。</p>
@@ -214,6 +214,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { klona } from 'klona';
 import RoleAvatar from '../../../尘史使徒/UI/components/common/RoleAvatar.vue';
+import { roleAvatarStyleNames } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { minorRoleSchema } from '../../store/initialDataSchema';
 import { isDiscoveredTarget } from '../../store/discoveredTargets';
@@ -244,6 +245,7 @@ const busy = ref(false);
 const error = ref('');
 const notice = ref('');
 const newType = ref<PhoneRoleType>('主要角色');
+const avatarStyleNames = roleAvatarStyleNames;
 const fullData = ref(false);
 const dataJson = ref('');
 type Dialog = {

@@ -195,6 +195,7 @@ import AvatarMediaField from './AvatarMediaField.vue';
 import MessageDisplay from '../../尘史使徒/UI/components/panel/MessageDisplay.vue';
 import ArtLevelEditor from './ArtLevelEditor.vue';
 import RoleAvatar from '../../尘史使徒/UI/components/common/RoleAvatar.vue';
+import { roleAvatarStyleNames } from '../../尘史使徒/UI/components/common/roleAvatarFallback';
 import EntrySetEditor from './EntrySetEditor.vue';
 import InlineEditableText from './InlineEditableText.vue';
 import RoleCardCollection from './RoleCardCollection.vue';
@@ -213,12 +214,7 @@ defineEmits<{ requestTypeChange: [type: string] }>();
 const personality = ['社交表现', '行动逻辑', '思维习惯', '人际距离', '道德底色'];
 const avatarStyles = [
   { value: 'auto', label: '自动' },
-  { value: '0', label: '旅人' },
-  { value: '1', label: '六芒星' },
-  { value: '2', label: '匕首' },
-  { value: '3', label: '羽毛笔' },
-  { value: '4', label: '秘眼' },
-  { value: '5', label: '残月' },
+  ...roleAvatarStyleNames.map((label, index) => ({ value: String(index), label })),
 ];
 const activeTab = ref('basic');
 const tabs = [

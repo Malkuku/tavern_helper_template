@@ -97,7 +97,7 @@ const processedHtml = computed(() => {
     const charInfo = resolveCharacter(rawName);
     const safeAvatar = escapeHtml(charInfo.avatarUrl);
     const safeName = escapeHtml(charInfo.fixedName);
-    const defaultSvg = roleAvatarFallbackSvg(charInfo.avatarStyle, charInfo.fixedName);
+    const defaultSvg = roleAvatarFallbackSvg(charInfo.avatarStyle, charInfo.fixedName, charInfo.color);
 
     const avatarHtml = charInfo.avatarUrl
       ? `<img src="${safeAvatar}" class="avatar-img" alt="${safeName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
@@ -280,17 +280,9 @@ defineExpose({ scrollContainer, scrollToBottom });
   color: var(--c-gold, #a48b57);
 }
 .text-body :deep(.avatar-fallback-svg) {
-  width: 65%;
-  height: 65%;
+  width: 100%;
+  height: 100%;
   display: block;
-  opacity: 0.8;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3;
-}
-.text-body :deep(.avatar-fallback-svg .sigil) {
-  stroke-width: 2;
-  opacity: 0.55;
 }
 
 .text-body :deep(.role-main) {
