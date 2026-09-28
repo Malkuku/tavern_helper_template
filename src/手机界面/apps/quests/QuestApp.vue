@@ -4,7 +4,7 @@
       <section class="intro">
         <span class="witch-eyebrow">MEMBER MISSIONS</span>
         <h1>你的任务</h1>
-        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7</p>
+        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }} 项，必达 KPI 至少 7 项</p>
         <button
           type="button"
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
@@ -77,7 +77,9 @@
       </div>
 
       <div v-else class="list">
-        <p class="stats-note">每周目标：领取 7 项任务奖励。统计只保留本周和上周。</p>
+        <p class="stats-note">
+          每周必须领取至少 7 项任务奖励；7 项是达标线，不是领奖上限。未达标可能面临组织问责。统计只保留本周和上周。
+        </p>
         <article v-for="week in visibleWeeks" :key="week.label" class="card">
           <div class="heading">
             <strong>{{ week.label }}</strong

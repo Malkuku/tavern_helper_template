@@ -3,6 +3,7 @@ import type { 可购技能, stat_data } from '../../types';
 import { skillSchema } from '../../store/initialDataSchema';
 import { weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
+import { userRatingFromSkills } from '../../store/userRating';
 
 const shopSchema = z.record(z.string().min(1), skillSchema);
 
@@ -70,8 +71,11 @@ export function buySkill(data: stat_data, name: string): void {
   if (!Number.isSafeInteger(balance) || balance < item.价格) throw new Error('恶堕积分不足。');
   const price = (current?.价格 ?? 0) + item.价格;
   if (!validPrice(price)) throw new Error('累计技能价格无效。');
+  const nextSkill = { ...item, 价格: price };
+  const rating = userRatingFromSkills({ ...data.角色.user.技能, [name]: nextSkill });
   data.角色.user.恶堕积分 -= item.价格;
-  data.角色.user.技能[name] = { ...item, 价格: price };
+  data.角色.user.技能[name] = nextSkill;
+  data.角色.user.当前评级 = rating;
   delete data.技能商店[name];
 }
 
@@ -82,7 +86,11 @@ export function sellSkill(data: stat_data, name: string): number {
   const refund = Math.floor(item.价格 / 2);
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(balance + refund)) throw new Error('恶堕积分余额无效。');
+  const remaining = { ...data.角色.user.技能 };
+  delete remaining[name];
+  const rating = userRatingFromSkills(remaining);
   data.角色.user.恶堕积分 += refund;
   delete data.角色.user.技能[name];
+  data.角色.user.当前评级 = rating;
   return refund;
 }

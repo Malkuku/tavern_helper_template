@@ -33,6 +33,7 @@ import {
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { visibleWeChatData } from './discoveredTargets';
 import { settleCharacterStages } from './stageProgression';
+import { settleUserRating } from './userRating';
 import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
 import {
   applySkillRefresh,
@@ -233,7 +234,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.角色) return;
       const data = klona(previous.stat_data) as stat_data;
-      if (!settleCharacterStages(data)) return;
+      const stagesChanged = settleCharacterStages(data);
+      const ratingChanged = settleUserRating(data);
+      if (!stagesChanged && !ratingChanged) return;
       if (generation !== chatGeneration) return;
       await writeStatData(data, previous);
     })

@@ -74,12 +74,15 @@
           </section>
           <section v-if="store.statData" class="witch-week" aria-label="本周任务进度">
             <div class="witch-section-heading">
-              <span>本周进度</span><strong>{{ weeklyDone }} / 10</strong>
+              <span>本周必达 KPI · 至少领取 7 项</span><strong>已领奖 {{ weeklyDone }} 项</strong>
             </div>
             <div class="witch-progress-track">
-              <span :style="{ width: `${Math.min(weeklyDone / 10, 1) * 100}%` }"></span>
+              <span :style="{ width: `${Math.min(weeklyDone / 7, 1) * 100}%` }"></span>
             </div>
-            <p>{{ readyToClaim }} 项任务可领取奖励</p>
+            <p>
+              {{ weeklyDone < 7 ? `还需领取 ${7 - weeklyDone} 项才达标` : '本周已达标，仍可继续领奖' }} ·
+              {{ readyToClaim }} 项待领取
+            </p>
           </section>
           <button type="button" class="witch-home-link" @click="tab = 'shop'">
             <span><small>MEMBER BENEFITS</small><strong>探索专属兑换</strong></span>

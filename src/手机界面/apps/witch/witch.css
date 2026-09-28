@@ -938,7 +938,7 @@
   display: grid;
   gap: 3px;
   place-items: center;
-  min-width: 64px;
+  min-width: 76px;
   padding: 7px;
   border: 1px solid #af6b8d;
   border-radius: 11px;
@@ -946,6 +946,47 @@
 }
 .witch-app .profile-rank strong {
   font-size: 19px;
+}
+.witch-app .profile-rank-emblem {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  color: #eda1c5;
+  filter: drop-shadow(0 0 8px #d85b9455);
+}
+.witch-app .profile-rank-emblem svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.witch-app .profile-rank-emblem strong {
+  position: relative;
+  padding-top: 12px;
+  color: #fff2f8;
+  font-size: 21px;
+  text-shadow: 0 1px 5px #3d122d;
+}
+.witch-app .profile-rank-emblem[data-rank='S'] {
+  color: #f5c978;
+}
+.witch-app .profile-rank-emblem[data-rank='A'] {
+  color: #ef9bc4;
+}
+.witch-app .profile-rank-emblem[data-rank='B'] {
+  color: #bca5ef;
+}
+.witch-app .profile-rank-emblem[data-rank='C'] {
+  color: #9dc9d1;
+}
+.witch-app .profile-rank-emblem[data-rank='D'] {
+  color: #a9aeb8;
+}
+.witch-app .profile-rank small {
+  color: #d5b8ca;
+  font-size: 10px;
 }
 .witch-app .profile-resources {
   display: grid;

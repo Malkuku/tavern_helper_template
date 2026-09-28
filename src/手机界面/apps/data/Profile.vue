@@ -8,7 +8,29 @@
         </div>
         <div class="profile-rank">
           <span>当前评级</span>
-          <strong>{{ user.当前评级 || '未记录' }}</strong>
+          <div class="profile-rank-emblem" :data-rank="user.当前评级 || undefined">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path
+                d="M32 2 44 11 59 12 60 27 62 32 60 37 59 52 44 53 32 62 20 53 5 52 4 37 2 32 4 27 5 12 20 11Z"
+                fill="currentColor"
+                fill-opacity=".11"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+              <path
+                d="M32 8 42 16 54 17 55 29 58 32 55 35 54 47 42 48 32 56 22 48 10 47 9 35 6 32 9 29 10 17 22 16Z"
+                stroke="currentColor"
+                stroke-opacity=".55"
+              />
+              <path
+                d="m32 12 2.7 7.3L42 22l-7.3 2.7L32 32l-2.7-7.3L22 22l7.3-2.7L32 12Z"
+                fill="currentColor"
+                fill-opacity=".7"
+              />
+            </svg>
+            <strong>{{ user.当前评级 || '—' }}</strong>
+          </div>
+          <small v-if="!user.当前评级">未记录</small>
         </div>
       </div>
       <div class="profile-resources">
@@ -35,7 +57,9 @@
           </button>
         </div>
       </template>
-      <p v-else class="data-prose">{{ user.基础信息.身份.join('、') }}<br />{{ user.基础信息.背景 || '暂无基本信息' }}</p>
+      <p v-else class="data-prose">
+        {{ user.基础信息.身份.join('、') }}<br />{{ user.基础信息.背景 || '暂无基本信息' }}
+      </p>
       <p class="data-prose">{{ user.外貌 }}</p>
       <p class="data-prose">{{ user.性格 }}</p>
     </section>
