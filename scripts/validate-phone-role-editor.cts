@@ -62,6 +62,7 @@ assert.equal(validateRoleAsset(minor as any).key, minor.key);
 assert.throws(() => applyPhoneRoleToStatData(assembled, rin, false), /替换/);
 const before = structuredClone(assembled);
 const added = applyPhoneRoleToStatData(assembled, minor as any, false, minorTemplate);
+assert.deepEqual(added.系统.已发现目标, []);
 assert.deepEqual(added.角色.次要角色[minor.key].人设阶段.恶堕度, minorTemplate);
 assert.equal(added.角色.次要角色[minor.key].meta.color, '#aabbcc');
 assert.equal(added.角色.次要角色[minor.key].当前评级, 'C');
@@ -75,6 +76,7 @@ const replaced = applyPhoneRoleToStatData(
   true,
   minorTemplate,
 );
+assert.deepEqual(replaced.系统.已发现目标, []);
 assert.equal(replaced.角色.次要角色[minor.key].人设阶段.恶堕度.当前等级, 3);
 const specialized = applyPhoneRoleToStatData(
   added,

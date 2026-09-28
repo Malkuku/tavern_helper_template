@@ -73,6 +73,7 @@ assert.equal(
 );
 assert.ok(Object.keys(assembled.data.地图).length > 0);
 assert.equal(assembled.data.系统.版本, '1.0.0');
+assert.deepEqual(assembled.data.系统.已发现目标, []);
 assert.equal(assembled.data.角色.user.技能.战败收容.战力评级贡献, 2);
 assert.equal(assembled.data.角色.user.技能.战败收容.价格, 0);
 assert.deepEqual(assembled.data.仓库, opening.内容配置.仓库);

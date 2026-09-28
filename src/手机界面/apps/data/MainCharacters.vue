@@ -109,13 +109,18 @@
 import type { 角色人设, stat_data } from '../../types';
 import { computed, ref, watch } from 'vue';
 import { currentLevelDescription, entries } from './entries';
+import { isDiscoveredTarget } from '../../store/discoveredTargets';
 import LockedField from './LockedField.vue';
 
 const props = defineProps<{ data: stat_data }>();
 const selectedKey = ref<string | null>(null);
 const pages = ['心象', '身体', '档案'] as const;
 const page = ref<(typeof pages)[number]>('心象');
-const mainEntries = computed(() => Object.entries(props.data.角色?.主要角色 ?? {}) as [string, 角色人设][]);
+const mainEntries = computed(() =>
+  (Object.entries(props.data.角色?.主要角色 ?? {}) as [string, 角色人设][]).filter(([key]) =>
+    isDiscoveredTarget(props.data, key),
+  ),
+);
 const selectedMainKey = computed(() =>
   mainEntries.value.some(([key]) => key === selectedKey.value) ? selectedKey.value : mainEntries.value[0]?.[0],
 );

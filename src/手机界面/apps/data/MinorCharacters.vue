@@ -91,11 +91,16 @@ import type { 次要角色人设, stat_data } from '../../types';
 import { computed, ref, watch } from 'vue';
 import LockedField from './LockedField.vue';
 import { currentLevelDescription } from './entries';
+import { isDiscoveredTarget } from '../../store/discoveredTargets';
 
 const props = defineProps<{ data: stat_data }>();
 const selectedKey = ref<string | null>(null);
 const page = ref<'概览' | '档案'>('概览');
-const minorEntries = computed(() => Object.entries(props.data.角色?.次要角色 ?? {}) as [string, 次要角色人设][]);
+const minorEntries = computed(() =>
+  (Object.entries(props.data.角色?.次要角色 ?? {}) as [string, 次要角色人设][]).filter(([key]) =>
+    isDiscoveredTarget(props.data, key),
+  ),
+);
 const selectedMinorKey = computed(() =>
   minorEntries.value.some(([key]) => key === selectedKey.value) ? selectedKey.value : minorEntries.value[0]?.[0],
 );

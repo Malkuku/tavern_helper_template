@@ -67,9 +67,9 @@
         <section class="pre-card">
           <h2>当前剧情次要角色</h2>
           <p class="pre-hint">编辑或删除当前楼层变量中的角色。</p>
-          <div v-if="!Object.keys(runtime.次要角色 ?? {}).length" class="pre-empty">当前剧情没有次要角色</div>
+          <div v-if="!visibleRuntimeMinorKeys.length" class="pre-empty">当前剧情没有已发现的次要角色</div>
           <button
-            v-for="key in Object.keys(runtime.次要角色 ?? {})"
+            v-for="key in visibleRuntimeMinorKeys"
             :key="key"
             type="button"
             class="pre-row"
@@ -216,6 +216,7 @@ import { klona } from 'klona';
 import RoleAvatar from '../../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { minorRoleSchema } from '../../store/initialDataSchema';
+import { isDiscoveredTarget } from '../../store/discoveredTargets';
 import type { 次要角色人设 } from '../../types';
 import {
   applyPhoneRoleToRuntime,
@@ -255,7 +256,14 @@ type Dialog = {
 const dialog = ref<Dialog | null>(null);
 const leaving = ref(false);
 const refreshing = ref(false);
-const rows = computed(() => Object.entries(registry.value).map(([id, asset]) => ({ id, asset })));
+const rows = computed(() =>
+  Object.entries(registry.value)
+    .filter(([, asset]) => isDiscoveredTarget(statStore.statData, asset.key))
+    .map(([id, asset]) => ({ id, asset })),
+);
+const visibleRuntimeMinorKeys = computed(() =>
+  Object.keys(runtime.value.次要角色 ?? {}).filter(key => isDiscoveredTarget(statStore.statData, key)),
+);
 const dirty = computed(
   () =>
     (!!runtimeMinorDraft.value &&
@@ -265,6 +273,13 @@ const dirty = computed(
         (fullData.value && dataJson.value !== JSON.stringify(draft.value.data, null, 2)))),
 );
 watch(dirty, value => emit('dirty', value), { immediate: true });
+watch(
+  () => statStore.statData?.系统?.已发现目标,
+  () => {
+    if (activeId.value && draft.value && !isDiscoveredTarget(statStore.statData, draft.value.key)) setDraft('', null);
+    if (runtimeMinorKey.value && !isDiscoveredTarget(statStore.statData, runtimeMinorKey.value)) setDraft('', null);
+  },
+);
 const runtimeExists = computed(() => {
   const asset = draft.value;
   if (!asset) return false;

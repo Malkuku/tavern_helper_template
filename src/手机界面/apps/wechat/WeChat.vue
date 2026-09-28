@@ -761,6 +761,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { isDiscoveredTarget, visibleWeChatData } from '../../store/discoveredTargets';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 地图节点 } from '../../types';
 import {
@@ -996,7 +997,7 @@ function onGenerationEnd() {
   generating.value = false;
 }
 const store = useMagicGirlStatStore();
-const wechat = computed(() => store.statData?.手机?.微信);
+const wechat = computed(() => visibleWeChatData(store.statData));
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
 const self = computed(() => accounts.value.user);
 const accountPage = ref<'profile' | 'services' | 'wallet' | 'payments' | null>(null);
@@ -1101,9 +1102,11 @@ const nearbyPeople = computed(() => {
   if (!data) return [];
   const location = data.世界.地图索引;
   const entries = [
-    ...Object.entries(data.角色.主要角色).map(([id, person]) => ({ id, name: id, person })),
+    ...Object.entries(data.角色.主要角色)
+      .filter(([id]) => isDiscoveredTarget(data, id))
+      .map(([id, person]) => ({ id, name: id, person })),
     ...Object.entries(data.角色.次要角色)
-      .filter(([id]) => id !== '$template')
+      .filter(([id]) => id !== '$template' && isDiscoveredTarget(data, id))
       .map(([id, person]) => ({ id, name: person.名称 || id, person })),
   ];
   return entries.filter(
@@ -1614,6 +1617,21 @@ async function respondFriend(id: string, accept: boolean) {
   }
 }
 watch(() => selectedSession.value?.消息.length, scrollBottom);
+watch(wechat, data => {
+  if (selectedKey.value && !selectedSession.value) {
+    selectedKey.value = null;
+    paymentView.value = null;
+    detailsOpen.value = false;
+    messageMenu.value = null;
+    quoted.value = null;
+    forwarding.value = null;
+    draft.value = '';
+  }
+  if (cardView.value && !data?.账号[cardView.value]) cardView.value = null;
+  if (selectedCard.value && !data?.账号[selectedCard.value]) selectedCard.value = null;
+  if (forwardDestination.value && !data?.会话[forwardDestination.value]) forwardDestination.value = null;
+  groupMembers.value = groupMembers.value.filter(id => !!data?.账号[id]);
+});
 watch(selectedKey, key => store.setActiveWeChatConversation(key));
 watch(
   () => selectedSession.value?.消息.length,

@@ -31,6 +31,7 @@ import {
   type ReadCursors,
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
+import { visibleWeChatData } from './discoveredTargets';
 import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
 import {
   applySkillRefresh,
@@ -135,10 +136,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   function syncWeChatNotifications(previous: 微信数据 | null, current: 微信数据) {
+    const visibleCurrent = visibleWeChatData(statData.value, current);
+    if (!visibleCurrent) {
+      unreadChatKeys.value = [];
+      wechatNotification.value = null;
+      return;
+    }
+    let visiblePrevious = previous ? visibleWeChatData(statData.value, previous) : null;
     const chatId = SillyTavern.getCurrentChatId();
     if (readChatId !== chatId) {
       readChatId = chatId;
-      previous = null;
+      visiblePrevious = null;
       activeWeChatConversation = null;
       wechatNotification.value = null;
       let stored: unknown;
@@ -160,14 +168,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       }
     }
     if (activeWeChatConversation && current.会话[activeWeChatConversation]) markWeChatRead(activeWeChatConversation);
-    unreadChatKeys.value = unreadConversationKeys(current, readCursors);
+    unreadChatKeys.value = unreadConversationKeys(visibleCurrent, readCursors);
+    if (wechatNotification.value && !visibleCurrent.会话[wechatNotification.value.key]) wechatNotification.value = null;
     let appearance: Record<string, { muted?: boolean }> = {};
     try {
       appearance = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWeChatAppearance || {};
     } catch (error) {
       console.error('微信会话外观读取失败', error);
     }
-    const latest = latestNotifiableMessage(previous, current, activeWeChatConversation, appearance);
+    const latest = latestNotifiableMessage(visiblePrevious, visibleCurrent, activeWeChatConversation, appearance);
     if (latest) wechatNotification.value = latest;
   }
 

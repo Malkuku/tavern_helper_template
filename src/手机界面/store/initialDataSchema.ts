@@ -162,6 +162,7 @@ export const initialStatDataSchema = z.strictObject({
   技能商店: z.record(z.string(), skillSchema),
   系统: z.strictObject({
     版本: z.string(),
+    已发现目标: z.array(z.string()).optional(),
     商店下次刷新时间: z.string(),
     商店主动刷新次数: number,
     任务下次刷新时间: z.string(),
