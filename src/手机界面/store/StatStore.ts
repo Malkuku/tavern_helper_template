@@ -96,6 +96,14 @@ function settlePayments(data: stat_data, before: 微信数据, after: 微信数�
   user.金钱 = balance / 100;
 }
 
+function escapeSystemLogText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function phoneSystemLog(detail: string): string {
+  return `\n<systemLog>\n<user>${detail}\n</systemLog>\n`;
+}
+
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
   const wechatLogError = ref('');
@@ -221,6 +229,38 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refresh();
   }
 
+  async function writeLoggedStatData(data: stat_data, previous: Mvu.MvuData, detail: string, generation: number) {
+    const messageId = getLastMessageId();
+    const message = getChatMessages(messageId)[0];
+    if (!message) throw new Error('当前楼层尚未准备好，无法记录操作。');
+    const originalText = message.message;
+    if (generation !== chatGeneration || messageId !== getLastMessageId())
+      throw new Error('聊天或楼层已切换，操作已取消。');
+    await setChatMessages([{ message_id: messageId, message: originalText + phoneSystemLog(detail) }], {
+      refresh: 'none',
+    });
+    const next = { ...previous, stat_data: data };
+    try {
+      if (generation !== chatGeneration || messageId !== getLastMessageId())
+        throw new Error('聊天或楼层已切换，操作已取消。');
+      await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+    } catch (error) {
+      try {
+        await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], '操作写入失败，正文记录回滚也失败，请检查当前楼层。');
+      }
+      throw error;
+    }
+    try {
+      await eventEmit('mag_variable_update_ended', next, previous);
+    } catch (error) {
+      console.error('操作已保存，但变量更新通知失败', error);
+    } finally {
+      refresh();
+    }
+  }
+
   function scheduleStageSettlement() {
     if (stageSettlementQueued) {
       stageSettlementRequested = true;
@@ -270,7 +310,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  async function changeCharacterData<T>(change: (data: stat_data) => T): Promise<T> {
+  async function changeCharacterData<T>(
+    change: (data: stat_data) => T,
+    log?: (before: stat_data, after: stat_data, result: T) => string,
+  ): Promise<T> {
     const generation = chatGeneration;
     return queueStatWork(async () => {
       await waitGlobalInitialized('Mvu');
@@ -280,7 +323,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const data = klona(previous.stat_data) as stat_data;
       const result = change(data);
       if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
-      await writeStatData(data, previous);
+      if (log)
+        await writeLoggedStatData(data, previous, log(previous.stat_data as stat_data, data, result), generation);
+      else await writeStatData(data, previous);
       return result;
     });
   }
@@ -339,7 +384,16 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function transferInventory(transfers: InventoryTransfer[]): Promise<void> {
     if (!transfers.length) return;
-    await changeCharacterData(data => applyInventoryTransfers(data, transfers));
+    await changeCharacterData(
+      data => applyInventoryTransfers(data, transfers),
+      () =>
+        `调整了随身物品与仓库：${transfers
+          .map(
+            ({ from, name, quantity }) =>
+              `${from === '仓库' ? '从仓库取出' : '存入仓库'}${escapeSystemLogText(name)}×${quantity}`,
+          )
+          .join('；')}。`,
+    );
   }
 
   async function refreshGeneratedShop(kind: '技能' | '道具') {
@@ -392,31 +446,55 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function purchaseSkill(name: string) {
-    await changeCharacterData(data => applySkillPurchase(data, name));
+    await changeCharacterData(
+      data => applySkillPurchase(data, name),
+      (before, after) =>
+        `在组织技能商店${before.角色.user.技能[name] ? '升级' : '购买'}技能「${escapeSystemLogText(name)}」，消耗${before.角色.user.恶堕积分 - after.角色.user.恶堕积分}点恶堕积分。`,
+    );
   }
 
   async function sellOwnedSkill(name: string): Promise<number> {
-    return changeCharacterData(data => applySkillSale(data, name));
+    return changeCharacterData(
+      data => applySkillSale(data, name),
+      (_before, _after, refund) => `在组织技能商店出售技能「${escapeSystemLogText(name)}」，获得${refund}点恶堕积分。`,
+    );
   }
 
   async function purchaseItem(name: string, quantity: number) {
-    await changeCharacterData(data => applyItemPurchase(data, name, quantity));
+    await changeCharacterData(
+      data => applyItemPurchase(data, name, quantity),
+      (before, after) =>
+        `在组织道具商店购买「${escapeSystemLogText(name)}」×${quantity}，消耗${before.角色.user.恶堕积分 - after.角色.user.恶堕积分}点恶堕积分。`,
+    );
   }
 
   async function sellOwnedItem(side: InventorySide, name: string, quantity: number): Promise<number> {
-    return changeCharacterData(data => applyItemSale(data, side, name, quantity));
+    return changeCharacterData(
+      data => applyItemSale(data, side, name, quantity),
+      (_before, _after, refund) =>
+        `从${side}出售「${escapeSystemLogText(name)}」×${quantity}，获得${refund}点恶堕积分。`,
+    );
   }
 
   async function acceptTask(name: string) {
-    await changeCharacterData(data => applyTaskAccept(data, name));
+    await changeCharacterData(
+      data => applyTaskAccept(data, name),
+      () => `接取组织任务「${escapeSystemLogText(name)}」。`,
+    );
   }
 
   async function abandonTask(name: string) {
-    await changeCharacterData(data => applyTaskAbandon(data, name));
+    await changeCharacterData(
+      data => applyTaskAbandon(data, name),
+      () => `放弃组织任务「${escapeSystemLogText(name)}」。`,
+    );
   }
 
   async function claimTask(name: string): Promise<number> {
-    return changeCharacterData(data => applyTaskClaim(data, name));
+    return changeCharacterData(
+      data => applyTaskClaim(data, name),
+      (_before, _after, reward) => `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分。`,
+    );
   }
 
   async function refreshTaskBoard() {
