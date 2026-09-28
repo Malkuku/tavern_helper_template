@@ -6,7 +6,11 @@
         <strong>暂无角色变量</strong>
         <p>暂无可展示的角色资料。</p>
       </div>
-      <MainCharacters v-else-if="app === '主要角色'" :data="statStore.statData" />
+      <MainCharacters
+        v-else-if="app === '主要角色'"
+        :data="statStore.statData"
+        @first-target-chosen="emit('firstTargetChosen')"
+      />
       <MinorCharacters v-else-if="app === '次要角色'" :data="statStore.statData" />
       <Profile v-else-if="app === '我的档案'" :data="statStore.statData" />
       <Skills v-else-if="app === '技能'" :data="statStore.statData" />
@@ -25,5 +29,6 @@ import Skills from './Skills.vue';
 import Items from './Items.vue';
 
 defineProps<{ app: DataAppName }>();
+const emit = defineEmits<{ firstTargetChosen: [] }>();
 const statStore = useMagicGirlStatStore();
 </script>

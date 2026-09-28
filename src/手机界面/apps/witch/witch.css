@@ -136,23 +136,6 @@
   min-height: 0;
   overflow: hidden;
 }
-.witch-send-error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid #b56a97;
-  background: #4b1d35;
-  color: #ffe1ed;
-  font-size: 11px;
-}
-.witch-send-error span {
-  flex: 1;
-}
-.witch-send-error button {
-  flex: none;
-  text-decoration: underline;
-}
 .witch-scroll,
 .witch-app :is(.scroll, .shop-scroll, .item-shop-scroll, .data-scroll) {
   flex: 1;

@@ -170,6 +170,7 @@ import { firstTargetChoices } from './firstTarget';
 import LockedField from './LockedField.vue';
 
 const props = defineProps<{ data: stat_data }>();
+const emit = defineEmits<{ firstTargetChosen: [] }>();
 const selectedKey = ref<string | null>(null);
 const imageForm = ref<CharacterImageForm>('魔法少女');
 const imageIndex = ref(1);
@@ -251,6 +252,7 @@ async function chooseTarget() {
   choiceError.value = '';
   try {
     await statStore.chooseFirstTarget(activeChoice.value.key);
+    emit('firstTargetChosen');
   } catch (error) {
     choiceError.value = error instanceof Error ? error.message : '目标选择失败，请重试。';
   } finally {

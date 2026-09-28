@@ -11,13 +11,6 @@
       </div>
     </header>
 
-    <div v-if="store.firstTargetMessageError" class="witch-send-error" role="alert">
-      <span>{{ store.firstTargetMessageError }}</span>
-      <button type="button" :disabled="store.firstTargetMessageSending" @click="retryTargetMessage">
-        {{ store.firstTargetMessageSending ? '发送中…' : '重试发送' }}
-      </button>
-    </div>
-
     <Transition name="witch-page" mode="out-in">
       <div :key="`${tab}:${subpage}`" class="witch-view">
         <div v-if="tab === 'home'" class="witch-home witch-scroll">
@@ -120,7 +113,7 @@
               人物观测
             </button>
           </div>
-          <DataApp :app="subpage === '次要角色' ? '次要角色' : '主要角色'" />
+          <DataApp :app="subpage === '次要角色' ? '次要角色' : '主要角色'" @first-target-chosen="selectTab('tasks')" />
         </template>
 
         <template v-else-if="tab === 'shop'">
@@ -255,13 +248,6 @@ function selectTab(next: Tab) {
   if (tab.value === next) return;
   tab.value = next;
   subpage.value = next === 'observe' ? '主要角色' : next === 'shop' ? '技能商店' : '我的档案';
-}
-async function retryTargetMessage() {
-  try {
-    await store.retryFirstTargetMessage();
-  } catch {
-    // Store 保留失败原因与待发送消息，供当前页继续重试。
-  }
 }
 function openTasks() {
   selectTab('tasks');
