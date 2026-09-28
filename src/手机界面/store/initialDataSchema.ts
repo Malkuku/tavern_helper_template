@@ -51,7 +51,7 @@ const questWeekSchema = z.strictObject({
   完成评级: ratingCountsSchema,
   放弃评级: ratingCountsSchema,
 });
-const stage = z.strictObject({ 当前等级: number, 累计经验: number, 描述: stringRecord });
+export const stage = z.strictObject({ 当前等级: number, 累计经验: number, 描述: stringRecord });
 const bodyPart = z.strictObject({
   当前状态: z.string(),
   特征: z.string(),
@@ -67,6 +67,7 @@ export const roleMetaSchema = z.strictObject({
 export const mainRoleSchema = z.strictObject({
   meta: roleMetaSchema.optional(),
   在场: z.boolean(),
+  当前评级: z.string().optional(),
   名称检索词: z.array(z.string()),
   区域检索词: z.array(z.string()),
   基础信息: z.strictObject({ 姓名: z.string(), 身份: z.array(z.string()), 背景: z.string() }),
@@ -98,11 +99,13 @@ export const minorRoleSchema = z.strictObject({
   区域检索词: z.array(z.string()),
   在场: z.boolean(),
   身份: z.array(z.string()),
+  当前评级: z.string().optional(),
   背景: z.string(),
   外貌: z.string(),
   性格: z.string(),
   身体开发状态: z.array(z.string()),
   能力描述: z.array(z.string()),
+  人设阶段: z.strictObject({ 恶堕度: stage }).optional(),
 });
 
 export const userRoleSchema = z.strictObject({

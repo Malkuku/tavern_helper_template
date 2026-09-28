@@ -60,6 +60,8 @@ export interface 魔法少女能力 {
 export interface 角色人设 {
   meta?: 角色元数据;
   在场: boolean;
+  /** 旧存档可缺失；新加入角色用空字符串表示评级尚未确认。 */
+  当前评级?: string;
   名称检索词: string[];
   区域检索词: string[];
   基础信息: 角色基础信息;
@@ -77,11 +79,15 @@ export interface 次要角色人设 {
   区域检索词: string[];
   在场: boolean;
   身份: string[];
+  /** 旧存档可缺失；新加入角色用空字符串表示评级尚未确认。 */
+  当前评级?: string;
   背景: string;
   外貌: string;
   性格: string;
   身体开发状态: string[];
   能力描述: string[];
+  /** 旧存档可缺失；新加入的角色由世界书通用模板补齐。 */
+  人设阶段?: { 恶堕度: 阶段状态 };
 }
 
 export interface 地图节点 {

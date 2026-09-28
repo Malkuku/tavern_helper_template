@@ -42,12 +42,21 @@
           <p class="data-prose">{{ selectedMinor.身份.join('、') || '暂无记录' }}</p>
         </section>
         <section class="data-card">
+          <h3>当前评级</h3>
+          <p class="data-prose">{{ selectedMinor.当前评级 || '未记录' }}</p>
+        </section>
+        <section class="data-card">
           <h3>背景</h3>
           <p class="data-prose">{{ selectedMinor.背景 || '暂无记录' }}</p>
         </section>
         <section class="data-card">
           <h3>外貌</h3>
           <p class="data-prose">{{ selectedMinor.外貌 || '暂无记录' }}</p>
+        </section>
+        <section v-if="selectedMinor.人设阶段?.恶堕度" class="data-card">
+          <h3>恶堕度 · 等级 {{ selectedMinor.人设阶段.恶堕度.当前等级 }}</h3>
+          <p class="data-prose">{{ currentMinorCorruption || '暂无当前阶段描述' }}</p>
+          <small>累计经验 {{ selectedMinor.人设阶段.恶堕度.累计经验 }}</small>
         </section>
       </template>
       <template v-else>
@@ -81,6 +90,7 @@
 import type { 次要角色人设, stat_data } from '../../types';
 import { computed, ref, watch } from 'vue';
 import LockedField from './LockedField.vue';
+import { currentLevelDescription } from './entries';
 
 const props = defineProps<{ data: stat_data }>();
 const selectedKey = ref<string | null>(null);
@@ -90,6 +100,10 @@ const selectedMinorKey = computed(() =>
   minorEntries.value.some(([key]) => key === selectedKey.value) ? selectedKey.value : minorEntries.value[0]?.[0],
 );
 const selectedMinor = computed(() => minorEntries.value.find(([key]) => key === selectedMinorKey.value)?.[1]);
+const currentMinorCorruption = computed(() => {
+  const stage = selectedMinor.value?.人设阶段?.恶堕度;
+  return stage ? currentLevelDescription(stage) : undefined;
+});
 watch(selectedMinorKey, () => {
   page.value = '概览';
 });

@@ -18,6 +18,7 @@
             ></textarea>
           </label>
           <label>背景<textarea v-model="runtimeMinorDraft.背景" rows="4"></textarea></label>
+          <label>当前评级<input v-model="runtimeMinorDraft.当前评级" placeholder="未确认可留空" /></label>
           <label>外貌<textarea v-model="runtimeMinorDraft.外貌" rows="4"></textarea></label>
           <label>性格<textarea v-model="runtimeMinorDraft.性格" rows="4"></textarea></label>
           <label
@@ -172,6 +173,7 @@
           </template>
           <template v-else-if="draft.type === '主要角色'">
             <label>姓名<input v-model="draft.data.基础信息.姓名" /></label>
+            <label>当前评级<input v-model="draft.data.当前评级" placeholder="未确认可留空" /></label>
             <label>背景<textarea v-model="draft.data.基础信息.背景" rows="4"></textarea></label>
             <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
             <label>核心创伤<textarea v-model="draft.data.核心创伤" rows="4"></textarea></label>
@@ -181,6 +183,7 @@
             <label class="pre-check"><input v-model="draft.data.在场" type="checkbox" />初始在场</label>
           </template>
           <template v-else>
+            <label>当前评级<input v-model="draft.data.当前评级" placeholder="未确认可留空" /></label>
             <label>背景<textarea v-model="draft.data.背景" rows="4"></textarea></label>
             <label>外貌<textarea v-model="draft.data.外貌" rows="4"></textarea></label>
             <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
@@ -288,6 +291,7 @@ function defaultData(type: PhoneRoleType): Record<string, any> {
       区域检索词: [],
       在场: false,
       身份: [],
+      当前评级: '',
       背景: '',
       外貌: '',
       性格: '',
@@ -298,6 +302,7 @@ function defaultData(type: PhoneRoleType): Record<string, any> {
   const stage = () => ({ 当前等级: 0, 累计经验: 0, 描述: {} });
   return {
     在场: false,
+    当前评级: '',
     名称检索词: ['$all'],
     区域检索词: ['$all'],
     基础信息: { 姓名: '', 身份: [], 背景: '' },

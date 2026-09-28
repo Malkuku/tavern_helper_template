@@ -4,6 +4,13 @@ import { MvuUtil } from '../../../Utils/MvuUtil';
 import { mainRoleSchema, minorRoleSchema, roleMetaSchema, userRoleSchema } from '../../store/initialDataSchema';
 import type { 角色元数据, 次要角色人设, stat_data } from '../../types';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
+import {
+  loadMinorCorruptionTemplate,
+  parseMinorCorruptionTemplate,
+  completeMinorRole,
+  type MinorCorruptionTemplate,
+} from '../../store/minorCorruption';
+import { completeCurrentRating } from '../../store/roleRating';
 
 export const ROLE_ENTRY_NAME = '<配置>角色资源';
 export type PhoneRoleType = 'user' | '主要角色' | '次要角色';
@@ -70,7 +77,12 @@ export async function savePhoneRoleAsset(id: string, asset: PhoneRoleAsset, orig
     if (JSON.stringify(registry[id]) !== JSON.stringify(original))
       throw new Error('角色资源已被其他编辑修改，请重新载入。');
   } else if (registry[id]) throw new Error('新角色的资源 ID 已存在，请重试。');
-  registry[id] = checked;
+  registry[id] =
+    checked.type === '主要角色'
+      ? { ...checked, data: completeCurrentRating(checked.data) }
+      : !original && checked.type === '次要角色'
+        ? { ...checked, data: completeMinorRole(checked.data, parseMinorCorruptionTemplate(next)) }
+        : checked;
   entry.content = JSON.stringify(registry, null, 2);
   try {
     await replaceWorldbook(primary, next, { render: 'immediate' });
@@ -88,7 +100,12 @@ export function runtimeRoleOf(asset: PhoneRoleAsset): Record<string, unknown> {
   return { ...klona(asset.data), meta: klona(asset.meta ?? { avatar: '', color: '#C9B485', avatarStyle: 'auto' }) };
 }
 
-export function changeRuntimeMinorRole(data: stat_data, key: string, original: 次要角色人设, next: 次要角色人设 | null): void {
+export function changeRuntimeMinorRole(
+  data: stat_data,
+  key: string,
+  original: 次要角色人设,
+  next: 次要角色人设 | null,
+): void {
   const roles = data.角色.次要角色;
   if (JSON.stringify(roles[key]) !== JSON.stringify(original))
     throw new Error('次要角色已被其他操作修改，请刷新后重试。');
@@ -100,6 +117,7 @@ export function applyPhoneRoleToStatData(
   current: Record<string, any>,
   asset: PhoneRoleAsset,
   overwrite: boolean,
+  minorTemplate?: MinorCorruptionTemplate,
 ): Record<string, any> {
   const next = klona(current);
   const roles = next.角色;
@@ -109,7 +127,12 @@ export function applyPhoneRoleToStatData(
   if (!bucket || typeof bucket !== 'object') throw new Error(`当前剧情缺少角色.${asset.type}。`);
   const exists = asset.type === 'user' ? Object.keys(bucket).length > 0 : Object.hasOwn(bucket, asset.key);
   if (exists && !overwrite) throw new Error('角色已经在当前剧情中，请选择替换。');
-  const runtime = runtimeRoleOf(asset);
+  let runtime = runtimeRoleOf(asset);
+  if (asset.type === '次要角色') {
+    if (!minorTemplate) throw new Error('缺少次要角色通用恶堕值模板。');
+    runtime = completeMinorRole(runtime, minorTemplate, exists ? bucket[asset.key] : undefined);
+  }
+  if (asset.type === '主要角色') runtime = completeCurrentRating(runtime, exists ? bucket[asset.key] : undefined);
   if (asset.type === 'user') roles.user = runtime;
   else bucket[asset.key] = runtime;
   const id = asset.type === 'user' ? 'user' : asset.key;
@@ -135,11 +158,12 @@ export async function getPhoneRuntimeRoles(): Promise<Record<string, any>> {
 
 export async function applyPhoneRoleToRuntime(asset: PhoneRoleAsset, overwrite: boolean): Promise<void> {
   validateRoleAsset(asset);
+  const minorTemplate = asset.type === '次要角色' ? await loadMinorCorruptionTemplate() : undefined;
   await waitGlobalInitialized('Mvu');
   if (getLastMessageId() < 0) throw new Error('当前聊天没有可写入的消息楼层。');
   const previous = klona(Mvu.getMvuData({ type: 'message', message_id: -1 }) as Record<string, any>);
   if (!previous?.stat_data) throw new Error('当前剧情缺少角色数据。');
-  const next = applyPhoneRoleToStatData(previous.stat_data, asset, overwrite);
+  const next = applyPhoneRoleToStatData(previous.stat_data, asset, overwrite, minorTemplate);
   try {
     await MvuUtil.updateMvuDataByObj(next);
   } catch (error) {

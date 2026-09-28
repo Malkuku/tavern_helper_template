@@ -20,8 +20,7 @@
       <div class="hero-overline">实时观测 · {{ selectedMain.在场 ? '信号在线' : '信号离线' }}</div>
       <h2>{{ selectedMainKey }}</h2>
       <div class="data-badges">
-        <span :class="selectedMain.在场 ? 'badge-live' : ''">{{ selectedMain.在场 ? '在场' : '未在场' }}</span
-        >
+        <span :class="selectedMain.在场 ? 'badge-live' : ''">{{ selectedMain.在场 ? '在场' : '未在场' }}</span>
       </div>
     </section>
     <nav class="data-pages" aria-label="角色档案分页">
@@ -54,8 +53,7 @@
       </section>
       <section v-for="[key, part] in bodyEntries" :key="key" class="data-card monitor-card">
         <div class="monitor-card-head">
-          <strong>{{ key }}</strong
-          >
+          <strong>{{ key }}</strong>
         </div>
         <p class="monitor-state">{{ part.当前状态 }}</p>
         <p v-if="part.特征" class="data-prose">{{ part.特征 }}</p>
@@ -71,6 +69,10 @@
       <section class="data-card">
         <h3>基础信息</h3>
         <p class="data-prose">{{ selectedMain.基础信息.姓名 }} · {{ selectedMain.基础信息.身份.join('、') }}</p>
+      </section>
+      <section class="data-card">
+        <h3>当前评级</h3>
+        <p class="data-prose">{{ selectedMain.当前评级 || '未记录' }}</p>
       </section>
       <section class="data-card">
         <h3>整体印象</h3>

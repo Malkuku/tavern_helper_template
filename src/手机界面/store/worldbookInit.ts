@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { initialStatDataSchema, roleMetaSchema } from './initialDataSchema';
 import { wechatRoleAvatar } from '../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { emptyTaskWeek, taskWeekKey } from '../apps/quests/quests';
+import { completeMinorRole, parseMinorCorruptionTemplate } from './minorCorruption';
+import { completeCurrentRating } from './roleRating';
 
 type JsonRecord = Record<string, unknown>;
 type ConfigEntry = Pick<WorldbookEntry, 'name' | 'content'>;
@@ -106,7 +108,11 @@ export function reconcileWorldbookStatData(
     } else {
       const bucket = roles[entry.type] as JsonRecord;
       if (bucket[entry.key]) throw new Error(`唯一开局重复角色身份：${entry.type}.${entry.key}。`);
-      bucket[entry.key] = { ...klona(entry.data), ...(entry.meta ? { meta: klona(entry.meta) } : {}) };
+      const role = { ...klona(entry.data), ...(entry.meta ? { meta: klona(entry.meta) } : {}) };
+      bucket[entry.key] =
+        entry.type === '次要角色'
+          ? completeMinorRole(role, parseMinorCorruptionTemplate(entries))
+          : completeCurrentRating(role);
     }
   }
   if (!roles.user) throw new Error('唯一开局缺少 user 角色。');

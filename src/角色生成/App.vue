@@ -33,6 +33,7 @@
               {{ String(characters.findIndex(item => item.名称 === selectedName) + 1).padStart(2, '0') }}</span
             >
             <h2>{{ currentCharacter.名称 }}</h2>
+            <p class="role-rating">当前评级：{{ currentCharacter.当前评级 || '未记录' }}</p>
             <div v-if="currentCharacter.身份.length" class="identity-list">
               <span v-for="(identity, index) in currentCharacter.身份" :key="index">{{ identity }}</span>
             </div>
@@ -103,6 +104,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
+import { completeMinorRole, loadMinorCorruptionTemplate } from '../手机界面/store/minorCorruption';
 
 // 世界书的 <MinorCharInfo> 捕获组：{ "角色": [{ "名称": "…", ... }] }。
 const rawJson = $1 || {};
@@ -118,7 +120,8 @@ const isValidCharacter = character =>
   listFields.every(
     field => Array.isArray(character[field]) && character[field].every(item => typeof item === 'string'),
   ) &&
-  textFields.every(field => typeof character[field] === 'string');
+  textFields.every(field => typeof character[field] === 'string') &&
+  (character.当前评级 === undefined || typeof character.当前评级 === 'string');
 const inputError =
   !Array.isArray(source) ||
   source.some(character => !isValidCharacter(character)) ||
@@ -157,28 +160,38 @@ function fetchGlobalData() {
 
 async function recordCharacter() {
   if (!currentCharacter.value || isSaving.value) return;
+  const chatId = SillyTavern.getCurrentChatId();
   isSaving.value = true;
   feedback.value = '';
   try {
     fetchGlobalData();
     if (!globalMvuData.value?.stat_data?.角色) throw new Error('当前楼层缺少角色数据');
     if (isRecorded.value) throw new Error('该角色已存在，原有档案不会被覆盖');
+    const minorTemplate = await loadMinorCorruptionTemplate();
+    if (SillyTavern.getCurrentChatId() !== chatId) throw new Error('聊天已切换，请在当前剧情重新收录');
+    fetchGlobalData();
+    if (!globalMvuData.value?.stat_data?.角色) throw new Error('当前楼层缺少角色数据');
+    if (isRecorded.value) throw new Error('该角色已存在，原有档案不会被覆盖');
 
-    const { 名称, 名称检索词, 身份, 背景, 外貌, 性格, 身体开发状态, 能力描述 } = currentCharacter.value;
+    const { 名称, 名称检索词, 身份, 当前评级, 背景, 外貌, 性格, 身体开发状态, 能力描述 } = currentCharacter.value;
     await MvuUtil.updateMvuDataByDiff({
       角色: {
         次要角色: {
-          [名称]: {
-            名称检索词: [...名称检索词],
-            区域检索词: currentMapIndex.value ? [currentMapIndex.value] : [],
-            在场: true,
-            身份: [...身份],
-            背景,
-            外貌,
-            性格,
-            身体开发状态: [...身体开发状态],
-            能力描述: [...能力描述],
-          },
+          [名称]: completeMinorRole(
+            {
+              名称检索词: [...名称检索词],
+              区域检索词: currentMapIndex.value ? [currentMapIndex.value] : [],
+              在场: true,
+              身份: [...身份],
+              当前评级: 当前评级 ?? '',
+              背景,
+              外貌,
+              性格,
+              身体开发状态: [...身体开发状态],
+              能力描述: [...能力描述],
+            },
+            minorTemplate,
+          ),
         },
       },
     });
