@@ -62,9 +62,19 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
     throw new Error('任务生成结果必须包含且只包含一个完整的 questVariable 标签。');
   let raw: unknown;
   try {
-    raw = JSON.parse(tags[0][1]);
+    raw = JSON.parse(tags[0][1].replace(/&#x20;/gi, ' ').replace(/\\_/g, '_'));
   } catch {
     throw new Error('任务生成结果不是合法 JSON。');
+  }
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const item of Object.values(raw)) {
+      if (!item || typeof item !== 'object' || Array.isArray(item) || !Object.hasOwn(item, 'current_progress'))
+        continue;
+      const quest = item as Record<string, unknown>;
+      if (Object.hasOwn(quest, '当前进度')) throw new Error('任务生成结果同时包含两种进度字段。');
+      quest.当前进度 = quest.current_progress;
+      delete quest.current_progress;
+    }
   }
   const result = resultSchema.safeParse(raw);
   if (!result.success) throw new Error('任务生成字段无效。');

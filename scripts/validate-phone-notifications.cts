@@ -58,13 +58,13 @@ initial.系统.已发现目标 = ['鹭见凛'];
 initial.角色.主要角色.鹭见凛.人设阶段.创伤稳定度.当前等级 = 3;
 assert.deepEqual(
   witchTaskNotices(initial).map(item => item.key),
-  ['refresh:2026-9-28'],
+  [],
 );
 
 initial.任务['已完成的任务'] = { 描述: '', 目标: '', 当前进度: '已完成', 评级: 'D', 奖励: 5, 已完成: true };
 assert.deepEqual(
   witchTaskNotices(initial).map(item => item.title),
-  ['任务奖励待领取', '免费任务刷新可用'],
+  ['任务奖励待领取'],
 );
 
 initial.系统.任务下次刷新时间 = '2026-9-29T00:00[2]';
@@ -81,7 +81,7 @@ assert.deepEqual(witchTaskNotices(initial), []);
 initial.世界.时间 = '2026-9-29T00:00[2]';
 assert.deepEqual(
   witchTaskNotices(initial).map(item => item.key),
-  ['refresh:2026-9-29'],
+  [],
 );
 
 console.log('手机应用任务提醒验证通过');

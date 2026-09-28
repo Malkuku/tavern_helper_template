@@ -1,5 +1,4 @@
 import type { stat_data } from '../../types';
-import { taskRefreshState } from '../quests/quests';
 
 export type WitchNotice = {
   key: string;
@@ -56,16 +55,5 @@ export function witchTaskNotices(data: stat_data | null): WitchNotice[] {
       message: `${claimable.length} 项任务已完成，打开任务页领取奖励。`,
       tab: 'tasks',
     });
-  try {
-    if (taskRefreshState(data).available)
-      notices.push({
-        key: `refresh:${data.世界.时间.split('T')[0]}`,
-        title: '免费任务刷新可用',
-        message: '今天可免费刷新 6 项候选任务。',
-        tab: 'tasks',
-      });
-  } catch (error) {
-    console.error('任务刷新提醒状态无效', error);
-  }
   return notices;
 }
