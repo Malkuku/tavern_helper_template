@@ -125,8 +125,8 @@ firstWeek.本周.完成 = 7;
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).missed, false, '上周达标不触发问责');
 firstWeek.本周.完成 = 8;
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).remaining, 0, '超过 KPI 后不产生负剩余数');
-assert.match(weeklyRule, /<任务周指标>[\s\S]*必须至少领取 7 项[\s\S]*不是领奖上限/);
-assert.match(weeklyRule, /本周已领取 <%- currentClaimed %> 项，还需 <%- remaining %> 项才能达标/);
+assert.match(weeklyRule, /<任务周指标>[\s\S]*必须完成至少 7 项[\s\S]*领取奖励才计入必达 KPI/);
+assert.match(weeklyRule, /本周已计入 <%- currentClaimed %> 项，还需 <%- remaining %> 项才能达标/);
 assert.match(weeklyRule, /if \(remaining > 0\)/);
 
 const generationRule = readFileSync(`${root}\\更新规则\\生成任务.ini`, 'utf8');
