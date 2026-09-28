@@ -32,6 +32,7 @@ import {
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { visibleWeChatData } from './discoveredTargets';
+import { settleCharacterStages } from './stageProgression';
 import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
 import {
   applySkillRefresh,
@@ -113,6 +114,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
   let statWriteQueue = Promise.resolve();
+  let stageSettlementQueued = false;
+  let stageSettlementRequested = false;
   let stickerSyncQueued = false;
   let readChatId: string | null = null;
   let readCursors: ReadCursors = {};
@@ -214,6 +217,31 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await Mvu.replaceMvuData(next, { type: 'message', message_id: getLastMessageId() });
     await eventEmit('mag_variable_update_ended', next, previous);
     refresh();
+  }
+
+  function scheduleStageSettlement() {
+    if (stageSettlementQueued) {
+      stageSettlementRequested = true;
+      return;
+    }
+    stageSettlementQueued = true;
+    stageSettlementRequested = false;
+    const generation = chatGeneration;
+    void queueStatWork(async () => {
+      await waitGlobalInitialized('Mvu');
+      if (generation !== chatGeneration) return;
+      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (!previous?.stat_data?.角色) return;
+      const data = klona(previous.stat_data) as stat_data;
+      if (!settleCharacterStages(data)) return;
+      if (generation !== chatGeneration) return;
+      await writeStatData(data, previous);
+    })
+      .catch(error => console.error('人设阶段经验结算失败', error))
+      .finally(() => {
+        stageSettlementQueued = false;
+        if (stageSettlementRequested) scheduleStageSettlement();
+      });
   }
 
   async function updateWeChat(
@@ -862,6 +890,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         };
       if (statData.value?.手机?.微信) syncWeChatNotifications(previousWechat, statData.value.手机.微信);
       if (statData.value?.手机?.微信?.账号?.user?.表情包) scheduleStickerSync();
+      if (statData.value?.角色) scheduleStageSettlement();
       if (statData.value && pollingTimer) {
         clearInterval(pollingTimer);
         pollingTimer = undefined;
