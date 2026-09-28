@@ -133,8 +133,18 @@ export interface 任务 {
   描述: string;
   目标: string;
   当前进度: string;
-  奖励: unknown[];
-  过期时间: 世界时间;
+  评级: 'D' | 'C' | 'B' | 'A' | 'S';
+  /** 可领取的恶堕积分。 */
+  奖励: number;
+  已完成: boolean;
+}
+
+export interface 任务周统计 {
+  周起始: string;
+  完成: number;
+  放弃: number;
+  完成评级: Record<任务['评级'], number>;
+  放弃评级: Record<任务['评级'], number>;
 }
 
 export type 商店道具 = 物品;
@@ -155,9 +165,9 @@ export interface 系统数据 {
   商店下次刷新时间: 世界时间;
   /** 前端维护；主动刷新第 n 次花费 2 * 2^(n-1) 积分，每日自动刷新后归零。 */
   商店主动刷新次数: number;
-  /** 前端维护；到期时 EJS 显示任务生成规则。 */
+  /** 下次世界日 00:00；仅用于判断每日免费刷新是否恢复。 */
   任务下次刷新时间: 世界时间;
-  /** 前端维护；主动刷新第 n 次花费 4 * 2^(n-1) 积分，每日自动刷新后归零。 */
+  /** 本世界日成功刷新次数，取 0 或 1。 */
   任务主动刷新次数: number;
   /** 手机商店计价的下次周一 00:00；到期只重置报价，不自动生成。 */
   技能下次刷新时间: 世界时间;
@@ -316,6 +326,8 @@ export interface stat_data {
   世界: 世界数据;
   仓库: Record<string, 物品>;
   任务: Record<string, 任务>;
+  任务候选: Record<string, 任务>;
+  任务统计: { 开始周: string; 本周: 任务周统计; 上周: 任务周统计 | null };
   商店: Record<string, 商店道具>;
   技能商店: Record<string, 可购技能>;
   系统: 系统数据;

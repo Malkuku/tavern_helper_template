@@ -17,6 +17,7 @@ export const apps = [
   { name: '技能', icon: '', color: 'linear-gradient(145deg, #cfb5ee, #865cb7)' },
   { name: '技能商店', icon: '✦', color: 'linear-gradient(145deg, #71529a, #35254f)' },
   { name: '道具商店', icon: '✧', color: 'linear-gradient(145deg, #c48b78, #654555)' },
+  { name: '组织任务', icon: '✦', color: 'linear-gradient(145deg, #8c7ab5, #433858)' },
   { name: '随身物品', icon: '', color: 'linear-gradient(145deg, #efc3a5, #c98779)' },
   { name: '角色编辑器', icon: '✎', color: 'linear-gradient(145deg, #c6a4df, #7756a1)' },
   { name: '信息', icon: '●', color: 'linear-gradient(145deg, #73e878, #19ae45)' },

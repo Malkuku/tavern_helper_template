@@ -44,6 +44,13 @@ import {
   itemRefreshQuote,
   sellItem as applyItemSale,
 } from '../apps/itemShop/itemShop';
+import {
+  abandonTask as applyTaskAbandon,
+  acceptTask as applyTaskAccept,
+  claimTask as applyTaskClaim,
+  refreshTasks as applyTaskRefresh,
+  taskRefreshState,
+} from '../apps/quests/quests';
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
@@ -94,6 +101,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const itemRefreshError = ref('');
   const itemRefreshing = ref(false);
   let itemRefreshStartMessageId = -1;
+  const taskRefreshError = ref('');
+  const taskRefreshing = ref(false);
+  let taskRefreshStartMessageId = -1;
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
@@ -254,7 +264,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function refreshGeneratedShop(kind: '技能' | '道具') {
-    if (skillRefreshing.value || itemRefreshing.value) throw new Error('商店正在刷新，请等待本次生成完成。');
+    if (skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
+      throw new Error('已有生成任务正在进行，请等待完成。');
     const generation = chatGeneration;
     await waitGlobalInitialized('Mvu');
     if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
@@ -264,7 +275,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (!Number.isSafeInteger(current.角色.user.恶堕积分) || current.角色.user.恶堕积分 < quote.price)
       throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
     if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
-    if (skillRefreshing.value || itemRefreshing.value) throw new Error('商店正在刷新，请等待本次生成完成。');
+    if (skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
+      throw new Error('已有生成任务正在进行，请等待完成。');
     const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
     refreshError.value = '';
@@ -314,6 +326,47 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function sellOwnedItem(side: InventorySide, name: string, quantity: number): Promise<number> {
     return changeCharacterData(data => applyItemSale(data, side, name, quantity));
+  }
+
+  async function acceptTask(name: string) {
+    await changeCharacterData(data => applyTaskAccept(data, name));
+  }
+
+  async function abandonTask(name: string) {
+    await changeCharacterData(data => applyTaskAbandon(data, name));
+  }
+
+  async function claimTask(name: string): Promise<number> {
+    return changeCharacterData(data => applyTaskClaim(data, name));
+  }
+
+  async function refreshTaskBoard() {
+    if (taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
+      throw new Error('已有生成任务正在进行，请等待完成。');
+    const generation = chatGeneration;
+    await waitGlobalInitialized('Mvu');
+    if (generation !== chatGeneration) throw new Error('聊天已切换，任务刷新已取消。');
+    const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
+    if (!current?.系统 || !current?.任务 || !current?.任务候选) throw new Error('任务变量尚未初始化。');
+    if (!taskRefreshState(current).available) throw new Error('今天的免费任务刷新次数已用完。');
+    if (taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
+      throw new Error('已有生成任务正在进行，请等待完成。');
+    taskRefreshError.value = '';
+    taskRefreshing.value = true;
+    taskRefreshStartMessageId = getLastMessageId();
+    try {
+      await eventEmit('Chat_On_Quest');
+    } catch (error) {
+      taskRefreshing.value = false;
+      taskRefreshError.value = error instanceof Error ? error.message : '任务刷新事件触发失败。';
+      throw error;
+    }
+  }
+
+  function cancelTaskRefresh() {
+    if (!taskRefreshing.value) return;
+    taskRefreshing.value = false;
+    taskRefreshError.value = '已取消等待；迟到的任务生成结果不会结算。';
   }
 
   async function sendWeChatMessage(
@@ -723,6 +776,46 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     }, 800);
   }
 
+  function scheduleTaskResult(messageId?: number) {
+    if (!taskRefreshing.value) return;
+    const generation = chatGeneration;
+    void queueStatWork(async () => {
+      if (!taskRefreshing.value) return;
+      const id = messageId ?? getLastMessageId();
+      if (id < 0 || id <= taskRefreshStartMessageId || generation !== chatGeneration) return;
+      const message = getChatMessages(id)[0];
+      if (!message || message.role !== 'assistant' || !message.message.includes('<questVariable')) return;
+      await waitGlobalInitialized('Mvu');
+      if (generation !== chatGeneration || !taskRefreshing.value) return;
+      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (!previous?.stat_data?.系统 || !previous.stat_data.任务候选) throw new Error('任务变量尚未初始化。');
+      const data = klona(previous.stat_data) as stat_data;
+      applyTaskRefresh(data, message.message);
+      if (generation !== chatGeneration || !taskRefreshing.value) return;
+      await writeStatData(data, previous);
+      taskRefreshing.value = false;
+      taskRefreshError.value = '';
+    }).catch(error => {
+      taskRefreshing.value = false;
+      taskRefreshError.value = error instanceof Error ? error.message : '任务生成结果无效。';
+      console.error('任务生成结果处理失败', error);
+    });
+  }
+
+  function onTaskGenerationEnd(messageId?: number) {
+    scheduleTaskResult(messageId);
+    if (!taskRefreshing.value) return;
+    setTimeout(() => {
+      if (!taskRefreshing.value) return;
+      const id = messageId ?? getLastMessageId();
+      const message = id >= 0 ? getChatMessages(id)[0] : null;
+      if (id <= taskRefreshStartMessageId || !message?.message.includes('<questVariable')) {
+        taskRefreshing.value = false;
+        taskRefreshError.value = '本次生成没有返回任务结果';
+      }
+    }, 800);
+  }
+
   async function checkWorldbook() {
     const generation = ++chatGeneration;
     try {
@@ -795,6 +888,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     itemRefreshError.value = '';
     itemRefreshing.value = false;
     itemRefreshStartMessageId = -1;
+    taskRefreshError.value = '';
+    taskRefreshing.value = false;
+    taskRefreshStartMessageId = -1;
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -820,20 +916,24 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     eventOn(tavern_events.GENERATION_ENDED, (id?: number) => {
       onShopGenerationEnd('技能', id);
       onShopGenerationEnd('道具', id);
+      onTaskGenerationEnd(id);
     });
     eventOn(tavern_events.GENERATION_STOPPED, (id?: number) => {
       onShopGenerationEnd('技能', id);
       onShopGenerationEnd('道具', id);
+      onTaskGenerationEnd(id);
     });
     eventOn(tavern_events.MESSAGE_RECEIVED, scheduleWeChatLog);
     eventOn(tavern_events.MESSAGE_RECEIVED, (id?: number) => {
       scheduleShopResult('技能', id);
       scheduleShopResult('道具', id);
+      scheduleTaskResult(id);
     });
     eventOn(tavern_events.MESSAGE_UPDATED, scheduleWeChatLog);
     eventOn(tavern_events.MESSAGE_UPDATED, (id?: number) => {
       scheduleShopResult('技能', id);
       scheduleShopResult('道具', id);
+      scheduleTaskResult(id);
     });
     eventOn(KatEvents.kat_mvu_update_finished, scheduleWeChatLog);
     eventOn('mag_variable_update_ended', () => scheduleWeChatLog());
@@ -869,6 +969,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     skillRefreshing,
     itemRefreshError,
     itemRefreshing,
+    taskRefreshError,
+    taskRefreshing,
     failedWeChatMessageId,
     clearFailedWeChatLog,
     deleteWeChatFloor,
@@ -890,6 +992,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     cancelItemRefresh,
     purchaseItem,
     sellOwnedItem,
+    refreshTaskBoard,
+    cancelTaskRefresh,
+    acceptTask,
+    abandonTask,
+    claimTask,
     sendWeChatMessage,
     confirmWeChatSend,
     discardWeChatDraft,

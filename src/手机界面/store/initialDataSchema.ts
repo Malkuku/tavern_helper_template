@@ -29,6 +29,28 @@ export const skillSchema = z.strictObject({
   价格: number,
   适用评级: z.string(),
 });
+export const questSchema = z.strictObject({
+  描述: z.string(),
+  目标: z.string(),
+  当前进度: z.string(),
+  评级: z.enum(['D', 'C', 'B', 'A', 'S']),
+  奖励: z.number().int().positive().safe(),
+  已完成: z.boolean(),
+});
+const ratingCountsSchema = z.strictObject({
+  D: z.number().int().nonnegative().safe(),
+  C: z.number().int().nonnegative().safe(),
+  B: z.number().int().nonnegative().safe(),
+  A: z.number().int().nonnegative().safe(),
+  S: z.number().int().nonnegative().safe(),
+});
+const questWeekSchema = z.strictObject({
+  周起始: z.string(),
+  完成: z.number().int().nonnegative().safe(),
+  放弃: z.number().int().nonnegative().safe(),
+  完成评级: ratingCountsSchema,
+  放弃评级: ratingCountsSchema,
+});
 const stage = z.strictObject({ 当前等级: number, 累计经验: number, 描述: stringRecord });
 const bodyPart = z.strictObject({
   当前状态: z.string(),
@@ -130,16 +152,9 @@ export const initialStatDataSchema = z.strictObject({
   地图: z.record(z.string(), mapNode),
   世界: z.strictObject({ 时间: z.string().min(1), 地点: z.string(), 天气: z.string(), 地图索引: z.string() }),
   仓库: z.record(z.string(), itemSchema),
-  任务: z.record(
-    z.string(),
-    z.strictObject({
-      描述: z.string(),
-      目标: z.string(),
-      当前进度: z.string(),
-      奖励: z.array(z.unknown()),
-      过期时间: z.string(),
-    }),
-  ),
+  任务: z.record(z.string(), questSchema),
+  任务候选: z.record(z.string(), questSchema),
+  任务统计: z.strictObject({ 开始周: z.string(), 本周: questWeekSchema, 上周: questWeekSchema.nullable() }),
   商店: z.record(z.string(), itemSchema),
   技能商店: z.record(z.string(), skillSchema),
   系统: z.strictObject({

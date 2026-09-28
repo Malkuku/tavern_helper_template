@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { initialStatDataSchema, roleMetaSchema } from './initialDataSchema';
 import { wechatRoleAvatar } from '../../尘史使徒/UI/components/common/roleAvatarFallback';
+import { emptyTaskWeek, taskWeekKey } from '../apps/quests/quests';
 
 type JsonRecord = Record<string, unknown>;
 type ConfigEntry = Pick<WorldbookEntry, 'name' | 'content'>;
@@ -120,6 +121,8 @@ export function reconcileWorldbookStatData(
     地图: klona(map.data),
     仓库: klona(opening.内容配置.仓库),
   };
+  const startWeek = taskWeekKey((data.世界 as { 时间: string }).时间);
+  data.任务统计 = { 开始周: startWeek, 本周: emptyTaskWeek(startWeek), 上周: null };
   seedWechatFriends(data);
   const parsed = initialStatDataSchema.safeParse(data);
   if (!parsed.success) throw new Error(`唯一开局组装结果不符合手机变量契约：${z.prettifyError(parsed.error)}`);

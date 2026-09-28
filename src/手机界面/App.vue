@@ -82,6 +82,10 @@
                 <ItemShop />
               </main>
 
+              <main v-else-if="activeApp === '组织任务'" :key="'quests'" class="data-app-screen">
+                <QuestApp />
+              </main>
+
               <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
                 <DataApp :app="activeApp" />
               </main>
@@ -161,6 +165,7 @@ import WeChat from './apps/wechat/WeChat.vue';
 import RoleEditor from './apps/roleEditor/RoleEditor.vue';
 import SkillShop from './apps/skillShop/SkillShop.vue';
 import ItemShop from './apps/itemShop/ItemShop.vue';
+import QuestApp from './apps/quests/QuestApp.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
 import PhoneExtras from './apps/PhoneExtras.vue';
 import MapApp from './apps/map/MapApp.vue';
