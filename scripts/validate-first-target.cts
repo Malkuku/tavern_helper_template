@@ -8,6 +8,7 @@ import {
   hasDiscoveredRole,
 } from '../src/手机界面/apps/data/firstTarget';
 import { visibleObservationTargets } from '../src/手机界面/apps/data/observationTargets';
+import { sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import type { stat_data } from '../src/手机界面/types';
 
 function emptyData(): stat_data {
@@ -40,6 +41,7 @@ for (const choice of firstTargetChoices) {
   assert.equal(data.任务[`初始接触：${key}`].目标, choice.quest.goal);
   assert.equal(data.角色.user.物品[choice.item.name].数量, 1);
   assert.equal(data.角色.user.物品[choice.item.name].作用, choice.item.effect);
+  assert.equal(data.角色.user.物品[choice.item.name].图标, sanitizeMapSvg(choice.item.icon));
   assert.match(firstTargetSystemLog(key), new RegExp(`领取${choice.item.name}`));
   assert.deepEqual(visibleObservationTargets(data), [{ id: `档案待建立:${key}`, key, kind: '档案待建立' }]);
   assert.throws(() => assignFirstTarget(data, key), /已经有已发现目标/);
@@ -64,6 +66,7 @@ existingItem.角色.user.物品[rinItem.name] = {
 };
 assignFirstTarget(existingItem, '鹭见凛');
 assert.equal(existingItem.角色.user.物品[rinItem.name].数量, 3);
+assert.equal(existingItem.角色.user.物品[rinItem.name].图标, rinItem.icon);
 const invalidItem = emptyData();
 invalidItem.角色.user.物品[rinItem.name] = { ...existingItem.角色.user.物品[rinItem.name], 数量: 0 };
 assert.throws(() => assignFirstTarget(invalidItem, '鹭见凛'), /数量无效/);
