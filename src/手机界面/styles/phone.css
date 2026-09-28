@@ -56,6 +56,97 @@
   background:
     radial-gradient(circle at 70% 20%, #c0d9ff, transparent 35%), linear-gradient(150deg, #86baf5, #6557ba 55%, #e486aa);
 }
+.phone-launcher.initialization-ready .launcher-device {
+  animation: launcher-ready-shake 1.8s ease-in-out infinite;
+  box-shadow:
+    0 0 18px #ae6cffaa,
+    0 3px 8px #0007;
+}
+.launcher-particles,
+.launcher-particles span {
+  position: absolute;
+  pointer-events: none;
+}
+.launcher-particles {
+  inset: 0;
+}
+.launcher-particles span {
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c888ff;
+  box-shadow: 0 0 8px 2px #a34aff;
+  animation: launcher-ready-particle 1.8s ease-out infinite;
+}
+.launcher-particles span:nth-child(1) {
+  --particle-x: -29px;
+  --particle-y: -30px;
+  animation-delay: 0s;
+}
+.launcher-particles span:nth-child(2) {
+  --particle-x: 28px;
+  --particle-y: -23px;
+  animation-delay: -0.3s;
+}
+.launcher-particles span:nth-child(3) {
+  --particle-x: -33px;
+  --particle-y: 4px;
+  animation-delay: -0.6s;
+}
+.launcher-particles span:nth-child(4) {
+  --particle-x: 34px;
+  --particle-y: 12px;
+  animation-delay: -0.9s;
+}
+.launcher-particles span:nth-child(5) {
+  --particle-x: -19px;
+  --particle-y: 34px;
+  animation-delay: -1.2s;
+}
+.launcher-particles span:nth-child(6) {
+  --particle-x: 22px;
+  --particle-y: 31px;
+  animation-delay: -1.5s;
+}
+@keyframes launcher-ready-shake {
+  0%,
+  84%,
+  100% {
+    transform: rotate(0);
+  }
+  87%,
+  93% {
+    transform: rotate(-8deg);
+  }
+  90%,
+  96% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes launcher-ready-particle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--particle-x), var(--particle-y)) scale(0.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-launcher.initialization-ready .launcher-device,
+  .launcher-particles span {
+    animation: none;
+  }
+  .launcher-particles {
+    display: none;
+  }
+}
 .phone-overlay {
   position: fixed;
   inset: 0;

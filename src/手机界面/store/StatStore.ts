@@ -119,6 +119,7 @@ function phoneSystemLog(detail: string): string {
 
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
+  const initializationNoticePending = ref(false);
   const wechatLogError = ref('');
   const skillRefreshError = ref('');
   const skillRefreshing = ref(false);
@@ -138,6 +139,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let worldbookRetryTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
   let worldbookCheckGeneration = 0;
+  let worldbookReady = false;
   let phoneOpen = false;
   let statWriteQueue = Promise.resolve();
   let stageSettlementQueued = false;
@@ -1032,6 +1034,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function checkWorldbook() {
+    if (worldbookReady) return;
     const checkGeneration = ++worldbookCheckGeneration;
     const generation = chatGeneration;
     const chatId = SillyTavern.getCurrentChatId();
@@ -1059,16 +1062,16 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!primary) throw new Error('当前角色没有绑定主世界书。');
       const entries = await getWorldbook(primary);
       if (!isCurrent()) return;
-      await queueStatWork(async () => {
-        if (!isCurrent()) return;
+      const ready = await queueStatWork(async () => {
+        if (!isCurrent()) return false;
         const messageId = getLastMessageId();
         const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
         if (!previous?.stat_data) {
           retryWhenReady();
-          return;
+          return false;
         }
         const { data, changed } = reconcileWorldbookStatData(previous.stat_data, entries);
-        if (!changed || !isCurrent()) return;
+        if (!changed) return true;
         applyNewChatMediaSnapshot(
           (data as unknown as stat_data).手机.微信.账号,
           getVariables({ type: 'script', script_id: getScriptId() })?.[WECHAT_MEDIA_SNAPSHOT_KEY],
@@ -1076,25 +1079,28 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         );
         if (!isCurrent() || messageId !== getLastMessageId()) {
           retryWhenReady();
-          return;
+          return false;
         }
         const next = { ...previous, stat_data: data };
         await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+        if (!isCurrent()) return false;
         await eventEmit('mag_variable_update_ended', next, previous);
         refresh();
+        return true;
       });
+      if (!isCurrent() || !ready) return;
+      worldbookReady = true;
+      initializationNoticePending.value = !phoneOpen;
     } catch (error) {
       if (isCurrent()) console.error('魔法少女世界书变量初始化失败', error);
+    } finally {
+      if (isCurrent() && !worldbookReady && !worldbookRetryTimer) retryWhenReady();
     }
   }
 
   function setPhoneOpen(value: boolean) {
     phoneOpen = value;
-    if (!value) {
-      worldbookCheckGeneration++;
-      if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
-      worldbookRetryTimer = undefined;
-    }
+    if (value) initializationNoticePending.value = false;
   }
 
   function refresh() {
@@ -1133,6 +1139,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function resetForChat() {
     chatGeneration++;
     worldbookCheckGeneration++;
+    worldbookReady = false;
+    initializationNoticePending.value = false;
     if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
     worldbookRetryTimer = undefined;
     statData.value = null;
@@ -1158,7 +1166,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     scheduleRefresh();
     startPolling();
     scheduleWeChatLog();
-    if (phoneOpen) void checkWorldbook();
+    void checkWorldbook();
   }
 
   function startPolling() {
@@ -1214,6 +1222,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function replace(data: stat_data) {
     await MvuUtil.updateMvuDataByObj(data);
     refresh();
+    void checkWorldbook();
   }
 
   async function update(diff: object) {
@@ -1223,6 +1232,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   return {
     statData,
+    initializationNoticePending,
     unreadChatKeys,
     wechatNotification,
     markWeChatRead,
@@ -1241,7 +1251,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     createWeChatGroup,
     refresh,
     initialize,
-    checkWorldbook,
     setPhoneOpen,
     replace,
     update,

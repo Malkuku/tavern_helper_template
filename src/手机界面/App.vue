@@ -5,7 +5,10 @@
         v-if="!open"
         ref="launcherButton"
         class="phone-launcher"
-        :class="{ 'has-unread': statStore.unreadChatKeys.length > 0 || witchNotices.length > 0 }"
+        :class="{
+          'has-unread': statStore.unreadChatKeys.length > 0 || witchNotices.length > 0,
+          'initialization-ready': statStore.initializationNoticePending,
+        }"
         type="button"
         :style="launcherStyle"
         :aria-label="`打开手机界面${statStore.unreadChatKeys.length ? '，有未读微信消息' : ''}${witchNotices.length ? '，魔女恶堕计划有提醒' : ''}，拖拽可移动`"
@@ -16,6 +19,9 @@
         @click="openPhone"
       >
         <span class="launcher-device" aria-hidden="true"><span class="launcher-display"></span></span>
+        <span v-if="statStore.initializationNoticePending" class="launcher-particles" aria-hidden="true">
+          <span v-for="index in 6" :key="index"></span>
+        </span>
       </button>
 
       <div v-else class="phone-overlay">
@@ -395,7 +401,6 @@ function openPhone() {
   } catch (error) {
     console.error('手机壁纸读取失败', error);
   }
-  void statStore.checkWorldbook();
 }
 function openNotificationChat() {
   const key = statStore.wechatNotification?.key;
