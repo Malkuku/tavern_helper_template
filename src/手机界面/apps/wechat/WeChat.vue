@@ -4,7 +4,8 @@
       微信消息同步失败：{{ store.wechatLogError }}
       <button type="button" @click="clearFailedLog">清除本楼微信日志</button>
     </p>
-    <template v-if="selectedSession && selectedKey">
+    <WeChatAccountManager v-if="adminOpen" @close="adminOpen = false" />
+    <template v-else-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回微信" @click="selectedKey = null">
           <svg
@@ -155,7 +156,7 @@
           :disabled="pendingLocked || sending || !worldTime"
           @click="sendSticker(name)"
         >
-          <img :src="self?.表情包[name]" :alt="name" /><small>{{ name }}</small>
+          <img :src="resolveWechatImage(self?.表情包[name])" :alt="name" /><small>{{ name }}</small>
         </button>
         <button class="wx-sticker-add" type="button" @click="stickerFileInput?.click()">
           <WeChatIcon name="plus" />添加表情包
@@ -467,7 +468,11 @@
           type="button"
           @click="openNearby(person)"
         >
-          <img class="wx-avatar" :src="accounts[person.id]?.头像 || nearbyAvatar(person.id)" alt="" />
+          <img
+            class="wx-avatar"
+            :src="resolveWechatImage(accounts[person.id]?.头像) || nearbyAvatar(person.id)"
+            alt=""
+          />
           <strong>{{ accounts[person.id]?.昵称 || person.name }}</strong>
           <span class="wx-muted">{{ self?.好友.includes(person.id) ? '已是好友' : '查看' }}</span>
         </button>
@@ -530,7 +535,7 @@
             <img
               v-if="chatAppearance[item.key]?.image"
               class="wx-avatar"
-              :src="chatAppearance[item.key].image"
+              :src="resolveWechatImage(chatAppearance[item.key].image)"
               alt=""
             />
             <span v-else-if="item.group" class="wx-avatar wx-group-avatar">群</span>
@@ -597,6 +602,9 @@
             </div>
             <WeChatIcon class="wx-row-chevron" name="chevron" />
           </button>
+          <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
+            <strong>账号管理</strong><WeChatIcon class="wx-row-chevron" name="chevron" />
+          </button>
           <div v-for="(group, index) in meGroups" :key="index" class="wx-menu-group">
             <button
               v-for="item in group"
@@ -650,7 +658,9 @@
       </header>
       <template v-if="accountPage === 'profile'">
         <label class="wx-account-row">头像<input type="file" accept="image/*" @change="chooseProfileImage" /></label>
-        <div v-if="profileImage" class="wx-account-preview"><img :src="profileImage" alt="头像预览" /></div>
+        <div v-if="profileImage" class="wx-account-preview">
+          <img :src="resolveWechatImage(profileImage)" alt="头像预览" />
+        </div>
         <label class="wx-account-row">名字<input v-model="profileName" maxlength="40" aria-label="名字" /></label>
         <div class="wx-account-row">微信号 <span>user</span></div>
         <button class="wx-account-save" type="button" :disabled="savingProfile" @click="saveProfile">保存</button>
@@ -776,12 +786,15 @@ import type { OperationEvent } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
+import WeChatAccountManager from './WeChatAccountManager.vue';
+import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
 import { nearbyAvatars } from './nearbyAvatars';
 import { findPhoneMapPath, listPhoneMap } from '../map/phoneMap';
 import { locationShare } from '../map/locationShare';
 
 const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
 const emit = defineEmits<{ 'open-map': [key: string] }>();
+const adminOpen = ref(false);
 
 type Tab = 'chats' | 'contacts' | 'discover' | 'me';
 const tabs: { id: Tab; label: string }[] = [
@@ -938,12 +951,7 @@ async function readStickerFile(event: Event) {
   if (!file) return;
   error.value = '';
   try {
-    newStickerSource.value = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error ?? new Error('无法读取图片。'));
-      reader.readAsDataURL(file);
-    });
+    newStickerSource.value = await readWechatImageFile(file);
     newStickerName.value = file.name.replace(/\.[^.]+$/, '');
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '无法读取图片。';
@@ -976,6 +984,7 @@ function loadAppearance() {
   chatAppearance.value = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 onMounted(() => {
+  refreshWechatImageLibrary();
   syncTheme();
   loadAppearance();
   eventOn('mag_variable_update_ended', syncTheme);
@@ -1016,12 +1025,7 @@ async function chooseProfileImage(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
   try {
-    profileImage.value = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('无法读取头像。'));
-      reader.readAsDataURL(file);
-    });
+    profileImage.value = storeWechatImage(await readWechatImageFile(file));
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '无法读取头像。';
   }

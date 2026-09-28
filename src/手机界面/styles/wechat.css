@@ -1933,6 +1933,66 @@
   background: var(--wx-green);
   color: white;
 }
+.wechat .wx-manager-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+.wechat .wx-manager-body > label:not(.wx-manager-friend) {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wechat .wx-manager-body input,
+.wechat .wx-manager-body select {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--wx-line);
+  border-radius: 5px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
+.wechat .wx-manager-body button {
+  padding: 8px;
+  border: 1px solid var(--wx-line);
+  border-radius: 5px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
+.wechat .wx-manager-body button:disabled {
+  opacity: 0.45;
+}
+.wechat .wx-manager-preview,
+.wechat .wx-manager-sticker img,
+.wechat .wx-manager-image img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.wechat .wx-manager-sticker,
+.wechat .wx-manager-image {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wechat .wx-manager-sticker span {
+  flex: 1;
+}
+.wechat .wx-manager-friend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wechat .wx-manager-library {
+  display: grid;
+  gap: 8px;
+}
+.wechat .wx-manager-note {
+  color: var(--wx-muted);
+  font-size: 12px;
+}
 .wechat .wx-service-card {
   display: grid;
   grid-template-columns: 1fr 1fr;

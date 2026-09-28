@@ -453,37 +453,9 @@ export function addSticker(current: 微信数据, name: string, source: string):
   if (!user) throw new Error('微信用户账号不存在。');
   const trimmed = name.trim();
   if (!trimmed) throw new Error('请填写表情包名称。');
-  if (!source.startsWith('data:image/')) throw new Error('请选择图片文件。');
+  if (!source.startsWith('data:image/') && !source.startsWith('script-image://')) throw new Error('请选择图片文件。');
   if (user.表情包[trimmed]) throw new Error('表情包名称已存在。');
   const next = klona(current);
   next.账号.user.表情包[trimmed] = source;
   return next;
-}
-
-export function mergeStickerSnapshot(
-  current: Record<string, string>,
-  snapshot: unknown,
-): { stickers: Record<string, string>; backup: Record<string, string>; restoreNeeded: boolean; backupNeeded: boolean } {
-  const backup: Record<string, string> = {};
-  if (snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)) {
-    for (const [name, source] of Object.entries(snapshot)) {
-      if (typeof source === 'string' && source.startsWith('data:image/')) backup[name] = source;
-    }
-  }
-  const stickers = { ...current };
-  let restoreNeeded = false;
-  let backupNeeded = false;
-  for (const [name, source] of Object.entries(backup)) {
-    if (!(name in stickers)) {
-      stickers[name] = source;
-      restoreNeeded = true;
-    }
-  }
-  for (const [name, source] of Object.entries(current)) {
-    if (source.startsWith('data:image/') && !(name in backup)) {
-      backup[name] = source;
-      backupNeeded = true;
-    }
-  }
-  return { stickers, backup, restoreNeeded, backupNeeded };
 }

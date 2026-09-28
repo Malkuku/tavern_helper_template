@@ -11,13 +11,26 @@ import {
   decideFriendRequest,
   deleteWeChatFromFloor,
   logConfirmsPending,
-  mergeStickerSnapshot,
   normalizeWeChatIds,
   parseWeChatLogs,
   privateChatKey,
   sendFriendRequest,
   unappliedWeChatLogs,
 } from '../apps/wechat/wechatData';
+import {
+  applyNewChatMediaSnapshot,
+  mediaSnapshot,
+  restoreMissingStickers,
+  saveWechatAccount,
+  type AccountMediaSnapshot,
+} from '../apps/wechat/accountManagement';
+import {
+  hasWechatImage,
+  isImageDataUrl,
+  refreshWechatImageLibrary,
+  storeWechatImage,
+  WECHAT_MEDIA_SNAPSHOT_KEY,
+} from '../apps/wechat/imageLibrary';
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
@@ -291,6 +304,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function updateWeChat(
     updater: (current: 微信数据, data: stat_data) => 微信数据,
     beforeWrite?: (data: stat_data) => Promise<void>,
+    afterWrite?: (data: stat_data) => void,
   ) {
     const generation = chatGeneration;
     return queueStatWork(async () => {
@@ -307,6 +321,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (beforeWrite) await beforeWrite(data);
       if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
       await writeStatData(data, previous);
+      afterWrite?.(data);
+      return after;
     });
   }
 
@@ -712,14 +728,37 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function updateWeChatProfile(name: string, image: string) {
-    await updateWeChat(current => {
-      const next = klona(current);
-      if (!next.账号.user) throw new Error('微信 user 账号不存在。');
-      if (!name.trim()) throw new Error('名字不能为空。');
-      next.账号.user.昵称 = name.trim();
-      next.账号.user.头像 = image;
-      return next;
-    });
+    const current = statData.value?.手机?.微信;
+    if (!current?.账号.user) throw new Error('微信 user 账号不存在。');
+    await updateWeChatAccount('user', name, image, current.账号.user.表情包, current.账号.user.好友);
+  }
+
+  async function updateWeChatAccount(
+    id: string,
+    name: string,
+    image: string,
+    stickers: Record<string, string>,
+    friends: string[],
+  ) {
+    const avatarUrl = isImageDataUrl(image) ? storeWechatImage(image) : image;
+    const stickerUrls = Object.fromEntries(
+      Object.entries(stickers).map(([name, url]) => [name, isImageDataUrl(url) ? storeWechatImage(url) : url]),
+    );
+    if ((avatarUrl && !hasWechatImage(avatarUrl)) || Object.values(stickerUrls).some(url => !hasWechatImage(url)))
+      throw new Error('图片库中缺少所选图片。');
+    await updateWeChat(
+      current => saveWechatAccount(current, id, name, avatarUrl, stickerUrls, friends),
+      undefined,
+      data => {
+        updateVariablesWith(
+          variables => ({ ...variables, [WECHAT_MEDIA_SNAPSHOT_KEY]: mediaSnapshot(data.手机.微信.账号) }),
+          {
+            type: 'script',
+            script_id: getScriptId(),
+          },
+        );
+      },
+    );
   }
 
   async function createWeChatGroup(name: string, members: string[]) {
@@ -752,19 +791,18 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function addWeChatSticker(name: string, source: string) {
+    const url = isImageDataUrl(source) ? storeWechatImage(source) : source;
+    if (!hasWechatImage(url)) throw new Error('图片库中缺少所选图片。');
     await updateWeChat(
-      current => addSticker(current, name, source),
-      async data => {
-        const scope = { type: 'script' as const, script_id: getScriptId() };
-        await updateVariablesWith(
-          variables => ({
-            ...variables,
-            magicGirlWeChatStickerSnapshot: mergeStickerSnapshot(
-              data.手机.微信.账号.user.表情包,
-              variables.magicGirlWeChatStickerSnapshot,
-            ).backup,
-          }),
-          scope,
+      current => addSticker(current, name, url),
+      undefined,
+      data => {
+        updateVariablesWith(
+          variables => ({ ...variables, [WECHAT_MEDIA_SNAPSHOT_KEY]: mediaSnapshot(data.手机.微信.账号) }),
+          {
+            type: 'script',
+            script_id: getScriptId(),
+          },
         );
       },
     );
@@ -775,20 +813,44 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await waitGlobalInitialized('Mvu');
     if (generation !== chatGeneration) return;
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
-    const stickers = previous?.stat_data?.手机?.微信?.账号?.user?.表情包;
-    if (!stickers) return;
+    const accounts = previous?.stat_data?.手机?.微信?.账号;
+    if (!accounts) return;
     const scope = { type: 'script' as const, script_id: getScriptId() };
-    const snapshot = getVariables(scope)?.magicGirlWeChatStickerSnapshot;
-    const merged = mergeStickerSnapshot(stickers, snapshot);
-    if (merged.backupNeeded) {
-      await updateVariablesWith(variables => ({ ...variables, magicGirlWeChatStickerSnapshot: merged.backup }), scope);
+    refreshWechatImageLibrary();
+    const variables = getVariables(scope);
+    const legacy = variables?.magicGirlWeChatStickerSnapshot;
+    const snapshot = variables?.[WECHAT_MEDIA_SNAPSHOT_KEY] as AccountMediaSnapshot | undefined;
+    const data = klona(previous.stat_data) as stat_data;
+    const nextAccounts = data.手机.微信.账号;
+    let changed = false;
+    if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+      for (const [name, source] of Object.entries(legacy)) {
+        if (!nextAccounts.user?.表情包[name] && isImageDataUrl(source)) {
+          nextAccounts.user.表情包[name] = source;
+          changed = true;
+        }
+      }
+    }
+    if (snapshot && typeof snapshot === 'object') changed = restoreMissingStickers(nextAccounts, snapshot) || changed;
+    for (const account of Object.values(nextAccounts)) {
+      if (isImageDataUrl(account.头像)) {
+        account.头像 = storeWechatImage(account.头像);
+        changed = true;
+      }
+      for (const [name, url] of Object.entries(account.表情包)) {
+        if (isImageDataUrl(url)) {
+          account.表情包[name] = storeWechatImage(url);
+          changed = true;
+        }
+      }
     }
     if (generation !== chatGeneration) return;
-    if (merged.restoreNeeded) {
-      const data = klona(previous.stat_data) as stat_data;
-      data.手机.微信.账号.user.表情包 = merged.stickers;
-      await writeStatData(data, previous);
-    }
+    if (changed) await writeStatData(data, previous);
+    if (changed || legacy || !snapshot)
+      updateVariablesWith(current => {
+        const { magicGirlWeChatStickerSnapshot: _legacy, ...rest } = current;
+        return { ...rest, [WECHAT_MEDIA_SNAPSHOT_KEY]: mediaSnapshot(nextAccounts) };
+      }, scope);
   }
 
   function scheduleStickerSync() {
@@ -987,6 +1049,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const current = previous.stat_data;
       const { data, changed } = reconcileWorldbookStatData(current, entries);
       if (!changed) return;
+      applyNewChatMediaSnapshot(
+        (data as unknown as stat_data).手机.微信.账号,
+        getVariables({ type: 'script', script_id: getScriptId() })?.[WECHAT_MEDIA_SNAPSHOT_KEY],
+        hasWechatImage,
+      );
       const next = { ...previous, stat_data: data };
       // 检查后立即向当前楼层发起写入，避免聊天切换期间提交过期数据。
       if (generation !== chatGeneration) return;
@@ -1165,6 +1232,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     respondWeChatFriend,
     performWeChatOperation,
     updateWeChatProfile,
+    updateWeChatAccount,
     addWeChatSticker,
   };
 });

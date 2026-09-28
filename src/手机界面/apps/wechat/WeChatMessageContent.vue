@@ -22,8 +22,8 @@
       >
         <span class="wx-contact-card-avatar"
           ><img
-            v-if="accounts[parseText(item).label]?.头像"
-            :src="accounts[parseText(item).label].头像"
+            v-if="resolveWechatImage(accounts[parseText(item).label]?.头像)"
+            :src="resolveWechatImage(accounts[parseText(item).label].头像)"
             alt=""
           /><template v-else>{{
             (accounts[parseText(item).label]?.昵称 || parseText(item).label).slice(0, 1)
@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import type { 微信数据, 微信消息, 微信消息内容, 微信转发内容 } from '../../types';
 import { parseLocationShare } from '../map/locationShare';
+import { resolveWechatImage } from './imageLibrary';
 
 const props = withDefaults(
   defineProps<{
@@ -124,7 +125,7 @@ function parseText(value: string): {
 }
 
 function stickerSource(name: string): string {
-  return props.accounts[props.sender]?.表情包?.[name] || '';
+  return resolveWechatImage(props.accounts[props.sender]?.表情包?.[name]);
 }
 
 function forwardMessages(item: 微信转发内容): 微信消息[] {
