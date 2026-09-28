@@ -60,14 +60,15 @@ const store = useMagicGirlStatStore();
 const cleanup = store.initialize();
 
 async function main() {
-  // 新聊天楼层晚于打开手机才完成 MVU 加载。
-  store.setPhoneOpen(true);
-  await store.checkWorldbook();
+  // 脚本启动即开始检查；新聊天楼层晚到时无需点击手机。
   assert.equal(writes, 0);
   current = { stat_data: { 作者: 987 } };
   await new Promise(resolve => setTimeout(resolve, 1150));
   assert.equal(writes, 1);
   assert.ok(current.stat_data.角色.user);
+  assert.equal(store.initializationNoticePending, true);
+  store.setPhoneOpen(true);
+  assert.equal(store.initializationNoticePending, false);
 
   // 手机保持打开时切换聊天，新楼层晚到仍会初始化。
   chatId = 'chat-b';
@@ -76,24 +77,33 @@ async function main() {
   current = { stat_data: { 作者: 987 } };
   await new Promise(resolve => setTimeout(resolve, 1150));
   assert.equal(writes, 2);
+  assert.equal(store.initializationNoticePending, false);
 
   // 世界书读取期间换聊天，旧检查不得写入新聊天。
+  chatId = 'chat-c';
   current = { stat_data: { 作者: 987 } };
   let release!: (value: typeof entries) => void;
   readWorldbook = () => new Promise(resolve => (release = resolve));
-  const oldCheck = store.checkWorldbook();
+  for (const listener of listeners.CHAT_CHANGED) listener();
   await Promise.resolve();
-  chatId = 'chat-c';
+  readWorldbook = async () => entries;
+  chatId = 'chat-d';
+  for (const listener of listeners.CHAT_CHANGED) listener();
   release(entries);
-  await oldCheck;
+  await Promise.resolve();
   assert.equal(writes, 2);
   assert.deepEqual(current.stat_data, { 作者: 987 });
-  readWorldbook = async () => entries;
-  await store.checkWorldbook();
+  await new Promise(resolve => setTimeout(resolve, 1150));
   assert.equal(writes, 3);
   store.setPhoneOpen(false);
+  chatId = 'chat-e';
+  current = { stat_data: { 作者: 987 } };
+  for (const listener of listeners.CHAT_CHANGED) listener();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(writes, 4);
+  assert.equal(store.initializationNoticePending, true);
   cleanup();
-  console.log('手机切换聊天与延迟 MVU 初始化验证通过');
+  console.log('手机自动轮询、提示状态与聊天切换验证通过');
 }
 
 void main().catch(error => {

@@ -1207,6 +1207,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     eventOn(KatEvents.kat_mvu_update_finished, scheduleWeChatLog);
     eventOn('mag_variable_update_ended', () => scheduleWeChatLog());
     scheduleWeChatLog();
+    void checkWorldbook();
     return () => {
       chatGeneration++;
       worldbookCheckGeneration++;
@@ -1222,7 +1223,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function replace(data: stat_data) {
     await MvuUtil.updateMvuDataByObj(data);
     refresh();
-    void checkWorldbook();
   }
 
   async function update(diff: object) {
