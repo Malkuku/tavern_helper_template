@@ -125,4 +125,44 @@ firstWeek.本周.完成 = 7;
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).missed, false, '上周达标不触发问责');
 assert.match(weeklyRule, /<任务周指标>[\s\S]*本周已领取 <%- currentClaimed %> 项，还需 <%- remaining %> 项/);
 assert.match(weeklyRule, /if \(remaining > 0\)/);
+
+const generationRule = readFileSync(`${root}\\更新规则\\生成任务.ini`, 'utf8');
+const generationPrelude = /<%_\s*(const active[\s\S]*?)_%>/.exec(generationRule)?.[1];
+assert.ok(generationPrelude, '生成任务规则必须构造地图与已发现目标预览');
+const previewMap = {
+  星川市: {
+    描述: '城市',
+    子地图: {
+      星川站: { 描述: '车站', 详情: ['换乘大厅'], 子地图: {} },
+      中央广场: { 描述: '广场', 子地图: {} },
+      河岸: { 描述: '河边', 子地图: {} },
+    },
+  },
+  月海市: { 描述: '邻市', 子地图: { 月海港: { 描述: '港口', 子地图: {} } } },
+};
+function generationPreview(discovered: string[]) {
+  return runInNewContext(`${generationPrelude}\n;({ regularMapPreview, randomMapPreview, discoveredTargets })`, {
+    getChatMessages: () => [],
+    getvar: (key: string) =>
+      ({
+        'stat_data.任务': {},
+        'stat_data.地图': previewMap,
+        'stat_data.世界.地图索引': '星川站',
+        'stat_data.角色': {
+          主要角色: { 索菲亚: { 基础信息: '学生', 人设阶段: { 好感度: { 当前等级: 1, 描述: { '1': '信任' } } } } },
+        },
+        'stat_data.系统.已发现目标': discovered,
+      })[key],
+  });
+}
+const withTarget = generationPreview(['索菲亚', '未发现角色']);
+assert.ok(withTarget.regularMapPreview.some((node: { 路径: string }) => node.路径 === '星川市 / 星川站'));
+assert.ok(withTarget.regularMapPreview.some((node: { 路径: string }) => node.路径 === '星川市 / 中央广场'));
+assert.ok(withTarget.randomMapPreview.some((node: { 路径: string }) => node.路径 === '月海市 / 月海港'));
+assert.equal(withTarget.discoveredTargets.length, 1, '预览只包含已发现且存在的角色');
+assert.equal(withTarget.discoveredTargets[0].好感度.当前描述, '信任');
+assert.equal(generationPreview([]).discoveredTargets.length, 0, '没有已发现目标时不泄漏预置角色');
+assert.match(generationRule, /至少提供一项有机会提升其好感度的任务/);
+assert.match(generationRule, /保留至少 2 项恶堕、色情或调教倾向的任务/);
+assert.match(generationRule, /年龄不明或未成年的角色只安排非色情任务/);
 console.info('组织任务定向验证通过。');
