@@ -5,20 +5,9 @@ export function appDisplayName(name: string): string {
   return name === '主要角色' ? '心象监测' : name === '次要角色' ? '人物观测' : name;
 }
 
-export function isDataApp(name: string | null): name is DataAppName {
-  return dataAppNames.some(item => item === name);
-}
-
 export const apps = [
   { name: '微信', icon: '', color: 'linear-gradient(145deg, #42d76c, #08aa41)' },
-  { name: '主要角色', icon: '', color: 'linear-gradient(145deg, #dba4cf, #795aab)' },
-  { name: '次要角色', icon: '', color: 'linear-gradient(145deg, #a4b9de, #696da6)' },
-  { name: '我的档案', icon: '', color: 'linear-gradient(145deg, #e6acbe, #b66c95)' },
-  { name: '技能', icon: '', color: 'linear-gradient(145deg, #cfb5ee, #865cb7)' },
-  { name: '技能商店', icon: '✦', color: 'linear-gradient(145deg, #71529a, #35254f)' },
-  { name: '道具商店', icon: '✧', color: 'linear-gradient(145deg, #c48b78, #654555)' },
-  { name: '组织任务', icon: '✦', color: 'linear-gradient(145deg, #8c7ab5, #433858)' },
-  { name: '随身物品', icon: '', color: 'linear-gradient(145deg, #efc3a5, #c98779)' },
+  { name: '魔女恶堕计划', icon: '', color: 'linear-gradient(145deg, #411335, #150c25)' },
   { name: '角色编辑器', icon: '✎', color: 'linear-gradient(145deg, #c6a4df, #7756a1)' },
   { name: '信息', icon: '●', color: 'linear-gradient(145deg, #73e878, #19ae45)' },
   { name: '照片', icon: '', color: 'linear-gradient(145deg, #fff, #e6e8ed)' },

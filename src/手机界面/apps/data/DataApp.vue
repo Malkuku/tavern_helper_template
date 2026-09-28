@@ -1,8 +1,5 @@
 <template>
   <div class="data-app">
-    <header class="data-header">
-      <strong>{{ appDisplayName(app) }}</strong>
-    </header>
     <div class="data-scroll">
       <div v-if="!statStore.statData" class="data-empty">
         <span class="data-empty-mark">✧</span>
@@ -20,7 +17,7 @@
 
 <script setup lang="ts">
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { appDisplayName, type DataAppName } from '../../desktopApps';
+import type { DataAppName } from '../../desktopApps';
 import MainCharacters from './MainCharacters.vue';
 import MinorCharacters from './MinorCharacters.vue';
 import Profile from './Profile.vue';
@@ -30,5 +27,3 @@ import Items from './Items.vue';
 defineProps<{ app: DataAppName }>();
 const statStore = useMagicGirlStatStore();
 </script>
-
-<style src="../../styles/data.css"></style>

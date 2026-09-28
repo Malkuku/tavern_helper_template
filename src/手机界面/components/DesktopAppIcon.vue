@@ -1,11 +1,16 @@
 <template>
   <span
     class="app-icon"
-    :class="{ 'wechat-icon': name === '微信', 'calendar-icon': name === '日历', 'map-icon': name === '地图' }"
+    :class="{
+      'wechat-icon': name === '微信',
+      'calendar-icon': name === '日历',
+      'map-icon': name === '地图',
+      'witch-app-icon': name === '魔女恶堕计划',
+    }"
     :style="{ background: app?.color }"
     aria-hidden="true"
   >
-    <DataAppIcon v-if="isDataApp(name)" :kind="name" />
+    <WitchMark v-if="name === '魔女恶堕计划'" class="witch-desktop-mark" />
     <svg v-else-if="name === '照片'" class="photos-icon" viewBox="0 0 48 48" aria-hidden="true">
       <ellipse cx="24" cy="14" rx="7" ry="11" fill="#f9c44e" />
       <ellipse cx="31" cy="17" rx="7" ry="11" fill="#f28c62" transform="rotate(45 31 17)" />
@@ -35,8 +40,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { apps, dockApps, isDataApp } from '../desktopApps';
-import DataAppIcon from './DataAppIcon.vue';
+import { apps, dockApps } from '../desktopApps';
+import WitchMark from '../apps/witch/WitchMark.vue';
 
 const props = defineProps<{ name: string; today: number }>();
 const app = computed(() => [...apps, ...dockApps].find(item => item.name === props.name));
@@ -77,5 +82,47 @@ const app = computed(() => [...apps, ...dockApps].find(item => item.name === pro
   display: block;
   width: 100%;
   height: 100%;
+}
+.witch-desktop-mark {
+  width: 45px;
+  height: 45px;
+  filter: drop-shadow(0 0 6px #fa87c088);
+}
+.witch-app-icon {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #b26490;
+  box-shadow:
+    inset 0 1px #ffffff33,
+    0 4px 14px #12051f8c;
+}
+.witch-app-icon::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, #f387b51f 50%, transparent 54%);
+  content: '';
+  pointer-events: none;
+  animation: witch-icon-scan 9s steps(1, end) infinite;
+}
+@keyframes witch-icon-scan {
+  0%,
+  94%,
+  100% {
+    transform: translateY(-70%);
+    opacity: 0;
+  }
+  95% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  96% {
+    transform: translateY(60%);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .witch-app-icon::after {
+    animation: none;
+  }
 }
 </style>

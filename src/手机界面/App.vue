@@ -74,20 +74,8 @@
                 <RoleEditor ref="roleEditorRef" @leave="leaveRoleEditor" />
               </main>
 
-              <main v-else-if="activeApp === '技能商店'" :key="'skill-shop'" class="data-app-screen">
-                <SkillShop />
-              </main>
-
-              <main v-else-if="activeApp === '道具商店'" :key="'item-shop'" class="data-app-screen">
-                <ItemShop />
-              </main>
-
-              <main v-else-if="activeApp === '组织任务'" :key="'quests'" class="data-app-screen">
-                <QuestApp />
-              </main>
-
-              <main v-else-if="isDataApp(activeApp)" :key="activeApp" class="data-app-screen">
-                <DataApp :app="activeApp" />
+              <main v-else-if="activeApp === '魔女恶堕计划'" :key="'witch-app'" class="data-app-screen">
+                <WitchApp />
               </main>
 
               <PhoneUtilities
@@ -160,19 +148,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useMagicGirlStatStore } from './store/StatStore';
-import DataApp from './apps/data/DataApp.vue';
 import WeChat from './apps/wechat/WeChat.vue';
 import RoleEditor from './apps/roleEditor/RoleEditor.vue';
-import SkillShop from './apps/skillShop/SkillShop.vue';
-import ItemShop from './apps/itemShop/ItemShop.vue';
-import QuestApp from './apps/quests/QuestApp.vue';
+import WitchApp from './apps/witch/WitchApp.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
 import PhoneExtras from './apps/PhoneExtras.vue';
 import MapApp from './apps/map/MapApp.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import WeChatNotification from './components/WeChatNotification.vue';
-import { apps, dockApps, isDataApp } from './desktopApps';
+import { apps, dockApps } from './desktopApps';
 import { readPhoneWallpaper } from './wallpaper';
 
 const open = ref(false);

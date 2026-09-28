@@ -1,13 +1,10 @@
 <template>
   <div class="quest-app">
-    <header>
-      <strong>组织任务</strong><span>{{ balance }} 恶堕积分</span>
-    </header>
     <div class="scroll">
       <section class="intro">
-        <h1>委托任务</h1>
-        <p>每天可免费刷新一次，每次 6 项；同时最多接取 4 项，领奖后释放名额。</p>
-        <p>本周已领奖 {{ stats?.current.完成 ?? 0 }}/10 项 · 已接 {{ activeEntries.length }}/4 项</p>
+        <span class="witch-eyebrow">MEMBER MISSIONS</span>
+        <h1>你的任务</h1>
+        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/10</p>
         <button
           type="button"
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
@@ -102,11 +99,10 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskRefreshState, taskWeekStats, type 任务评级 } from './quests';
 
 const store = useMagicGirlStatStore();
-const tab = ref<'board' | 'active' | 'stats'>('board');
+const tab = ref<'board' | 'active' | 'stats'>(Object.keys(store.statData?.任务 ?? {}).length ? 'active' : 'board');
 const busy = ref(false);
 const error = ref('');
 const confirmAbandon = ref<string | null>(null);
-const balance = computed(() => store.statData?.角色.user.恶堕积分 ?? 0);
 const boardEntries = computed(() => Object.entries(store.statData?.任务候选 ?? {}));
 const activeEntries = computed(() => Object.entries(store.statData?.任务 ?? {}));
 const stats = computed(() => {
@@ -155,155 +151,3 @@ function abandon(name: string) {
   });
 }
 </script>
-
-<style scoped>
-.quest-app {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: #30283b;
-  background: #f5f3f8;
-  font-family: sans-serif;
-}
-header {
-  box-sizing: border-box;
-  height: 104px;
-  padding: 52px 18px 0;
-  display: flex;
-  justify-content: space-between;
-  background: #faf8fc;
-  border-bottom: 1px solid #e8e2ee;
-}
-header span {
-  color: #76519b;
-  font-size: 12px;
-  font-weight: 700;
-}
-.scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 18px 17px 40px;
-}
-.intro {
-  padding: 17px;
-  border-radius: 18px;
-  color: white;
-  background: linear-gradient(140deg, #342d54, #76527e);
-}
-h1 {
-  margin: 0;
-  font-size: 25px;
-}
-.intro p {
-  font-size: 12px;
-  line-height: 1.6;
-}
-button {
-  border: 0;
-  border-radius: 10px;
-  padding: 9px 12px;
-  color: white;
-  background: #76519b;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.intro button {
-  background: white;
-  color: #55366f;
-  margin-right: 7px;
-}
-.intro button.secondary {
-  background: #ffffff26;
-  color: white;
-}
-nav {
-  display: flex;
-  gap: 7px;
-  margin: 16px 0;
-}
-nav button {
-  flex: 1;
-  background: #e9e1ef;
-  color: #65477b;
-}
-nav button.selected {
-  background: #76519b;
-  color: white;
-}
-.list {
-  display: grid;
-  gap: 12px;
-}
-.card {
-  padding: 15px;
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 5px 18px #42334a08;
-  display: grid;
-  gap: 10px;
-}
-.heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-}
-.heading span {
-  color: #76519b;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.card p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-}
-.goal,
-.progress {
-  padding: 10px;
-  border-radius: 10px;
-  background: #f8f4fa;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-.progress {
-  color: #76519b;
-}
-.card small {
-  color: #76519b;
-  font-weight: 700;
-}
-.secondary {
-  background: #e9e1ef;
-  color: #65477b;
-}
-.danger {
-  background: #b6375a;
-}
-.text-button {
-  color: #65477b;
-  background: transparent;
-}
-.error {
-  color: #b6375a;
-  font-size: 12px;
-}
-.intro .error {
-  color: #ffe4ed;
-}
-.empty,
-.stats-note {
-  color: #776b80;
-  font-size: 13px;
-  text-align: center;
-  padding: 15px;
-}
-</style>
