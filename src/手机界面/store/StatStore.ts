@@ -35,6 +35,7 @@ import {
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
+import { isNewGenerationResult } from '../apps/generationResult';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyProfileEdit, type ProfileField } from '../apps/data/profileEdit';
 import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
@@ -125,12 +126,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const skillRefreshError = ref('');
   const skillRefreshing = ref(false);
   let skillRefreshStartMessageId = -1;
+  let skillRefreshStartMessage = '';
   const itemRefreshError = ref('');
   const itemRefreshing = ref(false);
   let itemRefreshStartMessageId = -1;
+  let itemRefreshStartMessage = '';
   const taskRefreshError = ref('');
   const taskRefreshing = ref(false);
   let taskRefreshStartMessageId = -1;
+  let taskRefreshStartMessage = '';
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
@@ -432,8 +436,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
     refreshError.value = '';
     refreshing.value = true;
-    if (kind === '技能') skillRefreshStartMessageId = getLastMessageId();
-    else itemRefreshStartMessageId = getLastMessageId();
+    const startMessageId = getLastMessageId();
+    const startMessage = startMessageId >= 0 ? (getChatMessages(startMessageId)[0]?.message ?? '') : '';
+    if (kind === '技能') {
+      skillRefreshStartMessageId = startMessageId;
+      skillRefreshStartMessage = startMessage;
+    } else {
+      itemRefreshStartMessageId = startMessageId;
+      itemRefreshStartMessage = startMessage;
+    }
     try {
       await eventEmit(kind === '技能' ? 'Chat_On_SkillShop' : 'Chat_On_ItemShop');
     } catch (error) {
@@ -529,6 +540,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     taskRefreshError.value = '';
     taskRefreshing.value = true;
     taskRefreshStartMessageId = getLastMessageId();
+    taskRefreshStartMessage =
+      taskRefreshStartMessageId >= 0 ? (getChatMessages(taskRefreshStartMessageId)[0]?.message ?? '') : '';
     try {
       await eventEmit('Chat_On_Quest');
     } catch (error) {
@@ -949,6 +962,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
     const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
+    const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
     if (!refreshing.value) return;
     const generation = chatGeneration;
     void queueStatWork(async () => {
@@ -956,8 +970,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const id = messageId ?? getLastMessageId();
       if (id < 0 || generation !== chatGeneration) return;
       const message = getChatMessages(id)[0];
-      if (!message || message.role !== 'assistant' || !message.message.includes(marker)) return;
-      if (id <= startMessageId) return;
+      if (!isNewGenerationResult(message, marker, startMessageId, startMessage)) return;
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
@@ -982,12 +995,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
     const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
+    const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
     if (!refreshing.value) return;
     setTimeout(() => {
       if (!refreshing.value) return;
       const id = messageId ?? getLastMessageId();
       const message = id >= 0 ? getChatMessages(id)[0] : null;
-      if (id <= startMessageId || !message?.message.includes(marker)) {
+      if (!isNewGenerationResult(message, marker, startMessageId, startMessage)) {
         refreshing.value = false;
         refreshError.value = `本次生成没有返回${kind}商店结果`;
       }
@@ -1000,9 +1014,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     void queueStatWork(async () => {
       if (!taskRefreshing.value) return;
       const id = messageId ?? getLastMessageId();
-      if (id < 0 || id <= taskRefreshStartMessageId || generation !== chatGeneration) return;
+      if (id < 0 || generation !== chatGeneration) return;
       const message = getChatMessages(id)[0];
-      if (!message || message.role !== 'assistant' || !message.message.includes('<questVariable')) return;
+      if (!isNewGenerationResult(message, '<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage)) return;
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration || !taskRefreshing.value) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
@@ -1027,7 +1041,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!taskRefreshing.value) return;
       const id = messageId ?? getLastMessageId();
       const message = id >= 0 ? getChatMessages(id)[0] : null;
-      if (id <= taskRefreshStartMessageId || !message?.message.includes('<questVariable')) {
+      if (!isNewGenerationResult(message, '<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage)) {
         taskRefreshing.value = false;
         taskRefreshError.value = '本次生成没有返回任务结果';
       }
@@ -1154,12 +1168,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     skillRefreshError.value = '';
     skillRefreshing.value = false;
     skillRefreshStartMessageId = -1;
+    skillRefreshStartMessage = '';
     itemRefreshError.value = '';
     itemRefreshing.value = false;
     itemRefreshStartMessageId = -1;
+    itemRefreshStartMessage = '';
     taskRefreshError.value = '';
     taskRefreshing.value = false;
     taskRefreshStartMessageId = -1;
+    taskRefreshStartMessage = '';
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
