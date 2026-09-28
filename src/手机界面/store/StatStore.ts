@@ -35,7 +35,7 @@ import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
-import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
+import { assignFirstTarget, firstTargetSystemLog, firstTargetUserMessage } from '../apps/data/firstTarget';
 import { applyInventoryTransfers, type InventorySide, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import {
   initialReadCursors,
@@ -119,6 +119,10 @@ function phoneSystemLog(detail: string): string {
 
 export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const statData = ref<stat_data | null>(null);
+  const firstTargetMessageError = ref('');
+  const firstTargetMessageSending = ref(false);
+  let pendingFirstTargetMessage: { text: string; generation: number; startMessageId: number; created: boolean } | null =
+    null;
   const wechatLogError = ref('');
   const skillRefreshError = ref('');
   const skillRefreshing = ref(false);
@@ -395,10 +399,49 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       }
       try {
         await eventEmit('mag_variable_update_ended', next, previous);
+      } catch (error) {
+        console.error('首次目标变量通知失败', error);
       } finally {
         refresh();
       }
     });
+    if (generation !== chatGeneration) throw new Error('聊天已切换，目标消息不能发送到当前聊天。');
+    pendingFirstTargetMessage = {
+      text: firstTargetUserMessage(key),
+      generation,
+      startMessageId: getLastMessageId(),
+      created: false,
+    };
+    await retryFirstTargetMessage();
+  }
+
+  async function retryFirstTargetMessage(): Promise<void> {
+    const pending = pendingFirstTargetMessage;
+    if (!pending || firstTargetMessageSending.value) return;
+    if (pending.generation !== chatGeneration) throw new Error('聊天已切换，目标消息不能发送到当前聊天。');
+    firstTargetMessageSending.value = true;
+    firstTargetMessageError.value = '';
+    try {
+      if (!pending.created) {
+        const lastId = getLastMessageId();
+        const last = getChatMessages(lastId)[0];
+        if (lastId > pending.startMessageId && last?.role === 'user' && last.message === pending.text) {
+          pending.created = true;
+        } else {
+          await createChatMessages([{ role: 'user', message: pending.text }]);
+          pending.created = true;
+        }
+      }
+      if (pending.generation !== chatGeneration) throw new Error('聊天已切换，目标消息不能发送到当前聊天。');
+      await triggerSlash('/trigger');
+      if (pending.generation === chatGeneration) pendingFirstTargetMessage = null;
+    } catch (error) {
+      if (pending.generation === chatGeneration)
+        firstTargetMessageError.value = `目标已保存，但酒馆消息未完成：${error instanceof Error ? error.message : '请重试发送。'}`;
+      throw error;
+    } finally {
+      firstTargetMessageSending.value = false;
+    }
   }
 
   async function transferInventory(transfers: InventoryTransfer[]): Promise<void> {
@@ -1139,6 +1182,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function resetForChat() {
     chatGeneration++;
+    pendingFirstTargetMessage = null;
+    firstTargetMessageError.value = '';
+    firstTargetMessageSending.value = false;
     worldbookCheckGeneration++;
     if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
     worldbookRetryTimer = undefined;
@@ -1230,6 +1276,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   return {
     statData,
+    firstTargetMessageError,
+    firstTargetMessageSending,
+    retryFirstTargetMessage,
     unreadChatKeys,
     wechatNotification,
     markWeChatRead,

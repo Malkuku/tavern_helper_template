@@ -128,40 +128,30 @@
     </section>
     <p class="data-prose">接触任务已发放。目标的观测档案会在角色数据录入后显示。</p>
   </div>
-  <div v-else class="data-empty"><strong>暂无主要角色</strong></div>
-  <Teleport to=".witch-app">
-    <div
-      v-if="showFirstChoice"
-      class="first-target-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="选择首位接触目标"
-    >
-      <div class="first-target-dialog">
-        <div class="first-target-head">
-          <small>FIRST CONTACT</small>
-          <h2>选择首位接触目标</h2>
-          <p>组织已提供四位魔法少女的线索。请选择一位开始接触。</p>
-        </div>
-        <div v-if="activeChoice" class="first-target-slide">
-          <img :src="characterImageUrl(activeChoice.key, '魔法少女')!" :alt="`${activeChoice.key}的魔法少女形态`" />
-          <div class="first-target-caption">
-            <strong>{{ activeChoice.key }}</strong
-            ><span>{{ activeChoice.title }}</span>
-          </div>
-        </div>
-        <div class="first-target-controls">
-          <button type="button" aria-label="上一位" @click="moveChoice(-1)">‹</button>
-          <span>{{ choiceIndex + 1 }} / {{ choiceOptions.length }}</span>
-          <button type="button" aria-label="下一位" @click="moveChoice(1)">›</button>
-        </div>
-        <button class="first-target-confirm" type="button" :disabled="choosing" @click="chooseTarget">
-          {{ choosing ? '正在确认…' : `选择${activeChoice?.key}` }}
-        </button>
-        <p v-if="choiceError" class="data-error" role="alert">{{ choiceError }}</p>
+  <section v-else-if="showFirstChoice" class="first-target-selection" aria-label="选择首位接触目标">
+    <div class="first-target-head">
+      <small>FIRST CONTACT</small>
+      <h2>选择首位接触目标</h2>
+      <p>组织已提供四位魔法少女的线索。请选择一位开始接触。</p>
+    </div>
+    <div v-if="activeChoice" class="first-target-slide">
+      <img :src="characterImageUrl(activeChoice.key, '魔法少女')!" :alt="`${activeChoice.key}的魔法少女形态`" />
+      <div class="first-target-caption">
+        <strong>{{ activeChoice.key }}</strong
+        ><span>{{ activeChoice.title }}</span>
       </div>
     </div>
-  </Teleport>
+    <div class="first-target-controls">
+      <button type="button" aria-label="上一位" @click="moveChoice(-1)">‹</button>
+      <span>{{ choiceIndex + 1 }} / {{ choiceOptions.length }}</span>
+      <button type="button" aria-label="下一位" @click="moveChoice(1)">›</button>
+    </div>
+    <button class="first-target-confirm" type="button" :disabled="choosing" @click="chooseTarget">
+      {{ choosing ? '正在确认…' : `选择${activeChoice?.key}` }}
+    </button>
+    <p v-if="choiceError" class="data-error" role="alert">{{ choiceError }}</p>
+  </section>
+  <div v-else class="data-empty"><strong>暂无主要角色</strong></div>
 </template>
 
 <script setup lang="ts">
@@ -176,7 +166,7 @@ import {
   characterImages,
   type CharacterImageForm,
 } from './characterImages';
-import { firstTargetChoices, hasDiscoveredRole } from './firstTarget';
+import { firstTargetChoices } from './firstTarget';
 import LockedField from './LockedField.vue';
 
 const props = defineProps<{ data: stat_data }>();
@@ -216,7 +206,7 @@ const heroImageStyle = computed(() => {
 });
 const choiceOptions = firstTargetChoices;
 const activeChoice = computed(() => choiceOptions[choiceIndex.value]);
-const showFirstChoice = computed(() => !hasDiscoveredRole(props.data));
+const showFirstChoice = computed(() => (props.data.系统?.已发现目标?.length ?? 0) === 0);
 const pendingTarget = computed(() =>
   firstTargetChoices.find(
     item => props.data.系统?.已发现目标?.includes(item.key) && !props.data.角色?.主要角色?.[item.key],

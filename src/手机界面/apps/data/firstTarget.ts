@@ -59,3 +59,8 @@ export function firstTargetSystemLog(key: string): string {
   if (!firstTargetKeys.includes(key as FirstTargetKey)) throw new Error('初始目标无效。');
   return `\n<systemLog>\n<user>在「魔女恶堕计划」中选择${key}作为首位接触目标，接下初始接触任务，并领取伪造身份凭证。\n</systemLog>\n`;
 }
+
+export function firstTargetUserMessage(key: string): string {
+  if (!firstTargetKeys.includes(key as FirstTargetKey)) throw new Error('初始目标无效。');
+  return `<user>选择了${key}作为第一个恶堕目标`;
+}

@@ -919,6 +919,13 @@ textarea.utility-input {
 .folder-mini .app-icon:active {
   transform: scale(0.362);
 }
+.folder-mini .witch-app-icon.first-target-pending,
+.folder-mini .witch-app-icon.first-target-pending::before {
+  animation: none;
+}
+.folder-mini .witch-app-icon.first-target-pending::before {
+  display: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .phone-module *,
   .phone-module *::before,

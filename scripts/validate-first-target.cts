@@ -4,6 +4,7 @@ import {
   assignFirstTarget,
   firstTargetKeys,
   firstTargetSystemLog,
+  firstTargetUserMessage,
   hasDiscoveredRole,
 } from '../src/手机界面/apps/data/firstTarget';
 import type { stat_data } from '../src/手机界面/types';
@@ -26,6 +27,7 @@ for (const key of firstTargetKeys) {
   assert.equal(data.任务[`初始接触：${key}`].当前进度, '进行中');
   assert.equal(data.角色.user.物品.伪造身份凭证.数量, 1);
   assert.match(firstTargetSystemLog(key), /<systemLog>[\s\S]*<user>[\s\S]*<\/systemLog>/);
+  assert.equal(firstTargetUserMessage(key), `<user>选择了${key}作为第一个恶堕目标`);
   assert.throws(() => assignFirstTarget(data, key), /已经有已发现目标/);
 }
 

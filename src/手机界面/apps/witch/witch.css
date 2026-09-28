@@ -136,6 +136,23 @@
   min-height: 0;
   overflow: hidden;
 }
+.witch-send-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #b56a97;
+  background: #4b1d35;
+  color: #ffe1ed;
+  font-size: 11px;
+}
+.witch-send-error span {
+  flex: 1;
+}
+.witch-send-error button {
+  flex: none;
+  text-decoration: underline;
+}
 .witch-scroll,
 .witch-app :is(.scroll, .shop-scroll, .item-shop-scroll, .data-scroll) {
   flex: 1;
@@ -503,24 +520,12 @@
   border-color: #ffd0e6;
   background-color: #8b3c6f !important;
 }
-.witch-app .first-target-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: #0c0815ec;
-}
-.witch-app .first-target-dialog {
-  width: min(100%, 390px);
-  max-height: 100%;
-  overflow-y: auto;
+.witch-app .first-target-selection {
+  margin-top: 14px;
   padding: 16px;
   border: 1px solid #b56a97;
   border-radius: 20px;
   background: #211426;
-  box-shadow: 0 18px 55px #0008;
   text-align: center;
 }
 .witch-app .first-target-head small {

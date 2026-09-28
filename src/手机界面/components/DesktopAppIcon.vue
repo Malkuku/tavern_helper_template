@@ -6,6 +6,7 @@
       'calendar-icon': name === '日历',
       'map-icon': name === '地图',
       'witch-app-icon': name === '魔女恶堕计划',
+      'first-target-pending': name === '魔女恶堕计划' && statStore.statData?.系统?.已发现目标?.length === 0,
     }"
     :style="{ background: app?.color }"
     aria-hidden="true"
@@ -42,9 +43,11 @@
 import { computed } from 'vue';
 import { apps, dockApps } from '../desktopApps';
 import WitchMark from '../apps/witch/WitchMark.vue';
+import { useMagicGirlStatStore } from '../store/StatStore';
 
 const props = defineProps<{ name: string; today: number }>();
 const app = computed(() => [...apps, ...dockApps].find(item => item.name === props.name));
+const statStore = useMagicGirlStatStore();
 </script>
 
 <style scoped>
@@ -104,6 +107,58 @@ const app = computed(() => [...apps, ...dockApps].find(item => item.name === pro
   pointer-events: none;
   animation: witch-icon-scan 9s steps(1, end) infinite;
 }
+.witch-app-icon.first-target-pending {
+  overflow: visible;
+  animation: witch-icon-shiver 1.8s ease-in-out infinite;
+}
+.witch-app-icon.first-target-pending::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffd7ed;
+  box-shadow:
+    -19px -24px #f08bb7,
+    18px -27px #ffd7ed,
+    27px 4px #c77ce8,
+    20px 22px #f08bb7,
+    -8px 30px #ffd7ed,
+    -28px 10px #c77ce8;
+  content: '';
+  pointer-events: none;
+  animation: witch-icon-particles 1.8s ease-out infinite;
+}
+@keyframes witch-icon-shiver {
+  0%,
+  30%,
+  55%,
+  100% {
+    transform: rotate(0);
+  }
+  35%,
+  45% {
+    transform: rotate(-4deg);
+  }
+  40%,
+  50% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes witch-icon-particles {
+  0% {
+    transform: translate(-50%, -50%) scale(0.35);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.9);
+    opacity: 0;
+  }
+}
 @keyframes witch-icon-scan {
   0%,
   94%,
@@ -121,6 +176,8 @@ const app = computed(() => [...apps, ...dockApps].find(item => item.name === pro
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .witch-app-icon.first-target-pending,
+  .witch-app-icon.first-target-pending::before,
   .witch-app-icon::after {
     animation: none;
   }

@@ -11,6 +11,13 @@
       </div>
     </header>
 
+    <div v-if="store.firstTargetMessageError" class="witch-send-error" role="alert">
+      <span>{{ store.firstTargetMessageError }}</span>
+      <button type="button" :disabled="store.firstTargetMessageSending" @click="retryTargetMessage">
+        {{ store.firstTargetMessageSending ? '发送中…' : '重试发送' }}
+      </button>
+    </div>
+
     <Transition name="witch-page" mode="out-in">
       <div :key="`${tab}:${subpage}`" class="witch-view">
         <div v-if="tab === 'home'" class="witch-home witch-scroll">
@@ -193,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskWeekStats } from '../quests/quests';
 import type { DataAppName } from '../../desktopApps';
@@ -213,12 +220,25 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'shop', label: '商店' },
   { key: 'mine', label: '我的' },
 ];
-const tab = ref<Tab>('home');
-const subpage = ref('');
+const store = useMagicGirlStatStore();
+const needsFirstTarget = (data: typeof store.statData) => data?.系统?.已发现目标?.length === 0;
+const tab = ref<Tab>(needsFirstTarget(store.statData) ? 'observe' : 'home');
+const subpage = ref(needsFirstTarget(store.statData) ? '主要角色' : '');
+let waitingForInitialData = !store.statData;
+watch(
+  () => store.statData,
+  data => {
+    if (!waitingForInitialData || !data) return;
+    waitingForInitialData = false;
+    if (needsFirstTarget(data)) {
+      tab.value = 'observe';
+      subpage.value = '主要角色';
+    }
+  },
+);
 const minePage = computed<DataAppName>(() =>
   subpage.value === '技能' || subpage.value === '随身物品' ? subpage.value : '我的档案',
 );
-const store = useMagicGirlStatStore();
 const balance = computed(() => store.statData?.角色?.user?.恶堕积分 ?? '—');
 const activeTasks = computed(() => Object.entries(store.statData?.任务 ?? {}));
 const featuredTask = computed(() => activeTasks.value.find(([, item]) => item.已完成) ?? activeTasks.value[0]);
@@ -231,9 +251,17 @@ const weeklyDone = computed(() => {
   }
 });
 function selectTab(next: Tab) {
+  waitingForInitialData = false;
   if (tab.value === next) return;
   tab.value = next;
   subpage.value = next === 'observe' ? '主要角色' : next === 'shop' ? '技能商店' : '我的档案';
+}
+async function retryTargetMessage() {
+  try {
+    await store.retryFirstTargetMessage();
+  } catch {
+    // Store 保留失败原因与待发送消息，供当前页继续重试。
+  }
 }
 function openTasks() {
   selectTab('tasks');
