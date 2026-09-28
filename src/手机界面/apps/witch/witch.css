@@ -838,6 +838,93 @@
   color: var(--witch-text);
   box-shadow: 0 8px 22px #08050b35;
 }
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-d,
+.witch-app .witch-focus-card.witch-grade-d {
+  --grade-color: #aab5c6;
+  --grade-glow: #aab5c630;
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-c,
+.witch-app .witch-focus-card.witch-grade-c {
+  --grade-color: #75cbb2;
+  --grade-glow: #55b99b42;
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-b,
+.witch-app .witch-focus-card.witch-grade-b {
+  --grade-color: #79bfff;
+  --grade-glow: #4b9df254;
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-a,
+.witch-app .witch-focus-card.witch-grade-a {
+  --grade-color: #f2c878;
+  --grade-glow: #e6ae5266;
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s,
+.witch-app .witch-focus-card.witch-grade-s {
+  --grade-color: #f6a4ed;
+  --grade-glow: #db6ddb80;
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-d,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-c,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-b,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-a,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s,
+.witch-app .witch-focus-card[class*='witch-grade-'] {
+  position: relative;
+  border-color: var(--grade-color);
+  box-shadow:
+    0 8px 22px #08050b45,
+    0 0 17px var(--grade-glow),
+    inset 0 0 0 1px var(--grade-glow);
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-a::before,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s::before,
+.witch-app .witch-focus-card:is(.witch-grade-a, .witch-grade-s)::before {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--grade-color);
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 14px var(--grade-glow),
+    0 0 15px var(--grade-glow);
+  content: '';
+  pointer-events: none;
+  animation: witch-grade-glow 3.6s ease-in-out infinite;
+}
+.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s::before,
+.witch-app .witch-focus-card.witch-grade-s::before {
+  animation-duration: 2.5s;
+}
+.witch-app .witch-grade-label {
+  color: var(--grade-color, #e7a0bf) !important;
+}
+.witch-app .stage-level.witch-grade-label {
+  border-color: var(--grade-color, #bf6b91);
+  background: var(--grade-glow, #8d426971);
+}
+@keyframes witch-grade-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.witch-app .skill-shop .shop-card.skill-offer-new {
+  border-width: 2px;
+  border-color: var(--grade-color, #a98aae);
+}
+.witch-app .skill-shop .shop-card.skill-offer-upgrade {
+  border-width: 2px;
+  border-color: var(--grade-color, #a98aae);
+  outline: 2px solid #d88af5;
+  outline-offset: 2px;
+  box-shadow:
+    0 8px 22px #08050b45,
+    0 0 17px var(--grade-glow, #c77aee50),
+    0 0 0 5px #7c438652,
+    inset 0 0 0 1px var(--grade-glow, #c77aee50);
+}
 .witch-app :is(.card, .shop-card, .item-shop-card) {
   display: grid;
   gap: 10px;

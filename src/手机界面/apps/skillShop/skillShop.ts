@@ -4,9 +4,19 @@ import { skillSchema } from '../../store/initialDataSchema';
 import { weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { userRatingFromSkills } from '../../store/userRating';
-import { InvalidGeneratedResultError } from '../generationResult';
+import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
 
-const shopSchema = z.record(z.string().min(1), skillSchema);
+const generatedSkillSchema = z.object({
+  ...skillSchema.shape,
+  图标: z.preprocess(
+    value =>
+      typeof value === 'string' && skillSchema.shape.图标.safeParse(value).success && isGeneratedShopIcon(value)
+        ? value
+        : undefined,
+    skillSchema.shape.图标,
+  ),
+});
+const shopSchema = z.record(z.string().min(1), generatedSkillSchema);
 
 export function refreshQuote(data: stat_data): { next: string; count: number; price: number } {
   return weeklyShopQuote(data, '技能');
@@ -16,13 +26,12 @@ function validPrice(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
 }
 
-export function parseSkillResult(message: string, owned: stat_data['角色']['user']['技能']): Record<string, 可购技能> {
-  const tags = [...message.matchAll(/<skillVariable>\s*([\s\S]*?)\s*<\/skillVariable>/g)];
-  if (tags.length !== 1 || [...message.matchAll(/<skillVariable>/g)].length !== 1)
-    throw new Error('技能生成结果必须包含且只包含一个完整的 skillVariable 标签。');
+export function parseSkillResult(message: string): Record<string, 可购技能> {
+  const payload = latestGeneratedPayload(message, '<skillVariable');
+  if (payload === undefined) throw new Error('技能生成结果缺少完整的 skillVariable 标签。');
   let raw: unknown;
   try {
-    raw = JSON.parse(tags[0][1]);
+    raw = JSON.parse(payload);
   } catch {
     throw new Error('技能生成结果不是合法 JSON。');
   }
@@ -37,9 +46,6 @@ export function parseSkillResult(message: string, owned: stat_data['角色']['us
   }
   const entries = Object.entries(parsed.data);
   if (entries.length !== 6) throw new Error('技能生成结果必须恰好包含 6 个不同名称的技能。');
-  const overlap = entries.filter(([name]) => Object.hasOwn(owned, name));
-  if (overlap.length < (Object.keys(owned).length ? 1 : 0) || overlap.length > Math.min(3, Object.keys(owned).length))
-    throw new Error('升级技能数量必须为 1～3 个，且只能来自当前持有技能。');
   for (const [name, item] of entries) {
     if (
       !name.trim() ||
@@ -51,9 +57,6 @@ export function parseSkillResult(message: string, owned: stat_data['角色']['us
       item.战力评级贡献 < 0
     )
       throw new Error(`技能「${name}」的内容或数值无效。`);
-    if (owned[name] && item.战力评级贡献 <= owned[name].战力评级贡献)
-      throw new Error(`技能「${name}」的升级版战力评级贡献必须提高。`);
-    if (!isGeneratedShopIcon(item.图标)) throw new Error(`技能「${name}」的图标必须使用正方形 viewBox。`);
   }
   return parsed.data;
 }
@@ -61,7 +64,7 @@ export function parseSkillResult(message: string, owned: stat_data['角色']['us
 export function applySkillRefresh(data: stat_data, message: string): void {
   let shop: Record<string, 可购技能>;
   try {
-    shop = parseSkillResult(message, data.角色.user.技能);
+    shop = parseSkillResult(message);
   } catch (error) {
     throw new InvalidGeneratedResultError(error);
   }
@@ -79,7 +82,6 @@ export function buySkill(data: stat_data, name: string): void {
   if (!item) throw new Error('商店中没有这项技能。');
   if (!validPrice(item.价格)) throw new Error('技能价格无效。');
   const current = data.角色.user.技能[name];
-  if (current && item.战力评级贡献 <= current.战力评级贡献) throw new Error('升级版战力评级贡献必须高于当前版本。');
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || balance < item.价格) throw new Error('恶堕积分不足。');
   const price = (current?.价格 ?? 0) + item.价格;

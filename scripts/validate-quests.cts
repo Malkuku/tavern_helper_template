@@ -62,6 +62,15 @@ assert.throws(
   '任务评级只能为 D 到 S',
 );
 assert.deepEqual(data.任务候选, {}, '无效生成不改候选');
+const tolerantStock = {
+  ...stock,
+  任务1: { ...task(), 当前进度: '进行中', 已完成: true, current_progress: '误写', 备注: '额外说明' },
+};
+const tolerantData = structuredClone(data);
+refreshTasks(tolerantData, `${result}<questVariable>${JSON.stringify(tolerantStock)}</questVariable>`);
+assert.equal(tolerantData.任务候选.任务1.当前进度, '未接取', '候选进度由手机统一设置');
+assert.equal(tolerantData.任务候选.任务1.已完成, false, '候选完成标记由手机统一设置');
+assert.equal(tolerantData.任务候选.任务1.备注, undefined, '额外字段不写入变量');
 refreshTasks(data, result);
 assert.equal(Object.keys(data.任务候选).length, 6);
 assert.equal(data.系统.任务下次刷新时间, '2026-9-29T00:00[2]');

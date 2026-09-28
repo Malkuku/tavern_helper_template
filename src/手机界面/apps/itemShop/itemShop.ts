@@ -4,21 +4,30 @@ import { itemSchema } from '../../store/initialDataSchema';
 import { inventoryOf, mergeItemStack, sameItemSpec, type InventorySide } from '../data/inventoryTransfer';
 import { weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
-import { InvalidGeneratedResultError } from '../generationResult';
+import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
 
-const shopSchema = z.record(z.string().min(1), itemSchema);
+const generatedItemSchema = z.object({
+  ...itemSchema.shape,
+  图标: z.preprocess(
+    value =>
+      typeof value === 'string' && itemSchema.shape.图标.safeParse(value).success && isGeneratedShopIcon(value)
+        ? value
+        : undefined,
+    itemSchema.shape.图标,
+  ),
+});
+const shopSchema = z.record(z.string().min(1), generatedItemSchema);
 
 export function itemRefreshQuote(data: stat_data): { next: string; count: number; price: number } {
   return weeklyShopQuote(data, '道具');
 }
 
 export function parseItemResult(message: string, data: stat_data): Record<string, 物品> {
-  const tags = [...message.matchAll(/<shopVariable>\s*([\s\S]*?)\s*<\/shopVariable>/g)];
-  if (tags.length !== 1 || [...message.matchAll(/<shopVariable>/g)].length !== 1)
-    throw new Error('道具生成结果必须包含且只包含一个完整的 shopVariable 标签。');
+  const payload = latestGeneratedPayload(message, '<shopVariable');
+  if (payload === undefined) throw new Error('道具生成结果缺少完整的 shopVariable 标签。');
   let raw: unknown;
   try {
-    raw = JSON.parse(tags[0][1]);
+    raw = JSON.parse(payload);
   } catch {
     throw new Error('道具生成结果不是合法 JSON。');
   }
@@ -37,8 +46,6 @@ export function parseItemResult(message: string, data: stat_data): Record<string
   for (const [name, item] of entries) {
     if (!name.trim() || !item.描述.trim() || !item.作用.trim() || item.耐久 <= 0 || item.价格 <= 0)
       throw new Error(`道具「${name}」的内容或数值无效。`);
-    if (!isGeneratedShopIcon(item.图标))
-      throw new Error(`道具「${name}」必须提供不含文字、正方形 viewBox 的 SVG 图标。`);
     const old = previous.map(source => source[name]).filter((value): value is 物品 => !!value);
     if (old.some(value => !itemSchema.safeParse(value).success))
       throw new Error(`现有道具「${name}」的字段或图标无效。`);

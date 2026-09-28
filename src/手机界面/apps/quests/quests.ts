@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import type { stat_data, 任务 } from '../../types';
 import { questSchema } from '../../store/initialDataSchema';
-import { InvalidGeneratedResultError } from '../generationResult';
+import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
 
 export type 任务评级 = 任务['评级'];
 const ratings = ['D', 'C', 'B', 'A', 'S'] as const;
 export const zeroRatingCounts = (): Record<任务评级, number> => ({ D: 0, C: 0, B: 0, A: 0, S: 0 });
 
-const resultQuestSchema = questSchema.extend({ 当前进度: z.literal('未接取'), 已完成: z.literal(false) });
+const resultQuestSchema = z.object(questSchema.shape).omit({ 当前进度: true, 已完成: true });
 const resultSchema = z.record(z.string().trim().min(1), resultQuestSchema);
 const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[([1-7])\]$/;
 
@@ -58,24 +58,13 @@ export function taskRefreshState(data: stat_data): { available: boolean; next: s
 }
 
 function parseResult(message: string, active: stat_data['任务']): Record<string, 任务> {
-  const tags = [...message.matchAll(/<questVariable>\s*([\s\S]*?)\s*<\/questVariable>/g)];
-  if (tags.length !== 1 || [...message.matchAll(/<questVariable>/g)].length !== 1)
-    throw new Error('任务生成结果必须包含且只包含一个完整的 questVariable 标签。');
+  const payload = latestGeneratedPayload(message, '<questVariable');
+  if (payload === undefined) throw new Error('任务生成结果缺少完整的 questVariable 标签。');
   let raw: unknown;
   try {
-    raw = JSON.parse(tags[0][1].replace(/&#x20;/gi, ' ').replace(/\\_/g, '_'));
+    raw = JSON.parse(payload.replace(/&#x20;/gi, ' ').replace(/\\_/g, '_'));
   } catch {
     throw new Error('任务生成结果不是合法 JSON。');
-  }
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    for (const item of Object.values(raw)) {
-      if (!item || typeof item !== 'object' || Array.isArray(item) || !Object.hasOwn(item, 'current_progress'))
-        continue;
-      const quest = item as Record<string, unknown>;
-      if (Object.hasOwn(quest, '当前进度')) throw new Error('任务生成结果同时包含两种进度字段。');
-      quest.当前进度 = quest.current_progress;
-      delete quest.current_progress;
-    }
   }
   const result = resultSchema.safeParse(raw);
   if (!result.success) {
@@ -89,7 +78,9 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
   if (Object.keys(result.data).length !== 6) throw new Error('任务生成结果必须恰好包含 6 个不同名称的任务。');
   for (const name of Object.keys(result.data))
     if (Object.hasOwn(active, name)) throw new Error(`任务「${name}」已接取，不能重复生成。`);
-  return result.data;
+  return Object.fromEntries(
+    Object.entries(result.data).map(([name, task]) => [name, { ...task, 当前进度: '未接取', 已完成: false }]),
+  );
 }
 
 export function refreshTasks(data: stat_data, message: string): void {

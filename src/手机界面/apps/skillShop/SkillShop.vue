@@ -4,7 +4,7 @@
       <section class="shop-intro">
         <span class="witch-eyebrow">EXCLUSIVE SKILLS</span>
         <h1>技能精选</h1>
-        <p>探索专属能力，升级你已拥有的技能。</p>
+        <p>探索专属能力，选择已有技能的新版本。</p>
         <button type="button" :disabled="busy || store.skillRefreshing || balance < quote.price" @click="refreshShop">
           {{ store.skillRefreshing ? '生成中…' : `刷新货架 · ${quote.price} 积分` }}
         </button>
@@ -31,7 +31,12 @@
 
       <div v-if="tab === 'shop'" class="shop-list">
         <p v-if="!shopEntries.length" class="shop-empty">货架暂无技能。点击刷新生成本周可购买的技能。</p>
-        <article v-for="[name, item] in shopEntries" :key="name" class="shop-card">
+        <article
+          v-for="[name, item] in shopEntries"
+          :key="name"
+          class="shop-card skill-offer"
+          :class="[ratingVisualClass(item.适用评级), owned[name] ? 'skill-offer-upgrade' : 'skill-offer-new']"
+        >
           <button
             type="button"
             class="shop-heading entry-toggle"
@@ -41,17 +46,13 @@
             <InventoryIcon :svg="item.图标" kind="技能" />
             <div>
               <strong>{{ name }}</strong
-              ><small>{{ owned[name] ? '升级版本' : '新技能' }} · {{ item.适用评级 }}</small>
+              ><small class="witch-grade-label">{{ owned[name] ? '新版本' : '新技能' }} · {{ item.适用评级 }}</small>
             </div>
             <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
           </button>
           <div v-if="expandedName === name" class="entry-details">
             <p>{{ item.描述 }}</p>
             <div class="shop-effect">{{ item.作用 }}</div>
-            <small
-              >战力评级贡献 {{ item.战力评级贡献
-              }}{{ owned[name] ? `（当前 ${owned[name].战力评级贡献}）` : '' }}</small
-            >
             <button type="button" :disabled="busy || balance < item.价格" @click="purchase(name)">
               购买 · {{ item.价格 }} 积分
             </button>
@@ -60,7 +61,12 @@
       </div>
       <div v-else class="shop-list">
         <p v-if="!ownedEntries.length" class="shop-empty">目前没有持有技能。</p>
-        <article v-for="[name, item] in ownedEntries" :key="name" class="shop-card">
+        <article
+          v-for="[name, item] in ownedEntries"
+          :key="name"
+          class="shop-card"
+          :class="ratingVisualClass(item.适用评级)"
+        >
           <button
             type="button"
             class="shop-heading entry-toggle"
@@ -70,14 +76,14 @@
             <InventoryIcon :svg="item.图标" kind="技能" />
             <div>
               <strong>{{ name }}</strong
-              ><small>{{ item.适用评级 }}</small>
+              ><small class="witch-grade-label">{{ item.适用评级 }}</small>
             </div>
             <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
           </button>
           <div v-if="expandedName === name" class="entry-details">
             <p>{{ item.描述 }}</p>
             <div class="shop-effect">{{ item.作用 }}</div>
-            <small>战力评级贡献 {{ item.战力评级贡献 }} · 累计价格 {{ item.价格 }}</small>
+            <small>累计价格 {{ item.价格 }} 积分</small>
             <div v-if="confirmSale === name" class="sale-confirm">
               <span>卖出后获得 {{ Math.floor(item.价格 / 2) }} 积分，技能将被移除。</span>
               <button type="button" :disabled="busy" @click="sell(name)">确认卖出</button>
@@ -100,6 +106,7 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { refreshQuote } from './skillShop';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
+import { ratingVisualClass } from '../witch/ratingVisual';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'shop' | 'owned'>('shop');

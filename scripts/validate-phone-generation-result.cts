@@ -1,6 +1,10 @@
 // eslint-disable-next-line import-x/no-nodejs-modules
 import assert from 'node:assert/strict';
-import { isNewGenerationResult, removeGeneratedTag } from '../src/手机界面/apps/generationResult';
+import {
+  isNewGenerationResult,
+  latestGeneratedPayload,
+  removeGeneratedTag,
+} from '../src/手机界面/apps/generationResult';
 
 for (const marker of ['<questVariable', '<shopVariable', '<skillVariable'] as const) {
   const tag = marker.slice(1);
@@ -32,8 +36,11 @@ for (const marker of ['<questVariable', '<shopVariable', '<skillVariable'] as co
   assert.equal(
     isNewGenerationResult(message(8, `正文${oldResult}${newResult}`), marker, 8, `正文${oldResult}`),
     true,
-    `${tag} 同楼新增结果应交给解析器校验`,
+    `${tag} 同楼新增结果应被接收`,
   );
+  assert.equal(latestGeneratedPayload(`${oldResult}${newResult}`, marker), '{"新":2}');
+  assert.equal(isNewGenerationResult(message(8, `正文${oldResult}${oldResult}`), marker, 8, `正文${oldResult}`), true);
+  assert.equal(isNewGenerationResult(message(8, `正文${oldResult}<${tag}>{`), marker, 8, `正文${oldResult}`), false);
   assert.equal(isNewGenerationResult(message(7, newResult), marker, 8, '原正文'), false, `${tag} 旧楼结果不能结算`);
   assert.equal(
     isNewGenerationResult(message(8, newResult, 'user'), marker, 8, '原正文'),

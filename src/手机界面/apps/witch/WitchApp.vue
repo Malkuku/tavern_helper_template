@@ -19,7 +19,11 @@
             <h1>今夜，继续<span>计划。</span></h1>
             <p>任务与回报，都在这里。</p>
           </div>
-          <section class="witch-focus-card" aria-label="当前任务">
+          <section
+            class="witch-focus-card"
+            :class="featuredTask && ratingVisualClass(featuredTask[1].评级)"
+            aria-label="当前任务"
+          >
             <svg class="witch-focus-art" viewBox="0 0 300 210" fill="none" aria-hidden="true">
               <circle cx="233" cy="99" r="62" stroke="currentColor" stroke-opacity=".3" />
               <circle cx="233" cy="99" r="49" stroke="currentColor" stroke-opacity=".35" />
@@ -186,6 +190,7 @@ import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskWeekStats } from '../quests/quests';
 import { witchStabilityNotices, witchTaskNotices } from './witchNotifications';
+import { ratingVisualClass } from './ratingVisual';
 import type { DataAppName } from '../../desktopApps';
 import DataApp from '../data/DataApp.vue';
 import QuestApp from '../quests/QuestApp.vue';

@@ -55,15 +55,21 @@ const stock = {
 };
 const result = `<skillVariable>${JSON.stringify(stock)}</skillVariable>`;
 const weaker = { ...stock, 战败收容: skill(2, 25) };
-assert.throws(
-  () => applySkillRefresh(structuredClone(data), `<skillVariable>${JSON.stringify(weaker)}</skillVariable>`),
-  /必须提高/,
-);
+const flatData = structuredClone(data);
+applySkillRefresh(flatData, `<skillVariable>${JSON.stringify(weaker)}</skillVariable>`);
+assert.equal(flatData.技能商店.战败收容.战力评级贡献, 2, '贡献持平的新版本仍可上架');
+buySkill(flatData, '战败收容');
+assert.equal(flatData.角色.user.技能.战败收容.战力评级贡献, 2, '玩家可以购买贡献持平的新版本');
 const missingIcon = { ...stock, 新技能一: { ...stock.新技能一, 图标: '' } };
-assert.throws(
-  () => applySkillRefresh(structuredClone(data), `<skillVariable>${JSON.stringify(missingIcon)}</skillVariable>`),
-  /字段无效/,
+const iconData = structuredClone(data);
+applySkillRefresh(iconData, `<skillVariable>${JSON.stringify(missingIcon)}</skillVariable>`);
+assert.equal(iconData.技能商店.新技能一.图标, undefined, '无效图标回退为默认图标');
+const extraData = structuredClone(data);
+applySkillRefresh(
+  extraData,
+  `${result}<skillVariable>${JSON.stringify({ ...stock, 新技能一: { ...stock.新技能一, 备注: '额外说明' } })}</skillVariable>`,
 );
+assert.equal(extraData.技能商店.新技能一.备注, undefined, '额外字段不写入变量');
 assert.equal(refreshQuote(data).price, 0);
 applySkillRefresh(data, result);
 assert.equal(data.角色.user.恶堕积分, 200);

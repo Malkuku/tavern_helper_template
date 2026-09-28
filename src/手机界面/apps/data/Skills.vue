@@ -5,7 +5,12 @@
     <p>当前持有的完整技能效果</p>
   </div>
   <div v-if="skillEntries.length" class="data-sections">
-    <section v-for="[name, skill] in skillEntries" :key="name" class="data-card skill-card">
+    <section
+      v-for="[name, skill] in skillEntries"
+      :key="name"
+      class="data-card skill-card"
+      :class="ratingVisualClass(skill.适用评级)"
+    >
       <button
         type="button"
         class="item-heading entry-toggle"
@@ -19,7 +24,7 @@
           </div>
         </div>
         <span class="entry-toggle-tail"
-          ><span class="stage-level">{{ skill.适用评级 }}</span
+          ><span class="stage-level witch-grade-label">{{ skill.适用评级 }}</span
           ><span aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span></span
         >
       </button>
@@ -42,6 +47,7 @@
 import type { 技能, stat_data } from '../../types';
 import { computed, ref } from 'vue';
 import InventoryIcon from './InventoryIcon.vue';
+import { ratingVisualClass } from '../witch/ratingVisual';
 
 const props = defineProps<{ data: stat_data }>();
 const skillEntries = computed(() => Object.entries(props.data.角色?.user?.技能 ?? {}) as [string, 技能][]);

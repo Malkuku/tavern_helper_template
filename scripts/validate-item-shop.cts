@@ -60,15 +60,11 @@ assert.equal(
   '软评级上限不阻止生成',
 );
 assert.throws(() => parseItemResult('<shopVariable>{}</shopVariable>', data), /9 个/);
-assert.throws(() => parseItemResult(message + message, data), /只包含一个/);
-assert.throws(
-  () =>
-    parseItemResult(
-      `<shopVariable>${JSON.stringify({ ...stock, 道具1: { ...stock.道具1, 图标: '<svg onload="alert(1)"></svg>' } })}</shopVariable>`,
-      data,
-    ),
-  /字段无效/,
-);
+assert.equal(parseItemResult(message + message, data).旧扣.价格, 3, '同楼旧标签不阻断最新结果');
+const unsafeItem = { ...stock, 道具1: { ...stock.道具1, 图标: '<svg onload="alert(1)"></svg>', 备注: '额外说明' } };
+const sanitized = parseItemResult(`<shopVariable>${JSON.stringify(unsafeItem)}</shopVariable>`, data);
+assert.equal(sanitized.道具1.图标, undefined, '无效图标回退为默认图标');
+assert.equal(sanitized.道具1.备注, undefined, '额外字段不写入变量');
 const before = structuredClone(data);
 assert.throws(() => applyItemRefresh(data, '<shopVariable>{}</shopVariable>'));
 assert.deepEqual(data, before, '无效生成不得部分写入');

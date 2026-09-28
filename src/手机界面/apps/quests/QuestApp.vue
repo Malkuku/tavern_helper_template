@@ -39,10 +39,10 @@
 
       <div v-if="tab === 'board'" class="list">
         <p v-if="!boardEntries.length" class="empty">暂无候选任务。点击免费刷新获取 6 项任务。</p>
-        <article v-for="[name, task] in boardEntries" :key="name" class="card">
+        <article v-for="[name, task] in boardEntries" :key="name" class="card" :class="ratingVisualClass(task.评级)">
           <div class="heading">
             <strong>{{ name }}</strong
-            ><span>{{ task.评级 }} 级</span>
+            ><span class="witch-grade-label">{{ task.评级 }} 级</span>
           </div>
           <p>{{ task.描述 }}</p>
           <div class="goal">目标：{{ task.目标 }}</div>
@@ -59,10 +59,10 @@
 
       <div v-else-if="tab === 'active'" class="list">
         <p v-if="!activeEntries.length" class="empty">目前没有已接任务。</p>
-        <article v-for="[name, task] in activeEntries" :key="name" class="card">
+        <article v-for="[name, task] in activeEntries" :key="name" class="card" :class="ratingVisualClass(task.评级)">
           <div class="heading">
             <strong>{{ name }}</strong
-            ><span>{{ task.评级 }} 级</span>
+            ><span class="witch-grade-label">{{ task.评级 }} 级</span>
           </div>
           <p>{{ task.描述 }}</p>
           <div class="goal">目标：{{ task.目标 }}</div>
@@ -110,6 +110,7 @@ import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskRefreshState, taskWeekStats, type 任务评级 } from './quests';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
+import { ratingVisualClass } from '../witch/ratingVisual';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'board' | 'active' | 'stats'>(Object.keys(store.statData?.任务 ?? {}).length ? 'active' : 'board');
