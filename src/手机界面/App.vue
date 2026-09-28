@@ -48,7 +48,7 @@
               "
             ></div>
             <header class="status-bar" :class="{ 'status-bar-light': activeApp }" aria-label="状态栏">
-              <span>{{ time }}</span>
+              <span class="status-time">{{ time }}</span>
               <span class="dynamic-island" aria-hidden="true"></span>
               <button
                 class="control-trigger"
@@ -58,7 +58,26 @@
                 @pointerdown="startControlSwipe"
                 @pointerup="endControlSwipe"
               >
-                ●●● ᯤ ▰ <span>⌄</span>
+                <svg class="status-signal" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true">
+                  <rect x="0" y="8" width="3" height="4" rx="0.7" />
+                  <rect x="5" y="6" width="3" height="6" rx="0.7" />
+                  <rect x="10" y="3" width="3" height="9" rx="0.7" />
+                  <rect x="15" y="0" width="3" height="12" rx="0.7" />
+                </svg>
+                <svg class="status-wifi" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+                  <path
+                    d="M1 3.7a10.5 10.5 0 0 1 14 0M3.5 6.3a6.8 6.8 0 0 1 9 0M6 8.8a3.1 3.1 0 0 1 4 0"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="8" cy="11" r="1" fill="currentColor" />
+                </svg>
+                <svg class="status-battery" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+                  <rect x="0.7" y="0.7" width="20" height="10.6" rx="2.7" stroke="currentColor" stroke-width="1.4" />
+                  <rect x="2.7" y="2.7" width="15" height="6.6" rx="1.2" fill="currentColor" />
+                  <path d="M22 3.4c1.4.4 2.2 1.4 2.2 2.6s-.8 2.2-2.2 2.6V3.4Z" fill="currentColor" />
+                </svg>
               </button>
             </header>
 

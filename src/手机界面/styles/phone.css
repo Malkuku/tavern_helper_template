@@ -212,6 +212,11 @@
 .status-bar-light {
   color: #151820;
 }
+.status-time {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
 .window-drag-handle {
   position: absolute;
   top: -36px;
@@ -254,18 +259,29 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 0 8px 8px;
+  gap: 5px;
+  min-height: 44px;
+  margin-right: -9px;
+  padding: 0 9px;
   border: 0;
   background: none;
   color: inherit;
-  font-size: 12px;
-  letter-spacing: -2px;
 }
-.control-trigger span {
-  margin-left: 4px;
-  font-size: 17px;
-  letter-spacing: 0;
+.control-trigger svg {
+  display: block;
+  flex: none;
+}
+.status-signal {
+  width: 18px;
+  height: 12px;
+}
+.status-wifi {
+  width: 16px;
+  height: 12px;
+}
+.status-battery {
+  width: 25px;
+  height: 12px;
 }
 .wallpaper {
   filter: brightness(var(--screen-brightness));
