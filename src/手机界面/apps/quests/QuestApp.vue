@@ -4,7 +4,7 @@
       <section class="intro">
         <span class="witch-eyebrow">MEMBER MISSIONS</span>
         <h1>你的任务</h1>
-        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/10</p>
+        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7</p>
         <button
           type="button"
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
@@ -77,7 +77,7 @@
       </div>
 
       <div v-else class="list">
-        <p class="stats-note">每周目标：领取 10 项任务奖励。统计只保留本周和上周。</p>
+        <p class="stats-note">每周目标：领取 7 项任务奖励。统计只保留本周和上周。</p>
         <article v-for="week in visibleWeeks" :key="week.label" class="card">
           <div class="heading">
             <strong>{{ week.label }}</strong

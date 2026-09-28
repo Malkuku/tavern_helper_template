@@ -102,18 +102,27 @@ assert.equal(data.任务统计.本周.周起始, '2026-10-5');
 assert.equal(data.任务统计.本周.完成, 1);
 assert.equal(data.任务统计.上周?.完成, 1);
 
-const weeklyRule = readFileSync(`${root}\\更新规则\\任务周指标.ini`, 'utf8');
+const weeklyRule = readFileSync(`${root}\\额外信息\\任务周指标.ini`, 'utf8');
 const prelude = /<%_([\s\S]*?)_%>/.exec(weeklyRule)?.[1];
 assert.ok(prelude, '周指标规则必须包含 EJS 判断');
-const ruleLogic = prelude.replace(/if\s*\(missed\)\s*\{\s*$/, '');
-function ruleState(time: string, taskStats: unknown): { missed: boolean; claimed: number } {
-  return runInNewContext(`${ruleLogic}\n;({ missed, claimed })`, {
+function ruleState(
+  time: string,
+  taskStats: unknown,
+): { missed: boolean; claimed: number; currentClaimed: number; remaining: number } {
+  return runInNewContext(`${prelude}\n;({ missed, claimed, currentClaimed, remaining })`, {
     getvar: (key: string) => (key === 'stat_data.世界.时间' ? time : taskStats),
   });
 }
 const firstWeek = { 开始周: '2026-9-28', 本周: emptyTaskWeek('2026-9-28'), 上周: null };
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).missed, false);
+assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).remaining, 7, '本周尚未领奖时提示剩余 7 项');
+firstWeek.本周.完成 = 3;
+assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).currentClaimed, 3);
+assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).remaining, 4);
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).missed, true, '周一开始触发上周未达标提示');
-firstWeek.本周.完成 = 10;
+assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).remaining, 7, '跨周后本周进度归零');
+firstWeek.本周.完成 = 7;
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).missed, false, '上周达标不触发问责');
+assert.match(weeklyRule, /<任务周指标>[\s\S]*本周已领取 <%- currentClaimed %> 项，还需 <%- remaining %> 项/);
+assert.match(weeklyRule, /if \(remaining > 0\)/);
 console.info('组织任务定向验证通过。');
