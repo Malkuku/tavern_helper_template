@@ -12,6 +12,9 @@ const allowedTags = new Set([
   'polygon',
   'title',
   'desc',
+  'defs',
+  'filter',
+  'fedropshadow',
 ]);
 const allowedAttributes = new Set([
   'viewbox',
@@ -42,6 +45,13 @@ const allowedAttributes = new Set([
   'transform',
   'role',
   'aria-label',
+  'id',
+  'filter',
+  'dx',
+  'dy',
+  'stddeviation',
+  'flood-color',
+  'flood-opacity',
 ]);
 
 export function sanitizeMapSvg(markup: string): string {
@@ -69,7 +79,11 @@ export function sanitizeMapSvg(markup: string): string {
         throw new Error('地图 SVG 的 xmlns 只能使用标准 SVG 命名空间。');
       if (name !== 'xmlns' && /(?:javascript|data|https?):/i.test(value))
         throw new Error(`地图 SVG 属性 ${name} 不允许 URL 或可执行协议。`);
-      if ((name === 'fill' || name === 'stroke') && !isSafeSvgColor(value))
+      if (name === 'filter' && !/^url\(#[A-Za-z][\w.-]*\)$/.test(value))
+        throw new Error('地图 SVG 的 filter 只能引用内部滤镜。');
+      if (name === 'id' && (tag !== 'filter' || !/^[A-Za-z][\w.-]*$/.test(value)))
+        throw new Error('地图 SVG 的 id 只能用于内部滤镜。');
+      if ((name === 'fill' || name === 'stroke' || name === 'flood-color') && !isSafeSvgColor(value))
         throw new Error(`地图 SVG 的 ${name} 颜色无效。`);
       consumed += attr[0];
     }

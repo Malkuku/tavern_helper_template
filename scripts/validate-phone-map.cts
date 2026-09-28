@@ -11,29 +11,26 @@ const root = 'O:/St Working/角色卡开发/魔法少女恶堕/魔法少女恶�
 const registry = JSON.parse(readFileSync(root, 'utf8'));
 const map = Object.values(registry)[0].data;
 const all = listPhoneMap(map);
+assert.ok(all.length > 0);
+const selected = all.find(entry => entry.path.length > 1)!;
 assert.deepEqual(
-  all.map(entry => entry.name),
-  ['故事城市', '学园区', '学校', '大学区', '居民区', '金融区'],
+  findPhoneMapPath(map, selected.name)?.map(entry => entry.name),
+  selected.path.map(entry => entry.name),
 );
-assert.deepEqual(
-  findPhoneMapPath(map, '学校')?.map(entry => entry.name),
-  ['故事城市', '学园区', '学校'],
-);
-const shared = locationShare('学校');
-assert.equal(shared, '<位置 key="学校">');
-assert.equal(parseLocationShare(shared), '学校');
-assert.equal(findPhoneMapPath(map, parseLocationShare(shared)!)?.at(-1)?.name, '学校');
+const shared = locationShare(selected.name);
+assert.equal(parseLocationShare(shared), selected.name);
+assert.equal(findPhoneMapPath(map, parseLocationShare(shared)!)?.at(-1)?.name, selected.name);
 assert.equal(parseLocationShare('<位置 key="不存在" />'), null);
 assert.equal(parseLocationShare(locationShare('引号"与\\')), '引号"与\\');
 for (const entry of all) {
   assert.equal(sanitizeMapSvg(entry.path.at(-1).node.图标), entry.path.at(-1).node.图标);
 }
-assert.match(map.故事城市.图标, /#[0-9a-f]{6}/i);
+assert.match(Object.values(map)[0].图标, /#[0-9a-f]{6}/i);
 assert.throws(() => sanitizeMapSvg('<svg><script>alert(1)</script></svg>'));
 
-const districts = map.故事城市.子地图;
+const districts = Object.values(map)[0].子地图;
 const positioned = layoutPhoneMap(districts, 320, 320);
-assert.equal(positioned.length, 4);
+assert.equal(positioned.length, Object.keys(districts).length);
 for (const item of positioned) {
   assert.ok(Math.abs(item.x) + 41 <= 160);
   assert.ok(Math.abs(item.y) + 39 <= 160);

@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { reconcileWorldbookStatData } from '../src/手机界面/store/worldbookInit';
+import { sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 
 const fixtureRoot = 'O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕';
 const entry = (name: string, content: string) => ({ name, content });
@@ -63,6 +64,13 @@ const legacyMainResult = reconcileWorldbookStatData({ 作者: 987 }, legacyMainE
 assert.equal(legacyMainResult.角色.主要角色[legacyMain[firstMainId].key].当前评级, '');
 
 const assembled = reconcileWorldbookStatData({ 作者: 987 }, entries);
+assert.equal(
+  sanitizeMapSvg(
+    '<svg><defs><filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#123456" /></filter></defs><circle r="4" filter="url(#shadow)" /></svg>',
+  ),
+  '<svg><defs><filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#123456" /></filter></defs><circle r="4" filter="url(#shadow)" /></svg>',
+);
+assert.throws(() => sanitizeMapSvg('<svg><circle filter="url(https://example.com/a.svg#x)" /></svg>'));
 assert.equal(assembled.changed, true);
 assert.equal(reconcileWorldbookStatData({}, entries).changed, false);
 assert.equal(reconcileWorldbookStatData({ 作者: 987, 角色: {} }, entries).changed, false);

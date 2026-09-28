@@ -135,7 +135,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const failedWeChatLogIndex = ref<number | null>(null);
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  let worldbookRetryTimer: ReturnType<typeof setTimeout> | undefined;
   let chatGeneration = 0;
+  let worldbookCheckGeneration = 0;
+  let phoneOpen = false;
   let statWriteQueue = Promise.resolve();
   let stageSettlementQueued = false;
   let stageSettlementRequested = false;
@@ -1036,32 +1039,68 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function checkWorldbook() {
-    const generation = ++chatGeneration;
+    const checkGeneration = ++worldbookCheckGeneration;
+    const generation = chatGeneration;
+    const chatId = SillyTavern.getCurrentChatId();
+    if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
+    worldbookRetryTimer = undefined;
+    const isCurrent = () =>
+      checkGeneration === worldbookCheckGeneration &&
+      generation === chatGeneration &&
+      chatId === SillyTavern.getCurrentChatId();
+    const retryWhenReady = () => {
+      if (!isCurrent()) return;
+      worldbookRetryTimer = setTimeout(() => {
+        worldbookRetryTimer = undefined;
+        if (isCurrent()) void checkWorldbook();
+      }, 1000);
+    };
     try {
       await waitGlobalInitialized('Mvu');
-      if (generation !== chatGeneration) return;
+      if (!isCurrent()) return;
+      if (!Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data) {
+        retryWhenReady();
+        return;
+      }
       const { primary } = getCharWorldbookNames('current');
       if (!primary) throw new Error('当前角色没有绑定主世界书。');
       const entries = await getWorldbook(primary);
-      if (generation !== chatGeneration) return;
-      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
-      if (!previous) throw new Error('当前楼层尚无 MVU 数据。');
-      const current = previous.stat_data;
-      const { data, changed } = reconcileWorldbookStatData(current, entries);
-      if (!changed) return;
-      applyNewChatMediaSnapshot(
-        (data as unknown as stat_data).手机.微信.账号,
-        getVariables({ type: 'script', script_id: getScriptId() })?.[WECHAT_MEDIA_SNAPSHOT_KEY],
-        hasWechatImage,
-      );
-      const next = { ...previous, stat_data: data };
-      // 检查后立即向当前楼层发起写入，避免聊天切换期间提交过期数据。
-      if (generation !== chatGeneration) return;
-      await Mvu.replaceMvuData(next, { type: 'message', message_id: getLastMessageId() });
-      await eventEmit('mag_variable_update_ended', next, previous);
-      refresh();
+      if (!isCurrent()) return;
+      await queueStatWork(async () => {
+        if (!isCurrent()) return;
+        const messageId = getLastMessageId();
+        const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+        if (!previous?.stat_data) {
+          retryWhenReady();
+          return;
+        }
+        const { data, changed } = reconcileWorldbookStatData(previous.stat_data, entries);
+        if (!changed || !isCurrent()) return;
+        applyNewChatMediaSnapshot(
+          (data as unknown as stat_data).手机.微信.账号,
+          getVariables({ type: 'script', script_id: getScriptId() })?.[WECHAT_MEDIA_SNAPSHOT_KEY],
+          hasWechatImage,
+        );
+        if (!isCurrent() || messageId !== getLastMessageId()) {
+          retryWhenReady();
+          return;
+        }
+        const next = { ...previous, stat_data: data };
+        await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+        await eventEmit('mag_variable_update_ended', next, previous);
+        refresh();
+      });
     } catch (error) {
-      if (generation === chatGeneration) console.error('魔法少女世界书变量初始化失败', error);
+      if (isCurrent()) console.error('魔法少女世界书变量初始化失败', error);
+    }
+  }
+
+  function setPhoneOpen(value: boolean) {
+    phoneOpen = value;
+    if (!value) {
+      worldbookCheckGeneration++;
+      if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
+      worldbookRetryTimer = undefined;
     }
   }
 
@@ -1100,6 +1139,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function resetForChat() {
     chatGeneration++;
+    worldbookCheckGeneration++;
+    if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
+    worldbookRetryTimer = undefined;
     statData.value = null;
     readChatId = null;
     readCursors = {};
@@ -1123,6 +1165,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     scheduleRefresh();
     startPolling();
     scheduleWeChatLog();
+    if (phoneOpen) void checkWorldbook();
   }
 
   function startPolling() {
@@ -1165,10 +1208,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     scheduleWeChatLog();
     return () => {
       chatGeneration++;
+      worldbookCheckGeneration++;
       if (pollingTimer) clearInterval(pollingTimer);
       if (refreshTimer) clearTimeout(refreshTimer);
+      if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
       pollingTimer = undefined;
       refreshTimer = undefined;
+      worldbookRetryTimer = undefined;
     };
   }
 
@@ -1203,6 +1249,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refresh,
     initialize,
     checkWorldbook,
+    setPhoneOpen,
     replace,
     update,
     saveProfileBaseInfo,

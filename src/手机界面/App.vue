@@ -290,6 +290,7 @@ function openPhone() {
   phonePosition.left = Math.max(0, ((hostWindow?.innerWidth ?? width) - width) / 2);
   phonePosition.top = Math.max(40, ((hostWindow?.innerHeight ?? height) - height) / 2);
   open.value = true;
+  statStore.setPhoneOpen(true);
   try {
     wallpaper.value = readPhoneWallpaper();
   } catch (error) {
@@ -313,6 +314,7 @@ function openNotificationChat() {
 function closePhone() {
   controlCenterOpen.value = false;
   open.value = false;
+  statStore.setPhoneOpen(false);
   chatOpenRequest.value = null;
   mapOpenRequest.value = null;
   didDrag = false;
