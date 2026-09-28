@@ -22,6 +22,7 @@ import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
+import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
 import { applyInventoryTransfers, type InventorySide, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import {
   initialReadCursors,
@@ -296,6 +297,44 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function unlockCharacterInfo(kind: CharacterKind, key: string, field: string): Promise<boolean> {
     return changeCharacterData(data => applyCharacterUnlock(data, kind, key, field));
+  }
+
+  async function chooseFirstTarget(key: string): Promise<void> {
+    const generation = chatGeneration;
+    await queueStatWork(async () => {
+      await waitGlobalInitialized('Mvu');
+      if (generation !== chatGeneration) throw new Error('聊天已切换，目标选择已取消。');
+      const messageId = getLastMessageId();
+      const message = getChatMessages(messageId)[0];
+      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (!message || !previous?.stat_data?.角色?.user) throw new Error('当前楼层尚未准备好，无法选择目标。');
+      const data = klona(previous.stat_data) as stat_data;
+      assignFirstTarget(data, key);
+      const originalText = message.message;
+      if (generation !== chatGeneration || messageId !== getLastMessageId())
+        throw new Error('聊天或楼层已切换，目标选择已取消。');
+      await setChatMessages([{ message_id: messageId, message: originalText + firstTargetSystemLog(key) }], {
+        refresh: 'none',
+      });
+      const next = { ...previous, stat_data: data };
+      try {
+        if (generation !== chatGeneration || messageId !== getLastMessageId())
+          throw new Error('聊天或楼层已切换，目标选择已取消。');
+        await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+      } catch (error) {
+        try {
+          await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
+        } catch (rollbackError) {
+          throw new AggregateError([error, rollbackError], '目标选择失败，正文记录回滚也失败，请检查当前楼层。');
+        }
+        throw error;
+      }
+      try {
+        await eventEmit('mag_variable_update_ended', next, previous);
+      } finally {
+        refresh();
+      }
+    });
   }
 
   async function transferInventory(transfers: InventoryTransfer[]): Promise<void> {
@@ -1024,6 +1063,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     saveProfileBaseInfo,
     changeRuntimeMinorRole,
     unlockCharacterInfo,
+    chooseFirstTarget,
     transferInventory,
     refreshSkillShop,
     cancelSkillRefresh,

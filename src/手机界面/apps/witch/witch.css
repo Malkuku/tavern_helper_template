@@ -1,4 +1,5 @@
 .witch-app {
+  position: relative;
   --witch-bg: #100b16;
   --witch-surface: #1c1322;
   --witch-surface-strong: #27172b;
@@ -476,6 +477,117 @@
   border-radius: 19px;
   background: linear-gradient(135deg, #4a2442, #281729 72%, #201522);
   box-shadow: inset 0 1px #ffffff15;
+}
+.witch-app .monitor-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 210px;
+  background-position: center 30%;
+  background-size: cover;
+}
+.witch-app .monitor-image-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.witch-app .monitor-image-picker button {
+  padding: 5px 8px;
+  border: 1px solid #ad6b91;
+  border-radius: 8px;
+  background-color: #261729d9 !important;
+  font-size: 10px;
+}
+.witch-app .monitor-image-picker button.active {
+  border-color: #ffd0e6;
+  background-color: #8b3c6f !important;
+}
+.witch-app .first-target-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #0c0815ec;
+}
+.witch-app .first-target-dialog {
+  width: min(100%, 390px);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid #b56a97;
+  border-radius: 20px;
+  background: #211426;
+  box-shadow: 0 18px 55px #0008;
+  text-align: center;
+}
+.witch-app .first-target-head small {
+  color: #ee93bd;
+  letter-spacing: 0.16em;
+}
+.witch-app .first-target-head h2 {
+  margin: 6px 0;
+  font-size: 20px;
+}
+.witch-app .first-target-head p {
+  margin: 0 0 12px;
+  color: var(--witch-muted);
+  font-size: 11px;
+}
+.witch-app .first-target-slide {
+  position: relative;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #100b16;
+}
+.witch-app .first-target-slide img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 3.2;
+  object-fit: cover;
+  object-position: center 23%;
+}
+.witch-app .first-target-caption {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 30px 12px 12px;
+  background: linear-gradient(transparent, #100b16f2);
+}
+.witch-app .first-target-caption strong {
+  font-size: 20px;
+}
+.witch-app .first-target-caption span {
+  color: #ffcee3;
+  font-size: 13px;
+}
+.witch-app .first-target-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+}
+.witch-app .first-target-controls button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #a75d89;
+  border-radius: 50%;
+  font-size: 23px;
+}
+.witch-app .first-target-controls span {
+  color: var(--witch-muted);
+  font-size: 11px;
+}
+.witch-app .first-target-confirm {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  background: #b5417b !important;
+  font-weight: 700;
 }
 .witch-app :is(.intro, .shop-intro, .item-shop-intro)::after {
   position: absolute;
