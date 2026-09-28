@@ -315,6 +315,46 @@
   color: #76777e;
   font-size: 22px !important;
 }
+.witch-notification {
+  border-color: #d09ab8;
+  background: #27182ff2;
+  color: #fff3fa;
+}
+.witch-notification .phone-notification-copy small {
+  color: #e4c8db;
+}
+.witch-notification-source {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #e4c8db;
+  font-size: 11px;
+  font-weight: 600;
+}
+.witch-notification-source time {
+  font-weight: 400;
+}
+.witch-notification .phone-notification-close {
+  color: #e4c8db;
+}
+.witch-notification-icon {
+  background: #54213e;
+  border: 1px solid #ae648c;
+}
+.witch-notification-icon svg {
+  width: 32px;
+  height: 32px;
+}
+.witch-notification-warning {
+  border-color: #e0b34f;
+  background: #fff0bdf5;
+  color: #372909;
+}
+.witch-notification-warning .phone-notification-copy small,
+.witch-notification-warning .phone-notification-close,
+.witch-notification-warning .witch-notification-source {
+  color: #645021;
+}
 .layout-drop-target .app-icon {
   outline: 2px solid #ffffffa8;
   outline-offset: 4px;
@@ -430,27 +470,6 @@
 }
 .app-icon .data-app-icon {
   display: block;
-}
-.wechat-icon::before,
-.wechat-icon::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  background: #fff;
-}
-.wechat-icon {
-  position: relative;
-}
-.wechat-icon::before {
-  width: 31px;
-  height: 24px;
-  transform: translate(-6px, -4px);
-}
-.wechat-icon::after {
-  width: 25px;
-  height: 20px;
-  transform: translate(8px, 9px);
-  box-shadow: -3px -3px 0 #15b64c;
 }
 .home-spacer {
   flex: 1;

@@ -187,22 +187,31 @@
           <p class="data-prose">{{ selectedMain.身体.特殊状态.map(formatValue).join('、') }}</p>
         </section>
         <section v-for="[key, part] in bodyEntries" :key="key" class="data-card monitor-card body-observation-card">
-          <div class="monitor-card-head">
+          <button
+            v-if="part.特征 || part.开发程度"
+            type="button"
+            class="monitor-card-head body-card-toggle"
+            :aria-expanded="expandedBodyParts.includes(key)"
+            @click="toggleBodyPart(key)"
+          >
+            <strong>{{ key }}</strong>
+            <span aria-hidden="true">{{ expandedBodyParts.includes(key) ? '⌃' : '⌄' }}</span>
+          </button>
+          <div v-else class="monitor-card-head">
             <strong>{{ key }}</strong>
           </div>
-          <div v-if="part.当前状态" class="body-current">
+          <div class="body-current">
             <span>当前状态</span>
-            <p>{{ part.当前状态 }}</p>
+            <p>{{ part.当前状态 || '暂无记录' }}</p>
           </div>
-          <div v-if="part.特征" class="body-detail">
+          <div v-if="expandedBodyParts.includes(key) && part.特征" class="body-detail">
             <span>特征</span>
             <p>{{ part.特征 }}</p>
           </div>
-          <div v-if="part.开发程度" class="body-detail">
+          <div v-if="expandedBodyParts.includes(key) && part.开发程度" class="body-detail">
             <span>开发程度</span>
             <p>{{ part.开发程度 }}</p>
           </div>
-          <p v-if="!part.当前状态 && !part.特征 && !part.开发程度" class="data-prose">暂无记录</p>
         </section>
         <section v-if="selectedMinor" class="data-card body-observation-card">
           <h3>身体开发状态</h3>
@@ -331,7 +340,7 @@ import { visibleObservationTargets } from './observationTargets';
 import CharacterPortrait from './CharacterPortrait.vue';
 import LockedField from './LockedField.vue';
 
-const props = defineProps<{ data: stat_data }>();
+const props = defineProps<{ data: stat_data; targetKey?: string | null }>();
 const emit = defineEmits<{ firstTargetChosen: [] }>();
 const selectedId = ref<string | null>(null);
 const selectorOpen = ref(false);
@@ -341,12 +350,21 @@ const selectorSheet = ref<HTMLElement | null>(null);
 const imageForm = ref<CharacterImageForm>('魔法少女');
 const imageIndex = ref(1);
 const choiceIndex = ref(0);
+const expandedBodyParts = ref<string[]>([]);
 const choosing = ref(false);
 const choiceError = ref('');
 const statStore = useMagicGirlStatStore();
 const pages = ['概览', '身体', '档案'] as const;
 const page = ref<(typeof pages)[number]>('概览');
 const visibleTargets = computed(() => visibleObservationTargets(props.data));
+watch(
+  () => props.targetKey,
+  key => {
+    const target = visibleTargets.value.find(item => item.key === key && item.kind === '主要角色');
+    if (target) selectedId.value = target.id;
+  },
+  { immediate: true },
+);
 const selectedTarget = computed(
   () => visibleTargets.value.find(target => target.id === selectedId.value) ?? visibleTargets.value[0],
 );
@@ -403,10 +421,14 @@ watch(
   () => selectedTarget.value?.id,
   () => {
     page.value = '概览';
+    expandedBodyParts.value = [];
     imageForm.value = '魔法少女';
     imageIndex.value = 1;
   },
 );
+watch(page, () => {
+  expandedBodyParts.value = [];
+});
 watch(unlockedForms, forms => {
   if (!forms.includes(imageForm.value)) imageForm.value = '魔法少女';
 });
@@ -444,6 +466,11 @@ function setImageForm(form: CharacterImageForm) {
 }
 function nextImage() {
   imageIndex.value = (imageIndex.value % imageCount.value) + 1;
+}
+function toggleBodyPart(key: string) {
+  expandedBodyParts.value = expandedBodyParts.value.includes(key)
+    ? expandedBodyParts.value.filter(part => part !== key)
+    : [...expandedBodyParts.value, key];
 }
 function moveChoice(step: number) {
   choiceIndex.value = (choiceIndex.value + step + choiceOptions.length) % choiceOptions.length;

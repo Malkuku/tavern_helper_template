@@ -13,7 +13,6 @@
         @click="expandedName = expandedName === name ? '' : name"
       >
         <div>
-          <span class="item-kicker">已习得技能</span>
           <div class="skill-title">
             <InventoryIcon :svg="skill.图标" kind="技能" />
             <h3>{{ name }}</h3>
@@ -30,7 +29,6 @@
           <span>作用</span>
           <p>{{ skill.作用 }}</p>
         </div>
-        <small>战力评级贡献 {{ skill.战力评级贡献 }} · 累计价格 {{ skill.价格 }}</small>
       </div>
     </section>
   </div>

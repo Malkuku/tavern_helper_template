@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue';
 import type { 微信数据 } from '../../types';
+import { removeImagePlacement, WECHAT_IMAGE_CATEGORIES_KEY } from './imageCategories';
 
 export const WECHAT_IMAGE_LIBRARY_KEY = 'magicGirlWeChatImageLibrary';
 export const WECHAT_MEDIA_SNAPSHOT_KEY = 'magicGirlWeChatMediaSnapshot';
@@ -36,6 +37,10 @@ export function hasWechatImage(url: string): boolean {
 
 export function imageLibraryEntries(): [string, string][] {
   return Object.entries(libraryState.value).map(([id, data]) => [`${prefix}${id}`, data]);
+}
+
+export function imageIdFromUrl(url: string): string {
+  return url.startsWith(prefix) ? url.slice(prefix.length) : '';
 }
 
 export function storeWechatImage(dataUrl: string): string {
@@ -93,7 +98,11 @@ export function deleteWechatImage(url: string, accounts: 微信数据['账号'])
   updateVariablesWith(variables => {
     const library = { ...(variables[WECHAT_IMAGE_LIBRARY_KEY] || {}) };
     delete library[id];
-    return { ...variables, [WECHAT_IMAGE_LIBRARY_KEY]: library };
+    return {
+      ...variables,
+      [WECHAT_IMAGE_LIBRARY_KEY]: library,
+      [WECHAT_IMAGE_CATEGORIES_KEY]: removeImagePlacement(variables[WECHAT_IMAGE_CATEGORIES_KEY], id),
+    };
   }, scope());
   refreshWechatImageLibrary();
 }

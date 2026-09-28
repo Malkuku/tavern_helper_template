@@ -62,7 +62,7 @@
           </button>
         </div>
         <button v-if="activeSide === '随身物品'" type="button" class="inventory-use" @click="prepareUse(name, item)">
-          使用道具（填写聊天输入框）
+          使用道具
         </button>
       </div>
     </section>

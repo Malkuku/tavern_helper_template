@@ -40,11 +40,7 @@
             </span>
           </span>
           <span>{{ item.kind === 'app' ? appDisplayName(item.name) : item.name }}</span>
-          <span
-            v-if="wechatUnread && (item.kind === 'app' ? item.name === '微信' : item.apps.includes('微信'))"
-            class="desktop-unread-dot"
-            aria-label="未读微信消息"
-          ></span>
+          <span v-if="itemNotice(item)" class="desktop-unread-dot" :aria-label="itemNotice(item)"></span>
         </button>
       </div>
     </Transition>
@@ -74,7 +70,7 @@
         @click="openApp(name)"
       >
         <DesktopAppIcon :name="name" :today="today" />
-        <span v-if="wechatUnread && name === '微信'" class="desktop-unread-dot" aria-label="未读微信消息"></span>
+        <span v-if="appNotice(name)" class="desktop-unread-dot" :aria-label="appNotice(name)"></span>
       </button>
     </div>
 
@@ -95,11 +91,7 @@
               >
                 <DesktopAppIcon :name="name" :today="today" />
                 <span>{{ appDisplayName(name) }}</span>
-                <span
-                  v-if="wechatUnread && name === '微信'"
-                  class="desktop-unread-dot"
-                  aria-label="未读微信消息"
-                ></span>
+                <span v-if="appNotice(name)" class="desktop-unread-dot" :aria-label="appNotice(name)"></span>
               </button>
             </div>
           </div>
@@ -138,8 +130,17 @@ import {
 } from '../desktopLayout';
 import DesktopAppIcon from './DesktopAppIcon.vue';
 
-defineProps<{ dateLabel: string; today: number; wechatUnread: boolean }>();
+const props = defineProps<{ dateLabel: string; today: number; wechatUnread: boolean; witchUnread: boolean }>();
 const emit = defineEmits<{ open: [name: string] }>();
+function appNotice(name: string): string {
+  if (name === '微信' && props.wechatUnread) return '未读微信消息';
+  if (name === '魔女恶堕计划' && props.witchUnread) return '魔女恶堕计划有待办提醒';
+  return '';
+}
+function itemNotice(item: DesktopItem): string {
+  if (item.kind === 'app') return appNotice(item.name);
+  return item.apps.map(appNotice).filter(Boolean).join('、');
+}
 const layout = ref<PhoneLayout>(defaultPhoneLayout());
 const page = ref(0);
 const pageSize = 12;

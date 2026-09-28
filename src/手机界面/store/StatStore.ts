@@ -18,6 +18,7 @@ import {
   unappliedWeChatLogs,
 } from '../apps/wechat/wechatData';
 import {
+  addWechatAccount,
   applyNewChatMediaSnapshot,
   mediaSnapshot,
   restoreMissingStickers,
@@ -699,14 +700,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
-  async function ensureNearbyAccount(id: string, name: string, avatar: string) {
+  async function ensureWeChatAccount(id: string, name: string, avatar: string) {
     await updateWeChat((current, data) => {
       const character = data.角色.主要角色[id] || data.角色.次要角色[id];
-      if (!character || id === 'user') throw new Error('附近的角色已不存在。');
-      if (current.账号[id]) return current;
-      const next = klona(current);
-      next.账号[id] = { 昵称: name, 头像: avatar, 表情包: {}, 好友: [] };
-      return next;
+      if (!character || id === 'user') throw new Error('角色已不存在，无法创建微信账号。');
+      return addWechatAccount(current, id, name, avatar);
     });
   }
 
@@ -1270,7 +1268,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     discardWeChatDraft,
     retryWeChatSend,
     requestWeChatFriend,
-    ensureNearbyAccount,
+    ensureWeChatAccount,
     respondWeChatFriend,
     performWeChatOperation,
     updateWeChatProfile,

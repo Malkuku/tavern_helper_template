@@ -3,6 +3,15 @@ import type { 微信数据 } from '../../types';
 
 export type AccountMediaSnapshot = Record<string, { 头像: string; 表情包: Record<string, string> }>;
 
+export function addWechatAccount(current: 微信数据, id: string, name: string, avatar: string): 微信数据 {
+  if (current.账号[id]) return current;
+  const trimmed = name.trim();
+  if (!id || id === 'user' || !trimmed) throw new Error('微信账号信息无效。');
+  const next = klona(current);
+  next.账号[id] = { 昵称: trimmed, 头像: avatar, 表情包: {}, 好友: [] };
+  return next;
+}
+
 export function saveWechatAccount(
   current: 微信数据,
   id: string,

@@ -634,7 +634,11 @@
         </button>
       </nav>
     </template>
-    <section v-if="accountPage" class="wx-account-page">
+    <section
+      v-if="accountPage && !adminOpen"
+      class="wx-account-page"
+      :class="{ 'wx-services-page': accountPage === 'services', 'wx-wallet-page': accountPage === 'wallet' }"
+    >
       <header class="wx-header">
         <button
           class="wx-back"
@@ -642,7 +646,17 @@
           aria-label="返回"
           @click="accountPage = accountPage === 'wallet' || accountPage === 'payments' ? 'services' : null"
         >
-          ‹</button
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m15 4-8 8 8 8" />
+          </svg></button
         ><strong>{{
           accountPage === 'profile'
             ? '个人信息'
@@ -654,6 +668,23 @@
                   ? '设置'
                   : '钱包'
         }}</strong>
+        <button
+          v-if="accountPage === 'services'"
+          class="wx-account-header-action"
+          type="button"
+          aria-label="更多"
+          @click="showUnavailable('更多')"
+        >
+          •••
+        </button>
+        <button
+          v-if="accountPage === 'wallet'"
+          class="wx-account-header-action"
+          type="button"
+          @click="showUnavailable('账单')"
+        >
+          账单
+        </button>
       </header>
       <template v-if="accountPage === 'settings'">
         <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
@@ -676,44 +707,19 @@
       </template>
       <template v-else-if="accountPage === 'services'">
         <div class="wx-service-card">
-          <button type="button" @click="accountPage = 'payments'"><span>▣</span>收付款</button
+          <button type="button" @click="accountPage = 'payments'">
+            <WeChatServiceIcon name="payment" /><span>收付款</span></button
           ><button type="button" @click="accountPage = 'wallet'">
-            <span>▱</span>钱包<small>¥{{ walletBalance }}</small>
+            <WeChatServiceIcon name="wallet" /><span>钱包</span><small>¥{{ walletBalance }}</small>
           </button>
         </div>
-        <div class="wx-service-group">
-          <p>金融理财</p>
-          <button
-            v-for="label in ['信用卡还款', '微粒贷借钱', '理财通', '保险服务']"
-            :key="label"
-            type="button"
-            @click="showUnavailable(label)"
-          >
-            {{ label }}
+        <div v-for="group in serviceGroups" :key="group.title" class="wx-service-group">
+          <p>{{ group.title }}</p>
+          <button v-for="item in group.items" :key="item.label" type="button" @click="showUnavailable(item.label)">
+            <WeChatServiceIcon :name="item.icon" :class="item.color" /><span>{{ item.label }}</span>
           </button>
         </div>
-        <div class="wx-service-group">
-          <p>生活服务</p>
-          <button
-            v-for="label in ['手机充值', '生活缴费', 'Q币充值', '城市服务', '腾讯公益', '医疗健康']"
-            :key="label"
-            type="button"
-            @click="showUnavailable(label)"
-          >
-            {{ label }}
-          </button>
-        </div>
-        <div class="wx-service-group">
-          <p>交通出行</p>
-          <button
-            v-for="label in ['出行服务', '火车票机票', '滴滴出行', '酒店民宿']"
-            :key="label"
-            type="button"
-            @click="showUnavailable(label)"
-          >
-            {{ label }}
-          </button>
-        </div>
+        <div class="wx-service-group wx-service-group-next"><p>购物消费</p></div>
       </template>
       <template v-else-if="accountPage === 'payments'"
         ><div class="wx-wallet-card">
@@ -727,11 +733,28 @@
           </button>
         </div></template
       >
-      <template v-else
-        ><div class="wx-wallet-card">
-          <span>零钱</span><strong>¥{{ walletBalance }}</strong>
-        </div></template
-      >
+      <template v-else-if="accountPage === 'wallet'">
+        <div v-for="(group, index) in walletGroups" :key="index" class="wx-wallet-group">
+          <button
+            v-for="item in group"
+            :key="item.label"
+            class="wx-wallet-row"
+            type="button"
+            @click="showUnavailable(item.label)"
+          >
+            <WeChatServiceIcon :name="item.icon" :class="item.color" />
+            <span class="wx-wallet-row-content"
+              ><span>{{ item.label }}</span
+              ><span v-if="item.label === '零钱'" class="wx-wallet-value">¥{{ walletBalance }}</span
+              ><WeChatIcon name="chevron"
+            /></span>
+          </button>
+        </div>
+        <div class="wx-wallet-footer">
+          <button type="button" @click="showUnavailable('身份信息')">身份信息</button><span></span
+          ><button type="button" @click="showUnavailable('支付设置')">支付设置</button>
+        </div>
+      </template>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
     </section>
     <div v-if="unavailable" class="wx-dialog-backdrop" @click.self="unavailable = ''">
@@ -801,6 +824,7 @@ import {
 import type { OperationEvent } from './wechatData';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
+import WeChatServiceIcon from './WeChatServiceIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
 import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
@@ -855,6 +879,49 @@ const meGroups = [
     { label: '表情', icon: 'discover', color: 'gold' },
   ],
   [{ label: '设置', icon: 'settings', color: 'blue-text' }],
+];
+const serviceGroups = [
+  {
+    title: '金融理财',
+    items: [
+      { label: '信用卡还款', icon: 'credit', color: 'wx-icon-green' },
+      { label: '微粒贷借钱', icon: 'loan', color: 'wx-icon-orange' },
+      { label: '理财通', icon: 'wealth', color: 'wx-icon-blue' },
+      { label: '保险服务', icon: 'insurance', color: 'wx-icon-orange' },
+    ],
+  },
+  {
+    title: '生活服务',
+    items: [
+      { label: '手机充值', icon: 'phone', color: 'wx-icon-blue' },
+      { label: '生活缴费', icon: 'utilities', color: 'wx-icon-green' },
+      { label: 'Q币充值', icon: 'qq', color: 'wx-icon-blue' },
+      { label: '城市服务', icon: 'city', color: 'wx-icon-green' },
+      { label: '腾讯公益', icon: 'charity', color: 'wx-icon-red' },
+      { label: '医疗健康', icon: 'health', color: 'wx-icon-orange' },
+    ],
+  },
+  {
+    title: '交通出行',
+    items: [
+      { label: '出行服务', icon: 'travel', color: 'wx-icon-blue' },
+      { label: '火车票机票', icon: 'train', color: 'wx-icon-green' },
+      { label: '滴滴出行', icon: 'ride', color: 'wx-icon-orange' },
+      { label: '酒店民宿', icon: 'hotel', color: 'wx-icon-green' },
+    ],
+  },
+];
+const walletGroups = [
+  [
+    { label: '零钱', icon: 'cash', color: 'wx-icon-gold' },
+    { label: '零钱通', icon: 'gem', color: 'wx-icon-gold' },
+    { label: '银行卡', icon: 'bank', color: 'wx-icon-blue' },
+    { label: '亲属卡', icon: 'family', color: 'wx-icon-orange' },
+  ],
+  [
+    { label: '支付分', icon: 'score', color: 'wx-icon-green' },
+    { label: '客服中心', icon: 'support', color: 'wx-icon-green' },
+  ],
 ];
 const darkMode = ref(false);
 const unavailable = ref('');
@@ -1147,7 +1214,7 @@ function nearbyAvatar(id: string): string {
 async function openNearby(person: { id: string; name: string }) {
   error.value = '';
   try {
-    await store.ensureNearbyAccount(person.id, person.name, nearbyAvatar(person.id));
+    await store.ensureWeChatAccount(person.id, person.name, nearbyAvatar(person.id));
     if (self.value?.好友.includes(person.id)) openChat(privateChatKey(person.id));
     else cardView.value = person.id;
   } catch (cause) {

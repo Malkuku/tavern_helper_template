@@ -6,10 +6,10 @@ export function appDisplayName(name: string): string {
 }
 
 export const apps = [
-  { name: '微信', icon: '', color: 'linear-gradient(145deg, #42d76c, #08aa41)' },
+  { name: '微信', icon: '', color: '#23b879' },
   { name: '魔女恶堕计划', icon: '', color: 'linear-gradient(145deg, #411335, #150c25)' },
   { name: '角色编辑器', icon: '✎', color: 'linear-gradient(145deg, #c6a4df, #7756a1)' },
-  { name: '信息', icon: '●', color: 'linear-gradient(145deg, #73e878, #19ae45)' },
+  { name: '信息', icon: '', color: 'linear-gradient(145deg, #73e878, #19ae45)' },
   { name: '照片', icon: '', color: 'linear-gradient(145deg, #fff, #e6e8ed)' },
   { name: '相机', icon: '◎', color: 'linear-gradient(145deg, #8e929a, #525761)' },
   { name: '日历', icon: '', color: 'linear-gradient(145deg, #fff, #eef0f2)' },
@@ -21,7 +21,7 @@ export const apps = [
 
 export const dockApps = [
   { name: '电话', icon: '☎', color: 'linear-gradient(145deg, #72e978, #21ad4a)' },
-  { name: '浏览器', icon: '◉', color: 'linear-gradient(145deg, #9cdeff, #2584ed)' },
+  { name: '浏览器', icon: '', color: 'linear-gradient(145deg, #9cdeff, #2584ed)' },
   { name: '音乐', icon: '♫', color: 'linear-gradient(145deg, #ff898a, #ee3157)' },
-  { name: '文件', icon: '▣', color: 'linear-gradient(145deg, #91c8ff, #3788f5)' },
+  { name: '文件', icon: '', color: 'linear-gradient(145deg, #91c8ff, #3788f5)' },
 ];

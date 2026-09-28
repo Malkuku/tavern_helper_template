@@ -369,6 +369,7 @@
   animation: witch-frame-enter 0.42s 0.08s ease-out both;
 }
 .witch-bottom-nav button {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -394,6 +395,19 @@
 }
 .witch-bottom-nav button.active svg {
   transform: translateY(-2px) scale(1.08);
+}
+.witch-bottom-nav .witch-nav-dot {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 11px);
+  width: 8px;
+  height: 8px;
+  border: 1px solid #170f1d;
+  border-radius: 50%;
+  background: #f04b4b;
+}
+.witch-bottom-nav .witch-nav-dot-warning {
+  background: #f2c45a;
 }
 .witch-subnav {
   display: flex;
@@ -1380,6 +1394,19 @@
 }
 .witch-app .body-observation-card .monitor-card-head strong {
   font-size: 14px;
+}
+.witch-app .body-card-toggle {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.witch-app .body-card-toggle span {
+  color: #efa5c5;
+  font-size: 16px;
 }
 .witch-app .body-current {
   padding: 11px 12px;

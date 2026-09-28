@@ -92,7 +92,12 @@
 
         <QuestApp v-else-if="tab === 'tasks'" />
 
-        <DataApp v-else-if="tab === 'observe'" app="主要角色" @first-target-chosen="selectTab('tasks')" />
+        <DataApp
+          v-else-if="tab === 'observe'"
+          app="主要角色"
+          :target-key="props.openRequest?.tab === 'observe' ? props.openRequest.target : null"
+          @first-target-chosen="selectTab('tasks')"
+        />
 
         <template v-else-if="tab === 'shop'">
           <div class="witch-subnav" role="tablist" aria-label="商店分类">
@@ -165,6 +170,12 @@
       >
         <WitchNavIcon :name="item.key" />
         <span>{{ item.label }}</span>
+        <span v-if="item.key === 'tasks' && taskNotices.length" class="witch-nav-dot" aria-label="任务有待办"></span>
+        <span
+          v-if="item.key === 'observe' && stabilityNotices.length"
+          class="witch-nav-dot witch-nav-dot-warning"
+          aria-label="观测角色稳定度警告"
+        ></span>
       </button>
     </nav>
   </div>
@@ -174,6 +185,7 @@
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskWeekStats } from '../quests/quests';
+import { witchStabilityNotices, witchTaskNotices } from './witchNotifications';
 import type { DataAppName } from '../../desktopApps';
 import DataApp from '../data/DataApp.vue';
 import QuestApp from '../quests/QuestApp.vue';
@@ -192,6 +204,7 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'mine', label: '我的' },
 ];
 const store = useMagicGirlStatStore();
+const props = defineProps<{ openRequest?: { tab: 'tasks' | 'observe'; target?: string; id: number } | null }>();
 const needsFirstTarget = (data: typeof store.statData) => data?.系统?.已发现目标?.length === 0;
 const tab = ref<Tab>(needsFirstTarget(store.statData) ? 'observe' : 'home');
 const subpage = ref('');
@@ -206,6 +219,13 @@ watch(
     }
   },
 );
+watch(
+  () => props.openRequest,
+  request => {
+    if (request && !needsFirstTarget(store.statData)) selectTab(request.tab);
+  },
+  { immediate: true },
+);
 const minePage = computed<DataAppName>(() =>
   subpage.value === '技能' || subpage.value === '随身物品' ? subpage.value : '我的档案',
 );
@@ -213,6 +233,8 @@ const balance = computed(() => store.statData?.角色?.user?.恶堕积分 ?? '�
 const activeTasks = computed(() => Object.entries(store.statData?.任务 ?? {}));
 const featuredTask = computed(() => activeTasks.value.find(([, item]) => item.已完成) ?? activeTasks.value[0]);
 const readyToClaim = computed(() => activeTasks.value.filter(([, item]) => item.已完成).length);
+const taskNotices = computed(() => witchTaskNotices(store.statData));
+const stabilityNotices = computed(() => witchStabilityNotices(store.statData));
 const weeklyDone = computed(() => {
   try {
     return store.statData ? taskWeekStats(store.statData).current.完成 : 0;

@@ -5,10 +5,10 @@
         v-if="!open"
         ref="launcherButton"
         class="phone-launcher"
-        :class="{ 'has-unread': statStore.unreadChatKeys.length > 0 }"
+        :class="{ 'has-unread': statStore.unreadChatKeys.length > 0 || witchNotices.length > 0 }"
         type="button"
         :style="launcherStyle"
-        :aria-label="`打开手机界面${statStore.unreadChatKeys.length ? '，有未读微信消息' : ''}，拖拽可移动`"
+        :aria-label="`打开手机界面${statStore.unreadChatKeys.length ? '，有未读微信消息' : ''}${witchNotices.length ? '，魔女恶堕计划有提醒' : ''}，拖拽可移动`"
         @pointerdown="startDrag($event, 'launcher')"
         @pointermove="moveDrag"
         @pointerup="endDrag"
@@ -63,7 +63,8 @@
                 :date-label="dateLabel"
                 :today="worldDay"
                 :wechat-unread="statStore.unreadChatKeys.length > 0"
-                @open="activeApp = $event"
+                :witch-unread="witchNotices.length > 0"
+                @open="openDesktopApp"
               />
 
               <main v-else-if="activeApp === '微信'" :key="'wechat'" class="wechat-screen">
@@ -75,7 +76,7 @@
               </main>
 
               <main v-else-if="activeApp === '魔女恶堕计划'" :key="'witch-app'" class="data-app-screen">
-                <WitchApp />
+                <WitchApp :open-request="witchOpenRequest" />
               </main>
 
               <PhoneUtilities
@@ -121,6 +122,12 @@
               @open="openNotificationChat"
               @close="statStore.dismissWeChatNotification()"
             />
+            <WitchNotification
+              v-if="!statStore.wechatNotification && visibleWitchNotice"
+              :notice="visibleWitchNotice"
+              @open="openWitchNotice"
+              @close="dismissWitchNotice"
+            />
 
             <button
               class="home-indicator"
@@ -146,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from './store/StatStore';
 import WeChat from './apps/wechat/WeChat.vue';
 import RoleEditor from './apps/roleEditor/RoleEditor.vue';
@@ -157,6 +164,13 @@ import MapApp from './apps/map/MapApp.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import WeChatNotification from './components/WeChatNotification.vue';
+import WitchNotification from './components/WitchNotification.vue';
+import {
+  activeWitchNoticeHistory,
+  nextWitchNotice,
+  witchNotices as collectWitchNotices,
+  type WitchNotice,
+} from './apps/witch/witchNotifications';
 import { apps, dockApps } from './desktopApps';
 import { readPhoneWallpaper } from './wallpaper';
 
@@ -168,6 +182,91 @@ function leaveRoleEditor() {
   activeApp.value = null;
 }
 const chatOpenRequest = ref<{ key: string; id: number } | null>(null);
+const witchOpenRequest = ref<{ tab: 'tasks' | 'observe'; target?: string; id: number } | null>(null);
+let witchOpenRequestId = 0;
+const witchNotices = computed(() => collectWitchNotices(statStore.statData));
+const visibleWitchNotice = ref<WitchNotice | null>(null);
+let witchNoticeChatId: string | null = null;
+let witchNoticeHistory: string[] = [];
+function saveWitchNoticeHistory() {
+  if (!witchNoticeChatId) return;
+  const chatId = witchNoticeChatId;
+  const history = [...witchNoticeHistory];
+  try {
+    void Promise.resolve(
+      updateVariablesWith(
+        variables => ({
+          ...variables,
+          magicGirlWitchNoticeHistory: { ...(variables.magicGirlWitchNoticeHistory || {}), [chatId]: history },
+        }),
+        { type: 'script', script_id: getScriptId() },
+      ),
+    ).catch(error => console.error('应用通知记录保存失败', error));
+  } catch (error) {
+    console.error('应用通知记录保存失败', error);
+  }
+}
+function syncWitchNotice() {
+  if (!statStore.statData) {
+    visibleWitchNotice.value = null;
+    return;
+  }
+  const chatId = SillyTavern.getCurrentChatId();
+  if (witchNoticeChatId !== chatId) {
+    witchNoticeChatId = chatId;
+    visibleWitchNotice.value = null;
+    try {
+      const stored: unknown = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWitchNoticeHistory?.[
+        chatId
+      ];
+      witchNoticeHistory = Array.isArray(stored) ? stored.filter((key): key is string => typeof key === 'string') : [];
+    } catch (error) {
+      console.error('应用通知记录读取失败', error);
+      witchNoticeHistory = [];
+    }
+  }
+  const active = activeWitchNoticeHistory(witchNoticeHistory, witchNotices.value);
+  const historyChanged = active.length !== witchNoticeHistory.length;
+  if (historyChanged) {
+    witchNoticeHistory = active;
+  }
+  if (visibleWitchNotice.value && !witchNotices.value.some(notice => notice.key === visibleWitchNotice.value?.key))
+    visibleWitchNotice.value = null;
+  if (!open.value || statStore.wechatNotification) {
+    visibleWitchNotice.value = null;
+    if (historyChanged) saveWitchNoticeHistory();
+    return;
+  }
+  if (visibleWitchNotice.value) {
+    if (historyChanged) saveWitchNoticeHistory();
+    return;
+  }
+  const next = nextWitchNotice(witchNotices.value, witchNoticeHistory);
+  if (!next) {
+    if (historyChanged) saveWitchNoticeHistory();
+    return;
+  }
+  witchNoticeHistory = [...witchNoticeHistory, next.key];
+  visibleWitchNotice.value = next;
+  saveWitchNoticeHistory();
+}
+watch([witchNotices, () => statStore.wechatNotification, open], syncWitchNotice, { immediate: true });
+function dismissWitchNotice() {
+  visibleWitchNotice.value = null;
+  syncWitchNotice();
+}
+function openWitchNotice() {
+  const notice = visibleWitchNotice.value;
+  if (!notice) return;
+  controlCenterOpen.value = false;
+  activeApp.value = '魔女恶堕计划';
+  witchOpenRequest.value = { tab: notice.tab, target: notice.target, id: ++witchOpenRequestId };
+  dismissWitchNotice();
+}
+function openDesktopApp(name: string) {
+  witchOpenRequest.value = null;
+  activeApp.value = name;
+}
 const mapOpenRequest = ref<{ key: string; id: number } | null>(null);
 let chatOpenRequestId = 0;
 let mapOpenRequestId = 0;
