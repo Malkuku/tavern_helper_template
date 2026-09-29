@@ -13,7 +13,7 @@
     </button>
     <span class="observation-switcher-count">{{ selectedIndex }} / {{ visibleTargets.length }}</span>
   </div>
-  <Teleport to=".witch-app">
+  <Teleport defer to=".witch-app">
     <div v-if="selectorOpen" class="observation-selector-overlay" @keydown.esc="closeSelector">
       <button type="button" class="observation-selector-backdrop" aria-label="关闭角色选择" @click="closeSelector" />
       <section
