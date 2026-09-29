@@ -12,17 +12,18 @@ const message = readFileSync(path, 'utf8');
 const taskData: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },
   系统: { 任务下次刷新时间: '', 任务主动刷新次数: 0 },
+  角色: { user: { 评级贡献: 0 } },
   任务: {},
   任务候选: {},
 };
 
 refreshTasks(taskData, message);
 assert.equal(Object.keys(taskData.任务候选).length, 6);
-const skills = parseSkillResult(message);
+const skills = parseSkillResult(message, 'D');
 assert.equal(Object.keys(skills).length, 6);
 const invalidSkills = { ...skills, 敏感诱发: { ...skills.敏感诱发, 图标: '<svg onload="alert(1)"></svg>' } };
 assert.equal(
-  parseSkillResult(`<skillVariable>${JSON.stringify(invalidSkills)}</skillVariable>`).敏感诱发.图标,
+  parseSkillResult(`<skillVariable>${JSON.stringify(invalidSkills)}</skillVariable>`, 'D').敏感诱发.图标,
   undefined,
 );
 assert.equal(

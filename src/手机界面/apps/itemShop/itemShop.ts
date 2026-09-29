@@ -5,6 +5,7 @@ import { inventoryOf, mergeItemStack, sameItemSpec, type InventorySide } from '.
 import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { latestGeneratedPayload } from '../generationResult';
+import { isWithinGeneratedRating, userRatingFromContribution } from '../../store/userRating';
 
 const generatedItemSchema = z.object({
   ...itemSchema.shape,
@@ -34,6 +35,7 @@ export function parseItemResult(message: string, data: stat_data): Record<string
   const parsed = generatedRecordSchema.safeParse(raw);
   if (!parsed.success) throw new Error('道具生成结果必须是商品对象。');
   const previous = [data.角色.user.物品, data.仓库, data.商店];
+  const playerRating = userRatingFromContribution(data.角色.user.评级贡献);
   const accepted: [string, 物品][] = [];
   for (const [name, value] of Object.entries(parsed.data)) {
     const result = generatedItemSchema.safeParse(value);
@@ -51,6 +53,7 @@ export function parseItemResult(message: string, data: stat_data): Record<string
       item.价格 = source.价格;
       item.图标 = source.图标 || item.图标;
     }
+    if (!isWithinGeneratedRating(playerRating, item.评级)) continue;
     accepted.push([name, item]);
   }
   if (!accepted.length) throw new Error('道具生成结果没有可上架的商品。');

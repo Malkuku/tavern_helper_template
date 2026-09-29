@@ -3,7 +3,7 @@ import type { 可购技能, stat_data } from '../../types';
 import { skillSchema } from '../../store/initialDataSchema';
 import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
-import { userRatingFromSkills } from '../../store/userRating';
+import { isWithinGeneratedRating, userRatingFromContribution } from '../../store/userRating';
 import { latestGeneratedPayload } from '../generationResult';
 
 const generatedSkillSchema = z.object({
@@ -26,7 +26,7 @@ function validPrice(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
 }
 
-export const MAX_SKILL_SLOTS = 12;
+export const MAX_SKILL_SLOTS = 20;
 
 export function skillSlotCount(data: stat_data): number {
   const slots = data.角色.user.技能栏位 ?? 6;
@@ -41,7 +41,7 @@ export function nextSkillSlotPrice(data: stat_data): number | null {
 
 export function unlockSkillSlot(data: stat_data): number {
   const price = nextSkillSlotPrice(data);
-  if (price === null) throw new Error('技能栏位已达到 12 格上限。');
+  if (price === null) throw new Error(`技能栏位已达到 ${MAX_SKILL_SLOTS} 格上限。`);
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || balance < price) throw new Error(`恶堕积分不足，需要 ${price} 点。`);
   data.角色.user.恶堕积分 -= price;
@@ -49,7 +49,7 @@ export function unlockSkillSlot(data: stat_data): number {
   return price;
 }
 
-export function parseSkillResult(message: string): Record<string, 可购技能> {
+export function parseSkillResult(message: string, playerRating: 可购技能['评级']): Record<string, 可购技能> {
   const payload = latestGeneratedPayload(message, '<skillVariable');
   if (payload === undefined) throw new Error('技能生成结果缺少完整的 skillVariable 标签。');
   let raw: unknown;
@@ -69,10 +69,8 @@ export function parseSkillResult(message: string): Record<string, 可购技能> 
       !name.trim() ||
       !item.描述.trim() ||
       !item.作用.trim() ||
-      !item.适用评级.trim() ||
       !validPrice(item.价格) ||
-      !Number.isFinite(item.战力评级贡献) ||
-      item.战力评级贡献 < 0
+      !isWithinGeneratedRating(playerRating, item.评级)
     )
       continue;
     accepted.push([name, item]);
@@ -82,7 +80,7 @@ export function parseSkillResult(message: string): Record<string, 可购技能> 
 }
 
 export function applySkillRefresh(data: stat_data, message: string, directed = false): void {
-  const shop = parseSkillResult(message);
+  const shop = parseSkillResult(message, userRatingFromContribution(data.角色.user.评级贡献));
   const quote = refreshQuote(data);
   const price = directed ? directedRefreshPrice(data, '技能', quote.price) : quote.price;
   if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < price)
@@ -106,10 +104,8 @@ export function buySkill(data: stat_data, name: string): void {
   const price = (current?.价格 ?? 0) + item.价格;
   if (!validPrice(price)) throw new Error('累计技能价格无效。');
   const nextSkill = { ...item, 价格: price };
-  const rating = userRatingFromSkills({ ...data.角色.user.技能, [name]: nextSkill });
   data.角色.user.恶堕积分 -= item.价格;
   data.角色.user.技能[name] = nextSkill;
-  data.角色.user.当前评级 = rating;
   delete data.技能商店[name];
 }
 
@@ -120,11 +116,7 @@ export function sellSkill(data: stat_data, name: string): number {
   const refund = Math.floor(item.价格 / 2);
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(balance + refund)) throw new Error('恶堕积分余额无效。');
-  const remaining = { ...data.角色.user.技能 };
-  delete remaining[name];
-  const rating = userRatingFromSkills(remaining);
   data.角色.user.恶堕积分 += refund;
   delete data.角色.user.技能[name];
-  data.角色.user.当前评级 = rating;
   return refund;
 }

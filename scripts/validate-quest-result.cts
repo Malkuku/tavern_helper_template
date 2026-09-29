@@ -11,14 +11,17 @@ const body = `<questVariable>{&#x20;${Object.entries(candidates)
 const data: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },
   系统: { 任务下次刷新时间: '', 任务主动刷新次数: 0 },
+  角色: { user: { 评级贡献: 0 } },
   任务: {},
   任务候选: {},
 };
 
 const invalid = body.replace('"奖励":8', '"奖励":[8]');
-assert.throws(() => refreshTasks(data, invalid), /字段无效/);
-assert.deepEqual(data.任务候选, {}, '字段无效时不部分写入');
-assert.equal(data.系统.任务主动刷新次数, 0);
+refreshTasks(data, invalid);
+assert.equal(Object.keys(data.任务候选).length, 5, '字段无效时跳过单项');
+assert.equal(data.系统.任务主动刷新次数, 1);
+data.系统.任务主动刷新次数 = 0;
+data.系统.任务下次刷新时间 = '';
 refreshTasks(data, body);
 assert.equal(Object.keys(data.任务候选).length, 6);
 assert.equal(data.任务候选.任务2.当前进度, '未接取');

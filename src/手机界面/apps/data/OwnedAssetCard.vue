@@ -1,12 +1,12 @@
 <template>
   <section
     class="owned-asset-card"
-    :class="[skill ? 'owned-asset-skill' : 'owned-asset-item', skill && ratingVisualClass(skill.适用评级)]"
+    :class="[skill ? 'owned-asset-skill' : 'owned-asset-item', skill && ratingVisualClass(skill.评级)]"
   >
     <button type="button" class="owned-asset-heading" :aria-expanded="expanded" @click="$emit('toggle')">
       <InventoryIcon :svg="entry.图标" :kind="kind" />
       <strong class="owned-asset-name">{{ name }}</strong>
-      <span v-if="skill" class="owned-asset-badge owned-asset-grade">{{ skill.适用评级 }}</span>
+      <span v-if="skill" class="owned-asset-badge owned-asset-grade">{{ skill.评级 }}</span>
       <span v-else-if="item" class="owned-asset-badge">× {{ item.数量 }}</span>
       <span class="owned-asset-chevron" aria-hidden="true">{{ expanded ? '⌃' : '⌄' }}</span>
     </button>

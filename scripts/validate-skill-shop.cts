@@ -5,207 +5,106 @@ import { readFileSync } from 'node:fs';
 import {
   applySkillRefresh,
   buySkill,
+  MAX_SKILL_SLOTS,
   nextSkillSlotPrice,
-  refreshQuote,
   sellSkill,
   skillSlotCount,
   unlockSkillSlot,
 } from '../src/手机界面/apps/skillShop/skillShop';
 import { initialStatDataSchema, userRoleSchema } from '../src/手机界面/store/initialDataSchema';
-import { settleUserRating, userRatingFromSkills } from '../src/手机界面/store/userRating';
+import { settleUserRating, userRatingFromContribution } from '../src/手机界面/store/userRating';
 
-const resourceRoot = 'O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕\\系统配置';
-const roleResource = JSON.parse(readFileSync(`${resourceRoot}\\角色资源.json`, 'utf8'));
-const user = Object.values(roleResource).find((item: any) => item.type === 'user') as any;
-assert.ok(userRoleSchema.safeParse(user.data).success, '初始 user 技能必须符合单版本结构');
-const opening = JSON.parse(readFileSync(`${resourceRoot}\\唯一开局.json`, 'utf8'));
-assert.ok(initialStatDataSchema.shape.系统.safeParse(opening.固定数据.系统).success, '刷新状态必须符合系统变量契约');
-const generationRule = readFileSync(`${resourceRoot}\\..\\更新规则\\生成技能.ini`, 'utf8');
-assert.match(
-  generationRule,
-  /总贡献 0[~～]39 为 D，40[~～]179 为 C，180[~～]999 为 B，1000[~～]2999 为 A，3000 及以上为 S/,
-);
-assert.ok(generationRule.includes("getvar('stat_data.手机.定向刷新')"), '技能规则读取本次定向偏好');
+const root = 'O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕';
+const roles = JSON.parse(readFileSync(`${root}\\系统配置\\角色资源.json`, 'utf8'));
+const user = Object.values(roles).find((item: any) => item.type === 'user') as any;
+assert.ok(userRoleSchema.safeParse(user.data).success, '开局用户使用新技能契约和累计贡献');
+const opening = JSON.parse(readFileSync(`${root}\\系统配置\\唯一开局.json`, 'utf8'));
+assert.ok(initialStatDataSchema.shape.技能商店.safeParse(opening.固定数据.技能商店).success);
+const rule = readFileSync(`${root}\\更新规则\\生成技能.ini`, 'utf8');
+assert.ok(rule.includes('D级：建议 25～35'));
+assert.ok(rule.includes('不得高于玩家当前评级一档'));
+assert.ok(!rule.includes('战力评级贡献'));
+assert.ok(!rule.includes('适用评级'));
+const example = /<skillVariable>\s*(\{[\s\S]*?\})\s*<\/skillVariable>/.exec(rule);
+assert.ok(example);
+assert.ok(initialStatDataSchema.shape.技能商店.safeParse(JSON.parse(example[1])).success, '生成规则示例符合新技能字段');
 
-const icon =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#31204b" d="M2 2h20v20H2z"/></svg>';
-const skill = (power: number, price: number) => ({
-  图标: icon,
-  描述: '技能介绍',
-  战力评级贡献: power,
-  作用: '在五米内对目标产生持续一分钟的效果，强光下失效。',
-  价格: price,
-  适用评级: 'D',
-});
-for (const [score, rating] of [
+for (const [points, expected] of [
   [0, 'D'],
-  [30, 'D'],
-  [39, 'D'],
-  [40, 'C'],
-  [150, 'C'],
-  [179, 'C'],
-  [180, 'B'],
-  [800, 'B'],
-  [999, 'B'],
-  [1000, 'A'],
-  [2999, 'A'],
-  [3000, 'S'],
-] as const) {
-  assert.equal(userRatingFromSkills({ 测试技能: skill(score, 0) }), rating, `${score} 分的评级`);
-}
+  [9, 'D'],
+  [10, 'C'],
+  [39, 'C'],
+  [40, 'B'],
+  [119, 'B'],
+  [120, 'A'],
+  [359, 'A'],
+  [360, 'S'],
+] as const)
+  assert.equal(userRatingFromContribution(points), expected);
+
+const skill = (rating: 'D' | 'C' | 'B' | 'A' | 'S', price = 30) => ({
+  描述: '测试技能',
+  作用: '在五米内生效，持续一分钟。',
+  价格: price,
+  评级: rating,
+});
 const data: any = {
   世界: { 时间: '2026-9-26T03:10[6]' },
   系统: { 技能下次刷新时间: '', 技能主动刷新次数: 0 },
-  角色: { user: { 当前评级: 'D', 恶堕积分: 200, 技能: { 战败收容: skill(2, 0) } } },
+  角色: { user: { 当前评级: 'D', 评级贡献: 0, 恶堕积分: 200, 技能栏位: 6, 技能: { 旧技能: skill('D', 0) } } },
   技能商店: {},
 };
-const stock = {
-  战败收容: skill(3, 25),
-  新技能一: skill(1, 20),
-  新技能二: skill(1, 20),
-  新技能三: skill(1, 20),
-  新技能四: skill(1, 20),
-  新技能五: skill(1, 20),
-};
-const result = `<skillVariable>${JSON.stringify(stock)}</skillVariable>`;
-const partlyInvalid = { ...stock, 新技能一: { ...stock.新技能一, 价格: -1 } };
-const partlyValidData = structuredClone(data);
-applySkillRefresh(partlyValidData, `<skillVariable>${JSON.stringify(partlyInvalid)}</skillVariable>`);
-assert.equal(partlyValidData.技能商店.新技能一, undefined, '无效技能不写入货架');
-assert.equal(Object.keys(partlyValidData.技能商店).length, 5);
-assert.equal(partlyValidData.系统.技能主动刷新次数, 1, '部分有效仍只结算一次');
-for (const count of [7, 8]) {
-  const extra = Object.fromEntries(Array.from({ length: count - 6 }, (_, index) => [`额外技能${index}`, skill(1, 20)]));
-  const expanded = structuredClone(data);
-  applySkillRefresh(expanded, `<skillVariable>${JSON.stringify({ ...stock, ...extra })}</skillVariable>`);
-  assert.equal(Object.keys(expanded.技能商店).length, count, `有效的 ${count} 个技能可直接上架`);
-}
-const weaker = { ...stock, 战败收容: skill(2, 25) };
-const flatData = structuredClone(data);
-applySkillRefresh(flatData, `<skillVariable>${JSON.stringify(weaker)}</skillVariable>`);
-assert.equal(flatData.技能商店.战败收容.战力评级贡献, 2, '贡献持平的新版本仍可上架');
-buySkill(flatData, '战败收容');
-assert.equal(flatData.角色.user.技能.战败收容.战力评级贡献, 2, '玩家可以购买贡献持平的新版本');
-const missingIcon = { ...stock, 新技能一: { ...stock.新技能一, 图标: '' } };
-const iconData = structuredClone(data);
-applySkillRefresh(iconData, `<skillVariable>${JSON.stringify(missingIcon)}</skillVariable>`);
-assert.equal(iconData.技能商店.新技能一.图标, undefined, '无效图标回退为默认图标');
-const extraData = structuredClone(data);
-applySkillRefresh(
-  extraData,
-  `${result}<skillVariable>${JSON.stringify({ ...stock, 新技能一: { ...stock.新技能一, 备注: '额外说明' } })}</skillVariable>`,
-);
-assert.equal(extraData.技能商店.新技能一.备注, undefined, '额外字段不写入变量');
-assert.equal(refreshQuote(data).price, 0);
-const directedData = structuredClone(data);
-directedData.手机 = {
-  定向刷新: { 请求ID: 'skill-request', 类型: '技能', 要求: '适合潜行的能力', 普通报价: 0 },
-};
-applySkillRefresh(directedData, result, true);
-assert.equal(directedData.角色.user.恶堕积分, 170, '定向技能刷新加收 30 点');
-assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
-assert.equal(directedData.系统.技能主动刷新次数, 1);
-const changedQuote = structuredClone(data);
-changedQuote.手机 = {
-  定向刷新: { 请求ID: 'skill-request', 类型: '技能', 要求: '适合潜行的能力', 普通报价: 5 },
-};
-assert.throws(() => applySkillRefresh(changedQuote, result, true), /报价已变化/);
-assert.equal(changedQuote.角色.user.恶堕积分, 200, '报价变化不扣费');
-applySkillRefresh(data, result);
-assert.equal(data.角色.user.恶堕积分, 200);
-assert.equal(data.系统.技能主动刷新次数, 1);
-assert.equal(data.系统.技能下次刷新时间, '2026-9-28T00:00[1]');
-assert.equal(refreshQuote(data).price, 5);
-data.系统.技能主动刷新次数 = 200;
-assert.equal(refreshQuote(data).price, 20, '技能普通刷新费封顶 20');
-data.系统.技能主动刷新次数 = 1;
-buySkill(data, '战败收容');
-assert.equal(data.角色.user.技能.战败收容.价格, 25, '升级售价加入累计价格');
-assert.equal(data.角色.user.恶堕积分, 175);
-assert.equal(data.技能商店.战败收容, undefined);
-assert.equal(sellSkill(data, '战败收容'), 12, '出售价格向下取整');
-assert.equal(data.角色.user.恶堕积分, 187);
-assert.equal(data.角色.user.技能.战败收容, undefined);
-buySkill(data, '新技能一');
-assert.equal(data.角色.user.当前评级, 'D');
-const cSkillData: any = {
-  角色: { user: { 当前评级: 'D', 恶堕积分: 200, 技能: { 战败收容: skill(2, 0) } } },
-  技能商店: { 初次购买: skill(25, 20), 再次购买: skill(20, 20) },
-};
-buySkill(cSkillData, '初次购买');
-assert.equal(cSkillData.角色.user.当前评级, 'D', '单买一项 C 级贡献技能不直接升 C');
-buySkill(cSkillData, '再次购买');
-assert.equal(cSkillData.角色.user.当前评级, 'C', '多项技能累计贡献达到门槛才升 C');
-sellSkill(cSkillData, '再次购买');
-assert.equal(cSkillData.角色.user.当前评级, 'D', '跌破门槛时降级');
-const ratingData: any = {
-  角色: { user: { 当前评级: 'D', 恶堕积分: 200, 技能: { 战败收容: skill(2, 0) } } },
-  技能商店: { 强化: skill(80, 20) },
-};
-buySkill(ratingData, '强化');
-assert.equal(ratingData.角色.user.当前评级, 'C', '新购技能后评级同步上升，但不直接到技能自身的 B 级');
-ratingData.技能商店.强化 = skill(180, 20);
-buySkill(ratingData, '强化');
-assert.equal(ratingData.角色.user.当前评级, 'B', '升级技能后评级同步上升');
-sellSkill(ratingData, '强化');
-assert.equal(ratingData.角色.user.当前评级, 'D', '出售技能后评级同步下降');
-ratingData.角色.user.技能.剧情技能 = skill(3000, 0);
-assert.equal(settleUserRating(ratingData), true, '剧情直接修改技能后可结算评级');
-assert.equal(ratingData.角色.user.当前评级, 'S');
-assert.equal(settleUserRating(ratingData), false, '评级无变化时不重复写回');
-const invalidRatingData = structuredClone(ratingData);
-invalidRatingData.技能商店.异常技能 = skill(NaN, 0);
-assert.throws(() => buySkill(invalidRatingData, '异常技能'), /战力评级贡献无效/);
-assert.equal(invalidRatingData.角色.user.恶堕积分, ratingData.角色.user.恶堕积分, '评级计算失败不扣费');
-const slotData: any = {
+const stock = { 旧技能: skill('C', 80), 新技能: skill('D', 30), 越级技能: skill('B', 220) };
+applySkillRefresh(data, `<skillVariable>${JSON.stringify(stock)}</skillVariable>`);
+assert.equal(data.技能商店.越级技能, undefined, 'D 玩家不能刷出 B 技能');
+assert.equal(data.技能商店.旧技能.评级, 'C', '高一档技能可出现');
+assert.equal(data.系统.技能主动刷新次数, 1, '部分有效仍结算刷新');
+buySkill(data, '旧技能');
+assert.equal(data.角色.user.技能.旧技能.评级, 'C', '同名技能升级为完整新版本');
+assert.equal(data.角色.user.当前评级, 'D', '技能升级不改变玩家评级');
+assert.equal(data.角色.user.评级贡献, 0);
+assert.equal(sellSkill(data, '旧技能'), 40);
+assert.equal(data.角色.user.当前评级, 'D', '出售技能不降级');
+data.角色.user.评级贡献 = 40;
+assert.equal(settleUserRating(data), true);
+assert.equal(data.角色.user.当前评级, 'B');
+assert.equal(settleUserRating(data), false);
+const highStock = { A技能: skill('A', 230), S技能: skill('S', 2200) };
+data.系统.技能下次刷新时间 = '';
+data.系统.技能主动刷新次数 = 0;
+applySkillRefresh(data, `<skillVariable>${JSON.stringify(highStock)}</skillVariable>`);
+assert.ok(data.技能商店.A技能);
+assert.equal(data.技能商店.S技能, undefined, 'B 玩家不能刷出 S 技能');
+
+const slots: any = {
   角色: {
     user: {
       当前评级: 'D',
+      评级贡献: 0,
       恶堕积分: 1100,
-      技能: Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`技能${i}`, skill(1, 0)])),
+      技能栏位: 6,
+      技能: Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`技能${i}`, skill('D', 0)])),
     },
   },
-  技能商店: { 新技能: skill(1, 20), 技能0: skill(2, 20) },
+  技能商店: { 新技能: skill('D', 30), 技能0: skill('C', 80) },
 };
-assert.equal(skillSlotCount(slotData), 6, '旧存档初始按六格计算');
-assert.throws(() => buySkill(slotData, '新技能'), /技能栏位已满/);
-assert.equal(slotData.角色.user.恶堕积分, 1100, '满位购买不扣费');
-assert.ok(slotData.技能商店.新技能, '满位购买不移除货架');
-buySkill(slotData, '技能0');
-assert.equal(Object.keys(slotData.角色.user.技能).length, 6, '满位仍可升级同名技能');
-assert.equal(nextSkillSlotPrice(slotData), 50);
-for (const [slots, price] of [
-  [7, 50],
-  [8, 100],
-  [9, 150],
-  [10, 200],
-  [11, 250],
-  [12, 300],
-] as const) {
-  assert.equal(unlockSkillSlot(slotData), price);
-  assert.equal(skillSlotCount(slotData), slots);
+assert.equal(skillSlotCount(slots), 6);
+assert.throws(() => buySkill(slots, '新技能'), /技能栏位已满/);
+buySkill(slots, '技能0');
+assert.equal(Object.keys(slots.角色.user.技能).length, 6, '满位仍可升级');
+assert.equal(nextSkillSlotPrice(slots), 50);
+assert.equal(unlockSkillSlot(slots), 50);
+buySkill(slots, '新技能');
+assert.equal(Object.keys(slots.角色.user.技能).length, 7);
+assert.equal(MAX_SKILL_SLOTS, 20);
+slots.角色.user.恶堕积分 = 6000;
+for (let target = 8; target <= 20; target++) {
+  assert.equal(nextSkillSlotPrice(slots), (target - 6) * 50);
+  assert.equal(unlockSkillSlot(slots), (target - 6) * 50);
+  assert.equal(skillSlotCount(slots), target);
 }
-assert.equal(nextSkillSlotPrice(slotData), null);
-assert.throws(() => unlockSkillSlot(slotData), /12 格上限/);
-assert.equal(slotData.角色.user.恶堕积分, 30, '解锁及升级按实际价格扣费');
-buySkill(slotData, '新技能');
-assert.equal(Object.keys(slotData.角色.user.技能).length, 7);
-const poorSlotData = structuredClone(slotData);
-poorSlotData.角色.user.技能栏位 = 6;
-poorSlotData.角色.user.恶堕积分 = 49;
-assert.throws(() => unlockSkillSlot(poorSlotData), /积分不足/);
-assert.equal(poorSlotData.角色.user.技能栏位, 6, '积分不足不解锁');
-assert.equal(poorSlotData.角色.user.恶堕积分, 49, '积分不足不扣费');
-const before = structuredClone(data);
-assert.throws(() => applySkillRefresh(data, '<skillVariable>{}</skillVariable>'), /没有可上架的技能/);
-assert.deepEqual(data, before, '无效生成不得部分结算');
-const nextStock = { ...stock, 战败收容: skill(3, 25), 新技能一: skill(2, 20) };
-applySkillRefresh(data, `<skillVariable>${JSON.stringify(nextStock)}</skillVariable>`);
-assert.equal(data.角色.user.恶堕积分, 162, '本周第二次刷新花费 5');
-data.世界.时间 = '2026-9-28T00:00[1]';
-assert.equal(refreshQuote(data).price, 0, '周一报价重置');
-assert.equal(Object.keys(data.技能商店).length, 6, '跨周保留货架');
-applySkillRefresh(data, `<skillVariable>${JSON.stringify(nextStock)}</skillVariable>`);
-assert.equal(data.系统.技能主动刷新次数, 1);
-assert.equal(data.系统.技能下次刷新时间, '2026-10-5T00:00[1]');
-console.info('技能商店定向验证通过。');
+assert.equal(nextSkillSlotPrice(slots), null);
+assert.throws(() => unlockSkillSlot(slots), /20 格上限/);
+assert.ok(userRoleSchema.shape.技能栏位.safeParse(20).success);
+assert.equal(userRoleSchema.shape.技能栏位.safeParse(21).success, false);
+console.info('技能商店与贡献评级定向验证通过。');

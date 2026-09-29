@@ -35,20 +35,21 @@ function reset() {
   notificationCount = 0;
   data = {
     世界: { 时间: '2026-09-28T12:00[1]' },
-    角色: { user: { 恶堕积分: 100, 当前评级: 'D', 物品: {}, 技能: {} } },
+    角色: { user: { 恶堕积分: 100, 当前评级: 'D', 评级贡献: 0, 物品: {}, 技能: {} } },
     仓库: {},
     任务: {},
     任务候选: {},
     任务统计: {
       开始周: '2026-9-28',
-      本周: {
-        周起始: '2026-9-28',
-        完成: 0,
-        放弃: 0,
-        完成评级: { D: 0, C: 0, B: 0, A: 0, S: 0 },
-        放弃评级: { D: 0, C: 0, B: 0, A: 0, S: 0 },
+      周记录: {
+        '2026-9-28': {
+          周起始: '2026-9-28',
+          完成: 0,
+          放弃: 0,
+          完成评级: { D: 0, C: 0, B: 0, A: 0, S: 0 },
+          放弃评级: { D: 0, C: 0, B: 0, A: 0, S: 0 },
+        },
       },
-      上周: null,
     },
     商店: {},
     技能商店: {},
@@ -56,7 +57,7 @@ function reset() {
 }
 
 const item = { 描述: '道具', 作用: '测试', 评级: 'D', 价格: 6, 数量: 3, 耐久: 100 };
-const skill = { 描述: '技能', 作用: '测试', 适用评级: 'D', 价格: 8, 战力评级贡献: 10 };
+const skill = { 描述: '技能', 作用: '测试', 评级: 'D', 价格: 8 };
 const task = { 描述: '任务', 目标: '测试', 当前进度: '未接取', 评级: 'D', 奖励: 5, 已完成: false };
 
 setActivePinia(createPinia());
@@ -79,6 +80,7 @@ async function main() {
   assert.equal(await store.claimTask('领奖'), 5);
   assert.match(message, /领取组织任务「领奖」的奖励，获得5点恶堕积分/);
   assert.equal(data.角色.user.恶堕积分, 105);
+  assert.equal(data.角色.user.评级贡献, 1);
 
   reset();
   data.商店.药剂 = { ...item };
@@ -92,7 +94,7 @@ async function main() {
   data.技能商店.火球 = { ...skill };
   await store.purchaseSkill('火球');
   assert.match(message, /购买技能「火球」，消耗8点恶堕积分/);
-  data.技能商店.火球 = { ...skill, 价格: 10, 战力评级贡献: 20 };
+  data.技能商店.火球 = { ...skill, 价格: 10, 评级: 'C' };
   await store.purchaseSkill('火球');
   assert.match(message, /升级技能「火球」，消耗10点恶堕积分/);
   assert.equal(await store.sellOwnedSkill('火球'), 9);

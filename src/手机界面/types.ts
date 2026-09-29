@@ -117,10 +117,9 @@ export interface 技能 {
   /** 完整的安全 SVG 字符串。 */
   图标?: string;
   描述: string;
-  战力评级贡献: number;
   作用: string;
   价格: number;
-  适用评级: string;
+  评级: 任务['评级'];
 }
 
 export interface 物品 {
@@ -158,10 +157,9 @@ export type 商店道具 = 物品;
 export interface 可购技能 {
   图标?: string;
   描述: string;
-  战力评级贡献: number;
   作用: string;
   价格: number;
-  适用评级: string;
+  评级: 任务['评级'];
 }
 
 export interface 系统数据 {
@@ -189,6 +187,8 @@ export interface 用户数据 {
   外貌: string;
   性格: string;
   当前评级: string;
+  /** 任务领奖累计贡献，不随消费和技能交易减少。 */
+  评级贡献: number;
   金钱: number;
   恶堕积分: number;
   /** 已解锁技能栏位；旧存档缺省时视为 6。 */
@@ -352,7 +352,7 @@ export interface stat_data {
   仓库: Record<string, 物品>;
   任务: Record<string, 任务>;
   任务候选: Record<string, 任务>;
-  任务统计: { 开始周: string; 本周: 任务周统计; 上周: 任务周统计 | null };
+  任务统计: { 开始周: string; 周记录: Record<string, 任务周统计> };
   商店: Record<string, 商店道具>;
   技能商店: Record<string, 可购技能>;
   系统: 系统数据;

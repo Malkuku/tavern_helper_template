@@ -46,7 +46,7 @@
           v-for="[name, item] in shopEntries"
           :key="name"
           class="shop-card skill-offer"
-          :class="[ratingVisualClass(item.适用评级), owned[name] ? 'skill-offer-upgrade' : 'skill-offer-new']"
+          :class="[ratingVisualClass(item.评级), owned[name] ? 'skill-offer-upgrade' : 'skill-offer-new']"
         >
           <button
             type="button"
@@ -57,7 +57,7 @@
             <InventoryIcon :svg="item.图标" kind="技能" />
             <div>
               <strong>{{ name }}</strong
-              ><small class="witch-grade-label">{{ owned[name] ? '新版本' : '新技能' }} · {{ item.适用评级 }}</small>
+              ><small class="witch-grade-label">{{ owned[name] ? '新版本' : '新技能' }} · {{ item.评级 }}</small>
             </div>
             <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
           </button>
@@ -97,7 +97,7 @@
           v-for="[name, item] in ownedEntries"
           :key="name"
           class="shop-card"
-          :class="ratingVisualClass(item.适用评级)"
+          :class="ratingVisualClass(item.评级)"
         >
           <button
             type="button"
@@ -108,7 +108,7 @@
             <InventoryIcon :svg="item.图标" kind="技能" />
             <div>
               <strong>{{ name }}</strong
-              ><small class="witch-grade-label">{{ item.适用评级 }}</small>
+              ><small class="witch-grade-label">{{ item.评级 }}</small>
             </div>
             <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
           </button>

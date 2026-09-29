@@ -93,9 +93,15 @@
       <div v-else class="list">
         <p class="stats-note">
           每周须完成至少 7 项任务，完成后领取奖励才计入 KPI；7
-          项是达标线，达标后仍可继续完成。未达标可能面临组织问责。统计只保留本周和上周。
+          项是达标线，达标后仍可继续完成。未达标可能面临组织问责。所有周的汇总永久保留。
         </p>
-        <article v-for="week in visibleWeeks" :key="week.label" class="card">
+        <article v-if="lifetimeStats" class="card">
+          <div class="heading"><strong>累计统计</strong></div>
+          <p>已计入 {{ lifetimeStats.完成 }} 项 · 已放弃 {{ lifetimeStats.放弃 }} 项</p>
+          <div class="goal">完成评级：{{ ratingSummary(lifetimeStats.完成评级) }}</div>
+          <div class="goal">放弃评级：{{ ratingSummary(lifetimeStats.放弃评级) }}</div>
+        </article>
+        <article v-for="week in visibleWeeks" :key="week.data.周起始" class="card">
           <div class="heading">
             <strong>{{ week.label }}</strong
             ><span>{{ week.data.周起始 }} 起</span>
@@ -113,7 +119,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { taskRefreshState, taskWeekStats, type 任务评级 } from './quests';
+import { taskRefreshState, taskWeekHistory, taskWeekStats, type 任务评级 } from './quests';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import QuestCard from './QuestCard.vue';
 
@@ -132,13 +138,36 @@ const stats = computed(() => {
   }
 });
 const visibleWeeks = computed(() =>
-  stats.value
-    ? [
-        { label: '本周', data: stats.value.current },
-        ...(stats.value.previous ? [{ label: '上周', data: stats.value.previous }] : []),
-      ]
+  store.statData
+    ? taskWeekHistory(store.statData).map(data => ({
+        label:
+          data.周起始 === stats.value?.current.周起始
+            ? '本周'
+            : data.周起始 === stats.value?.previous?.周起始
+              ? '上周'
+              : '历史周',
+        data,
+      }))
     : [],
 );
+const lifetimeStats = computed(() => {
+  if (!store.statData) return null;
+  const result = {
+    完成: 0,
+    放弃: 0,
+    完成评级: { D: 0, C: 0, B: 0, A: 0, S: 0 },
+    放弃评级: { D: 0, C: 0, B: 0, A: 0, S: 0 },
+  };
+  for (const week of Object.values(store.statData.任务统计.周记录)) {
+    result.完成 += week.完成;
+    result.放弃 += week.放弃;
+    for (const rating of ['D', 'C', 'B', 'A', 'S'] as const) {
+      result.完成评级[rating] += week.完成评级[rating];
+      result.放弃评级[rating] += week.放弃评级[rating];
+    }
+  }
+  return result;
+});
 const refreshAvailable = computed(() => {
   try {
     return !!store.statData && taskRefreshState(store.statData).available;

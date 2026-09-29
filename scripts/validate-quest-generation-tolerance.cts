@@ -7,6 +7,7 @@ const stock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`任�
 const data: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },
   系统: { 任务下次刷新时间: '', 任务主动刷新次数: 0 },
+  角色: { user: { 评级贡献: 0 } },
   任务: {},
   任务候选: {},
 };

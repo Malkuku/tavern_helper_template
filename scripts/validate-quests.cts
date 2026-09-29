@@ -43,10 +43,10 @@ const result = `<questVariable>${JSON.stringify(stock)}</questVariable>`;
 const data: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },
   系统: { 任务下次刷新时间: '', 任务主动刷新次数: 0 },
-  角色: { user: { 恶堕积分: 10 } },
+  角色: { user: { 当前评级: 'D', 评级贡献: 0, 恶堕积分: 10 } },
   任务: {},
   任务候选: {},
-  任务统计: { 开始周: '2026-9-28', 本周: emptyTaskWeek('2026-9-28'), 上周: null },
+  任务统计: { 开始周: '2026-9-28', 周记录: { '2026-9-28': emptyTaskWeek('2026-9-28') } },
 };
 
 assert.equal(taskRefreshState(data).available, true);
@@ -93,13 +93,14 @@ assert.throws(() => abandonTask(data, '任务1'), /只能领取/);
 assert.throws(() => claimTask(data, '任务2'), /尚未完成/);
 assert.equal(claimTask(data, '任务1'), 8);
 assert.equal(data.角色.user.恶堕积分, 18);
-assert.equal(data.任务统计.本周.完成, 1);
-assert.equal(data.任务统计.本周.完成评级.D, 1);
+assert.equal(data.任务统计.周记录['2026-9-28'].完成, 1);
+assert.equal(data.任务统计.周记录['2026-9-28'].完成评级.D, 1);
+assert.equal(data.角色.user.评级贡献, 1, 'D 任务增加固定贡献');
 assert.throws(() => claimTask(data, '任务1'), /没有这项/);
 acceptTask(data, '任务5');
 abandonTask(data, '任务2');
-assert.equal(data.任务统计.本周.放弃, 1);
-assert.equal(data.任务统计.本周.放弃评级.D, 1);
+assert.equal(data.任务统计.周记录['2026-9-28'].放弃, 1);
+assert.equal(data.任务统计.周记录['2026-9-28'].放弃评级.D, 1);
 assert.equal(data.任务候选.任务2, undefined, '放弃不回候选');
 
 data.世界.时间 = '2026-9-29T00:00[2]';
@@ -118,9 +119,9 @@ data.世界.时间 = '2026-10-5T00:00[1]';
 assert.equal(taskWeekStats(data).previous?.完成, 1);
 data.任务.任务3.已完成 = true;
 claimTask(data, '任务3');
-assert.equal(data.任务统计.本周.周起始, '2026-10-5');
-assert.equal(data.任务统计.本周.完成, 1);
-assert.equal(data.任务统计.上周?.完成, 1);
+assert.equal(data.任务统计.周记录['2026-10-5'].周起始, '2026-10-5');
+assert.equal(data.任务统计.周记录['2026-10-5'].完成, 1);
+assert.equal(data.任务统计.周记录['2026-9-28'].完成, 1, '更早的周汇总永久保留');
 
 const weeklyRule = readFileSync(`${root}\\额外信息\\任务周指标.ini`, 'utf8');
 const prelude = /<%_([\s\S]*?)_%>/.exec(weeklyRule)?.[1];
@@ -133,17 +134,17 @@ function ruleState(
     getvar: (key: string) => (key === 'stat_data.世界.时间' ? time : taskStats),
   });
 }
-const firstWeek = { 开始周: '2026-9-28', 本周: emptyTaskWeek('2026-9-28'), 上周: null };
+const firstWeek = { 开始周: '2026-9-28', 周记录: { '2026-9-28': emptyTaskWeek('2026-9-28') } };
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).missed, false);
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).remaining, 7, '本周尚未领奖时提示剩余 7 项');
-firstWeek.本周.完成 = 3;
+firstWeek.周记录['2026-9-28'].完成 = 3;
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).currentClaimed, 3);
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).remaining, 4);
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).missed, true, '周一开始触发上周未达标提示');
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).remaining, 7, '跨周后本周进度归零');
-firstWeek.本周.完成 = 7;
+firstWeek.周记录['2026-9-28'].完成 = 7;
 assert.equal(ruleState('2026-10-5T00:00[1]', firstWeek).missed, false, '上周达标不触发问责');
-firstWeek.本周.完成 = 8;
+firstWeek.周记录['2026-9-28'].完成 = 8;
 assert.equal(ruleState('2026-9-29T10:00[2]', firstWeek).remaining, 0, '超过 KPI 后不产生负剩余数');
 assert.match(weeklyRule, /<任务周指标>[\s\S]*必须完成至少 7 项[\s\S]*领取奖励才计入必达 KPI/);
 assert.match(weeklyRule, /本周已计入 <%- currentClaimed %> 项，还需 <%- remaining %> 项才能达标/);

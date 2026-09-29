@@ -124,7 +124,7 @@ export function reconcileWorldbookStatData(
     仓库: klona(opening.内容配置.仓库),
   };
   const startWeek = taskWeekKey((data.世界 as { 时间: string }).时间);
-  data.任务统计 = { 开始周: startWeek, 本周: emptyTaskWeek(startWeek), 上周: null };
+  data.任务统计 = { 开始周: startWeek, 周记录: { [startWeek]: emptyTaskWeek(startWeek) } };
   const rewardLevels: Record<string, number> = {};
   for (const kind of ['主要角色', '次要角色'] as const) {
     for (const [key, rawRole] of Object.entries(roles[kind] as JsonRecord)) {

@@ -24,10 +24,9 @@ export const itemSchema = z.strictObject({
 export const skillSchema = z.strictObject({
   图标: svgIcon.optional(),
   描述: z.string(),
-  战力评级贡献: number,
   作用: z.string(),
   价格: number,
-  适用评级: z.string(),
+  评级: z.enum(['D', 'C', 'B', 'A', 'S']),
 });
 export const questSchema = z.strictObject({
   描述: z.string(),
@@ -114,9 +113,10 @@ export const userRoleSchema = z.strictObject({
   外貌: z.string(),
   性格: z.string(),
   当前评级: z.string(),
+  评级贡献: z.number().int().nonnegative().safe(),
   金钱: number,
   恶堕积分: number,
-  技能栏位: z.number().int().min(6).max(12).optional(),
+  技能栏位: z.number().int().min(6).max(20).optional(),
   技能: z.record(z.string(), skillSchema),
   物品: z.record(z.string(), itemSchema),
 });
@@ -158,7 +158,7 @@ export const initialStatDataSchema = z.strictObject({
   仓库: z.record(z.string(), itemSchema),
   任务: z.record(z.string(), questSchema),
   任务候选: z.record(z.string(), questSchema),
-  任务统计: z.strictObject({ 开始周: z.string(), 本周: questWeekSchema, 上周: questWeekSchema.nullable() }),
+  任务统计: z.strictObject({ 开始周: z.string(), 周记录: z.record(z.string(), questWeekSchema) }),
   商店: z.record(z.string(), itemSchema),
   技能商店: z.record(z.string(), skillSchema),
   系统: z.strictObject({

@@ -23,6 +23,21 @@
           <RatingEmblem :rating="user.当前评级" tooltip-align="right" />
         </div>
       </div>
+      <div class="profile-rating-progress" aria-label="评级贡献进度">
+        <p>
+          累计评级贡献 {{ user.评级贡献
+          }}<span v-if="nextRating"> / {{ nextRating.threshold }}（晋升 {{ nextRating.rating }}）</span>
+        </p>
+        <progress
+          v-if="nextRating"
+          :value="user.评级贡献 - currentThreshold"
+          :max="nextRating.threshold - currentThreshold"
+        />
+        <progress v-else :value="1" :max="1" aria-label="已达最高评级" />
+        <p v-if="!nextRating">已达最高评级，后续任务仍会累计贡献。</p>
+        <p>完成任务并领取奖励可累计评级贡献；D/C/B/A/S 任务分别贡献 1/3/8/24/72 点。积分可消费，贡献不会减少。</p>
+        <p>任务、技能和道具正常生成时，最高为当前评级的后一档；低评级内容仍可出现。</p>
+      </div>
     </section>
     <section class="data-card profile-info-card">
       <h3>身份</h3>
@@ -55,9 +70,16 @@ import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { profileFieldValue, type ProfileField } from './profileEdit';
 import RatingEmblem from './RatingEmblem.vue';
+import { ratingThreshold, ratings, userRatingFromContribution } from '../../store/userRating';
 
 const props = defineProps<{ data: stat_data }>();
 const user = computed(() => props.data.角色?.user);
+const rating = computed(() => (user.value ? userRatingFromContribution(user.value.评级贡献) : 'D'));
+const currentThreshold = computed(() => ratingThreshold[rating.value]);
+const nextRating = computed(() => {
+  const next = ratings[ratings.indexOf(rating.value) + 1];
+  return next ? { rating: next, threshold: ratingThreshold[next] } : null;
+});
 const statStore = useMagicGirlStatStore();
 const editableFields: ProfileField[] = ['背景', '外貌', '性格'];
 const editingField = ref<ProfileField | null>(null);
@@ -89,3 +111,22 @@ async function save() {
   }
 }
 </script>
+
+<style scoped>
+.profile-rating-progress {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  color: #e6d6e1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.profile-rating-progress p {
+  margin: 0;
+}
+.profile-rating-progress progress {
+  width: 100%;
+  height: 9px;
+  accent-color: #d586b3;
+}
+</style>

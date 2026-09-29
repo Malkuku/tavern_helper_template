@@ -37,7 +37,7 @@ assert.ok(!rule.includes('商店下次刷新时间'), '手动刷新规则不得�
 const data = {
   世界: { 时间: '2026-9-26T03:10[6]' },
   系统: { 商店下次刷新时间: '', 商店主动刷新次数: 0 },
-  角色: { user: { 恶堕积分: 200, 物品: { 旧扣: item(3, 1, 2) } } },
+  角色: { user: { 当前评级: 'D', 评级贡献: 0, 恶堕积分: 200, 物品: { 旧扣: item(3, 1, 2) } } },
   仓库: { 仓库药剂: item(5, 2, 1) },
   商店: { 旧扣: item(3, 2, 10) },
 } as unknown as stat_data;
@@ -56,7 +56,7 @@ applyItemRefresh(
   `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
   true,
 );
-assert.equal(directedData.角色.user.恶堕积分, 170, '定向道具刷新加收 30 点');
+assert.equal(directedData.角色.user.恶堕积分, 150, '定向道具刷新加收 50 点');
 assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
 const parsed = parseItemResult(message, data);
 assert.equal(Object.keys(parsed).length, 6);
@@ -82,9 +82,9 @@ assert.equal(Object.keys(partlyValidData.商店).length, 5);
 assert.equal(partlyValidData.系统.商店主动刷新次数, 1, '部分有效仍只结算一次');
 const higherRank = { ...stock, 道具1: { ...stock.道具1, 评级: 'S' } };
 assert.equal(
-  parseItemResult(`<shopVariable>${JSON.stringify(higherRank)}</shopVariable>`, data).道具1.评级,
-  'S',
-  '软评级上限不阻止生成',
+  parseItemResult(`<shopVariable>${JSON.stringify(higherRank)}</shopVariable>`, data).道具1,
+  undefined,
+  '超过玩家当前评级一档的道具不得上架',
 );
 assert.throws(() => parseItemResult('<shopVariable>{}</shopVariable>', data), /没有可上架的商品/);
 assert.equal(parseItemResult(message + message, data).旧扣.价格, 3, '同楼旧标签不阻断最新结果');

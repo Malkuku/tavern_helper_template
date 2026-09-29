@@ -1,6 +1,6 @@
 import type { stat_data } from '../types';
 
-export const DIRECTED_REFRESH_SURCHARGE = 30;
+export const DIRECTED_REFRESH_SURCHARGE = 50;
 
 export function directedRefreshPrice(data: stat_data, kind: '技能' | '道具', ordinaryPrice: number): number {
   const request = data.手机.定向刷新;

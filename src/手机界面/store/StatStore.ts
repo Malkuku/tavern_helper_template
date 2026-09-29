@@ -609,7 +609,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function claimTask(name: string): Promise<number> {
     return changeCharacterData(
       data => applyTaskClaim(data, name),
-      (_before, _after, reward) => `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分。`,
+      (before, after, reward) =>
+        `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分、${after.角色.user.评级贡献 - before.角色.user.评级贡献}点评级贡献。`,
     );
   }
 

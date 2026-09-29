@@ -7,12 +7,13 @@
     <p class="quest-card-description">{{ task.描述 }}</p>
     <div class="quest-card-detail">目标：{{ task.目标 }}</div>
     <div v-if="accepted" class="quest-card-detail">{{ task.已完成 ? '已完成 · 待领奖' : task.当前进度 }}</div>
-    <small>奖励 {{ task.奖励 }} 恶堕积分</small>
+    <small>奖励 {{ task.奖励 }} 恶堕积分 · 评级贡献 +{{ ratingContribution[task.评级] }}</small>
     <slot name="actions" />
   </article>
 </template>
 
 <script setup lang="ts">
+import { ratingContribution } from '../../store/userRating';
 import type { 任务 } from '../../types';
 import { ratingVisualClass } from '../witch/ratingVisual';
 

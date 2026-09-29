@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { stat_data, 任务 } from '../../types';
 import { questSchema } from '../../store/initialDataSchema';
 import { latestGeneratedPayload } from '../generationResult';
+import { isWithinGeneratedRating, ratingContribution, userRatingFromContribution } from '../../store/userRating';
 
 export type 任务评级 = 任务['评级'];
 const ratings = ['D', 'C', 'B', 'A', 'S'] as const;
@@ -57,7 +58,7 @@ export function taskRefreshState(data: stat_data): { available: boolean; next: s
   return { available: !next || now >= worldDate(next) || count === 0, next: nextMidnight(now) };
 }
 
-function parseResult(message: string, active: stat_data['任务']): Record<string, 任务> {
+function parseResult(message: string, active: stat_data['任务'], playerRating: 任务评级): Record<string, 任务> {
   const payload = latestGeneratedPayload(message, '<questVariable');
   if (payload === undefined) throw new Error('任务生成结果缺少完整的 questVariable 标签。');
   let raw: unknown;
@@ -72,7 +73,7 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
   for (const [name, value] of Object.entries(result.data)) {
     if (!name.trim() || Object.hasOwn(active, name)) continue;
     const parsed = resultQuestSchema.safeParse(value);
-    if (!parsed.success) continue;
+    if (!parsed.success || !isWithinGeneratedRating(playerRating, parsed.data.评级)) continue;
     accepted.push([name, { ...parsed.data, 当前进度: '未接取', 已完成: false }]);
   }
   if (!accepted.length) throw new Error('任务生成结果没有可接取的候选任务。');
@@ -82,24 +83,23 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
 export function refreshTasks(data: stat_data, message: string): void {
   const state = taskRefreshState(data);
   if (!state.available) throw new Error('今天的免费任务刷新次数已用完。');
-  const result = parseResult(message, data.任务);
+  const result = parseResult(message, data.任务, userRatingFromContribution(data.角色.user.评级贡献));
   data.任务候选 = result;
   data.系统.任务下次刷新时间 = state.next;
   data.系统.任务主动刷新次数 = 1;
 }
 
-export function emptyTaskWeek(week: string): stat_data['任务统计']['本周'] {
+export function emptyTaskWeek(week: string): stat_data['任务统计']['周记录'][string] {
   return { 周起始: week, 完成: 0, 放弃: 0, 完成评级: zeroRatingCounts(), 放弃评级: zeroRatingCounts() };
 }
 
 export function taskWeekStats(data: stat_data): {
-  current: stat_data['任务统计']['本周'];
-  previous: stat_data['任务统计']['上周'];
+  current: stat_data['任务统计']['周记录'][string];
+  previous: stat_data['任务统计']['周记录'][string] | null;
 } {
   const week = taskWeekKey(data.世界.时间);
   const previousWeek = previousTaskWeekKey(data.世界.时间);
-  const current = data.任务统计.本周;
-  const previous = data.任务统计.上周;
+  const records = data.任务统计.周记录;
   const start = data.任务统计.开始周.split('-').map(Number);
   const previousParts = previousWeek.split('-').map(Number);
   const hasPrevious =
@@ -107,21 +107,29 @@ export function taskWeekStats(data: stat_data): {
     start.every(Number.isSafeInteger) &&
     Date.UTC(previousParts[0], previousParts[1] - 1, previousParts[2]) >= Date.UTC(start[0], start[1] - 1, start[2]);
   return {
-    current: current.周起始 === week ? current : emptyTaskWeek(week),
-    previous:
-      current.周起始 === previousWeek
-        ? current
-        : previous?.周起始 === previousWeek
-          ? previous
-          : hasPrevious
-            ? emptyTaskWeek(previousWeek)
-            : null,
+    current: records[week] ?? emptyTaskWeek(week),
+    previous: hasPrevious ? (records[previousWeek] ?? emptyTaskWeek(previousWeek)) : null,
   };
 }
 
-function rollTaskStats(data: stat_data): void {
-  const stats = taskWeekStats(data);
-  data.任务统计 = { 开始周: data.任务统计.开始周, 本周: stats.current, 上周: stats.previous };
+export function taskWeekHistory(data: stat_data): stat_data['任务统计']['周记录'][string][] {
+  const start = data.任务统计.开始周.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!start) throw new Error('任务统计开始周无效。');
+  const cursor = new Date(Date.UTC(+start[1], +start[2] - 1, +start[3]));
+  const [year, month, day] = taskWeekKey(data.世界.时间).split('-').map(Number);
+  const end = Date.UTC(year, month - 1, day);
+  const records: stat_data['任务统计']['周记录'][string][] = [];
+  while (cursor.getTime() <= end) {
+    const week = dayKey(cursor);
+    records.push(data.任务统计.周记录[week] ?? emptyTaskWeek(week));
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+  }
+  return records.reverse();
+}
+
+function currentTaskWeek(data: stat_data): stat_data['任务统计']['周记录'][string] {
+  const week = taskWeekKey(data.世界.时间);
+  return (data.任务统计.周记录[week] ??= emptyTaskWeek(week));
 }
 
 export function acceptTask(data: stat_data, name: string): void {
@@ -138,9 +146,9 @@ export function abandonTask(data: stat_data, name: string): void {
   if (!task) throw new Error('没有这项已接任务。');
   if (task.已完成) throw new Error('已完成任务只能领取奖励。');
   if (!ratings.includes(task.评级)) throw new Error('任务评级无效。');
-  rollTaskStats(data);
-  data.任务统计.本周.放弃++;
-  data.任务统计.本周.放弃评级[task.评级]++;
+  const week = currentTaskWeek(data);
+  week.放弃++;
+  week.放弃评级[task.评级]++;
   delete data.任务[name];
 }
 
@@ -151,13 +159,19 @@ export function claimTask(data: stat_data, name: string): number {
   if (!ratings.includes(task.评级)) throw new Error('任务评级无效。');
   const reward = task.奖励;
   const balance = data.角色.user.恶堕积分;
+  const total = data.角色.user.评级贡献;
+  const gained = ratingContribution[task.评级];
   if (!Number.isSafeInteger(reward) || reward <= 0) throw new Error('任务奖励无效。');
   if (!Number.isSafeInteger(balance) || balance < 0 || !Number.isSafeInteger(balance + reward))
     throw new Error('恶堕积分余额无效。');
-  rollTaskStats(data);
+  if (!Number.isSafeInteger(total) || total < 0 || !Number.isSafeInteger(total + gained))
+    throw new Error('累计评级贡献无效。');
+  const week = currentTaskWeek(data);
   data.角色.user.恶堕积分 += reward;
-  data.任务统计.本周.完成++;
-  data.任务统计.本周.完成评级[task.评级]++;
+  data.角色.user.评级贡献 += gained;
+  data.角色.user.当前评级 = userRatingFromContribution(data.角色.user.评级贡献);
+  week.完成++;
+  week.完成评级[task.评级]++;
   delete data.任务[name];
   return reward;
 }
