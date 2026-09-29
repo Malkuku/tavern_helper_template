@@ -180,8 +180,19 @@
             :task="task"
             :accepted="true"
           >
-            <template v-if="!task.已完成" #actions>
-              <button type="button" class="quest-card-action" @click="prepareQuest(questName)">推进任务</button>
+            <template #actions>
+              <button v-if="!task.已完成" type="button" class="quest-card-action" @click="prepareQuest(questName)">
+                推进任务
+              </button>
+              <button
+                v-else
+                type="button"
+                class="quest-card-action"
+                :disabled="claimBusy"
+                @click="claimQuest(questName)"
+              >
+                {{ claimBusy ? '领取中…' : '领取奖励' }}
+              </button>
             </template>
           </QuestCard>
         </div>
@@ -247,7 +258,14 @@ import { parseMessageOptions } from './optionParser';
 import type { 技能, 物品, 任务, stat_data } from '@/手机界面/types';
 import OwnedAssetCard from '@/手机界面/apps/data/OwnedAssetCard.vue';
 import QuestCard from '@/手机界面/apps/quests/QuestCard.vue';
-import { buildQuestPrompt, buildUsePrompt } from './usePrompt';
+import { buildUsePrompt } from './usePrompt';
+import { buildQuestPrompt } from '@/手机界面/apps/quests/questPrompt';
+import {
+  QUEST_CLAIM_REQUEST,
+  QUEST_CLAIM_RESULT,
+  type QuestClaimRequest,
+  type QuestClaimResult,
+} from '@/手机界面/apps/quests/questClaimBridge';
 
 const uiStore = useUiStore();
 const messageStore = useMessageStore();
@@ -262,6 +280,12 @@ const activeTab = ref<'options' | 'variables' | 'skills' | 'items' | 'quests'>('
 const selectedOption = ref<number | null>(null);
 const inputError = ref('');
 const inputNotice = ref('');
+const claimBusy = ref(false);
+let claimSerial = 0;
+const pendingClaims = new Map<
+  string,
+  { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
+>();
 const expandedName = ref('');
 const useQuantity = ref(1);
 const isItem = (entry: 技能 | 物品): entry is 物品 => '数量' in entry;
@@ -374,6 +398,49 @@ function prepareUse(name: string) {
 
 function prepareQuest(name: string) {
   void prepareDraft(data => buildQuestPrompt(data, name), '任务推进意图已填入聊天输入框；发送后由剧情处理进度。');
+}
+
+function requestQuestClaim(name: string): Promise<void> {
+  const request: QuestClaimRequest = {
+    id: `${getScriptId()}:${Date.now()}:${++claimSerial}`,
+    name,
+    chatId: SillyTavern.getCurrentChatId(),
+    messageId: getLastMessageId(),
+  };
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingClaims.delete(request.id);
+      reject(new Error('未收到手机任务服务的领奖确认，请刷新任务状态后重试。'));
+    }, 20000);
+    pendingClaims.set(request.id, { resolve, reject, timer });
+    void eventEmit(QUEST_CLAIM_REQUEST, request).catch(cause => {
+      clearTimeout(timer);
+      pendingClaims.delete(request.id);
+      reject(cause instanceof Error ? cause : new Error('发送领奖请求失败。'));
+    });
+  });
+}
+
+async function claimQuest(name: string) {
+  if (claimBusy.value) return;
+  claimBusy.value = true;
+  inputError.value = '';
+  inputNotice.value = '';
+  const chatId = SillyTavern.getCurrentChatId();
+  const messageId = getLastMessageId();
+  try {
+    if (messageStore.messageId !== messageId) throw new Error('当前楼层已变化，请重新选择。');
+    await requestQuestClaim(name);
+    if (chatId !== SillyTavern.getCurrentChatId() || messageId !== getLastMessageId())
+      throw new Error('聊天或楼层已切换，请返回原楼层核对奖励。');
+    messageStore.getMessage();
+    inputNotice.value = `已领取任务「${name}」的奖励。`;
+  } catch (cause) {
+    messageStore.getMessage();
+    inputError.value = cause instanceof Error ? cause.message : '领取奖励失败。';
+  } finally {
+    claimBusy.value = false;
+  }
 }
 
 const formatType = (type: string) => {
@@ -511,6 +578,14 @@ watch(activeTab, () => {
 });
 
 onMounted(() => {
+  eventOn(QUEST_CLAIM_RESULT, (result: QuestClaimResult) => {
+    const pending = pendingClaims.get(result?.id);
+    if (!pending) return;
+    pendingClaims.delete(result.id);
+    clearTimeout(pending.timer);
+    if (result.error) pending.reject(new Error(result.error));
+    else pending.resolve();
+  });
   refreshData();
   hostWindow = draggableBtn.value?.ownerDocument.defaultView ?? window.parent;
   fitToViewport();

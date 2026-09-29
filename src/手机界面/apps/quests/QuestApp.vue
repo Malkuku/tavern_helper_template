@@ -59,6 +59,9 @@
               领取奖励
             </button>
             <template v-else>
+              <button type="button" class="quest-card-action" :disabled="busy" @click="run(() => prepareQuest(name))">
+                推进任务
+              </button>
               <button
                 v-if="confirmAbandon === name"
                 type="button"
@@ -122,6 +125,8 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskRefreshState, taskWeekHistory, taskWeekStats, type 任务评级 } from './quests';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import QuestCard from './QuestCard.vue';
+import { buildQuestPrompt } from './questPrompt';
+import type { stat_data } from '../../types';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'board' | 'active' | 'stats'>(Object.keys(store.statData?.任务 ?? {}).length ? 'active' : 'board');
@@ -178,6 +183,16 @@ const refreshAvailable = computed(() => {
 
 function ratingSummary(counts: Record<任务评级, number>): string {
   return (['D', 'C', 'B', 'A', 'S'] as const).map(rating => `${rating} ${counts[rating]}`).join(' · ');
+}
+
+async function prepareQuest(name: string): Promise<void> {
+  const data = getVariables({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
+  const prompt = buildQuestPrompt(data, name);
+  const input = window.parent.document.querySelector<HTMLTextAreaElement>('#send_textarea');
+  if (!input) throw new Error('未找到酒馆聊天输入框。');
+  input.value += `${input.value && !input.value.endsWith('\n') ? '\n' : ''}${prompt}`;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
 }
 
 async function run(action: () => Promise<unknown>) {

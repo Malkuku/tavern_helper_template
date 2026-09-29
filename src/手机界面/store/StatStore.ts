@@ -77,6 +77,7 @@ import {
   refreshTasks as applyTaskRefresh,
   taskRefreshState,
 } from '../apps/quests/quests';
+import { QUEST_CLAIM_REQUEST, QUEST_CLAIM_RESULT, type QuestClaimRequest } from '../apps/quests/questClaimBridge';
 
 const generationResultWaitMs = 5000;
 
@@ -1456,6 +1457,20 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function initialize() {
     refresh();
     startPolling();
+    eventOn(QUEST_CLAIM_REQUEST, (request: QuestClaimRequest) => {
+      if (!request || typeof request.id !== 'string' || typeof request.name !== 'string') return;
+      void (async () => {
+        let error: string | undefined;
+        try {
+          if (request.chatId !== SillyTavern.getCurrentChatId() || request.messageId !== getLastMessageId())
+            throw new Error('聊天或楼层已切换，领奖已取消。');
+          await claimTask(request.name);
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : '领取奖励失败。';
+        }
+        await eventEmit(QUEST_CLAIM_RESULT, { id: request.id, error });
+      })().catch(cause => console.error('任务领奖结果通知失败', cause));
+    });
     eventOn('mag_variable_update_ended', scheduleRefresh);
     eventOn(KatEvents.kat_mvu_update_finished, scheduleRefresh);
     eventOn(tavern_events.MESSAGE_DELETED, scheduleRefresh);
