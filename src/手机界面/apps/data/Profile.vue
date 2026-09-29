@@ -20,14 +20,35 @@
         </div>
         <div class="profile-rank">
           <span>当前评级</span>
-          <RatingEmblem :rating="user.当前评级" tooltip-align="right" />
+          <RatingEmblem :rating="user.当前评级" tooltip-align="right" kind="contribution" />
         </div>
       </div>
       <div class="profile-rating-progress" aria-label="评级贡献进度">
-        <p>
-          累计评级贡献 {{ user.评级贡献
-          }}<span v-if="nextRating"> / {{ nextRating.threshold }}（晋升 {{ nextRating.rating }}）</span>
-        </p>
+        <div class="profile-rating-line">
+          <span>
+            累计评级贡献 <strong>{{ user.评级贡献 }}</strong
+            ><span v-if="nextRating"> / {{ nextRating.threshold }}（晋升 {{ nextRating.rating }}）</span>
+          </span>
+          <span class="profile-rating-help">
+            <button
+              type="button"
+              class="profile-rating-help-button"
+              aria-label="查看评级贡献规则"
+              :aria-describedby="ratingHelpId"
+              @click="showRatingHelp = !showRatingHelp"
+              @blur="showRatingHelp = false"
+              @keydown.esc="showRatingHelp = false"
+            >
+              ?
+            </button>
+            <span :id="ratingHelpId" class="profile-rating-tooltip" :class="{ open: showRatingHelp }" role="tooltip">
+              <strong>怎么升级？</strong>
+              <span>做完任务后，记得领取奖励。领取时会增加评级贡献；攒够进度条上的数字就能升级。</span>
+              <span>任务等级越高，贡献越多：D 级 +1、C 级 +3、B 级 +8、A 级 +24、S 级 +72。</span>
+              <span>新出现的任务、技能和道具等级会受到评级的影响。</span>
+            </span>
+          </span>
+        </div>
         <progress
           v-if="nextRating"
           :value="user.评级贡献 - currentThreshold"
@@ -35,8 +56,6 @@
         />
         <progress v-else :value="1" :max="1" aria-label="已达最高评级" />
         <p v-if="!nextRating">已达最高评级，后续任务仍会累计贡献。</p>
-        <p>完成任务并领取奖励可累计评级贡献；D/C/B/A/S 任务分别贡献 1/3/8/24/72 点。积分可消费，贡献不会减少。</p>
-        <p>任务、技能和道具正常生成时，最高为当前评级的后一档；低评级内容仍可出现。</p>
       </div>
     </section>
     <section class="data-card profile-info-card">
@@ -66,7 +85,7 @@
 
 <script setup lang="ts">
 import type { stat_data } from '../../types';
-import { computed, ref } from 'vue';
+import { computed, ref, useId } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { profileFieldValue, type ProfileField } from './profileEdit';
 import RatingEmblem from './RatingEmblem.vue';
@@ -86,6 +105,8 @@ const editingField = ref<ProfileField | null>(null);
 const saving = ref(false);
 const draft = ref('');
 const error = ref('');
+const ratingHelpId = useId();
+const showRatingHelp = ref(false);
 function startEdit(field: ProfileField) {
   if (!user.value) return;
   draft.value = profileFieldValue(user.value, field);
@@ -128,5 +149,79 @@ async function save() {
   width: 100%;
   height: 9px;
   accent-color: #d586b3;
+}
+.profile-rating-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.profile-rating-line strong {
+  color: #fff1f7;
+  font-variant-numeric: tabular-nums;
+}
+.profile-rating-help {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.profile-rating-help-button {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: 1px solid #b984a3;
+  border-radius: 50%;
+  background: #ffffff12;
+  color: #f4ccdf;
+  font-size: 12px;
+  line-height: 1;
+  cursor: help;
+}
+.profile-rating-help-button:focus-visible {
+  outline: 2px solid #f4ccdf;
+  outline-offset: 2px;
+}
+.profile-rating-tooltip {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 9px);
+  right: 0;
+  display: grid;
+  gap: 7px;
+  width: min(252px, calc(100vw - 65px));
+  padding: 11px 13px;
+  border: 1px solid #b984a3;
+  border-radius: 10px;
+  background: #201523;
+  box-shadow: 0 9px 22px #08040acb;
+  color: #f5e9ef;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s;
+  pointer-events: none;
+}
+.profile-rating-tooltip strong {
+  color: #f3b5d3;
+  font-size: 12px;
+}
+.profile-rating-help:hover .profile-rating-tooltip,
+.profile-rating-help-button:focus-visible + .profile-rating-tooltip,
+.profile-rating-tooltip.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-rating-tooltip {
+    transition: none;
+  }
 }
 </style>

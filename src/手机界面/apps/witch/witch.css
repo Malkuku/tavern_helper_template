@@ -1575,6 +1575,15 @@
 .witch-app .profile-page {
   padding-top: 3px;
 }
+.witch-app .profile-overview {
+  overflow: visible;
+}
+.witch-app .profile-rating-help-button {
+  border-color: #b984a3 !important;
+  background-color: #ffffff12 !important;
+  color: #f4ccdf !important;
+  -webkit-text-fill-color: #f4ccdf !important;
+}
 .witch-app .profile-overview-heading {
   display: flex;
   justify-content: space-between;

@@ -3,66 +3,33 @@
     <button
       type="button"
       class="rating-emblem"
-      :aria-label="`${grade} 级战力评级，查看评级说明`"
+      :aria-label="`${grade} 级${kind === 'combat' ? '战力' : '组织'}评级，查看评级说明`"
       :aria-describedby="tooltipId"
       @click="showTooltip = !showTooltip"
       @blur="showTooltip = false"
       @keydown.esc="showTooltip = false"
     >
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 64 72" fill="none" aria-hidden="true">
         <path
-          d="M32 3 46 9 57 20 61 32 57 44 46 55 32 61 18 55 7 44 3 32 7 20 18 9Z"
+          d="M32 4 55 13v24c0 15-9 25-23 31C18 62 9 52 9 37V13L32 4Z"
           fill="currentColor"
-          fill-opacity=".13"
+          fill-opacity=".1"
           stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M20 52c3 4 7 7 12 10 5-3 9-6 12-10"
+          stroke="currentColor"
+          stroke-opacity=".65"
           stroke-width="1.5"
-        />
-        <path
-          d="M32 8 44 13 52 22 56 32 52 42 44 51 32 56 20 51 12 42 8 32 12 22 20 13Z"
-          stroke="currentColor"
-          stroke-opacity=".55"
-        />
-        <path
-          v-if="grade === 'D'"
-          d="m32 14 8 8-8 8-8-8 8-8Zm0 20 8 8-8 8-8-8 8-8Z"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-        <path
-          v-else-if="grade === 'C'"
-          d="m18 25 14-10 14 10M18 36l14-10 14 10M21 45l11-8 11 8"
-          stroke="currentColor"
-          stroke-width="1.8"
           stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-        <path
-          v-else-if="grade === 'B'"
-          d="m32 12 5 11 12 2-9 8 2 12-10-6-10 6 2-12-9-8 12-2 5-11Z"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-        />
-        <path
-          v-else-if="grade === 'A'"
-          d="m32 12 4 10 11-5-4 12 9 3-9 3 4 12-11-5-4 10-4-10-11 5 4-12-9-3 9-3-4-12 11 5 4-10Z"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-        />
-        <path
-          v-else
-          d="m12 27 8 7 5-15 7 11 7-11 5 15 8-7-5 19H17l-5-19ZM20 50h24"
-          stroke="currentColor"
-          stroke-width="1.7"
-          stroke-linejoin="round"
         />
       </svg>
       <strong>{{ grade }}</strong>
     </button>
     <span :id="tooltipId" class="rating-tooltip" :class="{ open: showTooltip }" role="tooltip">
-      <strong>{{ grade }} 级 · 战力评级</strong>
-      <span>{{ descriptions[grade] }}</span>
+      <strong>{{ grade }} 级 · {{ kind === 'combat' ? '战力评级' : '组织评级' }}</strong>
+      <span>{{ kind === 'combat' ? descriptions[grade] : '完成任务并领取奖励，攒够评级贡献就能升级。' }}</span>
     </span>
   </span>
   <span v-else class="rating-unrecorded">{{ rating?.trim() || '未记录' }}</span>
@@ -71,16 +38,20 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue';
 
-const props = withDefaults(defineProps<{ rating?: string; tooltipAlign?: 'left' | 'right' }>(), {
-  rating: '',
-  tooltipAlign: 'left',
-});
+const props = withDefaults(
+  defineProps<{ rating?: string; tooltipAlign?: 'left' | 'right'; kind?: 'combat' | 'contribution' }>(),
+  {
+    rating: '',
+    tooltipAlign: 'left',
+    kind: 'combat',
+  },
+);
 const descriptions = {
-  D: '初步具备超常战斗能力，对普通人具有压倒性优势，但能力规模、经验或身体素质仍然有限。',
-  C: '成熟的超能力战斗者，能力已经能够稳定用于实战。',
-  B: '明显超出常规能力者的强者，能力完成度高，通常拥有足以迅速改变战局的手段。',
-  A: '极少数高危个体，能力规模、强度或特殊性已经能够突破常规战斗方式。',
-  S: '规格外个体，其能力足以造成大范围灾害或彻底破坏正常战斗规则。',
+  D: '比普通人强，但能力和实战经验还有限。',
+  C: '已经能稳定地在实战中使用能力。',
+  B: '实力明显更强，通常有迅速改变战局的手段。',
+  A: '极少见的强者，常规战斗方式很难应对。',
+  S: '能力强到可能造成大范围灾害，或让常规战斗方式失效。',
 } as const;
 const grade = computed(() => {
   const match = /^([DCBAS])(?:级)?$/i.exec(props.rating?.trim() ?? '');
@@ -95,32 +66,32 @@ const showTooltip = ref(false);
   position: relative;
   display: inline-flex;
   vertical-align: middle;
-  --rating-color: #a9aeb8;
+  --rating-color: #aeb7c3;
 }
 .rating-c {
-  --rating-color: #9dc9d1;
+  --rating-color: #79d6b7;
 }
 .rating-b {
-  --rating-color: #bca5ef;
+  --rating-color: #82b8f3;
 }
 .rating-a {
-  --rating-color: #ef9bc4;
+  --rating-color: #f0ce84;
 }
 .rating-s {
-  --rating-color: #f5c978;
+  --rating-color: #e8a0ed;
 }
 .rating-emblem {
   position: relative;
   display: grid;
   place-items: center;
   width: 60px;
-  height: 60px;
+  height: 68px;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--rating-color);
   cursor: help;
-  filter: drop-shadow(0 0 8px currentColor);
+  filter: drop-shadow(0 0 5px var(--rating-color));
 }
 .rating-emblem svg {
   width: 100%;
@@ -128,16 +99,16 @@ const showTooltip = ref(false);
 }
 .rating-emblem strong {
   position: absolute;
-  top: 22px;
+  top: 20px;
   color: #fff7fb;
-  font-size: 22px;
+  font-size: 27px;
   line-height: 1;
   text-shadow: 0 1px 5px #250e20;
 }
 .rating-emblem:focus-visible {
   outline: 2px solid var(--rating-color);
   outline-offset: 2px;
-  border-radius: 50%;
+  border-radius: 8px;
 }
 .rating-tooltip {
   position: absolute;
