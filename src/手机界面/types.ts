@@ -191,6 +191,8 @@ export interface 用户数据 {
   当前评级: string;
   金钱: number;
   恶堕积分: number;
+  /** 已解锁技能栏位；旧存档缺省时视为 6。 */
+  技能栏位?: number;
   技能: Record<string, 技能>;
   物品: Record<string, 物品>;
 }

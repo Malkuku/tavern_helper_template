@@ -61,6 +61,7 @@ import {
   buySkill as applySkillPurchase,
   refreshQuote,
   sellSkill as applySkillSale,
+  unlockSkillSlot as applySkillSlotUnlock,
 } from '../apps/skillShop/skillShop';
 import {
   applyItemRefresh,
@@ -495,6 +496,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       data => applySkillPurchase(data, name),
       (before, after) =>
         `在组织技能商店${before.角色.user.技能[name] ? '升级' : '购买'}技能「${escapeSystemLogText(name)}」，消耗${before.角色.user.恶堕积分 - after.角色.user.恶堕积分}点恶堕积分。`,
+    );
+  }
+
+  async function unlockSkillSlot() {
+    await changeCharacterData(
+      data => applySkillSlotUnlock(data),
+      (_before, after, price) => `在组织技能商店解锁第${after.角色.user.技能栏位}个技能栏位，消耗${price}点恶堕积分。`,
     );
   }
 
@@ -1442,6 +1450,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refreshSkillShop,
     cancelSkillRefresh,
     purchaseSkill,
+    unlockSkillSlot,
     sellOwnedSkill,
     refreshItemShop,
     cancelItemRefresh,

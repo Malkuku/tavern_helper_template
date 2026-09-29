@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { applySkillRefresh, buySkill, refreshQuote, sellSkill } from '../src/手机界面/apps/skillShop/skillShop';
+import {
+  applySkillRefresh,
+  buySkill,
+  nextSkillSlotPrice,
+  refreshQuote,
+  sellSkill,
+  skillSlotCount,
+  unlockSkillSlot,
+} from '../src/手机界面/apps/skillShop/skillShop';
 import { initialStatDataSchema, userRoleSchema } from '../src/手机界面/store/initialDataSchema';
 import { settleUserRating, userRatingFromSkills } from '../src/手机界面/store/userRating';
 
@@ -117,6 +125,45 @@ const invalidRatingData = structuredClone(ratingData);
 invalidRatingData.技能商店.异常技能 = skill(NaN, 0);
 assert.throws(() => buySkill(invalidRatingData, '异常技能'), /战力评级贡献无效/);
 assert.equal(invalidRatingData.角色.user.恶堕积分, ratingData.角色.user.恶堕积分, '评级计算失败不扣费');
+const slotData: any = {
+  角色: {
+    user: {
+      当前评级: 'D',
+      恶堕积分: 1100,
+      技能: Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`技能${i}`, skill(1, 0)])),
+    },
+  },
+  技能商店: { 新技能: skill(1, 20), 技能0: skill(2, 20) },
+};
+assert.equal(skillSlotCount(slotData), 6, '旧存档初始按六格计算');
+assert.throws(() => buySkill(slotData, '新技能'), /技能栏位已满/);
+assert.equal(slotData.角色.user.恶堕积分, 1100, '满位购买不扣费');
+assert.ok(slotData.技能商店.新技能, '满位购买不移除货架');
+buySkill(slotData, '技能0');
+assert.equal(Object.keys(slotData.角色.user.技能).length, 6, '满位仍可升级同名技能');
+assert.equal(nextSkillSlotPrice(slotData), 50);
+for (const [slots, price] of [
+  [7, 50],
+  [8, 100],
+  [9, 150],
+  [10, 200],
+  [11, 250],
+  [12, 300],
+] as const) {
+  assert.equal(unlockSkillSlot(slotData), price);
+  assert.equal(skillSlotCount(slotData), slots);
+}
+assert.equal(nextSkillSlotPrice(slotData), null);
+assert.throws(() => unlockSkillSlot(slotData), /12 格上限/);
+assert.equal(slotData.角色.user.恶堕积分, 30, '解锁及升级按实际价格扣费');
+buySkill(slotData, '新技能');
+assert.equal(Object.keys(slotData.角色.user.技能).length, 7);
+const poorSlotData = structuredClone(slotData);
+poorSlotData.角色.user.技能栏位 = 6;
+poorSlotData.角色.user.恶堕积分 = 49;
+assert.throws(() => unlockSkillSlot(poorSlotData), /积分不足/);
+assert.equal(poorSlotData.角色.user.技能栏位, 6, '积分不足不解锁');
+assert.equal(poorSlotData.角色.user.恶堕积分, 49, '积分不足不扣费');
 const before = structuredClone(data);
 assert.throws(() => applySkillRefresh(data, '<skillVariable>{}</skillVariable>'));
 assert.deepEqual(data, before, '无效生成不得部分结算');

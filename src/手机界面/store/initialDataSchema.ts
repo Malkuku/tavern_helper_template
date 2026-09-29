@@ -116,6 +116,7 @@ export const userRoleSchema = z.strictObject({
   当前评级: z.string(),
   金钱: number,
   恶堕积分: number,
+  技能栏位: z.number().int().min(6).max(12).optional(),
   技能: z.record(z.string(), skillSchema),
   物品: z.record(z.string(), itemSchema),
 });

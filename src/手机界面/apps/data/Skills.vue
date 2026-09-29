@@ -2,7 +2,7 @@
   <div class="data-intro">
     <span>能力记录</span>
     <h1>技能</h1>
-    <p>当前持有的完整技能效果</p>
+    <p>当前持有的完整技能效果 · 技能栏位 {{ skillEntries.length }} / {{ slots }}</p>
   </div>
   <div v-if="skillEntries.length" class="data-sections">
     <section
@@ -48,8 +48,10 @@ import type { 技能, stat_data } from '../../types';
 import { computed, ref } from 'vue';
 import InventoryIcon from './InventoryIcon.vue';
 import { ratingVisualClass } from '../witch/ratingVisual';
+import { skillSlotCount } from '../skillShop/skillShop';
 
 const props = defineProps<{ data: stat_data }>();
 const skillEntries = computed(() => Object.entries(props.data.角色?.user?.技能 ?? {}) as [string, 技能][]);
+const slots = computed(() => skillSlotCount(props.data));
 const expandedName = ref('');
 </script>

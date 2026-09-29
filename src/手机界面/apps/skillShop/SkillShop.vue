@@ -5,6 +5,13 @@
         <span class="witch-eyebrow">EXCLUSIVE SKILLS</span>
         <h1>技能精选</h1>
         <p>探索专属能力，选择已有技能的新版本。</p>
+        <p>技能栏位 {{ ownedEntries.length }} / {{ slots }}</p>
+        <button v-if="slotPrice !== null" type="button" :disabled="busy || balance < slotPrice" @click="unlockSlot">
+          解锁第 {{ slots + 1 }} 格 · {{ slotPrice }} 积分
+        </button>
+        <p v-if="slotPrice !== null && balance < slotPrice" class="shop-error">
+          解锁积分不足，需要 {{ slotPrice }} 点。
+        </p>
         <button type="button" :disabled="busy || store.skillRefreshing || balance < quote.price" @click="refreshShop">
           {{ store.skillRefreshing ? '生成中…' : `刷新货架 · ${quote.price} 积分` }}
         </button>
@@ -53,9 +60,14 @@
           <div v-if="expandedName === name" class="entry-details">
             <p>{{ item.描述 }}</p>
             <div class="shop-effect">{{ item.作用 }}</div>
-            <button type="button" :disabled="busy || balance < item.价格" @click="purchase(name)">
+            <button
+              type="button"
+              :disabled="busy || balance < item.价格 || (!owned[name] && ownedEntries.length >= slots)"
+              @click="purchase(name)"
+            >
               购买 · {{ item.价格 }} 积分
             </button>
+            <p v-if="!owned[name] && ownedEntries.length >= slots" class="shop-error">技能栏位已满</p>
           </div>
         </article>
       </div>
@@ -103,7 +115,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { refreshQuote } from './skillShop';
+import { nextSkillSlotPrice, refreshQuote, skillSlotCount } from './skillShop';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import { ratingVisualClass } from '../witch/ratingVisual';
@@ -118,6 +130,8 @@ const balance = computed(() => store.statData?.角色.user.恶堕积分 ?? 0);
 const shopEntries = computed(() => Object.entries(store.statData?.技能商店 ?? {}));
 const owned = computed(() => store.statData?.角色.user.技能 ?? {});
 const ownedEntries = computed(() => Object.entries(owned.value));
+const slots = computed(() => (store.statData ? skillSlotCount(store.statData) : 6));
+const slotPrice = computed(() => (store.statData ? nextSkillSlotPrice(store.statData) : null));
 const quote = computed(() => {
   try {
     return store.statData ? refreshQuote(store.statData) : { price: 0, count: 0, next: '' };
@@ -150,6 +164,9 @@ function refreshShop() {
 }
 function purchase(name: string) {
   void run(() => store.purchaseSkill(name));
+}
+function unlockSlot() {
+  void run(() => store.unlockSkillSlot());
 }
 function sell(name: string) {
   void run(async () => {

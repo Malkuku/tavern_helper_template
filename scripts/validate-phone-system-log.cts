@@ -99,6 +99,14 @@ async function main() {
   assert.match(message, /出售技能「火球」，获得9点恶堕积分/);
 
   reset();
+  await store.unlockSkillSlot();
+  assert.equal(data.角色.user.技能栏位, 7);
+  assert.equal(data.角色.user.恶堕积分, 50);
+  assert.match(message, /解锁第7个技能栏位，消耗50点恶堕积分/);
+  await assert.rejects(store.unlockSkillSlot(), /积分不足/);
+  assert.equal((message.match(/<systemLog>/g) ?? []).length, 1, '解锁失败不记录剧情操作');
+
+  reset();
   data.角色.user.物品.药剂 = { ...item };
   await store.transferInventory([
     { from: '随身物品', name: '药剂', quantity: 2 },
