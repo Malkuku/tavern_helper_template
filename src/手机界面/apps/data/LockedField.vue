@@ -1,7 +1,9 @@
 <template>
   <section class="data-card locked-field">
     <div class="item-heading">
-      <h3>{{ field }}</h3>
+      <slot name="title"
+        ><h3>{{ field }}</h3></slot
+      >
       <span v-if="unlocked" class="unlock-mark">已解锁</span>
       <span v-else class="lock-mark">未解锁</span>
     </div>

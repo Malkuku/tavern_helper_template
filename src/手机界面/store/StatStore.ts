@@ -631,7 +631,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) throw new Error('聊天已切换，任务刷新已取消。');
     const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
     if (!current?.系统 || !current?.任务 || !current?.任务候选) throw new Error('任务变量尚未初始化。');
-    if (!taskRefreshState(current).available) throw new Error('今天的免费任务刷新次数已用完。');
+    if (!taskRefreshState(current).available) throw new Error('本周任务刷新次数已用完。');
     if (preparingShopRefresh || taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const startMessageId = getLastMessageId();

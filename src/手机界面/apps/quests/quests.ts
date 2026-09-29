@@ -45,17 +45,32 @@ export function previousTaskWeekKey(time: string): string {
   return dayKey(date);
 }
 
-function nextMidnight(date: Date): string {
-  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1));
-  return `${dayKey(next)}T00:00[${((next.getUTCDay() + 6) % 7) + 1}]`;
+function nextMonday(date: Date): string {
+  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  next.setUTCDate(next.getUTCDate() + ((8 - next.getUTCDay()) % 7 || 7));
+  return `${dayKey(next)}T00:00[1]`;
 }
 
-export function taskRefreshState(data: stat_data): { available: boolean; next: string } {
+export function taskRefreshState(data: stat_data): {
+  available: boolean;
+  remaining: number;
+  count: number;
+  next: string;
+} {
   const now = worldDate(data.世界.时间);
   const next = data.系统.任务下次刷新时间;
-  const count = data.系统.任务主动刷新次数;
-  if (!Number.isSafeInteger(count) || count < 0 || count > 1) throw new Error('任务刷新次数无效。');
-  return { available: !next || now >= worldDate(next) || count === 0, next: nextMidnight(now) };
+  const recordedCount = data.系统.任务主动刷新次数;
+  if (!Number.isSafeInteger(recordedCount) || recordedCount < 0 || recordedCount > 5)
+    throw new Error('任务刷新次数无效。');
+  const marker = next ? worldDate(next) : null;
+  const weekStart = new Date(now);
+  weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+  weekStart.setUTCHours(0, 0, 0, 0);
+  // 旧存档的标记是次日 00:00；本周内已成功的一次仍计入本周。
+  const legacyDailyMarker = marker && marker.getUTCDay() !== 1;
+  const count = !marker || (legacyDailyMarker ? marker <= weekStart : now >= marker) ? 0 : recordedCount;
+  const remaining = 5 - count;
+  return { available: remaining > 0, remaining, count, next: nextMonday(now) };
 }
 
 function parseResult(message: string, active: stat_data['任务'], playerRating: 任务评级): Record<string, 任务> {
@@ -82,11 +97,11 @@ function parseResult(message: string, active: stat_data['任务'], playerRating:
 
 export function refreshTasks(data: stat_data, message: string): void {
   const state = taskRefreshState(data);
-  if (!state.available) throw new Error('今天的免费任务刷新次数已用完。');
+  if (!state.available) throw new Error('本周任务刷新次数已用完。');
   const result = parseResult(message, data.任务, userRatingFromContribution(data.角色.user.评级贡献));
   data.任务候选 = result;
   data.系统.任务下次刷新时间 = state.next;
-  data.系统.任务主动刷新次数 = 1;
+  data.系统.任务主动刷新次数 = state.count + 1;
 }
 
 export function emptyTaskWeek(week: string): stat_data['任务统计']['周记录'][string] {

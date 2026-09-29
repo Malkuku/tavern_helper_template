@@ -10,8 +10,9 @@
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
           @click="run(() => store.refreshTaskBoard())"
         >
-          {{ store.taskRefreshing ? '生成中…' : refreshAvailable ? '免费刷新任务' : '今天已刷新' }}
+          {{ store.taskRefreshing ? '生成中…' : refreshAvailable ? '刷新任务' : '本周次数已用完' }}
         </button>
+        <p>本周剩余刷新 {{ refreshState?.remaining ?? 0 }}/5 次</p>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消等待
         </button>
@@ -30,7 +31,7 @@
       </nav>
 
       <div v-if="tab === 'board'" class="list">
-        <p v-if="!boardEntries.length" class="empty">暂无候选任务。点击免费刷新获取任务。</p>
+        <p v-if="!boardEntries.length" class="empty">暂无候选任务。可刷新获取任务。</p>
         <QuestCard v-for="[name, task] in boardEntries" :key="name" :name="name" :task="task" :accepted="false">
           <template #actions>
             <button
@@ -173,13 +174,14 @@ const lifetimeStats = computed(() => {
   }
   return result;
 });
-const refreshAvailable = computed(() => {
+const refreshState = computed(() => {
   try {
-    return !!store.statData && taskRefreshState(store.statData).available;
+    return store.statData ? taskRefreshState(store.statData) : null;
   } catch {
-    return false;
+    return null;
   }
 });
+const refreshAvailable = computed(() => refreshState.value?.available ?? false);
 
 function ratingSummary(counts: Record<任务评级, number>): string {
   return (['D', 'C', 'B', 'A', 'S'] as const).map(rating => `${rating} ${counts[rating]}`).join(' · ');

@@ -111,6 +111,7 @@
             class="observation-stage"
             :data-stage="key"
           >
+            <template #title><StageHelp :kind="key" /></template>
             <div class="observation-stage-head">
               <span class="observation-stage-icon" aria-hidden="true">{{ stageMeta[key].icon }}</span>
               <span class="observation-stage-meaning">{{ stageMeta[key].meaning }}</span>
@@ -119,12 +120,13 @@
               </div>
             </div>
             <p class="observation-stage-description">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
+            <StageProgress :stage="stage" :kind="key" />
           </LockedField>
           <section v-else class="data-card observation-stage" :data-stage="key">
             <div class="observation-stage-head">
               <span class="observation-stage-icon" aria-hidden="true">{{ stageMeta[key].icon }}</span>
               <div class="observation-stage-title">
-                <strong>{{ key }}</strong>
+                <StageHelp :kind="key" />
                 <small>{{ stageMeta[key].meaning }}</small>
               </div>
               <div class="observation-stage-level">
@@ -132,6 +134,7 @@
               </div>
             </div>
             <p class="observation-stage-description">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
+            <StageProgress :stage="stage" :kind="key" />
           </section>
         </template>
       </template>
@@ -160,6 +163,7 @@
           class="observation-stage"
           data-stage="恶堕度"
         >
+          <template #title><StageHelp kind="恶堕度" /></template>
           <div class="observation-stage-head">
             <span class="observation-stage-icon" aria-hidden="true">✦</span>
             <span class="observation-stage-meaning">恶堕进程</span>
@@ -170,6 +174,7 @@
           <p class="observation-stage-description">
             {{ currentLevelDescription(selectedMinor.人设阶段.恶堕度) || '暂无当前阶段描述' }}
           </p>
+          <StageProgress :stage="selectedMinor.人设阶段.恶堕度" kind="恶堕度" />
         </LockedField>
       </template>
     </template>
@@ -342,6 +347,8 @@ import { visibleObservationTargets } from './observationTargets';
 import CharacterPortrait from './CharacterPortrait.vue';
 import LockedField from './LockedField.vue';
 import RatingEmblem from './RatingEmblem.vue';
+import StageHelp from './StageHelp.vue';
+import StageProgress from './StageProgress.vue';
 
 const props = defineProps<{ data: stat_data; targetKey?: string | null }>();
 const emit = defineEmits<{ firstTargetChosen: [] }>();

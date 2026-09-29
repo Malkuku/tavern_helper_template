@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { settleCharacterStages, stageExperienceCost } from '../src/手机界面/store/stageProgression';
+import {
+  settleCharacterStages,
+  stageExperienceCost,
+  stageExperienceProgress,
+} from '../src/手机界面/store/stageProgression';
 import type { stat_data, 阶段状态 } from '../src/手机界面/types';
 
 function stage(min: number, max: number, level: number, experience: number): 阶段状态 {
@@ -27,6 +31,26 @@ assert.deepEqual(
 assert.equal(stageExperienceCost('创伤稳定度', -2, -2, 7), 68, '自定义负等级范围仍按比例计算');
 assert.equal(stageExperienceCost('恶堕度', 6, 0, 8), 417, '恶堕度 6 级以上继续使用公式');
 assert.equal(stageExperienceCost('好感度', -2, -2, 3), 32, '好感度负极端边界与正极端对称');
+assert.deepEqual(stageExperienceProgress(stage(0, 5, 3, 13), '创伤稳定度'), {
+  direction: 'forward',
+  percent: 50,
+});
+assert.deepEqual(stageExperienceProgress(stage(0, 5, 4, -13), '创伤稳定度'), {
+  direction: 'backward',
+  percent: 50,
+});
+assert.deepEqual(stageExperienceProgress(stage(0, 5, 5, 0), '创伤稳定度'), {
+  direction: 'forward',
+  percent: 100,
+});
+assert.deepEqual(stageExperienceProgress(stage(0, 5, 0, -10), '创伤稳定度'), {
+  direction: 'none',
+  percent: 0,
+});
+assert.deepEqual(stageExperienceProgress(stage(0, 6, 2, -10), '恶堕度'), {
+  direction: 'none',
+  percent: 0,
+});
 
 const mildPressure = data(stage(0, 5, 5, -30));
 assert.equal(settleCharacterStages(mildPressure), false, '单轮重大影响不能从全新 5 级直接降级');

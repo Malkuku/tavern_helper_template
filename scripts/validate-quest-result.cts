@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { refreshTasks } from '../src/手机界面/apps/quests/quests';
+import { refreshTasks, taskRefreshState } from '../src/手机界面/apps/quests/quests';
 
 const task = { 描述: '调查', 目标: '取得线索', 评级: 'D', 奖励: 8 };
 const candidates = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`任务${index + 1}`, { ...task }]));
@@ -27,6 +27,6 @@ assert.equal(Object.keys(data.任务候选).length, 6);
 assert.equal(data.任务候选.任务2.当前进度, '未接取');
 assert.equal(data.任务候选.任务2.已完成, false);
 assert.equal(data.系统.任务主动刷新次数, 1);
-assert.equal(data.系统.任务下次刷新时间, '2026-9-29T00:00[2]');
-assert.throws(() => refreshTasks(data, body), /次数已用完/);
+assert.equal(data.系统.任务下次刷新时间, '2026-10-5T00:00[1]');
+assert.equal(taskRefreshState(data).remaining, 4);
 console.info('任务正文结果回归通过。');

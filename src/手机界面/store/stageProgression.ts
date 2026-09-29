@@ -1,6 +1,6 @@
 import type { stat_data, 阶段状态 } from '../types';
 
-type StageKind = '恶堕度' | '好感度' | '创伤稳定度';
+export type StageKind = '恶堕度' | '好感度' | '创伤稳定度';
 
 function levelRange(stage: 阶段状态, path: string): { min: number; max: number } {
   if (!stage || typeof stage !== 'object' || !stage.描述 || typeof stage.描述 !== 'object')
@@ -35,6 +35,30 @@ export function stageExperienceCost(kind: StageKind, lowerLevel: number, min: nu
   }
   if (!Number.isSafeInteger(cost) || cost <= 0) throw new Error('人设阶段经验需求超出可计算范围。');
   return cost;
+}
+
+export function stageExperienceProgress(
+  stage: 阶段状态,
+  kind: StageKind,
+): {
+  direction: 'forward' | 'backward' | 'none';
+  percent: number;
+} {
+  const { min, max } = levelRange(stage, kind);
+  const level = stage.当前等级;
+  const experience = stage.累计经验;
+  if (experience < 0) {
+    if (kind === '恶堕度' || level <= min) return { direction: 'none', percent: 0 };
+    return {
+      direction: 'backward',
+      percent: Math.min((-experience / stageExperienceCost(kind, level - 1, min, max)) * 100, 100),
+    };
+  }
+  if (level >= max) return { direction: 'forward', percent: 100 };
+  return {
+    direction: 'forward',
+    percent: Math.min((experience / stageExperienceCost(kind, level, min, max)) * 100, 100),
+  };
 }
 
 function settleStage(stage: 阶段状态, kind: StageKind, path: string): boolean {

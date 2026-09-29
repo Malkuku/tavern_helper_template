@@ -9,6 +9,7 @@ import {
   nextSkillSlotPrice,
   enabledSkillCount,
   setSkillEnabled,
+  refreshQuote,
   sellSkill,
   skillSlotCount,
   unlockSkillSlot,
@@ -62,7 +63,19 @@ const data: any = {
   技能商店: {},
 };
 const stock = { 旧技能: skill('C', 80), 新技能: skill('D', 30), 越级技能: skill('B', 220) };
+assert.equal(refreshQuote(data).price, 5, '技能首次刷新收取 5 积分');
 applySkillRefresh(data, `<skillVariable>${JSON.stringify(stock)}</skillVariable>`);
+assert.equal(data.角色.user.恶堕积分, 195, '技能首次刷新扣除 5 积分');
+assert.equal(refreshQuote(data).price, 10, '第二次刷新报价 10 积分');
+for (const [count, price] of [
+  [2, 15],
+  [3, 20],
+  [4, 20],
+] as const) {
+  data.系统.技能主动刷新次数 = count;
+  assert.equal(refreshQuote(data).price, price);
+}
+data.系统.技能主动刷新次数 = 1;
 assert.equal(data.技能商店.越级技能, undefined, 'D 玩家不能刷出 B 技能');
 assert.equal(data.技能商店.旧技能.评级, 'C', '高一档技能可出现');
 assert.equal(data.系统.技能主动刷新次数, 1, '部分有效仍结算刷新');

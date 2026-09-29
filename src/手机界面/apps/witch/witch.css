@@ -1369,9 +1369,88 @@
 .witch-app .observation-stage {
   --stage-accent: #91c6d1;
   --stage-wash: #263941;
+  position: relative;
   padding: 15px;
   border-color: color-mix(in srgb, var(--stage-accent) 40%, transparent);
   background: linear-gradient(135deg, var(--stage-wash), #211725 54%, #1b1421);
+}
+.witch-app .observation-stage:hover,
+.witch-app .observation-stage:focus-within {
+  z-index: 5;
+}
+.witch-app .stage-help {
+  display: inline-flex;
+  flex: none;
+}
+.witch-app .stage-help-button,
+.witch-app .locked-field .stage-help-button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dotted var(--stage-accent);
+  border-radius: 0;
+  background-color: transparent !important;
+  background-image: none !important;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  cursor: help;
+}
+.witch-app .observation-stage-title .stage-help-button {
+  font-size: 15px;
+}
+.witch-app .stage-help-button:hover {
+  border-bottom-style: solid;
+}
+.witch-app .stage-help-button:focus-visible {
+  outline: 2px solid var(--stage-accent);
+  outline-offset: 2px;
+}
+.witch-app .stage-help-tooltip {
+  position: absolute;
+  z-index: 10;
+  top: 50px;
+  right: 12px;
+  left: 12px;
+  display: grid;
+  gap: 7px;
+  padding: 11px 13px;
+  border: 1px solid var(--stage-accent);
+  border-radius: 10px;
+  background: #201523;
+  box-shadow: 0 9px 22px #08040acb;
+  color: #f5e9ef;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s;
+  pointer-events: none;
+}
+.witch-app .stage-help-tooltip strong {
+  color: var(--stage-accent);
+  font-size: 12px;
+}
+.witch-app .stage-help-warning {
+  color: #ff747f;
+  font-weight: 700;
+}
+.witch-app .stage-help:hover .stage-help-tooltip,
+.witch-app .stage-help-button:focus-visible + .stage-help-tooltip,
+.witch-app .stage-help-tooltip.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .witch-app .stage-help-tooltip {
+    transition: none;
+  }
 }
 .witch-app .observation-stage[data-stage='好感度'] {
   --stage-accent: #f5a5c3;
@@ -1460,6 +1539,39 @@
   font-size: 12px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+.witch-app .observation-stage-progress {
+  margin-top: 14px;
+}
+.witch-app .observation-stage-progress-caption {
+  display: block;
+  margin-bottom: 5px;
+  color: #f3a5b8;
+  font-size: 10px;
+}
+.witch-app .observation-stage-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ffffff21;
+}
+.witch-app .observation-stage-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--stage-accent);
+  box-shadow: 0 0 9px var(--stage-accent);
+  transition: width 0.25s ease;
+}
+.witch-app .observation-stage-progress.backward .observation-stage-progress-track > span {
+  margin-left: auto;
+  background: #ef7e9b;
+  box-shadow: 0 0 9px #ef7e9b;
+}
+@media (prefers-reduced-motion: reduce) {
+  .witch-app .observation-stage-progress-track > span {
+    transition: none;
+  }
 }
 .witch-app .body-unlock > .data-card {
   margin-top: 10px;
