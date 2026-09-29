@@ -34,7 +34,7 @@ export function weeklyShopQuote(
   const count = !next || now >= parseWorldTime(next) ? 0 : previousCount;
   if (!Number.isSafeInteger(count) || count < 0 || count === Number.MAX_SAFE_INTEGER)
     throw new Error(`${kind}刷新次数无效。`);
-  const price = kind === '技能' ? (count === 0 ? 0 : Math.min(20 * 2 ** (count - 1), 80)) : Math.min(count * 5, 20);
+  const price = kind === '技能' ? (count === 0 ? 0 : Math.min(20 * 2 ** (count - 1), 80)) : count < 3 ? 0 : 5;
   if (!Number.isSafeInteger(price)) throw new Error(`${kind}刷新价格超出有效范围。`);
   return { next: nextMonday(now), count, price };
 }
