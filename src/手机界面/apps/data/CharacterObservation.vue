@@ -4,7 +4,14 @@
     <h1>角色观测</h1>
   </div>
   <div v-if="visibleTargets.length" class="observation-switcher">
-    <button ref="selectorTrigger" type="button" class="observation-switcher-button" @click="openSelector">
+    <button
+      ref="selectorTrigger"
+      type="button"
+      class="observation-switcher-button"
+      :aria-expanded="selectorOpen"
+      aria-controls="observation-selector"
+      @click="selectorOpen ? closeSelector() : openSelector()"
+    >
       <span class="selector-avatar" aria-hidden="true">{{ selectedTarget?.key.slice(0, 1) }}</span>
       <span class="selector-copy"
         ><small>正在观测</small><strong>{{ selectedTarget?.key }}</strong></span
@@ -13,56 +20,51 @@
     </button>
     <span class="observation-switcher-count">{{ selectedIndex }} / {{ visibleTargets.length }}</span>
   </div>
-  <Teleport defer to=".witch-app">
-    <div v-if="selectorOpen" class="observation-selector-overlay" @keydown.esc="closeSelector">
-      <button type="button" class="observation-selector-backdrop" aria-label="关闭角色选择" @click="closeSelector" />
-      <section
-        ref="selectorSheet"
-        class="observation-selector-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="选择观测角色"
-        tabindex="-1"
-        @keydown.tab="trapSelectorFocus"
-      >
-        <div class="observation-selector-head">
-          <div>
-            <small>CHARACTER OBSERVATION</small>
-            <h2>选择角色</h2>
-          </div>
-          <button type="button" class="observation-selector-close" aria-label="关闭角色选择" @click="closeSelector">
-            ×
-          </button>
-        </div>
-        <input
-          v-model="selectorSearch"
-          class="observation-selector-search"
-          type="search"
-          placeholder="搜索角色姓名"
-          aria-label="搜索角色姓名"
-        />
-        <div class="observation-selector-list">
-          <button
-            v-for="target in filteredTargets"
-            :key="target.id"
-            type="button"
-            class="observation-selector-option"
-            :class="{ active: selectedTarget?.id === target.id }"
-            :aria-current="selectedTarget?.id === target.id ? 'true' : undefined"
-            @click="selectTarget(target.id)"
-          >
-            <span class="selector-avatar" aria-hidden="true">{{ target.key.slice(0, 1) }}</span>
-            <span class="selector-copy"
-              ><strong>{{ target.key }}</strong
-              ><small>{{ target.kind }}</small></span
-            >
-            <span v-if="selectedTarget?.id === target.id" class="observation-selector-check" aria-hidden="true">✓</span>
-          </button>
-          <p v-if="!filteredTargets.length" class="observation-selector-empty">没有找到角色</p>
-        </div>
-      </section>
+  <section
+    v-if="selectorOpen"
+    id="observation-selector"
+    ref="selectorPanel"
+    class="observation-selector-panel"
+    aria-label="选择观测角色"
+    tabindex="-1"
+    @keydown.esc="closeSelector"
+  >
+    <div class="observation-selector-head">
+      <div>
+        <small>CHARACTER OBSERVATION</small>
+        <h2>选择角色</h2>
+      </div>
+      <button type="button" class="observation-selector-close" aria-label="关闭角色选择" @click="closeSelector">
+        ×
+      </button>
     </div>
-  </Teleport>
+    <input
+      v-model="selectorSearch"
+      class="observation-selector-search"
+      type="search"
+      placeholder="搜索角色姓名"
+      aria-label="搜索角色姓名"
+    />
+    <div class="observation-selector-list">
+      <button
+        v-for="target in filteredTargets"
+        :key="target.id"
+        type="button"
+        class="observation-selector-option"
+        :class="{ active: selectedTarget?.id === target.id }"
+        :aria-current="selectedTarget?.id === target.id ? 'true' : undefined"
+        @click="selectTarget(target.id)"
+      >
+        <span class="selector-avatar" aria-hidden="true">{{ target.key.slice(0, 1) }}</span>
+        <span class="selector-copy"
+          ><strong>{{ target.key }}</strong
+          ><small>{{ target.kind }}</small></span
+        >
+        <span v-if="selectedTarget?.id === target.id" class="observation-selector-check" aria-hidden="true">✓</span>
+      </button>
+      <p v-if="!filteredTargets.length" class="observation-selector-empty">没有找到角色</p>
+    </div>
+  </section>
   <div v-if="selectedMain || selectedMinor" class="data-sections">
     <section v-if="selectedMain" class="data-hero monitor-hero">
       <CharacterPortrait :src="heroImageUrl" :name="selectedMainKey!" cover />
@@ -346,7 +348,7 @@ const selectedId = ref<string | null>(null);
 const selectorOpen = ref(false);
 const selectorSearch = ref('');
 const selectorTrigger = ref<HTMLButtonElement | null>(null);
-const selectorSheet = ref<HTMLElement | null>(null);
+const selectorPanel = ref<HTMLElement | null>(null);
 const imageForm = ref<CharacterImageForm>('魔法少女');
 const imageIndex = ref(1);
 const choiceIndex = ref(0);
@@ -436,20 +438,7 @@ async function openSelector() {
   selectorSearch.value = '';
   selectorOpen.value = true;
   await nextTick();
-  selectorSheet.value?.focus();
-}
-function trapSelectorFocus(event: KeyboardEvent) {
-  const controls = selectorSheet.value?.querySelectorAll<HTMLElement>('button, input');
-  if (!controls?.length) return;
-  const first = controls[0];
-  const last = controls[controls.length - 1];
-  if (event.shiftKey && (document.activeElement === first || document.activeElement === selectorSheet.value)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
+  selectorPanel.value?.focus();
 }
 function closeSelector() {
   selectorOpen.value = false;
