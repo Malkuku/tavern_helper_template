@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { applyCharacterUnlock, unlockPrice } from '../src/手机界面/apps/data/profileUnlock';
 import { currentLevelDescription } from '../src/手机界面/apps/data/entries';
-import type { stat_data } from '../src/手机界面/types';
+import { currentAbilityLimit } from '../src/手机界面/apps/data/characterArchive';
+import type { stat_data, 角色人设 } from '../src/手机界面/types';
 
 function state(balance: number): stat_data {
   return {
@@ -56,5 +57,12 @@ assert.throws(() => applyCharacterUnlock(poor, '主要角色', '甲', '不支持
 
 assert.equal(currentLevelDescription({ 当前等级: -2, 描述: { '-2': '此刻', '0': '未来' } }), '此刻');
 assert.equal(currentLevelDescription({ 当前等级: 1, 描述: { '2': '未来' } }), undefined);
+const abilityRecord = {
+  人设阶段: { 创伤稳定度: { 当前等级: 3 } },
+  魔法少女能力: { 核心能力限制: { '2': '旧阶段', '3': '当前阶段', '4': '其他阶段' } },
+} as 角色人设;
+assert.equal(currentAbilityLimit(abilityRecord), '当前阶段', '核心能力限制只显示当前创伤稳定度对应的一项');
+abilityRecord.人设阶段.创伤稳定度.当前等级 = 1;
+assert.equal(currentAbilityLimit(abilityRecord), undefined, '当前阶段缺失时不回退展示其他等级');
 
 console.log('手机档案：扣费、去重、角色隔离、失败路径与当前等级描述通过。');

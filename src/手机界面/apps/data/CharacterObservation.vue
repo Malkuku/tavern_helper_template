@@ -232,54 +232,82 @@
     <template v-else>
       <section class="monitor-heading">
         <span>03 / 人物档案</span>
-        <h3>档案线索</h3>
+        <h3>人物档案</h3>
       </section>
       <template v-if="selectedMain">
-        <section class="data-card">
-          <h3>基础信息</h3>
-          <p class="data-prose">{{ selectedMain.基础信息.姓名 }} · {{ selectedMain.基础信息.身份.join('、') }}</p>
-        </section>
-        <section class="data-card">
-          <h3>当前评级</h3>
-          <RatingEmblem :rating="selectedMain.当前评级" />
-        </section>
-        <section class="data-card">
-          <h3>整体印象</h3>
-          <p class="data-prose">{{ selectedMain.外貌.整体印象 || '暂无记录' }}</p>
-        </section>
-        <section class="data-card">
-          <h3>日常外貌</h3>
-          <p class="data-prose">{{ selectedMain.外貌.日常外貌 || '暂无记录' }}</p>
-        </section>
-        <section class="data-card">
-          <h3>魔法形态</h3>
-          <p class="data-prose">{{ selectedMain.外貌.魔法少女形态.正常 || '暂无记录' }}</p>
-        </section>
-        <LockedField kind="主要角色" :character-key="selectedMainKey!" field="性格"
-          ><p class="data-prose">{{ selectedMain.性格 || '暂无记录' }}</p></LockedField
-        >
-        <LockedField kind="主要角色" :character-key="selectedMainKey!" field="背景"
-          ><p class="data-prose">{{ selectedMain.基础信息.背景 || '暂无记录' }}</p></LockedField
-        >
-        <LockedField kind="主要角色" :character-key="selectedMainKey!" field="核心能力">
-          <p class="data-prose">{{ selectedMain.魔法少女能力.核心能力 || '暂无记录' }}</p>
-          <div v-for="[key, value] in entries(selectedMain.魔法少女能力.核心能力限制)" :key="key" class="data-field">
-            <span>{{ key }}</span>
-            <p>{{ value }}</p>
+        <section class="data-card archive-identity">
+          <div class="archive-section-head"><span>01 / 身份</span><strong>人物资料</strong></div>
+          <div class="archive-identity-row">
+            <div>
+              <small>公开身份</small>
+              <p>{{ selectedMain.基础信息.姓名 }} · {{ selectedMain.基础信息.身份.join('、') || '身份未记录' }}</p>
+            </div>
+            <div class="archive-identity-rank">
+              <small>当前评级</small><RatingEmblem :rating="selectedMain.当前评级" />
+            </div>
           </div>
-        </LockedField>
-        <LockedField kind="主要角色" :character-key="selectedMainKey!" field="核心创伤"
-          ><p class="data-prose">{{ selectedMain.核心创伤 || '暂无记录' }}</p></LockedField
-        >
+        </section>
+        <section class="data-card archive-appearance">
+          <div class="archive-section-head"><span>02 / 外观</span><strong>形貌记录</strong></div>
+          <div class="archive-record">
+            <span>整体印象</span>
+            <p>{{ selectedMain.外貌.整体印象 || '暂无记录' }}</p>
+          </div>
+          <div class="archive-record">
+            <span>日常外貌</span>
+            <p>{{ selectedMain.外貌.日常外貌 || '暂无记录' }}</p>
+          </div>
+          <div class="archive-record">
+            <span>魔法形态</span>
+            <p>{{ selectedMain.外貌.魔法少女形态.正常 || '暂无记录' }}</p>
+          </div>
+        </section>
+        <section class="archive-private">
+          <div class="archive-section-head"><span>03 / 内在</span><strong>人物内面</strong></div>
+          <LockedField class="archive-secret-field" kind="主要角色" :character-key="selectedMainKey!" field="性格">
+            <p class="data-prose">{{ selectedMain.性格 || '暂无记录' }}</p>
+          </LockedField>
+          <LockedField class="archive-secret-field" kind="主要角色" :character-key="selectedMainKey!" field="背景">
+            <p class="data-prose">{{ selectedMain.基础信息.背景 || '暂无记录' }}</p>
+          </LockedField>
+        </section>
+        <section class="archive-private">
+          <div class="archive-section-head"><span>04 / 魔力</span><strong>能力与创伤</strong></div>
+          <LockedField
+            class="archive-secret-field archive-ability"
+            kind="主要角色"
+            :character-key="selectedMainKey!"
+            field="核心能力"
+            hint="创伤会改变她驾驭魔力的方式。能力边界随创伤稳定度起伏，档案只显示此刻的表现。"
+          >
+            <div class="archive-record">
+              <span>能力本质</span>
+              <p>{{ selectedMain.魔法少女能力.核心能力 || '暂无记录' }}</p>
+            </div>
+            <div class="archive-record archive-current-limit">
+              <span>此刻的能力边界</span>
+              <p>{{ currentMainAbilityLimit || '当前阶段暂无记录' }}</p>
+            </div>
+          </LockedField>
+          <LockedField class="archive-secret-field" kind="主要角色" :character-key="selectedMainKey!" field="核心创伤">
+            <p class="data-prose">{{ selectedMain.核心创伤 || '暂无记录' }}</p>
+          </LockedField>
+        </section>
       </template>
       <template v-else-if="selectedMinor">
-        <LockedField kind="次要角色" :character-key="selectedMinorKey!" field="性格侧写">
-          <p class="data-prose">{{ selectedMinor.性格 || '暂无记录' }}</p>
-        </LockedField>
-        <LockedField kind="次要角色" :character-key="selectedMinorKey!" field="能力描述">
-          <p v-for="(ability, index) in selectedMinor.能力描述" :key="index" class="data-prose">{{ ability }}</p>
-          <p v-if="!selectedMinor.能力描述.length" class="data-prose">暂无记录</p>
-        </LockedField>
+        <section class="archive-private">
+          <div class="archive-section-head"><span>01 / 内在</span><strong>人物记录</strong></div>
+          <LockedField class="archive-secret-field" kind="次要角色" :character-key="selectedMinorKey!" field="性格侧写">
+            <p class="data-prose">{{ selectedMinor.性格 || '暂无记录' }}</p>
+          </LockedField>
+        </section>
+        <section class="archive-private">
+          <div class="archive-section-head"><span>02 / 能力</span><strong>能力记录</strong></div>
+          <LockedField class="archive-secret-field" kind="次要角色" :character-key="selectedMinorKey!" field="能力描述">
+            <p v-for="(ability, index) in selectedMinor.能力描述" :key="index" class="data-prose">{{ ability }}</p>
+            <p v-if="!selectedMinor.能力描述.length" class="data-prose">暂无记录</p>
+          </LockedField>
+        </section>
       </template>
     </template>
   </div>
@@ -344,6 +372,7 @@ import {
 } from './characterImages';
 import { firstTargetChoices } from './firstTarget';
 import { visibleObservationTargets } from './observationTargets';
+import { currentAbilityLimit } from './characterArchive';
 import CharacterPortrait from './CharacterPortrait.vue';
 import LockedField from './LockedField.vue';
 import RatingEmblem from './RatingEmblem.vue';
@@ -395,6 +424,9 @@ const selectedMain = computed<角色人设 | undefined>(() =>
 );
 const selectedMinor = computed<次要角色人设 | undefined>(() =>
   selectedMinorKey.value ? props.data.角色?.次要角色?.[selectedMinorKey.value] : undefined,
+);
+const currentMainAbilityLimit = computed(() =>
+  selectedMain.value ? currentAbilityLimit(selectedMain.value) : undefined,
 );
 const imageForms: CharacterImageForm[] = ['日常', '魔法少女', '恶堕'];
 const unlockedForms = computed(() => (selectedMain.value ? availableCharacterImageForms(selectedMain.value) : []));

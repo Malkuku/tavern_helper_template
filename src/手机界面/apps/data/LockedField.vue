@@ -7,6 +7,7 @@
       <span v-if="unlocked" class="unlock-mark">已解锁</span>
       <span v-else class="lock-mark">未解锁</span>
     </div>
+    <p v-if="hint" class="locked-field-hint">{{ hint }}</p>
     <slot v-if="unlocked" />
     <template v-else>
       <p class="lock-caption">解锁后可查看这项角色档案。</p>
@@ -24,7 +25,7 @@ import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { unlockPrice, type CharacterKind } from './profileUnlock';
 
-const props = defineProps<{ kind: CharacterKind; characterKey: string; field: string }>();
+const props = defineProps<{ kind: CharacterKind; characterKey: string; field: string; hint?: string }>();
 const statStore = useMagicGirlStatStore();
 const busy = ref(false);
 const error = ref('');

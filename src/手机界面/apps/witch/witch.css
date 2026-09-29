@@ -1363,6 +1363,105 @@
   margin: 5px 0 3px;
   font-size: 15px;
 }
+.witch-app .archive-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.witch-app .archive-section-head span {
+  flex: none;
+  color: #ce8eaa;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.witch-app .archive-section-head strong {
+  color: #fff0f6;
+  font-size: 14px;
+}
+.witch-app .archive-identity {
+  border-color: #b16b9066;
+  background: linear-gradient(135deg, #42253d, #241725 72%);
+}
+.witch-app .archive-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.witch-app .archive-identity-row > div:first-child {
+  min-width: 0;
+}
+.witch-app .archive-identity-row small,
+.witch-app .archive-record > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #d5a5bd;
+  font-size: 10px;
+  font-weight: 700;
+}
+.witch-app .archive-identity-row p {
+  margin: 0;
+  color: #f3e7ee;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.witch-app .archive-identity-rank {
+  display: grid;
+  flex: none;
+  justify-items: center;
+}
+.witch-app .archive-record + .archive-record {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #68465e;
+}
+.witch-app .archive-record p {
+  margin: 0;
+  color: #e9d9e3;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.witch-app .archive-private {
+  display: grid;
+  gap: 8px;
+}
+.witch-app .archive-private > .archive-section-head {
+  margin: 7px 3px 2px;
+}
+.witch-app .archive-secret-field {
+  border-radius: 12px;
+  background: #261927;
+}
+.witch-app .archive-secret-field .item-heading h3 {
+  margin: 0;
+}
+.witch-app .archive-secret-field .lock-caption {
+  display: none;
+}
+.witch-app .archive-secret-field .unlock-button {
+  border-color: #ad7194 !important;
+  background-color: #4b2b43 !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+.witch-app .archive-secret-field .locked-field-hint {
+  margin: 0 0 11px;
+  color: #d6b2c6;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.witch-app .archive-ability {
+  border-color: #9c739e;
+  background: linear-gradient(145deg, #30213b, #231825);
+}
+.witch-app .archive-current-limit > span {
+  color: #deb9ee;
+}
 .witch-app .monitor-card-head {
   margin-bottom: 9px;
 }
