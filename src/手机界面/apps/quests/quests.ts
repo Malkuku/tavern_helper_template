@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import type { stat_data, 任务 } from '../../types';
 import { questSchema } from '../../store/initialDataSchema';
-import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
+import { latestGeneratedPayload } from '../generationResult';
 
 export type 任务评级 = 任务['评级'];
 const ratings = ['D', 'C', 'B', 'A', 'S'] as const;
 export const zeroRatingCounts = (): Record<任务评级, number> => ({ D: 0, C: 0, B: 0, A: 0, S: 0 });
 
 const resultQuestSchema = z.object(questSchema.shape).omit({ 当前进度: true, 已完成: true });
-const resultSchema = z.record(z.string().trim().min(1), resultQuestSchema);
+const generatedRecordSchema = z.record(z.string(), z.unknown());
 const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[([1-7])\]$/;
 
 function worldDate(value: string): Date {
@@ -66,32 +66,23 @@ function parseResult(message: string, active: stat_data['任务']): Record<strin
   } catch {
     throw new Error('任务生成结果不是合法 JSON。');
   }
-  const result = resultSchema.safeParse(raw);
-  if (!result.success) {
-    console.error(
-      '任务生成字段校验失败',
-      result.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })),
-    );
-    const issue = result.error.issues[0];
-    throw new Error(`任务生成字段无效：${issue.path.join('.')} ${issue.message}`);
+  const result = generatedRecordSchema.safeParse(raw);
+  if (!result.success) throw new Error('任务生成结果必须是候选任务对象。');
+  const accepted: [string, 任务][] = [];
+  for (const [name, value] of Object.entries(result.data)) {
+    if (!name.trim() || Object.hasOwn(active, name)) continue;
+    const parsed = resultQuestSchema.safeParse(value);
+    if (!parsed.success) continue;
+    accepted.push([name, { ...parsed.data, 当前进度: '未接取', 已完成: false }]);
   }
-  if (Object.keys(result.data).length !== 6) throw new Error('任务生成结果必须恰好包含 6 个不同名称的任务。');
-  for (const name of Object.keys(result.data))
-    if (Object.hasOwn(active, name)) throw new Error(`任务「${name}」已接取，不能重复生成。`);
-  return Object.fromEntries(
-    Object.entries(result.data).map(([name, task]) => [name, { ...task, 当前进度: '未接取', 已完成: false }]),
-  );
+  if (!accepted.length) throw new Error('任务生成结果没有可接取的候选任务。');
+  return Object.fromEntries(accepted);
 }
 
 export function refreshTasks(data: stat_data, message: string): void {
   const state = taskRefreshState(data);
   if (!state.available) throw new Error('今天的免费任务刷新次数已用完。');
-  let result: Record<string, 任务>;
-  try {
-    result = parseResult(message, data.任务);
-  } catch (error) {
-    throw new InvalidGeneratedResultError(error);
-  }
+  const result = parseResult(message, data.任务);
   data.任务候选 = result;
   data.系统.任务下次刷新时间 = state.next;
   data.系统.任务主动刷新次数 = 1;

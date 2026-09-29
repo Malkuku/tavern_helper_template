@@ -4,7 +4,7 @@ import { itemSchema } from '../../store/initialDataSchema';
 import { inventoryOf, mergeItemStack, sameItemSpec, type InventorySide } from '../data/inventoryTransfer';
 import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
-import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
+import { latestGeneratedPayload } from '../generationResult';
 
 const generatedItemSchema = z.object({
   ...itemSchema.shape,
@@ -16,7 +16,7 @@ const generatedItemSchema = z.object({
     itemSchema.shape.图标,
   ),
 });
-const shopSchema = z.record(z.string().min(1), generatedItemSchema);
+const generatedRecordSchema = z.record(z.string(), z.unknown());
 
 export function itemRefreshQuote(data: stat_data): { next: string; count: number; price: number } {
   return weeklyShopQuote(data, '道具');
@@ -31,26 +31,18 @@ export function parseItemResult(message: string, data: stat_data): Record<string
   } catch {
     throw new Error('道具生成结果不是合法 JSON。');
   }
-  const parsed = shopSchema.safeParse(raw);
-  if (!parsed.success) {
-    console.error(
-      '道具生成字段校验失败',
-      parsed.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })),
-    );
-    const issue = parsed.error.issues[0];
-    throw new Error(`道具生成字段无效：${issue.path.join('.')} ${issue.message}`);
-  }
-  const entries = Object.entries(parsed.data);
-  if (entries.length !== 9) throw new Error('道具生成结果必须恰好包含 9 个不同名称的商品。');
+  const parsed = generatedRecordSchema.safeParse(raw);
+  if (!parsed.success) throw new Error('道具生成结果必须是商品对象。');
   const previous = [data.角色.user.物品, data.仓库, data.商店];
-  for (const [name, item] of entries) {
-    if (!name.trim() || !item.描述.trim() || !item.作用.trim() || item.耐久 <= 0 || item.价格 <= 0)
-      throw new Error(`道具「${name}」的内容或数值无效。`);
+  const accepted: [string, 物品][] = [];
+  for (const [name, value] of Object.entries(parsed.data)) {
+    const result = generatedItemSchema.safeParse(value);
+    if (!name.trim() || !result.success) continue;
+    const item = result.data;
+    if (!item.描述.trim() || !item.作用.trim() || item.耐久 <= 0 || item.价格 <= 0) continue;
     const old = previous.map(source => source[name]).filter((value): value is 物品 => !!value);
-    if (old.some(value => !itemSchema.safeParse(value).success))
-      throw new Error(`现有道具「${name}」的字段或图标无效。`);
-    if (old.length > 1 && old.some(value => !sameItemSpec(value, old[0])))
-      throw new Error(`现有道具「${name}」在随身、仓库或旧货架中的规格不一致。`);
+    if (old.some(value => !itemSchema.safeParse(value).success)) continue;
+    if (old.length > 1 && old.some(value => !sameItemSpec(value, old[0]))) continue;
     if (old.length) {
       const source = old[0];
       item.描述 = source.描述;
@@ -59,17 +51,14 @@ export function parseItemResult(message: string, data: stat_data): Record<string
       item.价格 = source.价格;
       item.图标 = source.图标 || item.图标;
     }
+    accepted.push([name, item]);
   }
-  return parsed.data;
+  if (!accepted.length) throw new Error('道具生成结果没有可上架的商品。');
+  return Object.fromEntries(accepted);
 }
 
 export function applyItemRefresh(data: stat_data, message: string, directed = false): void {
-  let shop: Record<string, 物品>;
-  try {
-    shop = parseItemResult(message, data);
-  } catch (error) {
-    throw new InvalidGeneratedResultError(error);
-  }
+  const shop = parseItemResult(message, data);
   const quote = itemRefreshQuote(data);
   const price = directed ? directedRefreshPrice(data, '道具', quote.price) : quote.price;
   const balance = data.角色.user.恶堕积分;

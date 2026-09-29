@@ -53,5 +53,8 @@ const taskTag = '<questVariable>{"任务":1}</questVariable>';
 const skillTag = '<skillVariable>{"技能":1}</skillVariable>';
 assert.equal(removeGeneratedTag(`正文${taskTag}\n${skillTag}`, taskTag), `正文\n${skillTag}`);
 assert.throws(() => removeGeneratedTag('正文', taskTag), /已被修改/);
+const repeated = `正文${taskTag}后来新增${taskTag}`;
+assert.equal(removeGeneratedTag(repeated, taskTag, 2), `正文后来新增${taskTag}`, '自动清理只删除定位的旧标签');
+assert.throws(() => removeGeneratedTag(repeated, taskTag, 3), /已被修改/);
 
 console.info('手机同楼生成结果接收验证通过。');

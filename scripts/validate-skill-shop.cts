@@ -68,6 +68,18 @@ const stock = {
   新技能五: skill(1, 20),
 };
 const result = `<skillVariable>${JSON.stringify(stock)}</skillVariable>`;
+const partlyInvalid = { ...stock, 新技能一: { ...stock.新技能一, 价格: -1 } };
+const partlyValidData = structuredClone(data);
+applySkillRefresh(partlyValidData, `<skillVariable>${JSON.stringify(partlyInvalid)}</skillVariable>`);
+assert.equal(partlyValidData.技能商店.新技能一, undefined, '无效技能不写入货架');
+assert.equal(Object.keys(partlyValidData.技能商店).length, 5);
+assert.equal(partlyValidData.系统.技能主动刷新次数, 1, '部分有效仍只结算一次');
+for (const count of [7, 8]) {
+  const extra = Object.fromEntries(Array.from({ length: count - 6 }, (_, index) => [`额外技能${index}`, skill(1, 20)]));
+  const expanded = structuredClone(data);
+  applySkillRefresh(expanded, `<skillVariable>${JSON.stringify({ ...stock, ...extra })}</skillVariable>`);
+  assert.equal(Object.keys(expanded.技能商店).length, count, `有效的 ${count} 个技能可直接上架`);
+}
 const weaker = { ...stock, 战败收容: skill(2, 25) };
 const flatData = structuredClone(data);
 applySkillRefresh(flatData, `<skillVariable>${JSON.stringify(weaker)}</skillVariable>`);
@@ -185,7 +197,7 @@ assert.throws(() => unlockSkillSlot(poorSlotData), /积分不足/);
 assert.equal(poorSlotData.角色.user.技能栏位, 6, '积分不足不解锁');
 assert.equal(poorSlotData.角色.user.恶堕积分, 49, '积分不足不扣费');
 const before = structuredClone(data);
-assert.throws(() => applySkillRefresh(data, '<skillVariable>{}</skillVariable>'));
+assert.throws(() => applySkillRefresh(data, '<skillVariable>{}</skillVariable>'), /没有可上架的技能/);
 assert.deepEqual(data, before, '无效生成不得部分结算');
 const nextStock = { ...stock, 战败收容: skill(3, 25), 新技能一: skill(2, 20) };
 applySkillRefresh(data, `<skillVariable>${JSON.stringify(nextStock)}</skillVariable>`);

@@ -10,21 +10,13 @@
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
           @click="run(() => store.refreshTaskBoard())"
         >
-          {{ store.taskRefreshing ? '生成中…' : refreshAvailable ? '免费刷新 6 项任务' : '今天已刷新' }}
+          {{ store.taskRefreshing ? '生成中…' : refreshAvailable ? '免费刷新任务' : '今天已刷新' }}
         </button>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消等待
         </button>
         <RefreshFeedback v-if="store.taskRefreshing" label="正在生成任务候选" />
         <p v-if="store.taskRefreshError" class="error">{{ store.taskRefreshError }}</p>
-        <button
-          v-if="store.failedGeneratedResult?.kind === '任务'"
-          type="button"
-          class="secondary"
-          @click="run(() => store.clearFailedGeneratedResult('任务'))"
-        >
-          清除本楼失败的任务结果
-        </button>
       </section>
 
       <nav aria-label="任务页面">
@@ -38,7 +30,7 @@
       </nav>
 
       <div v-if="tab === 'board'" class="list">
-        <p v-if="!boardEntries.length" class="empty">暂无候选任务。点击免费刷新获取 6 项任务。</p>
+        <p v-if="!boardEntries.length" class="empty">暂无候选任务。点击免费刷新获取任务。</p>
         <article v-for="[name, task] in boardEntries" :key="name" class="card" :class="ratingVisualClass(task.评级)">
           <div class="heading">
             <strong>{{ name }}</strong

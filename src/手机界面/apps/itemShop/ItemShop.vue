@@ -30,14 +30,6 @@
         <p v-if="quote.error" class="item-shop-error">{{ quote.error }}</p>
         <p v-else-if="balance < refreshPrice" class="item-shop-error">积分不足，需要 {{ refreshPrice }} 点。</p>
         <p v-if="store.itemRefreshError" class="item-shop-error">{{ store.itemRefreshError }}</p>
-        <button
-          v-if="store.failedGeneratedResult?.kind === '道具'"
-          type="button"
-          class="cancel-refresh"
-          @click="run(() => store.clearFailedGeneratedResult('道具'))"
-        >
-          清除本楼失败的道具结果
-        </button>
       </section>
 
       <nav class="item-shop-tabs" aria-label="道具商店页面">

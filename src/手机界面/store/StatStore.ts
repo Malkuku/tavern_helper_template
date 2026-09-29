@@ -35,12 +35,7 @@ import {
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
-import {
-  InvalidGeneratedResultError,
-  isNewGenerationResult,
-  latestGeneratedTag,
-  removeGeneratedTag,
-} from '../apps/generationResult';
+import { isNewGenerationResult, latestGeneratedTag, removeGeneratedTag } from '../apps/generationResult';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyProfileEdit, type ProfileField } from '../apps/data/profileEdit';
 import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
@@ -154,7 +149,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let refreshRequestSerial = 0;
   let preparingShopRefresh = false;
   let staleDirectedClearQueued = false;
-  const failedGeneratedResult = ref<{ kind: '任务' | '技能' | '道具'; messageId: number; tag: string } | null>(null);
+  const failedGeneratedTags: { messageId: number; tag: string; index: number }[] = [];
+  let failedTagCleanupTimer: ReturnType<typeof setTimeout> | undefined;
+  let failedTagCleanupRunning = false;
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const failedWeChatMessageId = ref<number | null>(null);
@@ -262,8 +259,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function writeStatData(data: stat_data, previous: Mvu.MvuData) {
     const next = { ...previous, stat_data: data };
     await Mvu.replaceMvuData(next, { type: 'message', message_id: getLastMessageId() });
-    await eventEmit('mag_variable_update_ended', next, previous);
-    refresh();
+    try {
+      await eventEmit('mag_variable_update_ended', next, previous);
+    } catch (error) {
+      console.error('变量已保存，但更新通知失败', error);
+    } finally {
+      refresh();
+    }
   }
 
   async function writeLoggedStatData(data: stat_data, previous: Mvu.MvuData, detail: string, generation: number) {
@@ -457,7 +459,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function refreshGeneratedShop(kind: '技能' | '道具', preference?: string) {
-    if (failedGeneratedResult.value) throw new Error('请先清除本楼失败的生成结果。');
     if (preparingShopRefresh || skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const requested = preference?.trim() ?? '';
@@ -613,7 +614,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function refreshTaskBoard() {
-    if (failedGeneratedResult.value) throw new Error('请先清除本楼失败的生成结果。');
     if (preparingShopRefresh || taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const generation = chatGeneration;
@@ -653,25 +653,56 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     taskRefreshError.value = '已取消等待；迟到的任务生成结果不会结算。';
   }
 
-  async function clearFailedGeneratedResult(kind: '任务' | '技能' | '道具', preserveError = false) {
-    const failed = failedGeneratedResult.value;
-    if (!failed || failed.kind !== kind) throw new Error('没有可清除的生成结果。');
+  function armFailedTagCleanup(delay: number) {
+    if (failedTagCleanupTimer || failedTagCleanupRunning || !failedGeneratedTags.length) return;
+    failedTagCleanupTimer = setTimeout(() => {
+      failedTagCleanupTimer = undefined;
+      void cleanFailedTags();
+    }, delay);
+  }
+
+  async function cleanFailedTags() {
+    if (failedTagCleanupRunning) return;
     const generation = chatGeneration;
-    await queueStatWork(async () => {
-      const message = getChatMessages(failed.messageId)[0];
-      if (generation !== chatGeneration || !message || message.role !== 'assistant')
-        throw new Error('聊天或出错楼层已切换，无法清除生成结果。');
-      await setChatMessages(
-        [{ message_id: failed.messageId, message: removeGeneratedTag(message.message, failed.tag) }],
-        { refresh: 'affected' },
-      );
-      if (failedGeneratedResult.value === failed) failedGeneratedResult.value = null;
-      if (!preserveError) {
-        if (kind === '任务') taskRefreshError.value = '';
-        else if (kind === '技能') skillRefreshError.value = '';
-        else itemRefreshError.value = '';
-      }
-    });
+    failedTagCleanupRunning = true;
+    try {
+      await queueStatWork(async () => {
+        if (generation !== chatGeneration) return;
+        if (preparingShopRefresh || skillRefreshing.value || itemRefreshing.value || taskRefreshing.value) return;
+        const pending = failedGeneratedTags.splice(0).sort((a, b) => b.index - a.index);
+        for (const failed of pending) {
+          if (generation !== chatGeneration) return;
+          try {
+            const message = getChatMessages(failed.messageId)[0];
+            if (!message || message.role !== 'assistant') continue;
+            if (message.message.slice(failed.index, failed.index + failed.tag.length) !== failed.tag) continue;
+            await setChatMessages(
+              [
+                {
+                  message_id: failed.messageId,
+                  message: removeGeneratedTag(message.message, failed.tag, failed.index),
+                },
+              ],
+              { refresh: 'affected' },
+            );
+          } catch (error) {
+            failedGeneratedTags.push(failed);
+            console.error('失败的生成标签自动清理暂未成功，将重试', error);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('失败的生成标签自动清理暂未成功，将重试', error);
+    } finally {
+      failedTagCleanupRunning = false;
+      armFailedTagCleanup(1000);
+    }
+  }
+
+  function scheduleFailedTagCleanup(messageId: number, tag: string, index: number) {
+    if (messageId < 0 || index < 0) return;
+    failedGeneratedTags.push({ messageId, tag, index });
+    armFailedTagCleanup(0);
   }
 
   async function sendWeChatMessage(
@@ -1086,6 +1117,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const requestSerial = refreshRequestSerial;
     let failedMessageId = -1;
     let failedTag: string | undefined;
+    let failedTagIndex = -1;
     console.info(`[手机${kind}商店生成] 收到${source}`, { messageId, lastMessageId: getLastMessageId() });
     void queueStatWork(async () => {
       if (!refreshing.value || requestSerial !== refreshRequestSerial) {
@@ -1108,6 +1140,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!matched) return;
       failedMessageId = id;
       failedTag = latestGeneratedTag(message.message, marker);
+      failedTagIndex = failedTag ? message.message.lastIndexOf(failedTag) : -1;
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration || requestSerial !== refreshRequestSerial) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
@@ -1131,18 +1164,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       );
       const detail = error instanceof Error ? error.message : `${kind}生成结果无效。`;
       refreshError.value = detail;
-      if (failedTag) {
-        failedGeneratedResult.value = { kind, messageId: failedMessageId, tag: failedTag };
-        if (error instanceof InvalidGeneratedResultError) {
-          try {
-            await clearFailedGeneratedResult(kind, true);
-            refreshError.value = `${detail}；失败标签已从本楼自动清除。`;
-          } catch (cleanupError) {
-            refreshError.value = `${detail}；自动清除失败，可手动清除。`;
-            console.error(`${kind}商店失败标签自动清除失败`, cleanupError);
-          }
-        }
-      }
+      if (failedTag) scheduleFailedTagCleanup(failedMessageId, failedTag, failedTagIndex);
       console.error(`${kind}商店生成结果处理失败`, error);
     });
   }
@@ -1189,6 +1211,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const requestSerial = refreshRequestSerial;
     let failedMessageId = -1;
     let failedTag: string | undefined;
+    let failedTagIndex = -1;
     console.info('[手机任务生成] 收到' + source, { messageId, lastMessageId: getLastMessageId() });
     void queueStatWork(async () => {
       if (!taskRefreshing.value || requestSerial !== refreshRequestSerial) {
@@ -1216,6 +1239,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!matched) return;
       failedMessageId = id;
       failedTag = latestGeneratedTag(message.message, '<questVariable');
+      failedTagIndex = failedTag ? message.message.lastIndexOf(failedTag) : -1;
       await waitGlobalInitialized('Mvu');
       if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !taskRefreshing.value) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
@@ -1233,18 +1257,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       taskRefreshing.value = false;
       const detail = error instanceof Error ? error.message : '任务生成结果无效。';
       taskRefreshError.value = detail;
-      if (failedTag) {
-        failedGeneratedResult.value = { kind: '任务', messageId: failedMessageId, tag: failedTag };
-        if (error instanceof InvalidGeneratedResultError) {
-          try {
-            await clearFailedGeneratedResult('任务', true);
-            taskRefreshError.value = `${detail}；失败标签已从本楼自动清除。`;
-          } catch (cleanupError) {
-            taskRefreshError.value = `${detail}；自动清除失败，可手动清除。`;
-            console.error('任务失败标签自动清除失败', cleanupError);
-          }
-        }
-      }
+      if (failedTag) scheduleFailedTagCleanup(failedMessageId, failedTag, failedTagIndex);
       console.error('任务生成结果处理失败', error);
     });
   }
@@ -1421,7 +1434,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     taskRefreshing.value = false;
     taskRefreshStartMessageId = -1;
     taskRefreshStartMessage = '';
-    failedGeneratedResult.value = null;
+    failedGeneratedTags.length = 0;
+    if (failedTagCleanupTimer) clearTimeout(failedTagCleanupTimer);
+    failedTagCleanupTimer = undefined;
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -1487,9 +1502,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (pollingTimer) clearInterval(pollingTimer);
       if (refreshTimer) clearTimeout(refreshTimer);
       if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
+      if (failedTagCleanupTimer) clearTimeout(failedTagCleanupTimer);
       pollingTimer = undefined;
       refreshTimer = undefined;
       worldbookRetryTimer = undefined;
+      failedTagCleanupTimer = undefined;
+      failedGeneratedTags.length = 0;
     };
   }
 
@@ -1518,8 +1536,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     itemRefreshing,
     taskRefreshError,
     taskRefreshing,
-    failedGeneratedResult,
-    clearFailedGeneratedResult,
     failedWeChatMessageId,
     clearFailedWeChatLog,
     deleteWeChatFloor,

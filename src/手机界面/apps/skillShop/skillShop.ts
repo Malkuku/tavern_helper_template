@@ -4,7 +4,7 @@ import { skillSchema } from '../../store/initialDataSchema';
 import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { userRatingFromSkills } from '../../store/userRating';
-import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
+import { latestGeneratedPayload } from '../generationResult';
 
 const generatedSkillSchema = z.object({
   ...skillSchema.shape,
@@ -16,7 +16,7 @@ const generatedSkillSchema = z.object({
     skillSchema.shape.图标,
   ),
 });
-const shopSchema = z.record(z.string().min(1), generatedSkillSchema);
+const generatedRecordSchema = z.record(z.string(), z.unknown());
 
 export function refreshQuote(data: stat_data): { next: string; count: number; price: number } {
   return weeklyShopQuote(data, '技能');
@@ -58,18 +58,13 @@ export function parseSkillResult(message: string): Record<string, 可购技能> 
   } catch {
     throw new Error('技能生成结果不是合法 JSON。');
   }
-  const parsed = shopSchema.safeParse(raw);
-  if (!parsed.success) {
-    console.error(
-      '技能生成字段校验失败',
-      parsed.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })),
-    );
-    const issue = parsed.error.issues[0];
-    throw new Error(`技能生成字段无效：${issue.path.join('.')} ${issue.message}`);
-  }
-  const entries = Object.entries(parsed.data);
-  if (entries.length !== 6) throw new Error('技能生成结果必须恰好包含 6 个不同名称的技能。');
-  for (const [name, item] of entries) {
+  const parsed = generatedRecordSchema.safeParse(raw);
+  if (!parsed.success) throw new Error('技能生成结果必须是技能对象。');
+  const accepted: [string, 可购技能][] = [];
+  for (const [name, value] of Object.entries(parsed.data)) {
+    const result = generatedSkillSchema.safeParse(value);
+    if (!result.success) continue;
+    const item = result.data;
     if (
       !name.trim() ||
       !item.描述.trim() ||
@@ -79,18 +74,15 @@ export function parseSkillResult(message: string): Record<string, 可购技能> 
       !Number.isFinite(item.战力评级贡献) ||
       item.战力评级贡献 < 0
     )
-      throw new Error(`技能「${name}」的内容或数值无效。`);
+      continue;
+    accepted.push([name, item]);
   }
-  return parsed.data;
+  if (!accepted.length) throw new Error('技能生成结果没有可上架的技能。');
+  return Object.fromEntries(accepted);
 }
 
 export function applySkillRefresh(data: stat_data, message: string, directed = false): void {
-  let shop: Record<string, 可购技能>;
-  try {
-    shop = parseSkillResult(message);
-  } catch (error) {
-    throw new InvalidGeneratedResultError(error);
-  }
+  const shop = parseSkillResult(message);
   const quote = refreshQuote(data);
   const price = directed ? directedRefreshPrice(data, '技能', quote.price) : quote.price;
   if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < price)

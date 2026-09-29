@@ -41,7 +41,7 @@ const data = {
   仓库: { 仓库药剂: item(5, 2, 1) },
   商店: { 旧扣: item(3, 2, 10) },
 } as unknown as stat_data;
-const stock = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`道具${index}`, item(3 + index, 2, 10)]));
+const stock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`道具${index}`, item(3 + index, 2, 10)]));
 stock.旧扣 = { ...item(999, 2, 8), 图标: icon.replace('#5274a2', '#ffffff'), 描述: '错误的新描述' };
 delete stock.道具0;
 const message = `<shopVariable>${JSON.stringify(stock)}</shopVariable>`;
@@ -53,25 +53,40 @@ directedData.手机 = {
 };
 applyItemRefresh(
   directedData,
-  `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
+  `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
   true,
 );
 assert.equal(directedData.角色.user.恶堕积分, 170, '定向道具刷新加收 30 点');
 assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
 const parsed = parseItemResult(message, data);
-assert.equal(Object.keys(parsed).length, 9);
+assert.equal(Object.keys(parsed).length, 6);
+for (const count of [7, 8]) {
+  const extra = Object.fromEntries(Array.from({ length: count - 6 }, (_, index) => [`额外道具${index}`, item(3, 1)]));
+  assert.equal(
+    Object.keys(parseItemResult(`<shopVariable>${JSON.stringify({ ...stock, ...extra })}</shopVariable>`, data)).length,
+    count,
+    `有效的 ${count} 件道具可直接上架`,
+  );
+}
 assert.equal(parsed.旧扣.价格, 3, '同名道具保持旧规格');
 assert.equal(parsed.旧扣.图标, icon, '同名道具保持旧 SVG');
 const conflictingSources = structuredClone(data);
 conflictingSources.仓库.旧扣 = { ...item(5, 1), 描述: '不同规格' };
-assert.throws(() => parseItemResult(message, conflictingSources), /规格不一致/);
+assert.equal(parseItemResult(message, conflictingSources).旧扣, undefined, '同名规格冲突只跳过该商品');
+assert.equal(Object.keys(parseItemResult(message, conflictingSources)).length, 5);
+const partlyInvalid = { ...stock, 道具1: { ...stock.道具1, 数量: 0 } };
+const partlyValidData = structuredClone(data);
+applyItemRefresh(partlyValidData, `<shopVariable>${JSON.stringify(partlyInvalid)}</shopVariable>`);
+assert.equal(partlyValidData.商店.道具1, undefined, '无效商品不写入货架');
+assert.equal(Object.keys(partlyValidData.商店).length, 5);
+assert.equal(partlyValidData.系统.商店主动刷新次数, 1, '部分有效仍只结算一次');
 const higherRank = { ...stock, 道具1: { ...stock.道具1, 评级: 'S' } };
 assert.equal(
   parseItemResult(`<shopVariable>${JSON.stringify(higherRank)}</shopVariable>`, data).道具1.评级,
   'S',
   '软评级上限不阻止生成',
 );
-assert.throws(() => parseItemResult('<shopVariable>{}</shopVariable>', data), /9 个/);
+assert.throws(() => parseItemResult('<shopVariable>{}</shopVariable>', data), /没有可上架的商品/);
 assert.equal(parseItemResult(message + message, data).旧扣.价格, 3, '同楼旧标签不阻断最新结果');
 const unsafeItem = { ...stock, 道具1: { ...stock.道具1, 图标: '<svg onload="alert(1)"></svg>', 备注: '额外说明' } };
 const sanitized = parseItemResult(`<shopVariable>${JSON.stringify(unsafeItem)}</shopVariable>`, data);

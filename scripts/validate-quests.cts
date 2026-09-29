@@ -22,6 +22,10 @@ const entries = ['唯一开局', '角色资源', '地图资源'].map(name => ({
   name: `<配置>${name}`,
   content: readFileSync(`${root}\\系统配置\\${name}.json`, 'utf8'),
 }));
+entries.push({
+  name: '<模板>通用恶堕值',
+  content: readFileSync(`${root}\\系统配置\\通用恶堕值.json`, 'utf8'),
+});
 const assembled = reconcileWorldbookStatData({ 作者: 987 }, entries);
 assert.equal(assembled.data.任务统计.开始周, taskWeekKey(assembled.data.世界.时间), '初始周由实际开局世界时间计算');
 assert.deepEqual(assembled.data.任务候选, {});
@@ -46,21 +50,24 @@ const data: any = {
 };
 
 assert.equal(taskRefreshState(data).available, true);
-assert.throws(() => refreshTasks(data, '<questVariable>{}</questVariable>'), /恰好包含 6 个/);
-assert.throws(
-  () =>
-    refreshTasks(
-      data,
-      `<questVariable>${JSON.stringify({ ...stock, 任务1: { ...task(), 奖励: [8] } })}</questVariable>`,
-    ),
-  /字段无效/,
-  '旧奖励数组格式必须拒绝',
+assert.throws(() => refreshTasks(data, '<questVariable>{}</questVariable>'), /没有可接取的候选任务/);
+for (const count of [5, 7, 8]) {
+  const variableCountData = structuredClone(data);
+  const candidates = Object.fromEntries(Array.from({ length: count }, (_, index) => [`候选${index}`, task()]));
+  refreshTasks(variableCountData, `<questVariable>${JSON.stringify(candidates)}</questVariable>`);
+  assert.equal(Object.keys(variableCountData.任务候选).length, count, `有效的 ${count} 项任务可上架`);
+}
+const invalidRewardData = structuredClone(data);
+refreshTasks(
+  invalidRewardData,
+  `<questVariable>${JSON.stringify({ ...stock, 任务1: { ...task(), 奖励: [8] } })}</questVariable>`,
 );
-assert.throws(
-  () => refreshTasks(data, `<questVariable>${JSON.stringify({ ...stock, 任务1: task('SS') })}</questVariable>`),
-  /字段无效/,
-  '任务评级只能为 D 到 S',
-);
+assert.equal(invalidRewardData.任务候选.任务1, undefined, '奖励字段错误的候选不展示');
+assert.equal(Object.keys(invalidRewardData.任务候选).length, 5);
+assert.equal(invalidRewardData.系统.任务主动刷新次数, 1, '部分有效仍结算一次');
+const invalidRatingData = structuredClone(data);
+refreshTasks(invalidRatingData, `<questVariable>${JSON.stringify({ ...stock, 任务1: task('SS') })}</questVariable>`);
+assert.equal(invalidRatingData.任务候选.任务1, undefined, '评级错误的候选不展示');
 assert.deepEqual(data.任务候选, {}, '无效生成不改候选');
 const tolerantStock = {
   ...stock,
@@ -97,7 +104,11 @@ assert.equal(data.任务候选.任务2, undefined, '放弃不回候选');
 
 data.世界.时间 = '2026-9-29T00:00[2]';
 assert.equal(taskRefreshState(data).available, true);
-assert.throws(() => refreshTasks(data, result), /已接取/, '新货架不能与已接任务重名');
+const duplicateData = structuredClone(data);
+refreshTasks(duplicateData, result);
+for (const name of Object.keys(data.任务))
+  assert.equal(duplicateData.任务候选[name], undefined, '已接任务重名候选跳过');
+assert.ok(Object.keys(duplicateData.任务候选).length > 0, '其他候选仍上架');
 const nextStock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`新任务${index + 1}`, task('C')]));
 refreshTasks(data, `<questVariable>${JSON.stringify(nextStock)}</questVariable>`);
 assert.equal(data.任务候选.任务6, undefined, '成功刷新替换旧候选');
@@ -176,5 +187,5 @@ assert.equal(withTarget.discoveredTargets[0].好感度.当前描述, '信任');
 assert.equal(generationPreview([]).discoveredTargets.length, 0, '没有已发现目标时不泄漏预置角色');
 assert.match(generationRule, /至少提供一项有机会提升其好感度的任务/);
 assert.match(generationRule, /保留至少 2 项恶堕、色情或调教倾向的任务/);
-assert.match(generationRule, /年龄不明或未成年的角色只安排非色情任务/);
+assert.match(generationRule, /禁止全部集中于一个角色/);
 console.info('组织任务定向验证通过。');
