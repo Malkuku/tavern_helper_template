@@ -5,42 +5,33 @@
         <span class="witch-eyebrow">EXCLUSIVE SKILLS</span>
         <h1>技能精选</h1>
         <p>探索专属能力，选择已有技能的新版本。</p>
-        <p>技能栏位 {{ ownedEntries.length }} / {{ slots }}</p>
-        <button v-if="slotPrice !== null" type="button" :disabled="busy || balance < slotPrice" @click="unlockSlot">
-          解锁第 {{ slots + 1 }} 格 · {{ slotPrice }} 积分
+        <button
+          type="button"
+          :disabled="busy || store.skillRefreshing || balance < refreshPrice || (directed && !preference.trim())"
+          @click="refreshShop"
+        >
+          {{ store.skillRefreshing ? '生成中…' : `刷新货架 · ${refreshPrice} 积分` }}
         </button>
-        <p v-if="slotPrice !== null && balance < slotPrice" class="shop-error">
-          解锁积分不足，需要 {{ slotPrice }} 点。
-        </p>
-        <button type="button" :disabled="busy || store.skillRefreshing || balance < quote.price" @click="refreshShop">
-          {{ store.skillRefreshing ? '生成中…' : `刷新货架 · ${quote.price} 积分` }}
-        </button>
-        <div class="directed-refresh">
+        <label class="directed-refresh-toggle">
+          <input v-model="directed" type="checkbox" :disabled="busy || store.skillRefreshing" />
+          <span
+            >定向刷新 <small>额外 {{ DIRECTED_REFRESH_SURCHARGE }} 积分</small></span
+          >
+        </label>
+        <div v-if="directed" class="directed-refresh">
           <label for="skill-refresh-wish">想要什么技能？</label>
           <textarea
             id="skill-refresh-wish"
             v-model="preference"
             placeholder="描述希望出现的能力、用途或风格"
           ></textarea>
-          <button
-            type="button"
-            :disabled="
-              busy || store.skillRefreshing || !preference.trim() || balance < quote.price + DIRECTED_REFRESH_SURCHARGE
-            "
-            @click="directedRefresh"
-          >
-            按偏好刷新 · {{ quote.price + DIRECTED_REFRESH_SURCHARGE }} 积分
-          </button>
-          <small
-            >普通刷新 {{ quote.price }} 点 + 定向费用
-            {{ DIRECTED_REFRESH_SURCHARGE }} 点；偏好会提高相关内容出现机会，不保证必出。</small
-          >
+          <small>偏好会提高相关内容出现机会，不保证必出。</small>
         </div>
         <button v-if="store.skillRefreshing" class="cancel-refresh" type="button" @click="store.cancelSkillRefresh()">
           取消等待
         </button>
         <RefreshFeedback v-if="store.skillRefreshing" label="正在更新技能货架" />
-        <p v-if="balance < quote.price" class="shop-error">积分不足，需要 {{ quote.price }} 点。</p>
+        <p v-if="balance < refreshPrice" class="shop-error">积分不足，需要 {{ refreshPrice }} 点。</p>
         <p v-if="store.skillRefreshError" class="shop-error">{{ store.skillRefreshError }}</p>
         <button
           v-if="store.failedGeneratedResult?.kind === '技能'"
@@ -88,11 +79,27 @@
             >
               购买 · {{ item.价格 }} 积分
             </button>
-            <p v-if="!owned[name] && ownedEntries.length >= slots" class="shop-error">技能栏位已满</p>
           </div>
         </article>
       </div>
       <div v-else class="shop-list">
+        <section class="skill-slot-panel">
+          <strong>技能栏位 {{ ownedEntries.length }} / {{ slots }}</strong>
+          <button
+            v-if="slotPrice !== null"
+            class="unlock-button"
+            type="button"
+            :disabled="busy || balance < slotPrice"
+            @click="unlockSlot"
+          >
+            解锁第 {{ slots + 1 }} 格 · {{ slotPrice }} 积分
+          </button>
+          <p v-if="slotPrice !== null && balance < slotPrice" class="shop-error">
+            解锁积分不足，需要 {{ slotPrice }} 点。
+          </p>
+          <p v-else-if="slotPrice === null" class="skill-slot-note">已解锁全部 12 个栏位。</p>
+          <p v-else-if="ownedEntries.length >= slots" class="skill-slot-note">栏位已满，解锁后可购买新技能。</p>
+        </section>
         <p v-if="!ownedEntries.length" class="shop-empty">目前没有持有技能。</p>
         <article
           v-for="[name, item] in ownedEntries"
@@ -147,6 +154,7 @@ const tab = ref<'shop' | 'owned'>('shop');
 const busy = ref(false);
 const error = ref('');
 const preference = ref('');
+const directed = ref(false);
 const confirmSale = ref<string | null>(null);
 const expandedName = ref('');
 const balance = computed(() => store.statData?.角色.user.恶堕积分 ?? 0);
@@ -162,6 +170,7 @@ const quote = computed(() => {
     return { price: Number.POSITIVE_INFINITY, count: 0, next: '' };
   }
 });
+const refreshPrice = computed(() => quote.value.price + (directed.value ? DIRECTED_REFRESH_SURCHARGE : 0));
 function toggleEntry(name: string) {
   expandedName.value = expandedName.value === name ? '' : name;
   confirmSale.value = null;
@@ -183,10 +192,7 @@ async function run(action: () => Promise<unknown>) {
   }
 }
 function refreshShop() {
-  void run(() => store.refreshSkillShop());
-}
-function directedRefresh() {
-  void run(() => store.refreshSkillShop(preference.value));
+  void run(() => store.refreshSkillShop(directed.value ? preference.value.trim() : undefined));
 }
 function purchase(name: string) {
   void run(() => store.purchaseSkill(name));

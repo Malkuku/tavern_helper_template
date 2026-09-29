@@ -7,36 +7,28 @@
         <p>挑选适合这次行动的物品。</p>
         <button
           type="button"
-          :disabled="busy || store.itemRefreshing || !!quote.error || balance < quote.price"
-          @click="run(() => store.refreshItemShop())"
+          :disabled="
+            busy || store.itemRefreshing || !!quote.error || balance < refreshPrice || (directed && !preference.trim())
+          "
+          @click="run(() => store.refreshItemShop(directed ? preference.trim() : undefined))"
         >
-          {{ store.itemRefreshing ? '生成中…' : quote.error ? '刷新货架' : `刷新货架 · ${quote.price} 积分` }}
+          {{ store.itemRefreshing ? '生成中…' : quote.error ? '刷新货架' : `刷新货架 · ${refreshPrice} 积分` }}
         </button>
-        <div class="directed-refresh">
+        <label class="directed-refresh-toggle">
+          <input v-model="directed" type="checkbox" :disabled="busy || store.itemRefreshing" />
+          <span
+            >定向刷新 <small>额外 {{ DIRECTED_REFRESH_SURCHARGE }} 积分</small></span
+          >
+        </label>
+        <div v-if="directed" class="directed-refresh">
           <label for="item-refresh-wish">想要什么道具？</label>
           <textarea id="item-refresh-wish" v-model="preference" placeholder="描述希望出现的道具、用途或效果"></textarea>
-          <button
-            type="button"
-            :disabled="
-              busy ||
-              store.itemRefreshing ||
-              !!quote.error ||
-              !preference.trim() ||
-              balance < quote.price + DIRECTED_REFRESH_SURCHARGE
-            "
-            @click="run(() => store.refreshItemShop(preference))"
-          >
-            按偏好刷新 · {{ quote.price + DIRECTED_REFRESH_SURCHARGE }} 积分
-          </button>
-          <small
-            >普通刷新 {{ quote.price }} 点 + 定向费用
-            {{ DIRECTED_REFRESH_SURCHARGE }} 点；偏好会提高相关内容出现机会，不保证必出。</small
-          >
+          <small>偏好会提高相关内容出现机会，不保证必出。</small>
         </div>
         <button v-if="store.itemRefreshing" type="button" @click="store.cancelItemRefresh()">取消等待</button>
         <RefreshFeedback v-if="store.itemRefreshing" label="正在更新道具货架" />
         <p v-if="quote.error" class="item-shop-error">{{ quote.error }}</p>
-        <p v-else-if="balance < quote.price" class="item-shop-error">积分不足，需要 {{ quote.price }} 点。</p>
+        <p v-else-if="balance < refreshPrice" class="item-shop-error">积分不足，需要 {{ refreshPrice }} 点。</p>
         <p v-if="store.itemRefreshError" class="item-shop-error">{{ store.itemRefreshError }}</p>
         <button
           v-if="store.failedGeneratedResult?.kind === '道具'"
@@ -157,6 +149,7 @@ const saleSide = ref<InventorySide>('随身物品');
 const busy = ref(false);
 const error = ref('');
 const preference = ref('');
+const directed = ref(false);
 const confirmSale = ref<string | null>(null);
 const expandedName = ref('');
 const quantities = ref<Record<string, number>>({});
@@ -183,6 +176,7 @@ const quote = computed(() => {
     };
   }
 });
+const refreshPrice = computed(() => quote.value.price + (directed.value ? DIRECTED_REFRESH_SURCHARGE : 0));
 
 function quantityFor(key: string): number {
   return quantities.value[key] ?? 1;
