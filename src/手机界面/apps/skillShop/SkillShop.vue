@@ -107,13 +107,20 @@
             </div>
             <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
           </button>
+          <label class="skill-enabled-checkbox">
+            <input
+              type="checkbox"
+              :checked="isSkillEnabled(item)"
+              :disabled="busy"
+              :aria-label="`${isSkillEnabled(item) ? '关闭' : '启用'}技能${name}`"
+              @click.prevent="toggleSkill(name, !isSkillEnabled(item))"
+            />
+            <span>启用</span>
+          </label>
           <div v-if="expandedName === name" class="entry-details">
             <p>{{ item.描述 }}</p>
             <div class="shop-effect">{{ item.作用 }}</div>
             <small>累计价格 {{ item.价格 }} 积分</small>
-            <button type="button" :disabled="busy" @click="toggleSkill(name, !isSkillEnabled(item))">
-              {{ isSkillEnabled(item) ? '关闭技能' : '启用技能' }}
-            </button>
             <div v-if="confirmSale === name" class="sale-confirm">
               <span>卖出后获得 {{ Math.floor(item.价格 / 2) }} 积分，技能将被移除。</span>
               <button type="button" :disabled="busy" @click="sell(name)">确认卖出</button>
@@ -206,5 +213,17 @@ function sell(name: string) {
 .shop-card.skill-disabled {
   opacity: 0.62;
   filter: grayscale(0.65);
+}
+.skill-enabled-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  color: #f8eef4;
+  cursor: pointer;
+  font-size: 11px;
+}
+.skill-enabled-checkbox input {
+  accent-color: #dc8eb2;
 }
 </style>

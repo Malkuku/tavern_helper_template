@@ -3,15 +3,18 @@
     class="owned-asset-card"
     :class="[skill ? 'owned-asset-skill' : 'owned-asset-item', skill && ratingVisualClass(skill.评级)]"
   >
-    <button type="button" class="owned-asset-heading" :aria-expanded="expanded" @click="$emit('toggle')">
-      <InventoryIcon :svg="entry.图标" :kind="kind" />
-      <strong class="owned-asset-name">{{ name }}</strong>
-      <span v-if="skill" class="owned-asset-badge owned-asset-grade"
-        >{{ skill.评级 }}{{ skill.启用 === false ? ' · 未启用' : '' }}</span
-      >
-      <span v-else-if="item" class="owned-asset-badge">× {{ item.数量 }}</span>
-      <span class="owned-asset-chevron" aria-hidden="true">{{ expanded ? '⌃' : '⌄' }}</span>
-    </button>
+    <div class="owned-asset-topline">
+      <button type="button" class="owned-asset-heading" :aria-expanded="expanded" @click="$emit('toggle')">
+        <InventoryIcon :svg="entry.图标" :kind="kind" />
+        <strong class="owned-asset-name">{{ name }}</strong>
+        <span v-if="skill" class="owned-asset-badge owned-asset-grade"
+          >{{ skill.评级 }}{{ skill.启用 === false ? ' · 未启用' : '' }}</span
+        >
+        <span v-else-if="item" class="owned-asset-badge">× {{ item.数量 }}</span>
+        <span class="owned-asset-chevron" aria-hidden="true">{{ expanded ? '⌃' : '⌄' }}</span>
+      </button>
+      <div v-if="$slots.control" class="owned-asset-control"><slot name="control" /></div>
+    </div>
     <div v-if="expanded" class="owned-asset-detail">
       <p v-if="entry.描述" class="owned-asset-description">{{ entry.描述 }}</p>
       <div v-if="entry.作用" class="owned-asset-effect">
@@ -53,6 +56,14 @@ const item = computed(() => (props.kind === '道具' ? (props.entry as 物品) :
 .owned-asset-card.skill-disabled {
   opacity: 0.58;
   filter: grayscale(0.65);
+}
+.owned-asset-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.owned-asset-control {
+  flex: none;
 }
 .owned-asset-card.witch-grade-d {
   --grade-color: #aab5c6;
