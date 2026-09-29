@@ -130,11 +130,18 @@ import {
 } from '../desktopLayout';
 import DesktopAppIcon from './DesktopAppIcon.vue';
 
-const props = defineProps<{ dateLabel: string; today: number; wechatUnread: boolean; witchUnread: boolean }>();
+const props = defineProps<{
+  dateLabel: string;
+  today: number;
+  wechatUnread: boolean;
+  witchUnread: boolean;
+  connectivityUnchecked: boolean;
+}>();
 const emit = defineEmits<{ open: [name: string] }>();
 function appNotice(name: string): string {
   if (name === '微信' && props.wechatUnread) return '未读微信消息';
   if (name === '魔女恶堕计划' && props.witchUnread) return '魔女恶堕计划有待办提醒';
+  if (name === '连接诊断' && props.connectivityUnchecked) return '连接诊断尚未检查';
   return '';
 }
 function itemNotice(item: DesktopItem): string {

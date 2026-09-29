@@ -17,6 +17,7 @@ export const apps = [
   { name: '天气', icon: '☀', color: 'linear-gradient(145deg, #68c6ff, #2277e8)' },
   { name: '备忘录', icon: '≡', color: 'linear-gradient(180deg, #ffd95e 22%, #fff 22%)' },
   { name: '设置', icon: '⚙', color: 'linear-gradient(145deg, #a9aeb8, #626976)' },
+  { name: '连接诊断', icon: 'ᯤ', color: 'linear-gradient(145deg, #55b4ff, #2566d5)' },
 ];
 
 export const dockApps = [

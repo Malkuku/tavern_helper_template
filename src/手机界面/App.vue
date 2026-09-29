@@ -89,6 +89,7 @@
                 :today="worldDay"
                 :wechat-unread="statStore.unreadChatKeys.length > 0"
                 :witch-unread="witchNotices.length > 0"
+                :connectivity-unchecked="!connectivityChecked"
                 @open="openDesktopApp"
               />
 
@@ -111,6 +112,12 @@
               />
 
               <MapApp v-else-if="activeApp === '地图'" :key="activeApp" :open-request="mapOpenRequest" />
+
+              <ConnectivityApp
+                v-else-if="activeApp === '连接诊断'"
+                :key="activeApp"
+                @checked="markConnectivityChecked"
+              />
 
               <PhoneExtras
                 v-else-if="['信息', '照片', '相机', '设置', '浏览器', '音乐', '文件'].includes(activeApp)"
@@ -186,6 +193,7 @@ import WitchApp from './apps/witch/WitchApp.vue';
 import PhoneUtilities from './apps/PhoneUtilities.vue';
 import PhoneExtras from './apps/PhoneExtras.vue';
 import MapApp from './apps/map/MapApp.vue';
+import ConnectivityApp from './apps/connectivity/ConnectivityApp.vue';
 import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import WeChatNotification from './components/WeChatNotification.vue';
@@ -202,6 +210,21 @@ import { readPhoneWallpaper } from './wallpaper';
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
 const activeApp = ref<string | null>(null);
+const connectivityChecked = ref(false);
+async function markConnectivityChecked() {
+  if (connectivityChecked.value) return;
+  try {
+    await Promise.resolve(
+      updateVariablesWith(variables => ({ ...variables, magicGirlConnectivityChecked: true }), {
+        type: 'script',
+        script_id: getScriptId(),
+      }),
+    );
+    connectivityChecked.value = true;
+  } catch (error) {
+    console.error('连接诊断检查记录保存失败', error);
+  }
+}
 const roleEditorRef = ref<InstanceType<typeof RoleEditor> | null>(null);
 function leaveRoleEditor() {
   activeApp.value = null;
@@ -463,6 +486,12 @@ function onResize() {
     );
 }
 onMounted(() => {
+  try {
+    connectivityChecked.value =
+      getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlConnectivityChecked === true;
+  } catch (error) {
+    console.error('连接诊断检查记录读取失败', error);
+  }
   hostWindow = launcherButton.value?.ownerDocument.defaultView ?? null;
   hostWindow?.addEventListener('resize', onResize);
 });

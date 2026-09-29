@@ -175,7 +175,8 @@
   color: #fff;
   background: #182342;
 }
-.phone-screen > :is(.home-screen, .app-screen, .wechat-screen, .data-app-screen, .role-editor-screen) {
+.phone-screen
+  > :is(.home-screen, .app-screen, .wechat-screen, .data-app-screen, .role-editor-screen, .connectivity-app) {
   grid-row: 1;
   min-height: 0;
 }
@@ -1066,6 +1067,9 @@ textarea.utility-input {
 .role-editor-screen ~ .home-indicator::after {
   background: #16191f;
 }
+.connectivity-app ~ .home-indicator::after {
+  background: #1e2b3c;
+}
 .phone-screen:has(.app-screen) .home-indicator {
   background: #f5f5f8;
 }
@@ -1080,6 +1084,9 @@ textarea.utility-input {
 }
 .phone-screen:has(.data-app) .home-indicator {
   background: #f5f3f8;
+}
+.phone-screen:has(.connectivity-app) .home-indicator {
+  background: #f3f7fc;
 }
 .phone-screen:has(.control-center) .home-indicator {
   background: #1c2539;
