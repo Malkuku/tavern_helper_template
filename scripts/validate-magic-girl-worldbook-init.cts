@@ -93,6 +93,11 @@ assert.deepEqual(assembled.data.手机.微信.账号.林沐沐.好友, ['user'])
 assert.equal(assembled.data.手机.微信.账号.林沐沐.昵称, '沐沐');
 assert.ok(assembled.data.手机.微信.账号['987'].头像);
 assert.deepEqual(assembled.data.手机.微信.会话, openingDocument.固定数据.手机.微信.会话);
+assert.deepEqual(assembled.data.手机.恶堕奖励.邮件, []);
+assert.equal(assembled.data.手机.定向刷新, null);
+for (const [key, role] of Object.entries(assembled.data.角色.主要角色) as [string, any][]) {
+  assert.equal(assembled.data.手机.恶堕奖励.已奖励等级[`主要角色:${key}`], role.人设阶段.恶堕度.当前等级);
+}
 const emptyWechatOpening = structuredClone(openingDocument);
 emptyWechatOpening.固定数据.手机.微信.账号 = {};
 emptyWechatOpening.固定数据.手机.微信.会话 = {};

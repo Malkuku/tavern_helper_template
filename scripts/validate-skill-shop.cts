@@ -1,4 +1,6 @@
+// eslint-disable-next-line import-x/no-nodejs-modules
 import assert from 'node:assert/strict';
+// eslint-disable-next-line import-x/no-nodejs-modules
 import { readFileSync } from 'node:fs';
 import {
   applySkillRefresh,
@@ -19,7 +21,11 @@ assert.ok(userRoleSchema.safeParse(user.data).success, '初始 user 技能必须
 const opening = JSON.parse(readFileSync(`${resourceRoot}\\唯一开局.json`, 'utf8'));
 assert.ok(initialStatDataSchema.shape.系统.safeParse(opening.固定数据.系统).success, '刷新状态必须符合系统变量契约');
 const generationRule = readFileSync(`${resourceRoot}\\..\\更新规则\\生成技能.ini`, 'utf8');
-assert.match(generationRule, /总贡献 0~39 为 D，40~179 为 C，180~999 为 B，1000~2999 为 A，3000 及以上为 S/);
+assert.match(
+  generationRule,
+  /总贡献 0[~～]39 为 D，40[~～]179 为 C，180[~～]999 为 B，1000[~～]2999 为 A，3000 及以上为 S/,
+);
+assert.ok(generationRule.includes("getvar('stat_data.手机.定向刷新')"), '技能规则读取本次定向偏好');
 
 const icon =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#31204b" d="M2 2h20v20H2z"/></svg>';
@@ -79,13 +85,27 @@ applySkillRefresh(
 );
 assert.equal(extraData.技能商店.新技能一.备注, undefined, '额外字段不写入变量');
 assert.equal(refreshQuote(data).price, 0);
+const directedData = structuredClone(data);
+directedData.手机 = {
+  定向刷新: { 请求ID: 'skill-request', 类型: '技能', 要求: '适合潜行的能力', 普通报价: 0 },
+};
+applySkillRefresh(directedData, result, true);
+assert.equal(directedData.角色.user.恶堕积分, 170, '定向技能刷新加收 30 点');
+assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
+assert.equal(directedData.系统.技能主动刷新次数, 1);
+const changedQuote = structuredClone(data);
+changedQuote.手机 = {
+  定向刷新: { 请求ID: 'skill-request', 类型: '技能', 要求: '适合潜行的能力', 普通报价: 5 },
+};
+assert.throws(() => applySkillRefresh(changedQuote, result, true), /报价已变化/);
+assert.equal(changedQuote.角色.user.恶堕积分, 200, '报价变化不扣费');
 applySkillRefresh(data, result);
 assert.equal(data.角色.user.恶堕积分, 200);
 assert.equal(data.系统.技能主动刷新次数, 1);
 assert.equal(data.系统.技能下次刷新时间, '2026-9-28T00:00[1]');
-assert.equal(refreshQuote(data).price, 20);
+assert.equal(refreshQuote(data).price, 5);
 data.系统.技能主动刷新次数 = 200;
-assert.equal(refreshQuote(data).price, 80, '技能刷新费封顶 80');
+assert.equal(refreshQuote(data).price, 20, '技能普通刷新费封顶 20');
 data.系统.技能主动刷新次数 = 1;
 buySkill(data, '战败收容');
 assert.equal(data.角色.user.技能.战败收容.价格, 25, '升级售价加入累计价格');
@@ -169,7 +189,7 @@ assert.throws(() => applySkillRefresh(data, '<skillVariable>{}</skillVariable>')
 assert.deepEqual(data, before, '无效生成不得部分结算');
 const nextStock = { ...stock, 战败收容: skill(3, 25), 新技能一: skill(2, 20) };
 applySkillRefresh(data, `<skillVariable>${JSON.stringify(nextStock)}</skillVariable>`);
-assert.equal(data.角色.user.恶堕积分, 147, '本周第二次刷新花费 20');
+assert.equal(data.角色.user.恶堕积分, 162, '本周第二次刷新花费 5');
 data.世界.时间 = '2026-9-28T00:00[1]';
 assert.equal(refreshQuote(data).price, 0, '周一报价重置');
 assert.equal(Object.keys(data.技能商店).length, 6, '跨周保留货架');

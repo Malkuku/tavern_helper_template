@@ -6,12 +6,12 @@
         ref="launcherButton"
         class="phone-launcher"
         :class="{
-          'has-unread': statStore.unreadChatKeys.length > 0 || witchNotices.length > 0,
+          'has-unread': statStore.unreadChatKeys.length > 0 || witchNotices.length > 0 || rewardMailUnread,
           'initialization-ready': statStore.initializationNoticePending,
         }"
         type="button"
         :style="launcherStyle"
-        :aria-label="`打开手机界面${statStore.unreadChatKeys.length ? '，有未读微信消息' : ''}${witchNotices.length ? '，魔女恶堕计划有提醒' : ''}，拖拽可移动`"
+        :aria-label="`打开手机界面${statStore.unreadChatKeys.length ? '，有未读微信消息' : ''}${witchNotices.length ? '，魔女恶堕计划有提醒' : ''}${rewardMailUnread ? '，有未读奖励邮件' : ''}，拖拽可移动`"
         @pointerdown="startDrag($event, 'launcher')"
         @pointermove="moveDrag"
         @pointerup="endDrag"
@@ -89,6 +89,7 @@
                 :today="worldDay"
                 :wechat-unread="statStore.unreadChatKeys.length > 0"
                 :witch-unread="witchNotices.length > 0"
+                :message-unread="rewardMailUnread"
                 :connectivity-unchecked="!connectivityChecked"
                 @open="openDesktopApp"
               />
@@ -209,6 +210,7 @@ import { readPhoneWallpaper } from './wallpaper';
 
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
+const rewardMailUnread = computed(() => !!statStore.statData?.手机.恶堕奖励.邮件.some(mail => !mail.已读));
 const activeApp = ref<string | null>(null);
 const connectivityChecked = ref(false);
 async function markConnectivityChecked() {

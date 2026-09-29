@@ -1,5 +1,14 @@
 import type { stat_data } from '../types';
 
+export const DIRECTED_REFRESH_SURCHARGE = 30;
+
+export function directedRefreshPrice(data: stat_data, kind: '技能' | '道具', ordinaryPrice: number): number {
+  const request = data.手机.定向刷新;
+  if (request?.类型 !== kind || !request.要求.trim() || request.普通报价 !== ordinaryPrice)
+    throw new Error(`${kind}定向刷新请求或报价已变化，请重新提交。`);
+  return ordinaryPrice + DIRECTED_REFRESH_SURCHARGE;
+}
+
 const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[[1-7]\]$/;
 
 function parseWorldTime(time: string): Date {
@@ -34,7 +43,7 @@ export function weeklyShopQuote(
   const count = !next || now >= parseWorldTime(next) ? 0 : previousCount;
   if (!Number.isSafeInteger(count) || count < 0 || count === Number.MAX_SAFE_INTEGER)
     throw new Error(`${kind}刷新次数无效。`);
-  const price = kind === '技能' ? (count === 0 ? 0 : Math.min(20 * 2 ** (count - 1), 80)) : count < 3 ? 0 : 5;
+  const price = kind === '技能' ? Math.min(count * 5, 20) : count < 3 ? 0 : 5;
   if (!Number.isSafeInteger(price)) throw new Error(`${kind}刷新价格超出有效范围。`);
   return { next: nextMonday(now), count, price };
 }

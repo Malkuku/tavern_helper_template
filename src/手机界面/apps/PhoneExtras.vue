@@ -2,7 +2,8 @@
   <main class="app-screen utility-screen">
     <h1>{{ app }}</h1>
     <template v-if="app === '信息'">
-      <p>草稿</p>
+      <RewardInbox />
+      <h2 class="message-draft-heading">短信草稿</h2>
       <input v-model="recipient" class="utility-input" placeholder="收件人" aria-label="收件人" />
       <textarea v-model="message" class="utility-input" placeholder="输入内容" aria-label="短信内容"></textarea>
       <button class="utility-action" type="button" @click="saveDraft">保存草稿</button>
@@ -72,6 +73,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue';
 import { useMagicGirlStatStore } from '../store/StatStore';
+import RewardInbox from './RewardInbox.vue';
 import { readPhoneWallpaper, savePhoneWallpaper, uploadPhoneWallpaper } from '../wallpaper';
 
 defineProps<{ app: string }>();

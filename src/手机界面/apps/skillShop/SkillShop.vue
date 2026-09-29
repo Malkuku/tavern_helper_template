@@ -15,6 +15,27 @@
         <button type="button" :disabled="busy || store.skillRefreshing || balance < quote.price" @click="refreshShop">
           {{ store.skillRefreshing ? '生成中…' : `刷新货架 · ${quote.price} 积分` }}
         </button>
+        <div class="directed-refresh">
+          <label for="skill-refresh-wish">想要什么技能？</label>
+          <textarea
+            id="skill-refresh-wish"
+            v-model="preference"
+            placeholder="描述希望出现的能力、用途或风格"
+          ></textarea>
+          <button
+            type="button"
+            :disabled="
+              busy || store.skillRefreshing || !preference.trim() || balance < quote.price + DIRECTED_REFRESH_SURCHARGE
+            "
+            @click="directedRefresh"
+          >
+            按偏好刷新 · {{ quote.price + DIRECTED_REFRESH_SURCHARGE }} 积分
+          </button>
+          <small
+            >普通刷新 {{ quote.price }} 点 + 定向费用
+            {{ DIRECTED_REFRESH_SURCHARGE }} 点；偏好会提高相关内容出现机会，不保证必出。</small
+          >
+        </div>
         <button v-if="store.skillRefreshing" class="cancel-refresh" type="button" @click="store.cancelSkillRefresh()">
           取消等待
         </button>
@@ -116,6 +137,7 @@
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { nextSkillSlotPrice, refreshQuote, skillSlotCount } from './skillShop';
+import { DIRECTED_REFRESH_SURCHARGE } from '../shopRefresh';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import { ratingVisualClass } from '../witch/ratingVisual';
@@ -124,6 +146,7 @@ const store = useMagicGirlStatStore();
 const tab = ref<'shop' | 'owned'>('shop');
 const busy = ref(false);
 const error = ref('');
+const preference = ref('');
 const confirmSale = ref<string | null>(null);
 const expandedName = ref('');
 const balance = computed(() => store.statData?.角色.user.恶堕积分 ?? 0);
@@ -161,6 +184,9 @@ async function run(action: () => Promise<unknown>) {
 }
 function refreshShop() {
   void run(() => store.refreshSkillShop());
+}
+function directedRefresh() {
+  void run(() => store.refreshSkillShop(preference.value));
 }
 function purchase(name: string) {
   void run(() => store.purchaseSkill(name));

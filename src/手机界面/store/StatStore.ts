@@ -54,7 +54,13 @@ import {
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { settleCharacterStages } from './stageProgression';
+import {
+  establishNewRoleRewardBaselines,
+  markCorruptionRewardMailRead,
+  settleCorruptionRewards,
+} from './corruptionRewards';
 import { settleUserRating } from './userRating';
+import { DIRECTED_REFRESH_SURCHARGE } from '../apps/shopRefresh';
 import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
 import {
   applySkillRefresh,
@@ -135,15 +141,19 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const skillRefreshing = ref(false);
   let skillRefreshStartMessageId = -1;
   let skillRefreshStartMessage = '';
+  let skillRefreshRequestId = '';
   const itemRefreshError = ref('');
   const itemRefreshing = ref(false);
   let itemRefreshStartMessageId = -1;
   let itemRefreshStartMessage = '';
+  let itemRefreshRequestId = '';
   const taskRefreshError = ref('');
   const taskRefreshing = ref(false);
   let taskRefreshStartMessageId = -1;
   let taskRefreshStartMessage = '';
   let refreshRequestSerial = 0;
+  let preparingShopRefresh = false;
+  let staleDirectedClearQueued = false;
   const failedGeneratedResult = ref<{ kind: '任务' | '技能' | '道具'; messageId: number; tag: string } | null>(null);
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
@@ -302,9 +312,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.角色) return;
       const data = klona(previous.stat_data) as stat_data;
+      const baselinesChanged = establishNewRoleRewardBaselines(data);
       const stagesChanged = settleCharacterStages(data);
+      const rewardsChanged = settleCorruptionRewards(data);
       const ratingChanged = settleUserRating(data);
-      if (!stagesChanged && !ratingChanged) return;
+      if (!baselinesChanged && !stagesChanged && !rewardsChanged && !ratingChanged) return;
       if (generation !== chatGeneration) return;
       await writeStatData(data, previous);
     })
@@ -364,6 +376,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(data => {
       applyProfileEdit(data, field, value);
     });
+  }
+
+  async function readCorruptionRewardMail(id: string): Promise<void> {
+    await changeCharacterData(data => markCorruptionRewardMailRead(data, id));
   }
 
   async function changeRuntimeMinorRole(key: string, original: 次要角色人设, next: 次要角色人设 | null) {
@@ -428,18 +444,51 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     );
   }
 
-  async function refreshGeneratedShop(kind: '技能' | '道具') {
+  async function clearDirectedRefresh(requestId: string, generation: number) {
+    if (!requestId) return;
+    await queueStatWork(async () => {
+      if (generation !== chatGeneration) return;
+      const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (previous?.stat_data?.手机?.定向刷新?.请求ID !== requestId) return;
+      const data = klona(previous.stat_data) as stat_data;
+      data.手机.定向刷新 = null;
+      await writeStatData(data, previous);
+    });
+  }
+
+  async function refreshGeneratedShop(kind: '技能' | '道具', preference?: string) {
     if (failedGeneratedResult.value) throw new Error('请先清除本楼失败的生成结果。');
-    if (skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
+    if (preparingShopRefresh || skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
+    const requested = preference?.trim() ?? '';
+    if (preference !== undefined && !requested) throw new Error('请先填写希望生成的内容。');
     const generation = chatGeneration;
-    await waitGlobalInitialized('Mvu');
-    if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
-    const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
-    if (!current?.角色?.user || !current.系统) throw new Error('商店变量尚未初始化。');
-    const quote = kind === '技能' ? refreshQuote(current) : itemRefreshQuote(current);
-    if (!Number.isSafeInteger(current.角色.user.恶堕积分) || current.角色.user.恶堕积分 < quote.price)
-      throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
+    const requestId = requested ? crypto.randomUUID() : '';
+    preparingShopRefresh = true;
+    try {
+      await waitGlobalInitialized('Mvu');
+      if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
+      await queueStatWork(async () => {
+        if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
+        const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
+        const current = previous?.stat_data as stat_data | undefined;
+        if (!current?.角色?.user || !current.系统 || !current.手机) throw new Error('商店变量尚未初始化。');
+        const quote = kind === '技能' ? refreshQuote(current) : itemRefreshQuote(current);
+        const price = quote.price + (requested ? DIRECTED_REFRESH_SURCHARGE : 0);
+        if (!Number.isSafeInteger(current.角色.user.恶堕积分) || current.角色.user.恶堕积分 < price)
+          throw new Error(`恶堕积分不足，需要 ${price} 点。`);
+        if (requested || current.手机.定向刷新) {
+          const data = klona(current);
+          data.手机.定向刷新 = requested
+            ? { 请求ID: requestId, 类型: kind, 要求: requested, 普通报价: quote.price }
+            : null;
+          if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
+          await writeStatData(data, previous);
+        }
+      });
+    } finally {
+      preparingShopRefresh = false;
+    }
     if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
     if (skillRefreshing.value || itemRefreshing.value || taskRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
@@ -453,9 +502,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (kind === '技能') {
       skillRefreshStartMessageId = startMessageId;
       skillRefreshStartMessage = startMessage;
+      skillRefreshRequestId = requestId;
     } else {
       itemRefreshStartMessageId = startMessageId;
       itemRefreshStartMessage = startMessage;
+      itemRefreshRequestId = requestId;
     }
     console.info(`[手机${kind}商店生成] 已触发`, { startMessageId, startLength: startMessage.length });
     try {
@@ -464,23 +515,31 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     } catch (error) {
       refreshing.value = false;
       refreshRequestSerial++;
+      try {
+        await clearDirectedRefresh(requestId, generation);
+      } catch (cleanupError) {
+        console.error('定向刷新请求清理失败', cleanupError);
+      }
       refreshError.value = error instanceof Error ? error.message : `${kind}商店刷新事件触发失败。`;
       throw error;
     }
   }
 
-  async function refreshSkillShop() {
-    await refreshGeneratedShop('技能');
+  async function refreshSkillShop(preference?: string) {
+    await refreshGeneratedShop('技能', preference);
   }
 
-  async function refreshItemShop() {
-    await refreshGeneratedShop('道具');
+  async function refreshItemShop(preference?: string) {
+    await refreshGeneratedShop('道具', preference);
   }
 
   function cancelSkillRefresh() {
     if (!skillRefreshing.value) return;
     skillRefreshing.value = false;
     refreshRequestSerial++;
+    void clearDirectedRefresh(skillRefreshRequestId, chatGeneration).catch(error =>
+      console.error('技能定向刷新请求清理失败', error),
+    );
     skillRefreshError.value = '已取消等待；迟到的技能生成结果不会结算。';
   }
 
@@ -488,6 +547,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (!itemRefreshing.value) return;
     itemRefreshing.value = false;
     refreshRequestSerial++;
+    void clearDirectedRefresh(itemRefreshRequestId, chatGeneration).catch(error =>
+      console.error('道具定向刷新请求清理失败', error),
+    );
     itemRefreshError.value = '已取消等待；迟到的道具生成结果不会结算。';
   }
 
@@ -552,7 +614,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function refreshTaskBoard() {
     if (failedGeneratedResult.value) throw new Error('请先清除本楼失败的生成结果。');
-    if (taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
+    if (preparingShopRefresh || taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const generation = chatGeneration;
     await waitGlobalInitialized('Mvu');
@@ -560,7 +622,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
     if (!current?.系统 || !current?.任务 || !current?.任务候选) throw new Error('任务变量尚未初始化。');
     if (!taskRefreshState(current).available) throw new Error('今天的免费任务刷新次数已用完。');
-    if (taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
+    if (preparingShopRefresh || taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const startMessageId = getLastMessageId();
     const startMessage = startMessageId >= 0 ? (getChatMessages(startMessageId)[0]?.message ?? '') : '';
@@ -1018,6 +1080,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
     const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
     const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
+    const directedRequestId = kind === '技能' ? skillRefreshRequestId : itemRefreshRequestId;
     if (!refreshing.value) return;
     const generation = chatGeneration;
     const requestSerial = refreshRequestSerial;
@@ -1050,8 +1113,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.系统 || !previous.stat_data.角色?.user) throw new Error(`${kind}商店变量尚未初始化。`);
       const data = klona(previous.stat_data) as stat_data;
-      if (kind === '技能') applySkillRefresh(data, message.message);
-      else applyItemRefresh(data, message.message);
+      if (directedRequestId && data.手机.定向刷新?.请求ID !== directedRequestId)
+        throw new Error('定向刷新请求已变化，请重新提交。');
+      if (kind === '技能') applySkillRefresh(data, message.message, !!directedRequestId);
+      else applyItemRefresh(data, message.message, !!directedRequestId);
       console.info(`[手机${kind}商店生成] 结果校验通过`, { id });
       if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !refreshing.value) return;
       await writeStatData(data, previous);
@@ -1061,6 +1126,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     }).catch(async error => {
       if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
       refreshing.value = false;
+      void clearDirectedRefresh(directedRequestId, generation).catch(cleanupError =>
+        console.error('定向刷新请求清理失败', cleanupError),
+      );
       const detail = error instanceof Error ? error.message : `${kind}生成结果无效。`;
       refreshError.value = detail;
       if (failedTag) {
@@ -1086,6 +1154,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
     const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
     const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
+    const directedRequestId = kind === '技能' ? skillRefreshRequestId : itemRefreshRequestId;
     if (!refreshing.value) return;
     const requestSerial = refreshRequestSerial;
     setTimeout(() => {
@@ -1105,6 +1174,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         });
         refreshing.value = false;
         refreshError.value = `本次生成没有返回${kind}商店结果`;
+        void clearDirectedRefresh(directedRequestId, chatGeneration).catch(error =>
+          console.error('定向刷新请求清理失败', error),
+        );
       } else {
         scheduleShopResult(kind, id, '生成结束复查');
       }
@@ -1285,6 +1357,21 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           手机: { ...statData.value.手机, 微信: normalizeWeChatIds(statData.value.手机.微信) },
         };
       if (statData.value?.手机?.微信) syncWeChatNotifications(previousWechat, statData.value.手机.微信);
+      const staleRequestId = statData.value?.手机?.定向刷新?.请求ID;
+      if (
+        staleRequestId &&
+        !preparingShopRefresh &&
+        !skillRefreshing.value &&
+        !itemRefreshing.value &&
+        !staleDirectedClearQueued
+      ) {
+        staleDirectedClearQueued = true;
+        void clearDirectedRefresh(staleRequestId, chatGeneration)
+          .catch(error => console.error('遗留定向刷新请求清理失败', error))
+          .finally(() => {
+            staleDirectedClearQueued = false;
+          });
+      }
       if (statData.value?.手机?.微信?.账号?.user?.表情包) scheduleStickerSync();
       if (statData.value?.角色) scheduleStageSettlement();
       if (statData.value && pollingTimer) {
@@ -1443,6 +1530,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     replace,
     update,
     saveProfileField,
+    readCorruptionRewardMail,
     changeRuntimeMinorRole,
     unlockCharacterInfo,
     chooseFirstTarget,

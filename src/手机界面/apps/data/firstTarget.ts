@@ -107,7 +107,7 @@ export function assignFirstTarget(data: stat_data, key: string): void {
     目标: choice.quest.goal,
     当前进度: '进行中',
     评级: 'D',
-    奖励: 5,
+    奖励: 10,
     已完成: false,
   };
   data.角色.user.物品[choice.item.name] = nextItem;

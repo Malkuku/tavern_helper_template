@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { stat_data, 物品 } from '../../types';
 import { itemSchema } from '../../store/initialDataSchema';
 import { inventoryOf, mergeItemStack, sameItemSpec, type InventorySide } from '../data/inventoryTransfer';
-import { weeklyShopQuote } from '../shopRefresh';
+import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
 
@@ -63,7 +63,7 @@ export function parseItemResult(message: string, data: stat_data): Record<string
   return parsed.data;
 }
 
-export function applyItemRefresh(data: stat_data, message: string): void {
+export function applyItemRefresh(data: stat_data, message: string, directed = false): void {
   let shop: Record<string, 物品>;
   try {
     shop = parseItemResult(message, data);
@@ -71,13 +71,14 @@ export function applyItemRefresh(data: stat_data, message: string): void {
     throw new InvalidGeneratedResultError(error);
   }
   const quote = itemRefreshQuote(data);
+  const price = directed ? directedRefreshPrice(data, '道具', quote.price) : quote.price;
   const balance = data.角色.user.恶堕积分;
-  if (!Number.isSafeInteger(balance) || balance < quote.price)
-    throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
+  if (!Number.isSafeInteger(balance) || balance < price) throw new Error(`恶堕积分不足，需要 ${price} 点。`);
   data.商店 = shop;
-  data.角色.user.恶堕积分 -= quote.price;
+  data.角色.user.恶堕积分 -= price;
   data.系统.商店下次刷新时间 = quote.next;
   data.系统.商店主动刷新次数 = quote.count + 1;
+  if (directed) data.手机.定向刷新 = null;
 }
 
 export function buyItem(data: stat_data, name: string, quantity: number): void {

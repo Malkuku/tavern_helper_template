@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { 可购技能, stat_data } from '../../types';
 import { skillSchema } from '../../store/initialDataSchema';
-import { weeklyShopQuote } from '../shopRefresh';
+import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { userRatingFromSkills } from '../../store/userRating';
 import { InvalidGeneratedResultError, latestGeneratedPayload } from '../generationResult';
@@ -84,7 +84,7 @@ export function parseSkillResult(message: string): Record<string, 可购技能> 
   return parsed.data;
 }
 
-export function applySkillRefresh(data: stat_data, message: string): void {
+export function applySkillRefresh(data: stat_data, message: string, directed = false): void {
   let shop: Record<string, 可购技能>;
   try {
     shop = parseSkillResult(message);
@@ -92,12 +92,14 @@ export function applySkillRefresh(data: stat_data, message: string): void {
     throw new InvalidGeneratedResultError(error);
   }
   const quote = refreshQuote(data);
-  if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < quote.price)
-    throw new Error(`恶堕积分不足，需要 ${quote.price} 点。`);
+  const price = directed ? directedRefreshPrice(data, '技能', quote.price) : quote.price;
+  if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < price)
+    throw new Error(`恶堕积分不足，需要 ${price} 点。`);
   data.技能商店 = shop;
-  data.角色.user.恶堕积分 -= quote.price;
+  data.角色.user.恶堕积分 -= price;
   data.系统.技能下次刷新时间 = quote.next;
   data.系统.技能主动刷新次数 = quote.count + 1;
+  if (directed) data.手机.定向刷新 = null;
 }
 
 export function buySkill(data: stat_data, name: string): void {

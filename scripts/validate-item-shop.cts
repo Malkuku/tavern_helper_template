@@ -24,6 +24,7 @@ const item = (price: number, quantity: number, durability = 1) => ({
   耐久: durability,
 });
 const rule = readFileSync('O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕\\更新规则\\生成商店道具.ini', 'utf8');
+assert.ok(rule.includes("getvar('stat_data.手机.定向刷新')"), '道具规则读取本次定向偏好');
 const example = /<shopVariable>\s*(\{[\s\S]*?\})\s*<\/shopVariable>/.exec(rule);
 assert.ok(example, '生成规则必须提供 shopVariable 示例');
 assert.equal(
@@ -46,6 +47,17 @@ delete stock.道具0;
 const message = `<shopVariable>${JSON.stringify(stock)}</shopVariable>`;
 assert.equal(initialStatDataSchema.shape.商店.safeParse({ 道具: item(3, 1) }).success, true);
 assert.equal(itemRefreshQuote(data).price, 0, '每周首次刷新免费');
+const directedData = structuredClone(data);
+directedData.手机 = {
+  定向刷新: { 请求ID: 'item-request', 类型: '道具', 要求: '适合调查的工具', 普通报价: 0 },
+};
+applyItemRefresh(
+  directedData,
+  `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
+  true,
+);
+assert.equal(directedData.角色.user.恶堕积分, 170, '定向道具刷新加收 30 点');
+assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
 const parsed = parseItemResult(message, data);
 assert.equal(Object.keys(parsed).length, 9);
 assert.equal(parsed.旧扣.价格, 3, '同名道具保持旧规格');

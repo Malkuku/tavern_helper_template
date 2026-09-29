@@ -172,6 +172,28 @@ export const initialStatDataSchema = z.strictObject({
     技能主动刷新次数: number,
   }),
   手机: z.strictObject({
+    定向刷新: z
+      .strictObject({
+        请求ID: z.string().min(1),
+        类型: z.enum(['技能', '道具']),
+        要求: z.string().trim().min(1),
+        普通报价: z.number().int().nonnegative().safe(),
+      })
+      .nullable(),
+    恶堕奖励: z.strictObject({
+      已奖励等级: z.record(z.string(), z.number().int().safe()),
+      邮件: z.array(
+        z.strictObject({
+          id: z.string(),
+          角色: z.string(),
+          评级: z.enum(['D', 'C', 'B', 'A', 'S']),
+          等级: z.number().int().min(1).max(6),
+          积分: z.number().int().positive().safe(),
+          时间: z.string(),
+          已读: z.boolean(),
+        }),
+      ),
+    }),
     档案解锁: z
       .strictObject({
         主要角色: z.record(z.string(), z.array(z.string())).optional(),

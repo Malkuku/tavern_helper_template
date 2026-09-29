@@ -319,6 +319,21 @@ export interface 微信数据 {
 
 export interface 手机数据 {
   微信: 微信数据;
+  /** 本次商店生成临时委托；成功、失败或取消后清除。 */
+  定向刷新: { 请求ID: string; 类型: '技能' | '道具'; 要求: string; 普通报价: number } | null;
+  /** 恶堕晋级奖励的发放水位与组织邮件。 */
+  恶堕奖励: {
+    已奖励等级: Record<string, number>;
+    邮件: {
+      id: string;
+      角色: string;
+      评级: 'D' | 'C' | 'B' | 'A' | 'S';
+      等级: number;
+      积分: number;
+      时间: string;
+      已读: boolean;
+    }[];
+  };
   /** 已用恶堕积分解锁的档案字段，按角色类型和实际 key 分开存储。 */
   档案解锁?: {
     主要角色?: Record<string, string[]>;

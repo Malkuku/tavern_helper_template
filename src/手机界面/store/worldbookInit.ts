@@ -125,6 +125,17 @@ export function reconcileWorldbookStatData(
   };
   const startWeek = taskWeekKey((data.世界 as { 时间: string }).时间);
   data.任务统计 = { 开始周: startWeek, 本周: emptyTaskWeek(startWeek), 上周: null };
+  const rewardLevels: Record<string, number> = {};
+  for (const kind of ['主要角色', '次要角色'] as const) {
+    for (const [key, rawRole] of Object.entries(roles[kind] as JsonRecord)) {
+      const stage = isRecord(rawRole) && isRecord(rawRole.人设阶段) && rawRole.人设阶段.恶堕度;
+      if (!isRecord(stage) || !Number.isSafeInteger(stage.当前等级))
+        throw new Error(`唯一开局角色 ${kind}.${key} 缺少有效恶堕等级。`);
+      rewardLevels[`${kind}:${key}`] = stage.当前等级 as number;
+    }
+  }
+  (data.手机 as JsonRecord).恶堕奖励 = { 已奖励等级: rewardLevels, 邮件: [] };
+  (data.手机 as JsonRecord).定向刷新 = null;
   completeWechatAccounts(data);
   const parsed = initialStatDataSchema.safeParse(data);
   if (!parsed.success) throw new Error(`唯一开局组装结果不符合手机变量契约：${z.prettifyError(parsed.error)}`);

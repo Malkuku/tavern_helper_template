@@ -12,6 +12,27 @@
         >
           {{ store.itemRefreshing ? '生成中…' : quote.error ? '刷新货架' : `刷新货架 · ${quote.price} 积分` }}
         </button>
+        <div class="directed-refresh">
+          <label for="item-refresh-wish">想要什么道具？</label>
+          <textarea id="item-refresh-wish" v-model="preference" placeholder="描述希望出现的道具、用途或效果"></textarea>
+          <button
+            type="button"
+            :disabled="
+              busy ||
+              store.itemRefreshing ||
+              !!quote.error ||
+              !preference.trim() ||
+              balance < quote.price + DIRECTED_REFRESH_SURCHARGE
+            "
+            @click="run(() => store.refreshItemShop(preference))"
+          >
+            按偏好刷新 · {{ quote.price + DIRECTED_REFRESH_SURCHARGE }} 积分
+          </button>
+          <small
+            >普通刷新 {{ quote.price }} 点 + 定向费用
+            {{ DIRECTED_REFRESH_SURCHARGE }} 点；偏好会提高相关内容出现机会，不保证必出。</small
+          >
+        </div>
         <button v-if="store.itemRefreshing" type="button" @click="store.cancelItemRefresh()">取消等待</button>
         <RefreshFeedback v-if="store.itemRefreshing" label="正在更新道具货架" />
         <p v-if="quote.error" class="item-shop-error">{{ quote.error }}</p>
@@ -124,6 +145,7 @@
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { itemRefreshQuote } from './itemShop';
+import { DIRECTED_REFRESH_SURCHARGE } from '../shopRefresh';
 import type { InventorySide } from '../data/inventoryTransfer';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
@@ -134,6 +156,7 @@ const sides: InventorySide[] = ['随身物品', '仓库'];
 const saleSide = ref<InventorySide>('随身物品');
 const busy = ref(false);
 const error = ref('');
+const preference = ref('');
 const confirmSale = ref<string | null>(null);
 const expandedName = ref('');
 const quantities = ref<Record<string, number>>({});
