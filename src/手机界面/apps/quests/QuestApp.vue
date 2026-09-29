@@ -31,50 +31,63 @@
 
       <div v-if="tab === 'board'" class="list">
         <p v-if="!boardEntries.length" class="empty">暂无候选任务。点击免费刷新获取任务。</p>
-        <article v-for="[name, task] in boardEntries" :key="name" class="card" :class="ratingVisualClass(task.评级)">
-          <div class="heading">
-            <strong>{{ name }}</strong
-            ><span class="witch-grade-label">{{ task.评级 }} 级</span>
-          </div>
-          <p>{{ task.描述 }}</p>
-          <div class="goal">目标：{{ task.目标 }}</div>
-          <small>奖励 {{ task.奖励 }} 恶堕积分</small>
-          <button
-            type="button"
-            :disabled="busy || activeEntries.length >= 4"
-            @click="run(() => store.acceptTask(name))"
-          >
-            接取任务
-          </button>
-        </article>
+        <QuestCard v-for="[name, task] in boardEntries" :key="name" :name="name" :task="task" :accepted="false">
+          <template #actions>
+            <button
+              type="button"
+              class="quest-card-action"
+              :disabled="busy || activeEntries.length >= 4"
+              @click="run(() => store.acceptTask(name))"
+            >
+              接取任务
+            </button>
+          </template>
+        </QuestCard>
       </div>
 
       <div v-else-if="tab === 'active'" class="list">
         <p v-if="!activeEntries.length" class="empty">目前没有已接任务。</p>
-        <article v-for="[name, task] in activeEntries" :key="name" class="card" :class="ratingVisualClass(task.评级)">
-          <div class="heading">
-            <strong>{{ name }}</strong
-            ><span class="witch-grade-label">{{ task.评级 }} 级</span>
-          </div>
-          <p>{{ task.描述 }}</p>
-          <div class="goal">目标：{{ task.目标 }}</div>
-          <div class="progress">{{ task.已完成 ? '已完成 · 待领奖' : task.当前进度 }}</div>
-          <small>奖励 {{ task.奖励 }} 恶堕积分</small>
-          <button v-if="task.已完成" type="button" :disabled="busy" @click="run(() => store.claimTask(name))">
-            领取奖励
-          </button>
-          <template v-else>
-            <button v-if="confirmAbandon === name" type="button" class="danger" :disabled="busy" @click="abandon(name)">
-              确认放弃
+        <QuestCard v-for="[name, task] in activeEntries" :key="name" :name="name" :task="task" :accepted="true">
+          <template #actions>
+            <button
+              v-if="task.已完成"
+              type="button"
+              class="quest-card-action"
+              :disabled="busy"
+              @click="run(() => store.claimTask(name))"
+            >
+              领取奖励
             </button>
-            <button v-else type="button" class="secondary" :disabled="busy" @click="confirmAbandon = name">
-              放弃任务
-            </button>
-            <button v-if="confirmAbandon === name" type="button" class="text-button" @click="confirmAbandon = null">
-              取消
-            </button>
+            <template v-else>
+              <button
+                v-if="confirmAbandon === name"
+                type="button"
+                class="quest-card-action danger"
+                :disabled="busy"
+                @click="abandon(name)"
+              >
+                确认放弃
+              </button>
+              <button
+                v-else
+                type="button"
+                class="quest-card-action secondary"
+                :disabled="busy"
+                @click="confirmAbandon = name"
+              >
+                放弃任务
+              </button>
+              <button
+                v-if="confirmAbandon === name"
+                type="button"
+                class="quest-card-action text-button"
+                @click="confirmAbandon = null"
+              >
+                取消
+              </button>
+            </template>
           </template>
-        </article>
+        </QuestCard>
       </div>
 
       <div v-else class="list">
@@ -102,7 +115,7 @@ import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskRefreshState, taskWeekStats, type 任务评级 } from './quests';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
-import { ratingVisualClass } from '../witch/ratingVisual';
+import QuestCard from './QuestCard.vue';
 
 const store = useMagicGirlStatStore();
 const tab = ref<'board' | 'active' | 'stats'>(Object.keys(store.statData?.任务 ?? {}).length ? 'active' : 'board');

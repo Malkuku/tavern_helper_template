@@ -900,36 +900,36 @@
   color: var(--witch-text);
   box-shadow: 0 8px 22px #08050b35;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-d,
+.witch-app .skill-shop .shop-card.witch-grade-d,
 .witch-app .witch-focus-card.witch-grade-d {
   --grade-color: #aab5c6;
   --grade-glow: #aab5c630;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-c,
+.witch-app .skill-shop .shop-card.witch-grade-c,
 .witch-app .witch-focus-card.witch-grade-c {
   --grade-color: #75cbb2;
   --grade-glow: #55b99b42;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-b,
+.witch-app .skill-shop .shop-card.witch-grade-b,
 .witch-app .witch-focus-card.witch-grade-b {
   --grade-color: #79bfff;
   --grade-glow: #4b9df254;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-a,
+.witch-app .skill-shop .shop-card.witch-grade-a,
 .witch-app .witch-focus-card.witch-grade-a {
   --grade-color: #f2c878;
   --grade-glow: #e6ae5266;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s,
+.witch-app .skill-shop .shop-card.witch-grade-s,
 .witch-app .witch-focus-card.witch-grade-s {
   --grade-color: #f6a4ed;
   --grade-glow: #db6ddb80;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-d,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-c,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-b,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-a,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s,
+.witch-app .skill-shop .shop-card.witch-grade-d,
+.witch-app .skill-shop .shop-card.witch-grade-c,
+.witch-app .skill-shop .shop-card.witch-grade-b,
+.witch-app .skill-shop .shop-card.witch-grade-a,
+.witch-app .skill-shop .shop-card.witch-grade-s,
 .witch-app .witch-focus-card[class*='witch-grade-'] {
   position: relative;
   border-color: var(--grade-color);
@@ -938,8 +938,8 @@
     0 0 17px var(--grade-glow),
     inset 0 0 0 1px var(--grade-glow);
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-a::before,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s::before,
+.witch-app .skill-shop .shop-card.witch-grade-a::before,
+.witch-app .skill-shop .shop-card.witch-grade-s::before,
 .witch-app .witch-focus-card:is(.witch-grade-a, .witch-grade-s)::before {
   position: absolute;
   inset: 0;
@@ -952,7 +952,7 @@
   pointer-events: none;
   animation: witch-grade-glow 3.6s ease-in-out infinite;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s::before,
+.witch-app .skill-shop .shop-card.witch-grade-s::before,
 .witch-app .witch-focus-card.witch-grade-s::before {
   animation-duration: 2.5s;
 }
@@ -1584,7 +1584,7 @@
   min-width: 0;
 }
 .witch-app .profile-overview-heading > div:first-child > span,
-.witch-app .profile-rank span {
+.witch-app .profile-rank > span {
   color: #e8a4c0;
   font-size: 10px;
 }
@@ -1631,45 +1631,13 @@
   border-radius: 11px;
   background: #ffffff0e;
 }
-.witch-app .profile-rank strong {
-  font-size: 19px;
-}
-.witch-app .profile-rank-emblem {
-  position: relative;
-  display: grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  color: #eda1c5;
-  filter: drop-shadow(0 0 8px #d85b9455);
-}
-.witch-app .profile-rank-emblem svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.witch-app .profile-rank-emblem strong {
-  position: relative;
-  padding-top: 12px;
-  color: #fff2f8;
-  font-size: 21px;
-  text-shadow: 0 1px 5px #3d122d;
-}
-.witch-app .profile-rank-emblem[data-rank='S'] {
-  color: #f5c978;
-}
-.witch-app .profile-rank-emblem[data-rank='A'] {
-  color: #ef9bc4;
-}
-.witch-app .profile-rank-emblem[data-rank='B'] {
-  color: #bca5ef;
-}
-.witch-app .profile-rank-emblem[data-rank='C'] {
-  color: #9dc9d1;
-}
-.witch-app .profile-rank-emblem[data-rank='D'] {
-  color: #a9aeb8;
+.witch-app .rating-emblem {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--rating-color) !important;
+  -webkit-text-fill-color: var(--rating-color) !important;
 }
 .witch-app .profile-rank small {
   color: #d5b8ca;

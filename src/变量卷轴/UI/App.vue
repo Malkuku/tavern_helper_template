@@ -105,6 +105,15 @@
       >
         道具 <span v-if="items.length" class="tab-count">{{ items.length }}</span>
       </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'quests'"
+        :class="{ active: activeTab === 'quests' }"
+        @click="activeTab = 'quests'"
+      >
+        任务 <span v-if="quests.length" class="tab-count">{{ quests.length }}</span>
+      </button>
     </div>
 
     <!-- 内容区域 -->
@@ -161,6 +170,25 @@
         <div v-if="inputNotice" class="ac-notice" role="status">{{ inputNotice }}</div>
       </template>
 
+      <template v-else-if="activeTab === 'quests'">
+        <div v-if="quests.length === 0" class="ac-empty"><span>暂无已接任务</span></div>
+        <div v-else class="ac-options ac-asset-list">
+          <QuestCard
+            v-for="[questName, task] in quests"
+            :key="questName"
+            :name="questName"
+            :task="task"
+            :accepted="true"
+          >
+            <template v-if="!task.已完成" #actions>
+              <button type="button" class="quest-card-action" @click="prepareQuest(questName)">推进任务</button>
+            </template>
+          </QuestCard>
+        </div>
+        <div v-if="inputError" class="ac-error" role="alert">{{ inputError }}</div>
+        <div v-if="inputNotice" class="ac-notice" role="status">{{ inputNotice }}</div>
+      </template>
+
       <div v-else-if="parsedLogs.length === 0" class="ac-empty">
         <span>暂无变量记录</span>
         <div class="sub-text">当前楼层没有检测到变量变更</div>
@@ -191,8 +219,8 @@
     <!-- 底部装饰 -->
     <div class="ac-footer">
       <span
-        >选项 {{ options.length }} · 变量 {{ parsedLogs.length }} · 技能 {{ skills.length }} · 道具
-        {{ items.length }}</span
+        >选项 {{ options.length }} · 变量 {{ parsedLogs.length }} · 技能 {{ skills.length }} · 道具 {{ items.length }} ·
+        任务 {{ quests.length }}</span
       >
       <button
         class="resize-handle-icon"
@@ -216,9 +244,10 @@ import { useUiStore } from '@/变量卷轴/UI/store/UIStore';
 import { useMessageStore } from '@/变量卷轴/UI/store/MessageStore';
 import { parseVariableLogs, type VariableLog } from '@/Utils/VariableLogParser';
 import { parseMessageOptions } from './optionParser';
-import type { 技能, 物品, stat_data } from '@/手机界面/types';
+import type { 技能, 物品, 任务, stat_data } from '@/手机界面/types';
 import OwnedAssetCard from '@/手机界面/apps/data/OwnedAssetCard.vue';
-import { buildUsePrompt } from './usePrompt';
+import QuestCard from '@/手机界面/apps/quests/QuestCard.vue';
+import { buildQuestPrompt, buildUsePrompt } from './usePrompt';
 
 const uiStore = useUiStore();
 const messageStore = useMessageStore();
@@ -228,7 +257,8 @@ const parsedLogs = ref<VariableLog[]>([]);
 const options = computed(() => parseMessageOptions(messageStore.message));
 const skills = computed(() => Object.entries(messageStore.statData?.角色?.user?.技能 ?? {}) as [string, 技能][]);
 const items = computed(() => Object.entries(messageStore.statData?.角色?.user?.物品 ?? {}) as [string, 物品][]);
-const activeTab = ref<'options' | 'variables' | 'skills' | 'items'>('options');
+const quests = computed(() => Object.entries(messageStore.statData?.任务 ?? {}) as [string, 任务][]);
+const activeTab = ref<'options' | 'variables' | 'skills' | 'items' | 'quests'>('options');
 const selectedOption = ref<number | null>(null);
 const inputError = ref('');
 const inputNotice = ref('');
@@ -312,7 +342,7 @@ function selectEntry(name: string) {
   inputNotice.value = '';
 }
 
-async function prepareUse(name: string) {
+async function prepareDraft(buildPrompt: (data: stat_data | undefined) => string, notice: string) {
   inputError.value = '';
   inputNotice.value = '';
   if (messageStore.messageId !== getLastMessageId()) {
@@ -323,16 +353,27 @@ async function prepareUse(name: string) {
   }
   try {
     const data = getVariables({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
-    const prompt = buildUsePrompt(data, activeTab.value === 'skills' ? 'skills' : 'items', name, useQuantity.value);
+    const prompt = buildPrompt(data);
     const input = window.parent.document.querySelector<HTMLTextAreaElement>('#send_textarea');
     if (!input) throw new Error('未找到酒馆聊天输入框。');
     input.value += `${input.value && !input.value.endsWith('\n') ? '\n' : ''}${prompt}`;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
-    inputNotice.value = '使用意图已填入聊天输入框；发送后由剧情处理实际效果。';
+    inputNotice.value = notice;
   } catch (error) {
     inputError.value = error instanceof Error ? error.message : '填写聊天输入框失败。';
   }
+}
+
+function prepareUse(name: string) {
+  void prepareDraft(
+    data => buildUsePrompt(data, activeTab.value === 'skills' ? 'skills' : 'items', name, useQuantity.value),
+    '使用意图已填入聊天输入框；发送后由剧情处理实际效果。',
+  );
+}
+
+function prepareQuest(name: string) {
+  void prepareDraft(data => buildQuestPrompt(data, name), '任务推进意图已填入聊天输入框；发送后由剧情处理进度。');
 }
 
 const formatType = (type: string) => {
@@ -1010,6 +1051,11 @@ const JsonNode = defineComponent({
   align-items: center;
   background: #211427;
   user-select: none;
+}
+
+.ac-footer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .resize-handle-icon {

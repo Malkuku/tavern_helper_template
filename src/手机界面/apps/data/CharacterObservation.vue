@@ -142,7 +142,7 @@
         </section>
         <section class="data-card">
           <h3>当前评级</h3>
-          <p class="data-prose">{{ selectedMinor.当前评级 || '未记录' }}</p>
+          <RatingEmblem :rating="selectedMinor.当前评级" />
         </section>
         <section class="data-card">
           <h3>背景</h3>
@@ -236,7 +236,7 @@
         </section>
         <section class="data-card">
           <h3>当前评级</h3>
-          <p class="data-prose">{{ selectedMain.当前评级 || '未记录' }}</p>
+          <RatingEmblem :rating="selectedMain.当前评级" />
         </section>
         <section class="data-card">
           <h3>整体印象</h3>
@@ -341,6 +341,7 @@ import { firstTargetChoices } from './firstTarget';
 import { visibleObservationTargets } from './observationTargets';
 import CharacterPortrait from './CharacterPortrait.vue';
 import LockedField from './LockedField.vue';
+import RatingEmblem from './RatingEmblem.vue';
 
 const props = defineProps<{ data: stat_data; targetKey?: string | null }>();
 const emit = defineEmits<{ firstTargetChosen: [] }>();
