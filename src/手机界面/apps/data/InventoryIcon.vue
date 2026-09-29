@@ -41,3 +41,48 @@ const markup = computed(() => {
   }
 });
 </script>
+
+<style scoped>
+.inventory-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border: 1px solid #8c5072;
+  border-radius: 11px;
+  background: #3b2036;
+  color: #f9b6d1;
+}
+.inventory-icon-skill {
+  border-color: #aa75c5;
+  background: #392445;
+  color: #d8aeef;
+}
+.inventory-icon-item {
+  border-color: #bc8b68;
+  background: #3d2b2c;
+  color: #f0c097;
+}
+.inventory-icon-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.inventory-icon-glyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+}
+.inventory-icon-glyph :deep(svg) {
+  display: block;
+  width: 27px;
+  height: 27px;
+}
+</style>

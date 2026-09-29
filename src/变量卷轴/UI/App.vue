@@ -87,6 +87,24 @@
       >
         变量记录 <span v-if="parsedLogs.length" class="tab-count">{{ parsedLogs.length }}</span>
       </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'skills'"
+        :class="{ active: activeTab === 'skills' }"
+        @click="activeTab = 'skills'"
+      >
+        技能 <span v-if="skills.length" class="tab-count">{{ skills.length }}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'items'"
+        :class="{ active: activeTab === 'items' }"
+        @click="activeTab = 'items'"
+      >
+        道具 <span v-if="items.length" class="tab-count">{{ items.length }}</span>
+      </button>
     </div>
 
     <!-- 内容区域 -->
@@ -113,6 +131,34 @@
           </button>
         </div>
         <div v-if="inputError" class="ac-error" role="alert">{{ inputError }}</div>
+      </template>
+
+      <template v-else-if="activeTab === 'skills' || activeTab === 'items'">
+        <div v-if="(activeTab === 'skills' ? skills : items).length === 0" class="ac-empty">
+          <span>暂无{{ activeTab === 'skills' ? '技能' : '随身道具' }}</span>
+        </div>
+        <div v-else class="ac-options ac-asset-list">
+          <OwnedAssetCard
+            v-for="[entryName, entry] in activeTab === 'skills' ? skills : items"
+            :key="entryName"
+            :name="entryName"
+            :entry="entry"
+            :kind="activeTab === 'skills' ? '技能' : '道具'"
+            :expanded="expandedName === entryName"
+            @toggle="selectEntry(entryName)"
+          >
+            <template #actions>
+              <label v-if="isItem(entry)" class="ac-use-quantity">
+                使用数量 <input v-model.number="useQuantity" type="number" min="1" :max="entry.数量" step="1" />
+              </label>
+              <button type="button" class="asset-use-button" @click="prepareUse(entryName)">
+                使用{{ isItem(entry) ? '道具' : '技能' }}
+              </button>
+            </template>
+          </OwnedAssetCard>
+        </div>
+        <div v-if="inputError" class="ac-error" role="alert">{{ inputError }}</div>
+        <div v-if="inputNotice" class="ac-notice" role="status">{{ inputNotice }}</div>
       </template>
 
       <div v-else-if="parsedLogs.length === 0" class="ac-empty">
@@ -144,7 +190,10 @@
 
     <!-- 底部装饰 -->
     <div class="ac-footer">
-      <span>命运选项 {{ options.length }} · 变量记录 {{ parsedLogs.length }}</span>
+      <span
+        >选项 {{ options.length }} · 变量 {{ parsedLogs.length }} · 技能 {{ skills.length }} · 道具
+        {{ items.length }}</span
+      >
       <button
         class="resize-handle-icon"
         type="button"
@@ -162,11 +211,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, defineComponent, computed, onMounted, onUnmounted, watch, reactive } from 'vue';
+import { ref, h, defineComponent, computed, nextTick, onMounted, onUnmounted, watch, reactive } from 'vue';
 import { useUiStore } from '@/变量卷轴/UI/store/UIStore';
 import { useMessageStore } from '@/变量卷轴/UI/store/MessageStore';
 import { parseVariableLogs, type VariableLog } from '@/Utils/VariableLogParser';
 import { parseMessageOptions } from './optionParser';
+import type { 技能, 物品, stat_data } from '@/手机界面/types';
+import OwnedAssetCard from '@/手机界面/apps/data/OwnedAssetCard.vue';
+import { buildUsePrompt } from './usePrompt';
 
 const uiStore = useUiStore();
 const messageStore = useMessageStore();
@@ -174,9 +226,15 @@ const messageStore = useMessageStore();
 const draggableBtn = ref<HTMLElement | null>(null);
 const parsedLogs = ref<VariableLog[]>([]);
 const options = computed(() => parseMessageOptions(messageStore.message));
-const activeTab = ref<'options' | 'variables'>('options');
+const skills = computed(() => Object.entries(messageStore.statData?.角色?.user?.技能 ?? {}) as [string, 技能][]);
+const items = computed(() => Object.entries(messageStore.statData?.角色?.user?.物品 ?? {}) as [string, 物品][]);
+const activeTab = ref<'options' | 'variables' | 'skills' | 'items'>('options');
 const selectedOption = ref<number | null>(null);
 const inputError = ref('');
+const inputNotice = ref('');
+const expandedName = ref('');
+const useQuantity = ref(1);
+const isItem = (entry: 技能 | 物品): entry is 物品 => '数量' in entry;
 const isDragging = ref(false);
 
 // 新增：是否有新数据（控制特效）
@@ -246,6 +304,36 @@ const appendOption = (option: string, index: number) => {
     inputError.value = '填入选项失败，请检查酒馆输入框。';
   }
 };
+
+function selectEntry(name: string) {
+  expandedName.value = expandedName.value === name ? '' : name;
+  useQuantity.value = 1;
+  inputError.value = '';
+  inputNotice.value = '';
+}
+
+async function prepareUse(name: string) {
+  inputError.value = '';
+  inputNotice.value = '';
+  if (messageStore.messageId !== getLastMessageId()) {
+    messageStore.getMessage();
+    await nextTick();
+    inputError.value = '当前楼层已变化，请重新选择。';
+    return;
+  }
+  try {
+    const data = getVariables({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
+    const prompt = buildUsePrompt(data, activeTab.value === 'skills' ? 'skills' : 'items', name, useQuantity.value);
+    const input = window.parent.document.querySelector<HTMLTextAreaElement>('#send_textarea');
+    if (!input) throw new Error('未找到酒馆聊天输入框。');
+    input.value += `${input.value && !input.value.endsWith('\n') ? '\n' : ''}${prompt}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    inputNotice.value = '使用意图已填入聊天输入框；发送后由剧情处理实际效果。';
+  } catch (error) {
+    inputError.value = error instanceof Error ? error.message : '填写聊天输入框失败。';
+  }
+}
 
 const formatType = (type: string) => {
   const map: Record<string, string> = {
@@ -363,6 +451,22 @@ watch([() => messageStore.message, () => messageStore.messageId], () => {
   parseMessageContent();
   selectedOption.value = null;
   inputError.value = '';
+});
+
+watch(
+  () => messageStore.statData,
+  () => {
+    expandedName.value = '';
+    useQuantity.value = 1;
+    inputError.value = '';
+    inputNotice.value = '';
+  },
+);
+
+watch(activeTab, () => {
+  expandedName.value = '';
+  inputError.value = '';
+  inputNotice.value = '';
 });
 
 onMounted(() => {
@@ -557,12 +661,14 @@ const JsonNode = defineComponent({
 
 .ac-tabs {
   display: flex;
+  overflow-x: auto;
   gap: 6px;
   padding: 6px 10px 0;
   border-bottom: 1px solid #9c55758c;
 }
 
 .ac-tabs button {
+  flex: 0 0 auto;
   padding: 6px 10px;
   border: 1px solid transparent;
   border-radius: 9px 9px 0 0;
@@ -591,6 +697,10 @@ const JsonNode = defineComponent({
   gap: 8px;
 }
 
+.ac-asset-list {
+  gap: 11px;
+}
+
 .ac-option {
   display: flex;
   align-items: center;
@@ -610,6 +720,27 @@ const JsonNode = defineComponent({
 .ac-option.selected {
   border-color: #e987b4;
   background: linear-gradient(105deg, #643052, #382039 70%);
+}
+
+.ac-use-quantity {
+  color: #e0cfda;
+  font-size: 11px;
+}
+
+.ac-use-quantity input {
+  width: 62px;
+  margin-left: 6px;
+  padding: 3px 5px;
+  border: 1px solid #68405d;
+  border-radius: 10px;
+  background: #211826;
+  color: #f8eef4;
+}
+
+.ac-notice {
+  position: relative;
+  color: #b9ddbb;
+  font: 11px/1.5 var(--font-tech);
 }
 
 .option-index {

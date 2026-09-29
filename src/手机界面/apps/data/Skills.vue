@@ -5,37 +5,15 @@
     <p>当前持有的完整技能效果 · 技能栏位 {{ skillEntries.length }} / {{ slots }}</p>
   </div>
   <div v-if="skillEntries.length" class="data-sections">
-    <section
+    <OwnedAssetCard
       v-for="[name, skill] in skillEntries"
       :key="name"
-      class="data-card skill-card"
-      :class="ratingVisualClass(skill.适用评级)"
-    >
-      <button
-        type="button"
-        class="item-heading entry-toggle"
-        :aria-expanded="expandedName === name"
-        @click="expandedName = expandedName === name ? '' : name"
-      >
-        <div>
-          <div class="skill-title">
-            <InventoryIcon :svg="skill.图标" kind="技能" />
-            <h3>{{ name }}</h3>
-          </div>
-        </div>
-        <span class="entry-toggle-tail"
-          ><span class="stage-level witch-grade-label">{{ skill.适用评级 }}</span
-          ><span aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span></span
-        >
-      </button>
-      <div v-if="expandedName === name" class="entry-details">
-        <p class="data-prose">{{ skill.描述 }}</p>
-        <div class="item-effect">
-          <span>作用</span>
-          <p>{{ skill.作用 }}</p>
-        </div>
-      </div>
-    </section>
+      :name="name"
+      :entry="skill"
+      kind="技能"
+      :expanded="expandedName === name"
+      @toggle="expandedName = expandedName === name ? '' : name"
+    />
   </div>
   <div v-else class="data-empty">
     <strong>暂无技能</strong>
@@ -46,8 +24,7 @@
 <script setup lang="ts">
 import type { 技能, stat_data } from '../../types';
 import { computed, ref } from 'vue';
-import InventoryIcon from './InventoryIcon.vue';
-import { ratingVisualClass } from '../witch/ratingVisual';
+import OwnedAssetCard from './OwnedAssetCard.vue';
 import { skillSlotCount } from '../skillShop/skillShop';
 
 const props = defineProps<{ data: stat_data }>();

@@ -34,38 +34,27 @@
     </div>
   </div>
   <div v-if="visibleItems.length" class="data-sections inventory-list">
-    <section v-for="[name, item] in visibleItems" :key="name" class="data-card item-card">
-      <button
-        type="button"
-        class="inventory-item-button"
-        :aria-expanded="selectedName === name"
-        @click="selectItem(name)"
-      >
-        <InventoryIcon :svg="item.图标" kind="道具" />
-        <span class="inventory-item-copy"
-          ><strong>{{ name }}</strong></span
-        >
-        <span class="item-count">× {{ item.数量 }}</span>
-        <span class="entry-chevron" aria-hidden="true">{{ selectedName === name ? '⌃' : '⌄' }}</span>
-      </button>
-      <div v-if="selectedName === name" class="inventory-detail">
-        <p v-if="item.描述" class="data-prose">{{ item.描述 }}</p>
-        <div v-if="item.作用" class="item-effect">
-          <span>作用</span>
-          <p>{{ item.作用 }}</p>
-        </div>
-        <p class="item-meta">{{ item.评级 }} 级 · 单件基准价 {{ item.价格 }} 积分 · 当前耐久 {{ item.耐久 }}</p>
+    <OwnedAssetCard
+      v-for="[name, item] in visibleItems"
+      :key="name"
+      :name="name"
+      :entry="item"
+      kind="道具"
+      :expanded="selectedName === name"
+      @toggle="selectItem(name)"
+    >
+      <template #actions>
         <div class="inventory-transfer">
           <label>数量 <input v-model.number="quantity" type="number" min="1" :max="item.数量" step="1" /></label>
           <button type="button" class="primary" :disabled="saving" @click="stageTransfer(name, item)">
             {{ activeSide === '随身物品' ? '存入仓库' : '取出随身' }}
           </button>
         </div>
-        <button v-if="activeSide === '随身物品'" type="button" class="inventory-use" @click="prepareUse(name, item)">
+        <button v-if="activeSide === '随身物品'" type="button" class="asset-use-button" @click="prepareUse(name, item)">
           使用道具
         </button>
-      </div>
-    </section>
+      </template>
+    </OwnedAssetCard>
   </div>
   <div v-else class="data-empty inventory-empty">
     <strong>{{ query ? '没有匹配的物品' : activeSide === '随身物品' ? '暂无随身物品' : '仓库为空' }}</strong>
@@ -78,7 +67,7 @@ import { computed, ref, watch } from 'vue';
 import { klona } from 'klona';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { applyInventoryTransfers, inventoryOf, type InventorySide, type InventoryTransfer } from './inventoryTransfer';
-import InventoryIcon from './InventoryIcon.vue';
+import OwnedAssetCard from './OwnedAssetCard.vue';
 
 const props = defineProps<{ data: stat_data }>();
 const sides: InventorySide[] = ['随身物品', '仓库'];

@@ -900,36 +900,36 @@
   color: var(--witch-text);
   box-shadow: 0 8px 22px #08050b35;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-d,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-d,
 .witch-app .witch-focus-card.witch-grade-d {
   --grade-color: #aab5c6;
   --grade-glow: #aab5c630;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-c,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-c,
 .witch-app .witch-focus-card.witch-grade-c {
   --grade-color: #75cbb2;
   --grade-glow: #55b99b42;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-b,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-b,
 .witch-app .witch-focus-card.witch-grade-b {
   --grade-color: #79bfff;
   --grade-glow: #4b9df254;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-a,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-a,
 .witch-app .witch-focus-card.witch-grade-a {
   --grade-color: #f2c878;
   --grade-glow: #e6ae5266;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s,
 .witch-app .witch-focus-card.witch-grade-s {
   --grade-color: #f6a4ed;
   --grade-glow: #db6ddb80;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-d,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-c,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-b,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-a,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-d,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-c,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-b,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-a,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s,
 .witch-app .witch-focus-card[class*='witch-grade-'] {
   position: relative;
   border-color: var(--grade-color);
@@ -938,8 +938,8 @@
     0 0 17px var(--grade-glow),
     inset 0 0 0 1px var(--grade-glow);
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-a::before,
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s::before,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-a::before,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s::before,
 .witch-app .witch-focus-card:is(.witch-grade-a, .witch-grade-s)::before {
   position: absolute;
   inset: 0;
@@ -952,7 +952,7 @@
   pointer-events: none;
   animation: witch-grade-glow 3.6s ease-in-out infinite;
 }
-.witch-app :is(.quest-app .card, .skill-shop .shop-card, .skill-card).witch-grade-s::before,
+.witch-app :is(.quest-app .card, .skill-shop .shop-card).witch-grade-s::before,
 .witch-app .witch-focus-card.witch-grade-s::before {
   animation-duration: 2.5s;
 }
@@ -1004,7 +1004,7 @@
 .witch-app :is(.shop-heading, .item-shop-heading) {
   justify-content: flex-start;
 }
-.witch-app :is(.shop-card, .item-shop-card, .skill-card) > .entry-toggle {
+.witch-app :is(.shop-card, .item-shop-card) > .entry-toggle {
   width: 100%;
   min-height: 0;
   padding: 0 !important;
@@ -1038,48 +1038,6 @@
   gap: 3px;
   min-width: 0;
 }
-.witch-app .inventory-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  overflow: hidden;
-  border: 1px solid #8c5072;
-  border-radius: 11px;
-  background: #3b2036;
-  color: #f9b6d1;
-}
-.witch-app .inventory-icon-skill {
-  border-color: #aa75c5;
-  background: #392445;
-  color: #d8aeef;
-}
-.witch-app .inventory-icon-item {
-  border-color: #bc8b68;
-  background: #3d2b2c;
-  color: #f0c097;
-}
-.witch-app .inventory-icon-backdrop {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.witch-app .inventory-icon-glyph {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-}
-.witch-app .inventory-icon-glyph svg {
-  display: block;
-  width: 27px;
-  height: 27px;
-}
 .witch-app :is(.heading, .shop-heading, .item-shop-heading) strong {
   font-size: 14px;
   overflow-wrap: anywhere;
@@ -1097,7 +1055,7 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-.witch-app :is(.goal, .progress, .shop-effect, .item-shop-effect, .item-effect, .skill-level) {
+.witch-app :is(.goal, .progress, .shop-effect, .item-shop-effect, .skill-level) {
   padding: 10px 11px;
   border: 1px solid #5e3b55;
   border-radius: 10px;
@@ -1332,7 +1290,7 @@
   gap: 6px;
 }
 .witch-app .data-badges span,
-.witch-app :is(.unlock-mark, .lock-mark, .stage-level, .item-count) {
+.witch-app :is(.unlock-mark, .lock-mark, .stage-level) {
   display: inline-block;
   padding: 4px 8px;
   border: 1px solid #bf6b9182;
@@ -1355,16 +1313,14 @@
 .witch-app .data-field:first-child {
   border-top: 0;
 }
-.witch-app .data-field > span,
-.witch-app .item-effect span {
+.witch-app .data-field > span {
   display: block;
   margin-bottom: 4px;
   color: #ee9dbe;
   font-size: 10px;
   font-weight: 750;
 }
-.witch-app .data-field p,
-.witch-app .item-effect p {
+.witch-app .data-field p {
   margin: 0;
   color: #e0cfda;
   font-size: 11px;
@@ -1385,8 +1341,7 @@
   font-size: 12px;
 }
 .witch-app .stage-row small,
-.witch-app .monitor-card > small,
-.witch-app .item-meta {
+.witch-app .monitor-card > small {
   color: #bf9db2;
   font-size: 10px;
 }
@@ -1605,15 +1560,6 @@
   border-color: #db76a1;
   background: #4e2545;
 }
-.witch-app .skill-title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: 5px;
-}
-.witch-app .skill-title h3 {
-  margin: 0;
-}
 .witch-app .skill-level-head {
   display: flex;
   justify-content: space-between;
@@ -1764,47 +1710,11 @@
 .witch-app .inventory-toolbar .data-pages {
   margin: 0 0 10px;
 }
-.witch-app .inventory-item-button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-width: 0;
-  padding: 0;
-  background-color: transparent !important;
-  text-align: left;
-}
-.witch-app .inventory-item-copy {
-  display: grid;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-}
-.witch-app .inventory-item-copy small {
-  overflow: hidden;
-  color: #c1a9b8;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.witch-app .inventory-detail {
-  display: grid;
-  gap: 10px;
-  margin-top: 13px;
-  padding-top: 13px;
-  border-top: 1px solid #614059;
-}
 .witch-app .inventory-transfer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-.witch-app .inventory-use {
-  padding: 9px;
-  border: 1px solid #77506b !important;
-  border-radius: 9px;
-  font-size: 11px;
 }
 .witch-app .inventory-pending {
   display: grid;
