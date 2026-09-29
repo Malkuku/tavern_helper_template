@@ -120,6 +120,8 @@ export interface 技能 {
   作用: string;
   价格: number;
   评级: 任务['评级'];
+  /** 旧存档缺省时视为启用。 */
+  启用?: boolean;
 }
 
 export interface 物品 {

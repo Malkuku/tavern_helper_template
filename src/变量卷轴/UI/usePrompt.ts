@@ -9,6 +9,7 @@ export function buildUsePrompt(
   const skill = kind === 'skills' ? data?.角色?.user?.技能?.[name] : undefined;
   const item = kind === 'items' ? data?.角色?.user?.物品?.[name] : undefined;
   if (!skill && !item) throw new Error('当前已不持有该技能或道具，请重新选择。');
+  if (skill?.启用 === false) throw new Error('该技能尚未启用，请先在技能商店启用。');
   if (item && (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > item.数量)) {
     throw new Error(`请输入 1 到 ${item.数量} 之间的整数。`);
   }

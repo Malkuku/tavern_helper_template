@@ -28,6 +28,7 @@ export const skillSchema = z.strictObject({
   价格: number,
   评级: z.enum(['D', 'C', 'B', 'A', 'S']),
 });
+export const ownedSkillSchema = skillSchema.extend({ 启用: z.boolean().optional() });
 export const questSchema = z.strictObject({
   描述: z.string(),
   目标: z.string(),
@@ -116,8 +117,8 @@ export const userRoleSchema = z.strictObject({
   评级贡献: z.number().int().nonnegative().safe(),
   金钱: number,
   恶堕积分: number,
-  技能栏位: z.number().int().min(6).max(20).optional(),
-  技能: z.record(z.string(), skillSchema),
+  技能栏位: z.number().int().min(6).safe().optional(),
+  技能: z.record(z.string(), ownedSkillSchema),
   物品: z.record(z.string(), itemSchema),
 });
 

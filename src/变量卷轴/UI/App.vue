@@ -160,7 +160,12 @@
               <label v-if="isItem(entry)" class="ac-use-quantity">
                 使用数量 <input v-model.number="useQuantity" type="number" min="1" :max="entry.数量" step="1" />
               </label>
-              <button type="button" class="asset-use-button" @click="prepareUse(entryName)">
+              <button
+                type="button"
+                class="asset-use-button"
+                :disabled="!isItem(entry) && entry.启用 === false"
+                @click="prepareUse(entryName)"
+              >
                 使用{{ isItem(entry) ? '道具' : '技能' }}
               </button>
             </template>

@@ -62,6 +62,7 @@ import {
   buySkill as applySkillPurchase,
   refreshQuote,
   sellSkill as applySkillSale,
+  setSkillEnabled as applySkillEnabled,
   unlockSkillSlot as applySkillSlotUnlock,
 } from '../apps/skillShop/skillShop';
 import {
@@ -567,6 +568,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(
       data => applySkillSlotUnlock(data),
       (_before, after, price) => `在组织技能商店解锁第${after.角色.user.技能栏位}个技能栏位，消耗${price}点恶堕积分。`,
+    );
+  }
+
+  async function setOwnedSkillEnabled(name: string, enabled: boolean) {
+    await changeCharacterData(
+      data => applySkillEnabled(data, name, enabled),
+      () => `在组织技能商店${enabled ? '启用' : '关闭'}技能「${escapeSystemLogText(name)}」。`,
     );
   }
 
@@ -1571,6 +1579,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     cancelSkillRefresh,
     purchaseSkill,
     unlockSkillSlot,
+    setOwnedSkillEnabled,
     sellOwnedSkill,
     refreshItemShop,
     cancelItemRefresh,

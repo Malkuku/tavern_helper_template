@@ -64,11 +64,7 @@
           <div v-if="expandedName === name" class="entry-details">
             <p>{{ item.描述 }}</p>
             <div class="shop-effect">{{ item.作用 }}</div>
-            <button
-              type="button"
-              :disabled="busy || balance < item.价格 || (!owned[name] && ownedEntries.length >= slots)"
-              @click="purchase(name)"
-            >
+            <button type="button" :disabled="busy || balance < item.价格" @click="purchase(name)">
               购买 · {{ item.价格 }} 积分
             </button>
           </div>
@@ -76,9 +72,9 @@
       </div>
       <div v-else class="shop-list">
         <section class="skill-slot-panel">
-          <strong>技能栏位 {{ ownedEntries.length }} / {{ slots }}</strong>
+          <strong>已启用 {{ enabledCount }} / {{ slots }} · 持有 {{ ownedEntries.length }}</strong>
           <button
-            v-if="slotPrice !== null"
+            v-if="store.statData"
             class="unlock-button"
             type="button"
             :disabled="busy || balance < slotPrice"
@@ -86,18 +82,15 @@
           >
             解锁第 {{ slots + 1 }} 格 · {{ slotPrice }} 积分
           </button>
-          <p v-if="slotPrice !== null && balance < slotPrice" class="shop-error">
-            解锁积分不足，需要 {{ slotPrice }} 点。
-          </p>
-          <p v-else-if="slotPrice === null" class="skill-slot-note">已解锁全部 12 个栏位。</p>
-          <p v-else-if="ownedEntries.length >= slots" class="skill-slot-note">栏位已满，解锁后可购买新技能。</p>
+          <p v-if="balance < slotPrice" class="shop-error">解锁积分不足，需要 {{ slotPrice }} 点。</p>
+          <p v-else-if="enabledCount >= slots" class="skill-slot-note">栏位已满，新购技能会先保持关闭。</p>
         </section>
         <p v-if="!ownedEntries.length" class="shop-empty">目前没有持有技能。</p>
         <article
           v-for="[name, item] in ownedEntries"
           :key="name"
           class="shop-card"
-          :class="ratingVisualClass(item.评级)"
+          :class="[ratingVisualClass(item.评级), !isSkillEnabled(item) && 'skill-disabled']"
         >
           <button
             type="button"
@@ -108,7 +101,9 @@
             <InventoryIcon :svg="item.图标" kind="技能" />
             <div>
               <strong>{{ name }}</strong
-              ><small class="witch-grade-label">{{ item.评级 }}</small>
+              ><small class="witch-grade-label"
+                >{{ item.评级 }} · {{ isSkillEnabled(item) ? '已启用' : '未启用' }}</small
+              >
             </div>
             <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
           </button>
@@ -116,6 +111,9 @@
             <p>{{ item.描述 }}</p>
             <div class="shop-effect">{{ item.作用 }}</div>
             <small>累计价格 {{ item.价格 }} 积分</small>
+            <button type="button" :disabled="busy" @click="toggleSkill(name, !isSkillEnabled(item))">
+              {{ isSkillEnabled(item) ? '关闭技能' : '启用技能' }}
+            </button>
             <div v-if="confirmSale === name" class="sale-confirm">
               <span>卖出后获得 {{ Math.floor(item.价格 / 2) }} 积分，技能将被移除。</span>
               <button type="button" :disabled="busy" @click="sell(name)">确认卖出</button>
@@ -135,7 +133,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { nextSkillSlotPrice, refreshQuote, skillSlotCount } from './skillShop';
+import { enabledSkillCount, isSkillEnabled, nextSkillSlotPrice, refreshQuote, skillSlotCount } from './skillShop';
 import { DIRECTED_REFRESH_SURCHARGE } from '../shopRefresh';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
@@ -153,8 +151,9 @@ const balance = computed(() => store.statData?.角色.user.恶堕积分 ?? 0);
 const shopEntries = computed(() => Object.entries(store.statData?.技能商店 ?? {}));
 const owned = computed(() => store.statData?.角色.user.技能 ?? {});
 const ownedEntries = computed(() => Object.entries(owned.value));
+const enabledCount = computed(() => (store.statData ? enabledSkillCount(store.statData) : 0));
 const slots = computed(() => (store.statData ? skillSlotCount(store.statData) : 6));
-const slotPrice = computed(() => (store.statData ? nextSkillSlotPrice(store.statData) : null));
+const slotPrice = computed(() => (store.statData ? nextSkillSlotPrice(store.statData) : 0));
 const quote = computed(() => {
   try {
     return store.statData ? refreshQuote(store.statData) : { price: 0, count: 0, next: '' };
@@ -192,6 +191,9 @@ function purchase(name: string) {
 function unlockSlot() {
   void run(() => store.unlockSkillSlot());
 }
+function toggleSkill(name: string, enabled: boolean) {
+  void run(() => store.setOwnedSkillEnabled(name, enabled));
+}
 function sell(name: string) {
   void run(async () => {
     await store.sellOwnedSkill(name);
@@ -199,3 +201,10 @@ function sell(name: string) {
   });
 }
 </script>
+
+<style scoped>
+.shop-card.skill-disabled {
+  opacity: 0.62;
+  filter: grayscale(0.65);
+}
+</style>

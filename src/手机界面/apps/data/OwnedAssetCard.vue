@@ -6,7 +6,9 @@
     <button type="button" class="owned-asset-heading" :aria-expanded="expanded" @click="$emit('toggle')">
       <InventoryIcon :svg="entry.图标" :kind="kind" />
       <strong class="owned-asset-name">{{ name }}</strong>
-      <span v-if="skill" class="owned-asset-badge owned-asset-grade">{{ skill.评级 }}</span>
+      <span v-if="skill" class="owned-asset-badge owned-asset-grade"
+        >{{ skill.评级 }}{{ skill.启用 === false ? ' · 未启用' : '' }}</span
+      >
       <span v-else-if="item" class="owned-asset-badge">× {{ item.数量 }}</span>
       <span class="owned-asset-chevron" aria-hidden="true">{{ expanded ? '⌃' : '⌄' }}</span>
     </button>
@@ -47,6 +49,10 @@ const item = computed(() => (props.kind === '道具' ? (props.entry as 物品) :
   color: #f8eef4;
   box-shadow: 0 8px 22px #08050b35;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+}
+.owned-asset-card.skill-disabled {
+  opacity: 0.58;
+  filter: grayscale(0.65);
 }
 .owned-asset-card.witch-grade-d {
   --grade-color: #aab5c6;

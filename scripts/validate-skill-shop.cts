@@ -5,19 +5,26 @@ import { readFileSync } from 'node:fs';
 import {
   applySkillRefresh,
   buySkill,
-  MAX_SKILL_SLOTS,
+  MAX_SKILL_SLOT_PRICE,
   nextSkillSlotPrice,
+  enabledSkillCount,
+  setSkillEnabled,
   sellSkill,
   skillSlotCount,
   unlockSkillSlot,
 } from '../src/手机界面/apps/skillShop/skillShop';
 import { initialStatDataSchema, userRoleSchema } from '../src/手机界面/store/initialDataSchema';
 import { settleUserRating, userRatingFromContribution } from '../src/手机界面/store/userRating';
+import { buildUsePrompt } from '../src/变量卷轴/UI/usePrompt';
 
 const root = 'O:\\St Working\\角色卡开发\\魔法少女恶堕\\魔法少女恶堕';
 const roles = JSON.parse(readFileSync(`${root}\\系统配置\\角色资源.json`, 'utf8'));
 const user = Object.values(roles).find((item: any) => item.type === 'user') as any;
 assert.ok(userRoleSchema.safeParse(user.data).success, '开局用户使用新技能契约和累计贡献');
+assert.ok(
+  Object.values(user.data.技能).every((item: any) => item.启用 === true),
+  '开局技能明确启用',
+);
 const opening = JSON.parse(readFileSync(`${root}\\系统配置\\唯一开局.json`, 'utf8'));
 assert.ok(initialStatDataSchema.shape.技能商店.safeParse(opening.固定数据.技能商店).success);
 const rule = readFileSync(`${root}\\更新规则\\生成技能.ini`, 'utf8');
@@ -89,22 +96,42 @@ const slots: any = {
   技能商店: { 新技能: skill('D', 30), 技能0: skill('C', 80) },
 };
 assert.equal(skillSlotCount(slots), 6);
-assert.throws(() => buySkill(slots, '新技能'), /技能栏位已满/);
+buySkill(slots, '新技能');
+assert.equal(slots.角色.user.技能.新技能.启用, false, '满位购买后新技能保持关闭');
+assert.equal(enabledSkillCount(slots), 6);
+assert.throws(() => buildUsePrompt(slots, 'skills', '新技能', 1), /尚未启用/);
+assert.throws(() => setSkillEnabled(slots, '新技能', true), /技能栏位已满/);
+setSkillEnabled(slots, '技能1', false);
+setSkillEnabled(slots, '新技能', true);
+assert.equal(enabledSkillCount(slots), 6);
+assert.equal(slots.角色.user.技能.新技能.启用, true);
+assert.match(buildUsePrompt(slots, 'skills', '新技能', 1), /新技能/);
+setSkillEnabled(slots, '新技能', false);
 buySkill(slots, '技能0');
-assert.equal(Object.keys(slots.角色.user.技能).length, 6, '满位仍可升级');
+assert.equal(Object.keys(slots.角色.user.技能).length, 7, '满位仍可升级');
+assert.equal(slots.角色.user.技能.技能0.启用, true, '升级保留启用状态');
 assert.equal(nextSkillSlotPrice(slots), 50);
 assert.equal(unlockSkillSlot(slots), 50);
-buySkill(slots, '新技能');
+setSkillEnabled(slots, '新技能', true);
 assert.equal(Object.keys(slots.角色.user.技能).length, 7);
-assert.equal(MAX_SKILL_SLOTS, 20);
-slots.角色.user.恶堕积分 = 6000;
-for (let target = 8; target <= 20; target++) {
-  assert.equal(nextSkillSlotPrice(slots), (target - 6) * 50);
-  assert.equal(unlockSkillSlot(slots), (target - 6) * 50);
+assert.equal(enabledSkillCount(slots), 6);
+assert.equal(MAX_SKILL_SLOT_PRICE, 700);
+slots.角色.user.恶堕积分 = 10000;
+for (let target = 8; target <= 23; target++) {
+  assert.equal(nextSkillSlotPrice(slots), Math.min((target - 6) * 50, 700));
+  assert.equal(unlockSkillSlot(slots), Math.min((target - 6) * 50, 700));
   assert.equal(skillSlotCount(slots), target);
 }
-assert.equal(nextSkillSlotPrice(slots), null);
-assert.throws(() => unlockSkillSlot(slots), /20 格上限/);
-assert.ok(userRoleSchema.shape.技能栏位.safeParse(20).success);
-assert.equal(userRoleSchema.shape.技能栏位.safeParse(21).success, false);
+assert.equal(nextSkillSlotPrice(slots), 700);
+assert.ok(userRoleSchema.shape.技能栏位.safeParse(23).success);
+const roleList = readFileSync(`${root}\\人设\\角色列表.ini`, 'utf8');
+const roleListCode = roleList.split('<%_\nconst messages')[1]?.split('_%>')[0];
+assert.ok(roleListCode, '角色列表包含可执行的角色筛选逻辑');
+const renderRoleList = new Function('getChatMessages', 'getvar', `const messages${roleListCode}; return output;`);
+const visible = renderRoleList(
+  () => [],
+  (path: string) => (path === 'stat_data.角色.user' ? slots.角色.user : {}),
+);
+assert.ok(visible.user.技能.技能0, '启用技能进入上下文');
+assert.equal(visible.user.技能.技能1, undefined, '关闭技能不进入上下文');
 console.info('技能商店与贡献评级定向验证通过。');

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { 可购技能, stat_data } from '../../types';
+import type { 可购技能, 技能, stat_data } from '../../types';
 import { skillSchema } from '../../store/initialDataSchema';
 import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
@@ -26,22 +26,39 @@ function validPrice(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
 }
 
-export const MAX_SKILL_SLOTS = 20;
+export const MAX_SKILL_SLOT_PRICE = 700;
+
+export function isSkillEnabled(skill: 技能): boolean {
+  return skill.启用 !== false;
+}
+
+export function enabledSkillCount(data: stat_data): number {
+  return Object.values(data.角色.user.技能).filter(isSkillEnabled).length;
+}
+
+export function setSkillEnabled(data: stat_data, name: string, enabled: boolean): void {
+  const skill = data.角色.user.技能[name];
+  if (!skill) throw new Error('当前没有这项技能。');
+  if (isSkillEnabled(skill) === enabled) throw new Error(`该技能已经${enabled ? '启用' : '关闭'}。`);
+  if (enabled && enabledSkillCount(data) >= skillSlotCount(data))
+    throw new Error('技能栏位已满，请先关闭技能或解锁栏位。');
+  skill.启用 = enabled;
+}
 
 export function skillSlotCount(data: stat_data): number {
   const slots = data.角色.user.技能栏位 ?? 6;
-  if (!Number.isSafeInteger(slots) || slots < 6 || slots > MAX_SKILL_SLOTS) throw new Error('技能栏位数据无效。');
+  if (!Number.isSafeInteger(slots) || slots < 6) throw new Error('技能栏位数据无效。');
   return slots;
 }
 
-export function nextSkillSlotPrice(data: stat_data): number | null {
+export function nextSkillSlotPrice(data: stat_data): number {
   const slots = skillSlotCount(data);
-  return slots === MAX_SKILL_SLOTS ? null : (slots - 5) * 50;
+  if (slots === Number.MAX_SAFE_INTEGER) throw new Error('技能栏位数据已达到安全整数上限。');
+  return Math.min((slots - 5) * 50, MAX_SKILL_SLOT_PRICE);
 }
 
 export function unlockSkillSlot(data: stat_data): number {
   const price = nextSkillSlotPrice(data);
-  if (price === null) throw new Error(`技能栏位已达到 ${MAX_SKILL_SLOTS} 格上限。`);
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || balance < price) throw new Error(`恶堕积分不足，需要 ${price} 点。`);
   data.角色.user.恶堕积分 -= price;
@@ -97,13 +114,15 @@ export function buySkill(data: stat_data, name: string): void {
   if (!item) throw new Error('商店中没有这项技能。');
   if (!validPrice(item.价格)) throw new Error('技能价格无效。');
   const current = data.角色.user.技能[name];
-  if (!current && Object.keys(data.角色.user.技能).length >= skillSlotCount(data))
-    throw new Error('技能栏位已满，请先解锁栏位或出售技能。');
   const balance = data.角色.user.恶堕积分;
   if (!Number.isSafeInteger(balance) || balance < item.价格) throw new Error('恶堕积分不足。');
   const price = (current?.价格 ?? 0) + item.价格;
   if (!validPrice(price)) throw new Error('累计技能价格无效。');
-  const nextSkill = { ...item, 价格: price };
+  const nextSkill: 技能 = {
+    ...item,
+    价格: price,
+    启用: current ? isSkillEnabled(current) : enabledSkillCount(data) < skillSlotCount(data),
+  };
   data.角色.user.恶堕积分 -= item.价格;
   data.角色.user.技能[name] = nextSkill;
   delete data.技能商店[name];
