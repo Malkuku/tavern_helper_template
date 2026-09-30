@@ -10,9 +10,19 @@
       /></label>
     </div>
     <p class="wx-library-help">点选图片可复制地址、设为头像，或命名后引入共享表情库。</p>
+    <input
+      v-model="imageSearch"
+      class="wx-library-search"
+      type="search"
+      placeholder="搜索表情名称或图片 ID"
+      aria-label="搜索图片库"
+    />
+    <p v-if="imageSearch.trim()" class="wx-library-help">正在搜索全部文件夹；清空搜索后继续按文件夹浏览。</p>
 
-    <div class="wx-library-folder-head"><strong>文件分类</strong><span>移动分类不会影响已使用的图片</span></div>
-    <div class="wx-library-folders" aria-label="一级文件夹">
+    <div v-if="!imageSearch.trim()" class="wx-library-folder-head">
+      <strong>文件分类</strong><span>移动分类不会影响已使用的图片</span>
+    </div>
+    <div v-if="!imageSearch.trim()" class="wx-library-folders" aria-label="一级文件夹">
       <button type="button" :class="{ active: activeGroupId === null }" @click="selectGroup(null)">全部</button>
       <button
         type="button"
@@ -31,7 +41,7 @@
         {{ group.name }}
       </button>
     </div>
-    <div v-if="activeGroup" class="wx-library-subfolders">
+    <div v-if="activeGroup && !imageSearch.trim()" class="wx-library-subfolders">
       <div class="wx-library-folders" aria-label="二级文件夹">
         <button type="button" :class="{ active: activeFolderId === null }" @click="selectFolder(null)">全部</button>
         <button type="button" :class="{ active: activeFolderId === '' }" @click="selectFolder('')">本级图片</button>
@@ -52,7 +62,7 @@
     </div>
     <p v-if="!images.length" class="wx-manager-empty">图片库还是空的。上传图片后，缩略图和引用会显示在这里。</p>
     <p v-else-if="!visibleImages.length" class="wx-manager-empty">
-      这个文件夹还没有图片，可上传或从其他文件夹移动图片。
+      {{ imageSearch.trim() ? '没有找到匹配的图片。' : '这个文件夹还没有图片，可上传或从其他文件夹移动图片。' }}
     </p>
     <div v-else class="wx-library-grid">
       <button
@@ -63,7 +73,7 @@
         :aria-label="`查看图片 ${imageIdFromUrl(url)}`"
         @click="selectImage(url)"
       >
-        <img :src="data" alt="" /><span>{{ imageIdFromUrl(url).slice(0, 8) }}</span>
+        <img :src="data" alt="" /><span>{{ imageLabels[url]?.join('、') || imageIdFromUrl(url).slice(0, 8) }}</span>
       </button>
     </div>
     <div v-if="selectedImage" ref="selectionElement" class="wx-library-selection">
@@ -145,6 +155,7 @@ import {
   imageReferences,
   readWechatImageFile,
   refreshWechatImageLibrary,
+  stickerLibraryEntries,
   storeWechatImage,
 } from './imageLibrary';
 
@@ -152,6 +163,12 @@ const props = defineProps<{ accounts: 微信数据['账号']; assignable: boolea
 const emit = defineEmits<{ avatar: [url: string]; sticker: [url: string] }>();
 refreshWechatImageLibrary();
 const images = ref(imageLibraryEntries());
+const imageSearch = ref('');
+const imageLabels = computed(() => {
+  const labels: Record<string, string[]> = {};
+  for (const [name, url] of stickerLibraryEntries()) (labels[url] ??= []).push(name);
+  return labels;
+});
 const categories = ref(readImageCategories());
 const activeGroupId = ref<string | null>(null);
 const activeFolderId = ref<string | null>(null);
@@ -167,6 +184,12 @@ const activeGroup = computed(() => categories.value.groups.find(group => group.i
 const usedImages = computed(() => imageReferences(props.accounts));
 const visibleImages = computed(() =>
   images.value.filter(([url]) => {
+    const query = imageSearch.value.trim().toLocaleLowerCase();
+    if (query)
+      return (
+        imageIdFromUrl(url).toLocaleLowerCase().includes(query) ||
+        imageLabels.value[url]?.some(name => name.toLocaleLowerCase().includes(query))
+      );
     const place = categories.value.placements[imageIdFromUrl(url)];
     if (activeGroupId.value === null) return true;
     if (activeGroupId.value === 'uncategorized') return !place;

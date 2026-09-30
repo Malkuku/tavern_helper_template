@@ -100,47 +100,70 @@
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </section>
       <section v-else-if="view === 'stickers' && selectedAccount" class="wx-manager-editor wx-manager-sticker-page">
-        <div class="wx-manager-section-head">
-          <div>
-            <small>{{ selectedAccount.昵称 || selectedId }}</small>
-            <h2>已选表情</h2>
-          </div>
-          <span>{{ Object.keys(selectedAccount.表情包).length }} 个</span>
+        <div class="wx-manager-sticker-switch" aria-label="表情范围">
+          <button type="button" :class="{ active: stickerSection === 'library' }" @click="stickerSection = 'library'">
+            共享表情库 · {{ namedStickers.length }}
+          </button>
+          <button type="button" :class="{ active: stickerSection === 'selected' }" @click="stickerSection = 'selected'">
+            当前账号已选 · {{ Object.keys(selectedAccount.表情包).length }}
+          </button>
         </div>
-        <p class="wx-manager-muted">从下方表情库选用名称；移除仅影响当前账号。</p>
-        <div v-if="Object.keys(selectedAccount.表情包).length" class="wx-manager-stickers">
-          <div v-for="[label, url] in Object.entries(selectedAccount.表情包)" :key="label" class="wx-manager-sticker">
-            <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
-            <span>{{ label }}</span>
-            <button type="button" :disabled="saving" :aria-label="`移除表情 ${label}`" @click="removeSticker(label)">
-              移除
-            </button>
+        <input
+          v-model="stickerSearch"
+          class="wx-manager-sticker-search"
+          type="search"
+          placeholder="搜索表情名称"
+          aria-label="搜索表情名称"
+        />
+        <template v-if="stickerSection === 'selected'">
+          <div class="wx-manager-section-head">
+            <div>
+              <small>{{ selectedAccount.昵称 || selectedId }}</small>
+              <h2>已选表情</h2>
+            </div>
+            <span>{{ filteredSelectedStickers.length }} / {{ Object.keys(selectedAccount.表情包).length }} 个</span>
           </div>
-        </div>
-        <p v-else class="wx-manager-empty">当前账号还没有选用表情。</p>
-        <div class="wx-manager-section-head">
-          <div>
-            <small>SHARED LIBRARY</small>
-            <h2>表情库</h2>
+          <p class="wx-manager-muted">移除仅影响当前账号。</p>
+          <div v-if="filteredSelectedStickers.length" class="wx-manager-stickers">
+            <div v-for="[label, url] in filteredSelectedStickers" :key="label" class="wx-manager-sticker">
+              <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
+              <span>{{ label }}</span>
+              <button type="button" :disabled="saving" :aria-label="`移除表情 ${label}`" @click="removeSticker(label)">
+                移除
+              </button>
+            </div>
           </div>
-          <span>{{ namedStickers.length }} 个</span>
-        </div>
-        <div v-if="namedStickers.length" class="wx-manager-stickers">
-          <div v-for="[label, url] in namedStickers" :key="label" class="wx-manager-sticker">
-            <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
-            <span>{{ label }}</span>
-            <button type="button" :disabled="saving || !!selectedAccount.表情包[label]" @click="assignSticker(label)">
-              {{
-                selectedAccount.表情包[label]
-                  ? selectedAccount.表情包[label] === stickerReference(label)
-                    ? '已选用'
-                    : '同名旧表情'
-                  : '选用'
-              }}
-            </button>
+          <p v-else class="wx-manager-empty">
+            {{ stickerSearch.trim() ? '没有找到匹配的已选表情。' : '当前账号还没有选用表情。' }}
+          </p>
+        </template>
+        <template v-else>
+          <div class="wx-manager-section-head">
+            <div>
+              <small>SHARED LIBRARY</small>
+              <h2>表情库</h2>
+            </div>
+            <span>{{ filteredNamedStickers.length }} / {{ namedStickers.length }} 个</span>
           </div>
-        </div>
-        <p v-else class="wx-manager-empty">表情库为空。引入图片并命名后可供所有账号选用。</p>
+          <div v-if="filteredNamedStickers.length" class="wx-manager-stickers">
+            <div v-for="[label, url] in filteredNamedStickers" :key="label" class="wx-manager-sticker">
+              <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
+              <span>{{ label }}</span>
+              <button type="button" :disabled="saving || !!selectedAccount.表情包[label]" @click="assignSticker(label)">
+                {{
+                  selectedAccount.表情包[label]
+                    ? selectedAccount.表情包[label] === stickerReference(label)
+                      ? '已选用'
+                      : '同名旧表情'
+                    : '选用'
+                }}
+              </button>
+            </div>
+          </div>
+          <p v-else class="wx-manager-empty">
+            {{ stickerSearch.trim() ? '没有找到匹配的表情。' : '表情库为空。引入图片并命名后可供所有账号选用。' }}
+          </p>
+        </template>
         <form class="wx-manager-new-sticker" @submit.prevent="addSticker">
           <strong>引入表情到库</strong>
           <label class="wx-manager-field"
@@ -238,6 +261,18 @@ const filteredRoster = computed(() =>
 );
 const selectedAccount = computed(() => accounts.value[selectedId.value]);
 const namedStickers = computed(() => stickerLibraryEntries());
+const stickerSection = ref<'library' | 'selected'>('library');
+const stickerSearch = ref('');
+const filteredNamedStickers = computed(() =>
+  namedStickers.value.filter(([name]) =>
+    name.toLocaleLowerCase().includes(stickerSearch.value.trim().toLocaleLowerCase()),
+  ),
+);
+const filteredSelectedStickers = computed(() =>
+  Object.entries(selectedAccount.value?.表情包 ?? {}).filter(([name]) =>
+    name.toLocaleLowerCase().includes(stickerSearch.value.trim().toLocaleLowerCase()),
+  ),
+);
 const selectedRole = computed(() => roleEntries.value.find(role => role.id === selectedId.value));
 const name = ref('');
 const avatar = ref('');

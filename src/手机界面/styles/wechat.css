@@ -1698,14 +1698,18 @@
 }
 .wechat .wx-sticker-picker {
   order: 5;
-  display: block;
+  display: flex;
+  flex-direction: column;
   min-height: 150px;
   max-height: 240px;
+  overflow: hidden;
   padding: 13px;
 }
 .wechat .wx-custom-sticker-grid {
   display: flex;
   flex-wrap: wrap;
+  min-height: 0;
+  overflow-y: auto;
   gap: 10px;
 }
 .wechat .wx-sticker-empty {
@@ -3068,6 +3072,16 @@
 .wechat .wx-sticker-picker-head strong {
   font-size: 14px;
 }
+.wechat .wx-sticker-search {
+  width: 100%;
+  min-height: 36px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--wx-line);
+  border-radius: 9px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
 .wechat .wx-sticker-picker .wx-sticker-picker-head button {
   min-height: 34px;
   padding: 5px 10px;
@@ -3082,6 +3096,31 @@
 }
 .wechat .wx-manager-sticker-page {
   align-content: start;
+}
+.wechat .wx-manager-sticker-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.wechat .wx-manager-sticker-switch button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px;
+  border: 1px solid var(--wx-line);
+  border-radius: 9px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+  font-size: 12px;
+}
+.wechat .wx-manager-sticker-switch button.active {
+  border-color: var(--wx-green);
+  color: var(--wx-green);
+}
+.wechat .wx-manager-sticker-search,
+.wechat .wx-library-search {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
 }
 .wechat .wx-manager-sticker-page .wx-manager-muted {
   margin: -8px 0 0;

@@ -1,31 +1,25 @@
 <template>
   <div class="app-container">
-
     <div class="gallery-card" :class="{ active: isOpen }">
-
       <!-- 卡片头部 -->
-      <div class="card-header" @click="toggleCard">
-        <!--
-           显示标题：为了美观，我们将路径中的 "/" 替换回 " - " 显示
-           例如：URL是 "人物A/开心1"，标题显示 "人物A - 开心1"
-        -->
-        <span class="header-title">{{ formattedTitle }}</span>
-        <span class="arrow-icon">▼</span>
-      </div>
+      <button class="card-header" type="button" :aria-expanded="isOpen" @click="toggleCard">
+        <span class="header-mark" aria-hidden="true">✦</span>
+        <span class="header-copy">
+          <span class="header-kicker">魔法少女 · 影像记录</span>
+          <span class="header-title">{{ formattedTitle }}</span>
+        </span>
+        <span class="arrow-icon" aria-hidden="true">⌄</span>
+      </button>
 
       <!-- 卡片内容 -->
-      <div class="card-content" v-show="isOpen">
-        <div
-          class="img-wrapper"
-          @click="openLightbox"
-          :class="{ 'has-error': hasError }"
-        >
+      <div v-show="isOpen" class="card-content">
+        <div class="img-wrapper" :class="{ 'has-error': hasError }" @click="openLightbox">
           <!-- 加载圈 -->
-          <div v-if="isLoading && !hasError" class="img-loader"></div>
+          <div v-if="isLoading && !hasError" class="img-loader" role="status" aria-label="图片加载中"></div>
 
           <!-- 图片 -->
           <img
-            v-if="shouldLoadImage"
+            v-if="shouldLoadImage && !hasError"
             :src="currentSrc"
             :alt="rawName"
             class="gallery-image"
@@ -34,6 +28,7 @@
             @error="handleImgError"
           />
 
+          <div v-if="hasError" class="image-error" role="status">影像暂时无法读取</div>
           <div v-if="isLoaded && !hasError" class="zoom-hint">🔍 点击放大</div>
         </div>
       </div>
@@ -53,73 +48,51 @@
         @touchmove="handleTouchMove"
         @touchend="handleTouchEnd"
       >
-        <div class="lightbox-close-btn" @click="closeLightbox">&times;</div>
+        <button class="lightbox-close-btn" type="button" aria-label="关闭图片预览" @click="closeLightbox">
+          &times;
+        </button>
         <div class="lightbox-tip">滚轮/双指缩放 · 拖拽移动</div>
 
         <img
           :src="currentSrc"
           class="custom-lightbox-content"
           :style="lightboxTransformStyle"
-          alt="Full Preview"
+          :alt="formattedTitle"
           draggable="false"
         />
       </div>
     </Teleport>
-
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, onUnmounted } from 'vue';
 
-const rawName = "$1";
+const rawName = '$1';
 
-// ============================================================
-// ★ 格式修复逻辑 (根据你的最新要求) ★
-// ============================================================
 let fixedName = rawName || '';
-
-// 1. 去除所有空格 (防止 "人物A - 开心" 这种带空格的情况)
 fixedName = fixedName.replace(/\s+/g, '');
-
-// 2. 将 "-" 替换为 "/" (核心修改：把横杠变成斜杠)
-// 例如: "人物A-开心" -> "人物A/开心"
 fixedName = fixedName.replace(/-/g, '/');
-
-// 3. 补充数字 (如果末尾不是数字，补1)
-// 例如: "人物A/开心" -> "人物A/开心1"
 if (fixedName.length > 0 && !/\d$/.test(fixedName)) {
   fixedName += '1';
 }
 
-const BASE_URL = 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/';
+const BASE_URL = 'https://gitgud.io/mouse789/magical-girl-corruption/-/raw/master/';
 const EXTENSION = '.webp';
-const FALLBACK_IMG = 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/猫爹哈气.webp';
 
-// ============================================================
-// 2. 逻辑复刻
-// ============================================================
-
-// --- 标题显示 ---
-// URL 用的是 "/"，但显示给用户看时，用 " - " 比较好看
 const formattedTitle = computed(() => {
-  return fixedName.replace(/\//g, ' - ');
+  return fixedName.replace(/\//g, ' · ');
 });
 
-// --- 图片地址拼接 ---
-// 使用修复后的 fixedName (包含 / 和 1)
-const originalSrc = `${BASE_URL}${fixedName}${EXTENSION}`;
+const currentSrc = `${BASE_URL}${fixedName.split('/').map(encodeURIComponent).join('/')}${EXTENSION}`;
 
-// --- 状态管理 ---
 const isOpen = ref(false);
 const shouldLoadImage = ref(false);
 const isLoading = ref(true);
 const isLoaded = ref(false);
 const hasError = ref(false);
-const currentSrc = ref(originalSrc);
 const lightboxShow = ref(false);
 
-// --- 交互函数 ---
 const toggleCard = () => {
   isOpen.value = !isOpen.value;
   if (isOpen.value && !shouldLoadImage.value) {
@@ -135,16 +108,17 @@ const onImageLoad = () => {
 const handleImgError = () => {
   isLoading.value = false;
   hasError.value = true;
-  currentSrc.value = FALLBACK_IMG;
 };
 
-// ============================================================
-// 3. 灯箱逻辑
-// ============================================================
-
 const zoomState = reactive({
-  scale: 1, pX: 0, pY: 0, isDragging: false,
-  startX: 0, startY: 0, lastX: 0, lastY: 0
+  scale: 1,
+  pX: 0,
+  pY: 0,
+  isDragging: false,
+  startX: 0,
+  startY: 0,
+  lastX: 0,
+  lastY: 0,
 });
 
 let initialDistance = 0;
@@ -152,7 +126,7 @@ let initialScale = 1;
 
 const lightboxTransformStyle = computed(() => ({
   transform: `translate(${zoomState.pX}px, ${zoomState.pY}px) scale(${zoomState.scale})`,
-  transition: zoomState.isDragging ? 'none' : 'transform 0.1s ease-out'
+  transition: zoomState.isDragging ? 'none' : 'transform 0.1s ease-out',
 }));
 
 const openLightbox = () => {
@@ -168,16 +142,16 @@ const closeLightbox = () => {
 };
 
 // --- 鼠标/触摸事件 ---
-const handleWheel = (e) => {
+const handleWheel = e => {
   const delta = -Math.sign(e.deltaY);
   const step = 0.15;
-  let newScale = zoomState.scale + (delta * step * zoomState.scale);
+  let newScale = zoomState.scale + delta * step * zoomState.scale;
   if (newScale < 0.5) newScale = 0.5;
   if (newScale > 10) newScale = 10;
   zoomState.scale = newScale;
 };
 
-const handleMouseDown = (e) => {
+const handleMouseDown = e => {
   e.preventDefault();
   zoomState.isDragging = true;
   zoomState.startX = e.clientX;
@@ -186,15 +160,17 @@ const handleMouseDown = (e) => {
   zoomState.lastY = zoomState.pY;
 };
 
-const handleMouseMove = (e) => {
+const handleMouseMove = e => {
   if (!zoomState.isDragging) return;
   zoomState.pX = zoomState.lastX + (e.clientX - zoomState.startX);
   zoomState.pY = zoomState.lastY + (e.clientY - zoomState.startY);
 };
 
-const handleMouseUp = () => { zoomState.isDragging = false; };
+const handleMouseUp = () => {
+  zoomState.isDragging = false;
+};
 
-const handleTouchStart = (e) => {
+const handleTouchStart = e => {
   if (e.touches.length === 1) {
     zoomState.isDragging = true;
     zoomState.startX = e.touches[0].clientX;
@@ -203,12 +179,15 @@ const handleTouchStart = (e) => {
     zoomState.lastY = zoomState.pY;
   } else if (e.touches.length === 2) {
     zoomState.isDragging = false;
-    initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    initialDistance = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY,
+    );
     initialScale = zoomState.scale;
   }
 };
 
-const handleTouchMove = (e) => {
+const handleTouchMove = e => {
   if (e.touches.length === 1 && zoomState.isDragging) {
     zoomState.pX = zoomState.lastX + (e.touches[0].clientX - zoomState.startX);
     zoomState.pY = zoomState.lastY + (e.touches[0].clientY - zoomState.startY);
@@ -216,224 +195,263 @@ const handleTouchMove = (e) => {
     const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     if (initialDistance > 0) {
       let newScale = initialScale * (dist / initialDistance);
-      if (newScale < 0.5) newScale = 0.5; if (newScale > 10) newScale = 10;
+      if (newScale < 0.5) newScale = 0.5;
+      if (newScale > 10) newScale = 10;
       zoomState.scale = newScale;
     }
   }
 };
 
-const handleTouchEnd = (e) => {
+const handleTouchEnd = e => {
   zoomState.isDragging = false;
   if (e.touches.length < 2) initialDistance = 0;
 };
 
-onUnmounted(() => { document.body.style.overflow = ''; });
+onUnmounted(() => {
+  document.body.style.overflow = '';
+});
 </script>
 
 <style>
-:root {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2d2d2d;
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --accent-primary: #d4af37;
-  --border-color: #404040;
-  --shadow-color: rgba(0, 0, 0, 0.5);
-}
-
+html,
 body {
-  background-color: transparent;
-  color: var(--text-primary);
-  font-family: sans-serif;
   margin: 0;
-  padding: 20px;
+  background: transparent;
 }
-
+.app-container,
+.app-container * {
+  box-sizing: border-box;
+}
+.app-container {
+  --gallery-bg: #100b16;
+  --gallery-surface: #1c1322;
+  --gallery-line: #68405d;
+  --gallery-text: #f8eef4;
+  --gallery-muted: #b49eae;
+  --gallery-pink: #f08bb7;
+  width: 100%;
+  padding: 14px;
+  color: var(--gallery-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+}
 .gallery-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
   max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: 0 4px 6px var(--shadow-color);
-  transition: border-color 0.3s;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--gallery-line);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #27172b, var(--gallery-surface) 60%);
+  box-shadow:
+    0 12px 32px #10061466,
+    inset 0 1px #ffffff13;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
-
 .gallery-card.active {
-  border-color: var(--accent-primary);
-  margin-bottom: 15px;
+  border-color: #cc5d94;
+  box-shadow:
+    0 14px 38px #10061488,
+    0 0 0 1px #e36fa033;
 }
-
 .card-header {
-  padding: 8px 12px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 68px;
+  padding: 11px 17px;
+  border: 0;
+  background: transparent;
+  color: var(--gallery-text);
+  text-align: left;
   cursor: pointer;
-  background-color: rgba(0,0,0,0.2);
-  user-select: none;
 }
-
-.card-header:hover {
-  background-color: rgba(255,255,255,0.05);
+.card-header:hover,
+.card-header:focus-visible {
+  background: #ffffff0a;
 }
-
+.card-header:focus-visible,
+.lightbox-close-btn:focus-visible {
+  outline: 2px solid #ffc0da;
+  outline-offset: -3px;
+}
+.header-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d9679c8c;
+  border-radius: 11px;
+  background: radial-gradient(circle at 35% 25%, #7d315e, #321b39 75%);
+  color: #ffd5e9;
+  font-size: 20px;
+  box-shadow: 0 0 18px #cb427e33;
+}
+.header-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.header-kicker {
+  color: var(--gallery-pink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
 .header-title {
-  font-family: serif;
-  font-weight: bold;
-  color: var(--accent-primary);
-  font-size: 1.0rem;
+  overflow: hidden;
+  color: var(--gallery-text);
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
 .arrow-icon {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  transition: transform 0.3s;
+  margin-left: auto;
+  color: var(--gallery-pink);
+  font-size: 25px;
+  line-height: 1;
+  transition: transform 0.2s;
 }
-
 .gallery-card.active .arrow-icon {
   transform: rotate(180deg);
 }
-
 .card-content {
-  padding: 15px;
-  background-color: var(--bg-primary);
+  padding: 16px;
+  border-top: 1px solid #ffffff16;
+  background: radial-gradient(circle at 50% 0%, #4c24444d, transparent 65%), var(--gallery-bg);
   text-align: center;
-  animation: fadeIn 0.3s ease;
 }
-
 .img-wrapper {
   position: relative;
-  display: inline-block;
-  min-height: 200px;
-  min-width: 200px;
-  background-color: #000;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
   overflow: hidden;
+  border: 1px solid #6e3c61;
+  border-radius: 12px;
+  background: linear-gradient(155deg, #201124, #100b16 70%);
   cursor: zoom-in;
-  border: 1px solid var(--border-color);
 }
-
 .img-wrapper.has-error {
   cursor: default;
 }
-
 .gallery-image {
-  max-width: 100%;
-  max-height: 500px;
   display: block;
+  max-width: 100%;
+  max-height: min(65vh, 550px);
   object-fit: contain;
   opacity: 0;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.25s;
 }
-
 .gallery-image.loaded {
   opacity: 1;
 }
-
 .img-loader {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 30px;
-  height: 30px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--accent-primary);
+  width: 32px;
+  height: 32px;
+  border: 2px solid #f08bb733;
+  border-top-color: var(--gallery-pink);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  z-index: 1;
-  pointer-events: none;
+  animation: gallery-spin 0.9s linear infinite;
 }
-
+.image-error {
+  color: var(--gallery-muted);
+  font-size: 13px;
+}
 .zoom-hint {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  border: 1px solid #f08bb755;
+  border-radius: 999px;
+  background: #100b16d9;
+  color: #ffe0ec;
+  font-size: 11px;
   opacity: 0;
-  transition: opacity 0.3s;
   pointer-events: none;
-  z-index: 2;
+  transition: opacity 0.2s;
 }
-
 .img-wrapper:hover .zoom-hint {
   opacity: 1;
 }
-
-@keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-/* 灯箱样式 */
 .custom-lightbox-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.95);
+  inset: 0;
   z-index: 9999;
   display: flex;
-  justify-content: center;
   align-items: center;
-  backdrop-filter: blur(5px);
+  justify-content: center;
   overflow: hidden;
+  background: #100b16f5;
+  backdrop-filter: blur(10px);
   touch-action: none;
 }
-
 .custom-lightbox-content {
   max-width: 95vw;
   max-height: 95vh;
-  box-shadow: 0 0 30px rgba(0,0,0,0.9);
-  border: 1px solid #d4af37;
+  border: 1px solid #cf6396;
+  border-radius: 4px;
+  box-shadow: 0 0 40px #9a366544;
   object-fit: contain;
-  transform-origin: center center;
+  transform-origin: center;
   will-change: transform;
   cursor: grab;
   user-select: none;
   -webkit-user-drag: none;
 }
-
 .custom-lightbox-content:active {
   cursor: grabbing;
 }
-
 .lightbox-close-btn {
   position: absolute;
-  top: 20px;
-  right: 30px;
-  color: #e0e0e0;
-  font-size: 50px;
-  font-weight: 300;
+  top: 18px;
+  right: 18px;
+  z-index: 10000;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #b96990;
+  border-radius: 50%;
+  background: #241526e8;
+  color: #ffe0ec;
+  font-size: 28px;
   line-height: 1;
   cursor: pointer;
-  z-index: 10000;
-  user-select: none;
-  text-shadow: 0 2px 5px rgba(0,0,0,0.8);
-  transition: color 0.2s, transform 0.2s;
-  font-family: sans-serif;
 }
-
 .lightbox-close-btn:hover {
-  color: #d4af37;
-  transform: scale(1.1);
+  background: #68304f;
 }
-
 .lightbox-tip {
   position: absolute;
-  bottom: 20px;
+  bottom: 18px;
   left: 50%;
+  z-index: 10000;
+  width: max-content;
+  max-width: calc(100vw - 32px);
   transform: translateX(-50%);
-  color: rgba(255,255,255,0.5);
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #241526d9;
+  color: #dec4d1;
   font-size: 12px;
   pointer-events: none;
-  z-index: 10000;
+}
+@keyframes gallery-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-container *,
+  .app-container *::before,
+  .app-container *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>

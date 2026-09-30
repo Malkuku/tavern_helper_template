@@ -148,13 +148,22 @@
       </div>
       <div v-if="stickerOpen" class="wx-sticker-picker">
         <div class="wx-sticker-picker-head">
-          <strong>我的表情</strong>
+          <strong>我的表情 · {{ stickerNames.length }}</strong>
           <button type="button" @click="openStickerManager">管理表情</button>
         </div>
+        <input
+          v-if="stickerNames.length"
+          v-model="stickerSearch"
+          class="wx-sticker-search"
+          type="search"
+          placeholder="搜索表情名称"
+          aria-label="搜索我的表情"
+        />
         <div class="wx-custom-sticker-grid">
           <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加后就能在这里选择发送。</p>
+          <p v-else-if="!filteredStickerNames.length" class="wx-sticker-empty">没有找到匹配的表情。</p>
           <button
-            v-for="name in stickerNames"
+            v-for="name in filteredStickerNames"
             :key="name"
             class="wx-sticker-choice"
             type="button"
@@ -1053,6 +1062,11 @@ async function sendLocation(key: string) {
   }
 }
 const stickerNames = computed(() => Object.keys(self.value?.表情包 ?? {}));
+const stickerSearch = ref('');
+const filteredStickerNames = computed(() => {
+  const query = stickerSearch.value.trim().toLocaleLowerCase();
+  return query ? stickerNames.value.filter(name => name.toLocaleLowerCase().includes(query)) : stickerNames.value;
+});
 const tab = ref<Tab>('chats');
 const subPage = ref<'requests' | 'add' | 'nearby' | null>(null);
 const nearbyText = ref('');
