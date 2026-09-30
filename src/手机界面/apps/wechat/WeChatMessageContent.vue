@@ -1,17 +1,7 @@
 <template>
   <div class="wx-content-parts">
     <template v-for="(item, index) in items" :key="index">
-      <span v-if="typeof item === 'string' && parseText(item).kind === 'text'" class="wx-content-text">
-        <template v-for="(part, partIndex) in splitInlineEmoji(item, hasDefaultEmoji)" :key="partIndex">
-          <img
-            v-if="part.kind === 'emoji'"
-            class="wx-inline-emoji"
-            :src="defaultEmojiSource(part.value)"
-            :alt="`[${part.value}]`"
-          />
-          <template v-else>{{ part.value }}</template>
-        </template>
-      </span>
+      <span v-if="typeof item === 'string' && parseText(item).kind === 'text'" class="wx-content-text">{{ item }}</span>
       <div v-else-if="typeof item === 'string' && parseText(item).kind === 'voice'" class="wx-rich wx-voice">
         <strong>))) 语音 {{ parseText(item).label }}</strong>
         <span>{{ parseText(item).detail }}</span>
@@ -92,8 +82,6 @@
 <script setup lang="ts">
 import type { 微信数据, 微信消息, 微信消息内容, 微信转发内容 } from '../../types';
 import { parseLocationShare } from '../map/locationShare';
-import { defaultEmojiSource } from './defaultEmoji';
-import { splitInlineEmoji } from './defaultEmojiText';
 import { resolveWechatImage } from './imageLibrary';
 import { stickerSourceByName } from './stickerSource';
 
@@ -139,10 +127,6 @@ function parseText(value: string): {
 
 function stickerSource(name: string): string {
   return stickerSourceByName(props.accounts, props.sender, name, resolveWechatImage);
-}
-
-function hasDefaultEmoji(name: string): boolean {
-  return !!defaultEmojiSource(name);
 }
 
 function forwardMessages(item: 微信转发内容): 微信消息[] {
