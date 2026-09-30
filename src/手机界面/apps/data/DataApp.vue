@@ -3,7 +3,7 @@
     <div class="data-scroll">
       <div v-if="!statStore.statData" class="data-empty">
         <span class="data-empty-mark">✧</span>
-        <strong>暂无角色变量</strong>
+        <strong>档案暂不可用</strong>
         <p>暂无可展示的角色资料。</p>
       </div>
       <CharacterObservation

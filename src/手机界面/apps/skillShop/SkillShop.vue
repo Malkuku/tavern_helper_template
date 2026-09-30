@@ -10,7 +10,7 @@
           :disabled="busy || store.skillRefreshing || balance < refreshPrice || (directed && !preference.trim())"
           @click="refreshShop"
         >
-          {{ store.skillRefreshing ? '生成中…' : `刷新货架 · ${refreshPrice} 积分` }}
+          {{ store.skillRefreshing ? '刷新中…' : `刷新货架 · ${refreshPrice} 积分` }}
         </button>
         <label class="directed-refresh-toggle">
           <input v-model="directed" type="checkbox" :disabled="busy || store.skillRefreshing" />
@@ -41,7 +41,7 @@
       </nav>
 
       <div v-if="tab === 'shop'" class="shop-list">
-        <p v-if="!shopEntries.length" class="shop-empty">货架暂无技能。点击刷新生成本周可购买的技能。</p>
+        <p v-if="!shopEntries.length" class="shop-empty">货架上还没有技能，刷新看看本周的新货。</p>
         <article
           v-for="[name, item] in shopEntries"
           :key="name"

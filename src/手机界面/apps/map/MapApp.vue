@@ -89,7 +89,7 @@
         </section>
       </div>
     </template>
-    <div v-else class="phone-map-empty">当前楼层暂无地图数据。</div>
+    <div v-else class="phone-map-empty">地图暂不可用。</div>
   </main>
 </template>
 

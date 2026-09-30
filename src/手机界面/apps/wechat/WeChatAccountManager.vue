@@ -119,7 +119,7 @@
           </div>
           <span>尚未建号</span>
         </div>
-        <p class="wx-manager-empty">该角色在当前楼层尚无微信账号。创建后才能设置头像、表情包和好友关系。</p>
+        <p class="wx-manager-empty">该角色还没有微信账号。创建后即可设置头像、表情包和好友关系。</p>
         <button class="wx-manager-primary" type="button" :disabled="creating" @click="createAccount">
           {{ creating ? '正在创建…' : '为此角色创建微信账号' }}
         </button>

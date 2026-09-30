@@ -12,7 +12,7 @@
           "
           @click="run(() => store.refreshItemShop(directed ? preference.trim() : undefined))"
         >
-          {{ store.itemRefreshing ? '生成中…' : quote.error ? '刷新货架' : `刷新货架 · ${refreshPrice} 积分` }}
+          {{ store.itemRefreshing ? '刷新中…' : quote.error ? '刷新货架' : `刷新货架 · ${refreshPrice} 积分` }}
         </button>
         <label class="directed-refresh-toggle">
           <input v-model="directed" type="checkbox" :disabled="busy || store.itemRefreshing" />
@@ -50,7 +50,7 @@
 
       <div class="item-shop-list">
         <p v-if="!entries.length" class="item-shop-empty">
-          {{ tab === 'shop' ? '货架暂无商品。点击刷新生成。' : `${saleSide}没有可出售的道具。` }}
+          {{ tab === 'shop' ? '货架上还没有道具，刷新看看。' : `${saleSide}没有可出售的道具。` }}
         </p>
         <article v-for="[name, item] in entries" :key="name" class="item-shop-card">
           <button

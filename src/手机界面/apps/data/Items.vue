@@ -24,7 +24,7 @@
   <p v-if="error" class="data-error" role="alert">{{ error }}</p>
   <div v-if="transfers.length" class="inventory-pending data-card">
     <div>
-      <strong>待确认变更 {{ transfers.length }} 项</strong><small>确认后写入当前楼层</small>
+      <strong>待确认转移 {{ transfers.length }} 项</strong><small>确认后更新物品位置</small>
     </div>
     <div class="inventory-pending-actions">
       <button type="button" :disabled="saving" @click="clearDraft">撤销</button>
@@ -161,7 +161,7 @@ watch(
   () => {
     if (!saving.value && transfers.value.length) {
       clearDraft();
-      notice.value = '库存数据已更新，待确认变更已撤销。';
+      notice.value = '物品数量已变化，待确认的转移已撤销。';
     }
   },
 );

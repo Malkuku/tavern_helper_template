@@ -9,9 +9,9 @@
         >＋ 上传图片<input type="file" accept="image/*" multiple @change="upload"
       /></label>
     </div>
-    <p class="wx-library-help">点选缩略图可复制引用，或设为当前账号的头像、表情包。</p>
+    <p class="wx-library-help">点选图片可复制地址，或设为当前账号的头像、表情包。</p>
 
-    <div class="wx-library-folder-head"><strong>文件分类</strong><span>仅用于整理，不改变图片引用</span></div>
+    <div class="wx-library-folder-head"><strong>文件分类</strong><span>移动分类不会影响已使用的图片</span></div>
     <div class="wx-library-folders" aria-label="一级文件夹">
       <button type="button" :class="{ active: activeGroupId === null }" @click="selectGroup(null)">全部</button>
       <button

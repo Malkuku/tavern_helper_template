@@ -320,7 +320,7 @@
         <span>{{ pendingTarget.title }}</span>
       </div>
     </section>
-    <p class="data-prose">接触任务已发放。目标的观测档案会在角色数据录入后显示。</p>
+    <p class="data-prose">接触任务已送达，这位目标的档案还有待补全。</p>
   </div>
   <section v-else-if="showFirstChoice" class="first-target-selection" aria-label="选择首位接触目标">
     <div class="first-target-head">

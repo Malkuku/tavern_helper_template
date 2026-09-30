@@ -38,7 +38,7 @@
       <p>{{ place || '地点未设置' }}</p>
     </template>
     <template v-else-if="app === '日历'">
-      <p v-if="!gameDate" class="calendar-empty">世界时间未设置，暂无游戏日历</p>
+      <p v-if="!gameDate" class="calendar-empty">还没有可显示的日期</p>
       <template v-else>
         <div class="calendar-nav">
           <button type="button" @click="changeMonth(-1)">‹</button

@@ -4,19 +4,19 @@
       <section class="intro">
         <span class="witch-eyebrow">MEMBER MISSIONS</span>
         <h1>你的任务</h1>
-        <p>已接 {{ activeEntries.length }}/4 · 本周已计入 {{ stats?.current.完成 ?? 0 }} 项，必达 KPI 完成 7 项任务</p>
+        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7 项</p>
         <button
           type="button"
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
           @click="run(() => store.refreshTaskBoard())"
         >
-          {{ store.taskRefreshing ? '生成中…' : refreshAvailable ? '刷新任务' : '本周次数已用完' }}
+          {{ store.taskRefreshing ? '刷新中…' : refreshAvailable ? '刷新任务' : '本周次数已用完' }}
         </button>
         <p>本周剩余刷新 {{ refreshState?.remaining ?? 0 }}/5 次</p>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消等待
         </button>
-        <RefreshFeedback v-if="store.taskRefreshing" label="正在生成任务候选" />
+        <RefreshFeedback v-if="store.taskRefreshing" label="正在寻找新任务" />
         <p v-if="store.taskRefreshError" class="error">{{ store.taskRefreshError }}</p>
       </section>
 
@@ -31,7 +31,7 @@
       </nav>
 
       <div v-if="tab === 'board'" class="list">
-        <p v-if="!boardEntries.length" class="empty">暂无候选任务。可刷新获取任务。</p>
+        <p v-if="!boardEntries.length" class="empty">目前没有可接的任务，刷新看看。</p>
         <QuestCard v-for="[name, task] in boardEntries" :key="name" :name="name" :task="task" :accepted="false">
           <template #actions>
             <button
@@ -96,12 +96,12 @@
 
       <div v-else class="list">
         <p class="stats-note">
-          每周须完成至少 7 项任务，完成后领取奖励才计入 KPI；7
-          项是达标线，达标后仍可继续完成。未达标可能面临组织问责。所有周的汇总永久保留。
+          每周至少完成 7 项任务。完成后记得领取奖励，才算进本周成绩。满 7
+          项后仍能继续接任务；若未达成目标，组织可能会找上门。
         </p>
         <article v-if="lifetimeStats" class="card">
-          <div class="heading"><strong>累计统计</strong></div>
-          <p>已计入 {{ lifetimeStats.完成 }} 项 · 已放弃 {{ lifetimeStats.放弃 }} 项</p>
+          <div class="heading"><strong>累计战绩</strong></div>
+          <p>已领奖 {{ lifetimeStats.完成 }} 项 · 已放弃 {{ lifetimeStats.放弃 }} 项</p>
           <div class="goal">完成评级：{{ ratingSummary(lifetimeStats.完成评级) }}</div>
           <div class="goal">放弃评级：{{ ratingSummary(lifetimeStats.放弃评级) }}</div>
         </article>
@@ -110,7 +110,7 @@
             <strong>{{ week.label }}</strong
             ><span>{{ week.data.周起始 }} 起</span>
           </div>
-          <p>已计入 {{ week.data.完成 }} 项 · 已放弃 {{ week.data.放弃 }} 项</p>
+          <p>已领奖 {{ week.data.完成 }} 项 · 已放弃 {{ week.data.放弃 }} 项</p>
           <div class="goal">完成评级：{{ ratingSummary(week.data.完成评级) }}</div>
           <div class="goal">放弃评级：{{ ratingSummary(week.data.放弃评级) }}</div>
         </article>
@@ -151,7 +151,7 @@ const visibleWeeks = computed(() =>
             ? '本周'
             : data.周起始 === stats.value?.previous?.周起始
               ? '上周'
-              : '历史周',
+              : '往期',
         data,
       }))
     : [],

@@ -1,8 +1,8 @@
 <template>
   <div class="wechat" :class="{ 'wx-dark': darkMode }">
     <p v-if="store.wechatLogError" class="wx-log-error" role="alert">
-      微信消息同步失败：{{ store.wechatLogError }}
-      <button type="button" @click="clearFailedLog">清除本楼微信日志</button>
+      消息更新失败：{{ store.wechatLogError }}
+      <button type="button" @click="clearFailedLog">清除异常记录</button>
     </p>
     <WeChatAccountManager v-if="adminOpen" @close="adminOpen = false" />
     <template v-else-if="selectedSession && selectedKey">
@@ -509,7 +509,7 @@
         </div>
       </header>
       <div class="wx-body" :class="{ 'wx-me-body': tab === 'me' }">
-        <template v-if="!wechat"><p class="wx-empty">当前楼层尚无微信数据，请重新打开手机完成初始化。</p></template>
+        <template v-if="!wechat"><p class="wx-empty">消息暂不可用，请重新打开手机。</p></template>
         <template v-else-if="tab === 'chats'">
           <label v-if="searchOpen" class="wx-search"
             ><span>⌕</span><input v-model="query" aria-label="搜索聊天" placeholder="搜索会话"
