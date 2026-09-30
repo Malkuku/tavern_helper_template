@@ -1285,12 +1285,32 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #c14f89, #5b2c5f);
-  color: #fff;
-  font-size: 12px;
+  border: 1px solid #b56b96;
+  background: radial-gradient(circle at 30% 20%, #834368, #522747 70%);
+  box-shadow:
+    inset 0 1px 0 #ffffff30,
+    0 1px 5px #12091566;
+  color: #ffe2f0;
+}
+.witch-app .selector-avatar svg {
+  width: 23px;
+  height: 23px;
+}
+.witch-app .selector-avatar .avatar-orbit {
+  stroke: #d592b7;
+  stroke-width: 0.8;
+  opacity: 0.65;
+}
+.witch-app .selector-avatar .avatar-figure {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.witch-app .selector-avatar .avatar-spark {
+  fill: #ffe3a7;
 }
 .witch-app .selector-copy {
   display: grid;

@@ -12,7 +12,7 @@
       aria-controls="observation-selector"
       @click="selectorOpen ? closeSelector() : openSelector()"
     >
-      <span class="selector-avatar" aria-hidden="true">{{ selectedTarget?.key.slice(0, 1) }}</span>
+      <ObservationAvatar />
       <span class="selector-copy"
         ><small>{{ selectedIsTarget ? '正在观测' : '已知人物' }}</small
         ><strong>{{ selectedTarget?.key }}</strong></span
@@ -56,7 +56,7 @@
         :aria-current="selectedTarget?.id === target.id ? 'true' : undefined"
         @click="selectTarget(target.id)"
       >
-        <span class="selector-avatar" aria-hidden="true">{{ target.key.slice(0, 1) }}</span>
+        <ObservationAvatar />
         <span class="selector-copy"
           ><strong>{{ target.key }}</strong
           ><small>{{ targetIsChosen(target.key) ? '已选目标' : '可选目标' }}</small></span
@@ -441,6 +441,7 @@ import { observationRoster } from './observationTargets';
 import { additionalTargetPrice } from './selectTarget';
 import { currentAbilityLimit } from './characterArchive';
 import CharacterPortrait from './CharacterPortrait.vue';
+import ObservationAvatar from './ObservationAvatar.vue';
 import LockedField from './LockedField.vue';
 import RatingEmblem from './RatingEmblem.vue';
 import StageHelp from './StageHelp.vue';
