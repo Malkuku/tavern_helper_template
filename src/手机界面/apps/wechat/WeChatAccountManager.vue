@@ -6,7 +6,7 @@
     </header>
     <form v-if="!unlocked" class="wx-manager-gate" @submit.prevent="unlock">
       <strong>进入账号管理</strong>
-      <p>可查看当前聊天的全部微信账号，整理图片并设置头像、表情包。</p>
+      <p>管理当前聊天的账号、头像、好友和表情包。</p>
       <label>管理密码<input v-model="password" type="password" autocomplete="off" /></label>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       <button class="wx-manager-primary" type="submit">进入管理</button>
@@ -119,9 +119,9 @@
           </div>
           <span>尚未建号</span>
         </div>
-        <p class="wx-manager-empty">该角色还没有微信账号。创建后即可设置头像、表情包和好友关系。</p>
+        <p class="wx-manager-empty">该角色还没有账号。创建后即可设置头像、表情包和好友关系。</p>
         <button class="wx-manager-primary" type="button" :disabled="creating" @click="createAccount">
-          {{ creating ? '正在创建…' : '为此角色创建微信账号' }}
+          {{ creating ? '正在创建…' : '为此角色创建账号' }}
         </button>
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </section>

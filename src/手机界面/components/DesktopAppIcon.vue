@@ -33,21 +33,11 @@
       <path d="m11 35 36-24-21 23Z" fill="#3e95f4" />
       <path d="m26 34 21-23-13 37Z" fill="#0b55b8" />
     </svg>
-    <svg v-else-if="name === '微信'" class="desktop-symbol-icon wechat-mark" viewBox="0 0 58 58" aria-hidden="true">
-      <path
-        d="M26 7C13.8 7 4 15.2 4 25.3c0 5.5 2.9 10.4 7.6 13.8L9.5 46l8-4.3c2.6 1 5.5 1.5 8.5 1.5 12.2 0 22-8.2 22-18.3S38.2 7 26 7Z"
-        fill="#fff"
-      />
-      <circle cx="18.2" cy="23.2" r="2.8" fill="#23b879" />
-      <circle cx="32.6" cy="23.2" r="2.8" fill="#23b879" />
-      <path
-        d="M55 37.4c0 8.5-7.7 15.4-17.2 15.4-2.5 0-4.9-.5-7-1.3l-5.7 3 1.5-5.2c-3.7-2.8-6-7.1-6-11.9 0-8.5 7.7-15.4 17.2-15.4S55 28.9 55 37.4Z"
-        fill="#fff"
-        stroke="#23b879"
-        stroke-width="2"
-      />
-      <circle cx="31.8" cy="35.8" r="2.4" fill="#23b879" />
-      <circle cx="43.4" cy="35.8" r="2.4" fill="#23b879" />
+    <svg v-else-if="name === '微信'" class="desktop-symbol-icon weline-mark" viewBox="0 0 58 58" aria-hidden="true">
+      <rect x="10" y="12" width="38" height="32" rx="11" fill="#fff" fill-opacity=".96" />
+      <path d="m20 44-3 6 11-6" fill="#fff" fill-opacity=".96" />
+      <path d="M18 27h14m-14 7h20" fill="none" stroke="#6477bd" stroke-width="3.4" stroke-linecap="round" />
+      <circle cx="40" cy="25" r="3.2" fill="#eea8b5" />
     </svg>
     <svg v-else-if="name === '信息'" class="desktop-symbol-icon" viewBox="0 0 58 58" aria-hidden="true">
       <path
@@ -103,7 +93,7 @@ const statStore = useMagicGirlStatStore();
   height: 52px;
 }
 
-.wechat-mark {
+.weline-mark {
   width: 56px;
   height: 56px;
 }

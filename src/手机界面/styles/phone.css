@@ -423,6 +423,21 @@
   color: #76777e;
   font-size: 22px !important;
 }
+.weline-notification {
+  border: 1px solid #d7def6;
+  background: #f8f9ffef;
+  color: #28314d;
+  box-shadow: 0 10px 28px #2b3b6b3d;
+}
+.weline-notification .wx-avatar,
+.weline-notification .phone-notification-avatar {
+  border-radius: 13px;
+  background: #7284c8;
+}
+.weline-notification .phone-notification-copy small,
+.weline-notification .phone-notification-close {
+  color: #68748f;
+}
 .witch-notification {
   border-color: #d09ab8;
   background: #27182ff2;

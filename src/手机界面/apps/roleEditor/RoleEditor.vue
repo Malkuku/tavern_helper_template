@@ -161,7 +161,7 @@
               <option v-for="(name, index) in avatarStyleNames" :key="name" :value="String(index)">{{ name }}</option>
             </select></label
           >
-          <p class="pre-hint">头像会用于角色档案与默认微信账号；主题颜色会用于角色对话框。</p>
+          <p class="pre-hint">头像会用于角色档案与默认 Weline 账号；主题颜色会用于角色对话框。</p>
         </section>
 
         <section class="pre-card">
@@ -528,8 +528,8 @@ function requestRuntime() {
     kind: 'runtime',
     title: runtimeExists.value ? '替换当前角色' : '加入当前剧情',
     body: runtimeExists.value
-      ? '当前角色的全部数据会被这个资源版本替换，微信头像也会同步。'
-      : '角色会加入当前剧情，并生成对应微信账号与头像。',
+      ? '当前角色的全部数据会被这个资源版本替换，Weline 头像也会同步。'
+      : '角色会加入当前剧情，并生成对应 Weline 账号与头像。',
     action: runtimeExists.value ? '确认替换' : '确认加入',
     fields,
   };

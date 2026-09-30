@@ -1,5 +1,5 @@
 <template>
-  <section class="wx-library" aria-label="微信图片库">
+  <section class="wx-library" aria-label="Weline 图片库">
     <div class="wx-manager-section-head">
       <div>
         <small>MEDIA LIBRARY</small>
@@ -79,7 +79,7 @@
           <button type="button" :disabled="!assignable" @click="emit('avatar', selectedImage[0])">设为头像</button>
           <button type="button" :disabled="!assignable" @click="emit('sticker', selectedImage[0])">选作表情</button>
         </div>
-        <small v-if="!assignable">请先为当前角色创建微信账号，再选用图片。</small>
+        <small v-if="!assignable">请先为当前角色创建账号，再选用图片。</small>
         <label
           >移动到文件夹
           <select :value="selectedPlacement" @change="moveSelected">

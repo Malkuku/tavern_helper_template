@@ -339,17 +339,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const generation = chatGeneration;
     return queueStatWork(async () => {
       await waitGlobalInitialized('Mvu');
-      if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
+      if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
-      if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，请重新打开手机。');
+      if (!previous?.stat_data?.手机?.微信) throw new Error('Weline 数据尚未初始化，请重新打开手机。');
       const data = klona(previous.stat_data) as stat_data;
       const before = data.手机.微信;
       const after = updater(before, data);
       settlePayments(data, before, after);
       data.手机.微信 = after;
-      if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
+      if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
       if (beforeWrite) await beforeWrite(data);
-      if (generation !== chatGeneration) throw new Error('聊天已切换，微信操作已取消。');
+      if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
       await writeStatData(data, previous);
       afterWrite?.(data);
       return after;
@@ -725,14 +725,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       for (const item of content) {
         if (typeof item !== 'string' || !item.startsWith('<位置')) continue;
         const key = parseLocationShare(item);
-        if (!key || !findPhoneMapPath(stat.地图 ?? {}, key))
-          throw new Error('位置分享必须使用当前地图中存在的节点 key。');
+        if (!key || !findPhoneMapPath(stat.地图 ?? {}, key)) throw new Error('分享的位置必须存在于当前地图中。');
       }
       if (current.准备发送 && current.准备发送.已确认 !== false)
-        throw new Error('上一批微信仍在等待正文确认，请先重试或等待完成。');
+        throw new Error('上一批消息仍在等待确认，请先重试或等待完成。');
       if (current.准备发送 && current.准备发送.会话 !== conversation) throw new Error('请先确认当前会话的待发送消息。');
       const worldTime = stat.世界?.时间;
-      if (!worldTime) throw new Error('世界时间尚未设置，无法发送微信。');
+      if (!worldTime) throw new Error('世界时间尚未设置，无法发送消息。');
       const session = current.会话[conversation];
       if (session) {
         if (!session.成员.includes('user')) throw new Error('不能从 user 手机向非本人会话发送消息。');
@@ -785,8 +784,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function confirmWeChatSend() {
     const generation = chatGeneration;
     await updateWeChat(current => {
-      if (!current.准备发送) throw new Error('没有待发送的微信消息。');
-      if (current.准备发送.已确认 !== false) throw new Error('这批微信消息已经确认，请等待正文或重试生成。');
+      if (!current.准备发送) throw new Error('没有待发送的消息。');
+      if (current.准备发送.已确认 !== false) throw new Error('这批消息已确认，请等待发送完成或重试。');
       const wechat = klona(current);
       wechat.准备发送!.已确认 = true;
       return wechat;
@@ -797,7 +796,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function discardWeChatDraft() {
     await updateWeChat(current => {
-      if (!current.准备发送 || current.准备发送.已确认 !== false) throw new Error('没有可清空的待发送微信消息。');
+      if (!current.准备发送 || current.准备发送.已确认 !== false) throw new Error('没有可清空的待发送消息。');
       const wechat = klona(current);
       wechat.准备发送 = null;
       return wechat;
@@ -846,14 +845,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function clearFailedWeChatLog() {
     const id = failedWeChatMessageId.value;
     const index = failedWeChatLogIndex.value;
-    if (id === null || index === null) throw new Error('尚未定位到可清除的微信日志。');
+    if (id === null || index === null) throw new Error('尚未定位到可清除的聊天记录。');
     const message = getChatMessages(id)[0];
     if (!message || message.role !== 'assistant') throw new Error('出错的正文楼层已不存在。');
     let tagIndex = 0;
     const cleaned = message.message.replace(/<WeChatLog>\s*[\s\S]*?\s*<\/WeChatLog>/g, tag =>
       tagIndex++ === index ? '' : tag,
     );
-    if (cleaned === message.message) throw new Error('出错的微信日志已不存在。');
+    if (cleaned === message.message) throw new Error('出错的聊天记录已不存在。');
     await setChatMessages([{ message_id: id, message: cleaned }], { refresh: 'affected' });
     failedWeChatMessageId.value = null;
     failedWeChatLogIndex.value = null;
@@ -862,8 +861,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function retryWeChatSend() {
     const pending = statData.value?.手机?.微信?.准备发送;
-    if (!pending) throw new Error('没有待生成的微信消息。');
-    if (pending.已确认 === false) throw new Error('请先确认发送这批微信消息。');
+    if (!pending) throw new Error('没有待发送的消息。');
+    if (pending.已确认 === false) throw new Error('请先确认发送这批消息。');
     await eventEmit('Chat_On_WeChat');
   }
 
@@ -877,7 +876,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function ensureWeChatAccount(id: string, name: string, avatar: string) {
     await updateWeChat((current, data) => {
       const character = data.角色.主要角色[id] || data.角色.次要角色[id];
-      if (!character || id === 'user') throw new Error('角色已不存在，无法创建微信账号。');
+      if (!character || id === 'user') throw new Error('角色已不存在，无法创建 Weline 账号。');
       return addWechatAccount(current, id, name, avatar);
     });
   }
@@ -891,7 +890,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function performWeChatOperation(event: OperationEvent) {
     await updateWeChat((current, data) => {
-      if (current.准备发送) throw new Error('上一条微信仍在等待正文确认。');
+      if (current.准备发送) throw new Error('上一条消息仍在等待确认。');
       if (!data.世界?.时间) throw new Error('世界时间尚未设置。');
       return applyWeChatOperation(current, { ...event, 时间: data.世界.时间 });
     });
@@ -899,7 +898,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   async function updateWeChatProfile(name: string, image: string) {
     const current = statData.value?.手机?.微信;
-    if (!current?.账号.user) throw new Error('微信 user 账号不存在。');
+    if (!current?.账号.user) throw new Error('Weline 用户账号不存在。');
     await updateWeChatAccount('user', name, image, current.账号.user.表情包, current.账号.user.好友);
   }
 
@@ -934,7 +933,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function createWeChatGroup(name: string, members: string[]) {
     const key = `群聊:${crypto.randomUUID()}`;
     await updateWeChat((current, data) => {
-      if (current.准备发送) throw new Error('上一条微信仍在等待正文确认。');
+      if (current.准备发送) throw new Error('上一条消息仍在等待确认。');
       if (!data.世界?.时间) throw new Error('世界时间尚未设置。');
       if (!members.length || members.some(id => !current.账号.user.好友.includes(id)))
         throw new Error('请选择至少一位好友加入群聊。');
@@ -1052,7 +1051,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await waitGlobalInitialized('Mvu');
     if (generation !== chatGeneration) return;
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
-    if (!previous?.stat_data?.手机?.微信) throw new Error('微信变量尚未初始化，正文增量仍待处理。');
+    if (!previous?.stat_data?.手机?.微信) throw new Error('Weline 数据尚未初始化，收到的消息仍待处理。');
     const current = normalizeWeChatIds(previous.stat_data.手机.微信);
     const validateLocations = (entries: typeof logs) => {
       for (const log of entries)
@@ -1062,7 +1061,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
             if (typeof item !== 'string' || !item.startsWith('<位置')) continue;
             const key = parseLocationShare(item);
             if (!key || !findPhoneMapPath(previous.stat_data.地图 ?? {}, key))
-              throw new Error('微信位置分享的 key 不存在于当前地图。');
+              throw new Error('分享的位置在当前地图中不存在。');
           }
         }
     };
@@ -1083,7 +1082,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     try {
       remaining = unappliedWeChatLogs(current, logs);
     } catch (error) {
-      throw new Error(`第 ${messageId} 楼的${error instanceof Error ? error.message : '微信日志处理失败'}`);
+      throw new Error(`第 ${messageId} 楼的${error instanceof Error ? error.message : '聊天记录处理失败'}`);
     }
     if (!remaining.length) {
       if (logs.some(log => logConfirmsPending(current, log))) {
@@ -1110,7 +1109,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (id >= 0) await processWeChatMessage(id, generation);
     }).catch(error => {
       failedWeChatMessageId.value = messageId ?? getLastMessageId();
-      wechatLogError.value = error instanceof Error ? error.message : '微信正文增量处理失败';
+      wechatLogError.value = error instanceof Error ? error.message : '聊天记录同步失败';
       console.error('微信正文增量处理失败', error);
     });
   }

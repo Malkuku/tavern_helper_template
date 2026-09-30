@@ -2,11 +2,11 @@ export const dataAppNames = ['主要角色', '次要角色', '我的档案', '�
 export type DataAppName = (typeof dataAppNames)[number];
 
 export function appDisplayName(name: string): string {
-  return name === '主要角色' ? '心象监测' : name === '次要角色' ? '人物观测' : name;
+  return name === '微信' ? 'Weline' : name === '主要角色' ? '心象监测' : name === '次要角色' ? '人物观测' : name;
 }
 
 export const apps = [
-  { name: '微信', icon: '', color: '#23b879' },
+  { name: '微信', icon: '', color: 'linear-gradient(145deg, #8da2e7, #596cb5)' },
   { name: '魔女恶堕计划', icon: '', color: 'linear-gradient(145deg, #411335, #150c25)' },
   { name: '角色编辑器', icon: '✎', color: 'linear-gradient(145deg, #c6a4df, #7756a1)' },
   { name: '信息', icon: '', color: 'linear-gradient(145deg, #73e878, #19ae45)' },

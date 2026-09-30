@@ -11,7 +11,7 @@
         }"
         type="button"
         :style="launcherStyle"
-        :aria-label="`打开手机界面${wechatUnread ? '，微信有未读消息或好友申请' : ''}${witchNotices.length ? '，魔女恶堕计划有提醒' : ''}${rewardMailUnread ? '，有未读奖励邮件' : ''}，拖拽可移动`"
+        :aria-label="`打开手机界面${wechatUnread ? '，Weline 有未读消息或好友申请' : ''}${witchNotices.length ? '，魔女恶堕计划有提醒' : ''}${rewardMailUnread ? '，有未读奖励邮件' : ''}，拖拽可移动`"
         @pointerdown="startDrag($event, 'launcher')"
         @pointermove="moveDrag"
         @pointerup="endDrag"

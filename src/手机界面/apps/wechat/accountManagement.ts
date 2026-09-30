@@ -6,7 +6,7 @@ export type AccountMediaSnapshot = Record<string, { 头像: string; 表情包: R
 export function addWechatAccount(current: 微信数据, id: string, name: string, avatar: string): 微信数据 {
   if (current.账号[id]) return current;
   const trimmed = name.trim();
-  if (!id || id === 'user' || !trimmed) throw new Error('微信账号信息无效。');
+  if (!id || id === 'user' || !trimmed) throw new Error('账号信息无效。');
   const next = klona(current);
   next.账号[id] = { 昵称: trimmed, 头像: avatar, 表情包: {}, 好友: [] };
   return next;
@@ -20,7 +20,7 @@ export function saveWechatAccount(
   stickers: Record<string, string>,
   friends: string[],
 ): 微信数据 {
-  if (!current.账号[id]) throw new Error('微信账号不存在。');
+  if (!current.账号[id]) throw new Error('账号不存在。');
   const trimmed = name.trim();
   if (!trimmed) throw new Error('昵称不能为空。');
   const uniqueFriends = [...new Set(friends)];
@@ -72,13 +72,13 @@ export function applyNewChatMediaSnapshot(
     if (!account || !value || typeof value !== 'object' || Array.isArray(value)) continue;
     const media = value as { 头像?: unknown; 表情包?: unknown };
     if (typeof media.头像 === 'string') {
-      if (media.头像 && !hasImage(media.头像)) throw new Error(`${id} 的头像在微信图片库中缺失。`);
+      if (media.头像 && !hasImage(media.头像)) throw new Error(`${id} 的头像在 Weline 图片库中缺失。`);
       account.头像 = media.头像;
     }
     if (media.表情包 && typeof media.表情包 === 'object' && !Array.isArray(media.表情包)) {
       for (const [name, url] of Object.entries(media.表情包)) {
         if (typeof url !== 'string' || !name) continue;
-        if (!hasImage(url)) throw new Error(`${id} 的表情包「${name}」在微信图片库中缺失。`);
+        if (!hasImage(url)) throw new Error(`${id} 的表情包「${name}」在 Weline 图片库中缺失。`);
         account.表情包[name] = url;
       }
     }

@@ -53,7 +53,7 @@
       >
         <span class="wx-payment-icon">{{ parseText(item).kind === 'redpacket' ? '🧧' : '⇄' }}</span>
         <span class="wx-payment-body"
-          ><strong>{{ parseText(item).kind === 'redpacket' ? '微信红包' : `¥${parseText(item).label}` }}</strong
+          ><strong>{{ parseText(item).kind === 'redpacket' ? '红包' : `¥${parseText(item).label}` }}</strong
           ><small>{{
             states?.[index + startIndex] || (parseText(item).kind === 'redpacket' ? '领取红包' : '你发起了一笔转账')
           }}</small></span

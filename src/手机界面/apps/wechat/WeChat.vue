@@ -7,7 +7,7 @@
     <WeChatAccountManager v-if="adminOpen" @close="adminOpen = false" />
     <template v-else-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
-        <button class="wx-back" type="button" aria-label="返回微信" @click="selectedKey = null">
+        <button class="wx-back" type="button" aria-label="返回 Weline" @click="selectedKey = null">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -101,8 +101,8 @@
                 }}
               </div>
               <small v-if="contentIndex === pending.内容.length - 1">
-                {{ pending.已确认 === false ? '待确认发送' : '等待正文确认' }}
-                <button v-if="pending.已确认 !== false" type="button" @click="retrySend">重试生成</button>
+                {{ pending.已确认 === false ? '待确认发送' : '发送中' }}
+                <button v-if="pending.已确认 !== false" type="button" @click="retrySend">重试发送</button>
               </small>
             </div>
           </div>
@@ -419,7 +419,7 @@
 
     <template v-else-if="subPage === 'requests'">
       <header class="wx-header">
-        <button class="wx-back" type="button" aria-label="返回通讯录" @click="subPage = null">‹</button>
+        <button class="wx-back" type="button" aria-label="返回联系人" @click="subPage = null">‹</button>
         <strong>朋友申请</strong>
       </header>
       <div class="wx-body wx-requests-body">
@@ -431,7 +431,7 @@
             <WeChatAvatar :id="id" :accounts="accounts" />
             <div class="wx-request-identity">
               <strong>{{ accounts[id]?.昵称 || id }}</strong>
-              <small>微信号：{{ id }}</small>
+              <small>账号：{{ id }}</small>
             </div>
             <span class="wx-request-status">申请添加你</span>
           </div>
@@ -463,7 +463,7 @@
               <WeChatAvatar :id="id" :accounts="accounts" />
               <div class="wx-request-identity">
                 <strong>{{ accounts[id]?.昵称 || id }}</strong>
-                <small>微信号：{{ id }}</small>
+                <small>账号：{{ id }}</small>
               </div>
               <span class="wx-request-status">等待同意</span>
             </div>
@@ -476,7 +476,7 @@
 
     <template v-else-if="subPage === 'nearby'">
       <header class="wx-header">
-        <button class="wx-back" type="button" aria-label="返回发现" @click="subPage = null">‹</button>
+        <button class="wx-back" type="button" aria-label="返回联系人" @click="subPage = null">‹</button>
         <strong>附近的人</strong>
       </header>
       <div class="wx-body">
@@ -495,14 +495,14 @@
           <strong>{{ accounts[person.id]?.昵称 || person.name }}</strong>
           <span class="wx-muted">{{ self?.好友.includes(person.id) ? '已是好友' : '查看' }}</span>
         </button>
-        <p v-if="!nearbyPeople.length" class="wx-empty">最近正文中没有匹配到附近的人</p>
+        <p v-if="!nearbyPeople.length" class="wx-empty">附近暂时没有可联系的人</p>
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </div>
     </template>
 
     <template v-else-if="subPage === 'add'">
       <header class="wx-header">
-        <button class="wx-back" type="button" aria-label="返回通讯录" @click="subPage = null">‹</button>
+        <button class="wx-back" type="button" aria-label="返回上一页" @click="subPage = null">‹</button>
         <strong>添加朋友</strong>
       </header>
       <div class="wx-body">
@@ -526,14 +526,12 @@
 
     <template v-else-if="!accountPage">
       <header v-if="tab !== 'me'" class="wx-header wx-main-header">
-        <strong>{{
-          tab === 'chats' ? `微信${chats.length ? `(${chats.length})` : ''}` : tabs.find(item => item.id === tab)?.label
-        }}</strong>
+        <strong>{{ tab === 'chats' ? 'Weline' : tabs.find(item => item.id === tab)?.label }}</strong>
         <div class="wx-header-actions">
           <button type="button" aria-label="搜索" @click="searchOpen = !searchOpen">
             <WeChatIcon name="search" />
           </button>
-          <button type="button" aria-label="添加附近的人" @click="openNearbyPage">
+          <button type="button" aria-label="添加联系人" @click="subPage = 'add'">
             <WeChatIcon name="plus" />
           </button>
         </div>
@@ -557,7 +555,7 @@
               :src="resolveWechatImage(chatAppearance[item.key].image)"
               alt=""
             />
-            <span v-else-if="item.group" class="wx-avatar wx-group-avatar">群</span>
+            <span v-else-if="item.group" class="wx-avatar wx-group-avatar"><WeChatIcon name="group" /></span>
             <WeChatAvatar v-else :id="item.avatarId" :accounts="accounts" />
             <span class="wx-row-main"
               ><strong>{{ item.title }}</strong
@@ -573,19 +571,17 @@
             ><span>⌕</span><input v-model="query" aria-label="搜索联系人" placeholder="搜索好友"
           /></label>
           <button class="wx-list-row wx-contact-feature" type="button" @click="subPage = 'requests'">
-            <span class="wx-feature-icon orange"><WeChatIcon name="new-friend" /></span><strong>新的朋友</strong>
+            <span class="wx-feature-icon orange"><WeChatIcon name="new-friend" /></span><strong>新朋友</strong>
             <span v-if="incomingRequests.length" class="wx-count">{{ incomingRequests.length }}</span>
             <i v-if="incomingRequests.length" class="wx-request-dot" aria-label="新好友申请"></i>
           </button>
-          <button
-            v-for="item in contactFeatures"
-            :key="item.label"
-            class="wx-list-row wx-contact-feature"
-            type="button"
-            @click="showUnavailable(item.label)"
-          >
-            <span class="wx-feature-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
-            ><strong>{{ item.label }}</strong>
+          <button class="wx-list-row wx-contact-feature" type="button" @click="openNearbyPage">
+            <span class="wx-feature-icon blue"><WeChatIcon name="people" /></span><strong>附近的人</strong>
+            <WeChatIcon class="wx-row-chevron" name="chevron" />
+          </button>
+          <button class="wx-list-row wx-contact-feature" type="button" @click="subPage = 'add'">
+            <span class="wx-feature-icon green"><WeChatIcon name="plus" /></span><strong>添加朋友</strong>
+            <WeChatIcon class="wx-row-chevron" name="chevron" />
           </button>
           <div class="wx-section-label">{{ contacts.length ? '好友' : '暂无好友' }}</div>
           <button
@@ -598,52 +594,28 @@
             <WeChatAvatar :id="id" :accounts="accounts" /><strong>{{ account.昵称 || id }}</strong>
           </button>
         </template>
-        <template v-else-if="tab === 'discover'">
-          <div v-for="(group, index) in discoverGroups" :key="index" class="wx-menu-group">
-            <button
-              v-for="item in group"
-              :key="item.label"
-              class="wx-list-row wx-menu-row"
-              type="button"
-              @click="item.label === '附近的人' ? openNearbyPage() : showUnavailable(item.label)"
-            >
-              <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
-              ><strong>{{ item.label }}</strong
-              ><WeChatIcon class="wx-row-chevron" name="chevron" />
-            </button>
-          </div>
-        </template>
         <template v-else>
           <button class="wx-profile" type="button" @click="accountPage = 'profile'">
             <WeChatAvatar id="user" :accounts="accounts" />
             <div>
               <strong>{{ self?.昵称 || '我' }}</strong
-              ><small>微信号：{{ self?.昵称 || 'user' }}</small>
+              ><small>账号：user</small>
             </div>
             <WeChatIcon class="wx-row-chevron" name="chevron" />
           </button>
-          <div v-for="(group, index) in meGroups" :key="index" class="wx-menu-group">
-            <button
-              v-for="item in group"
-              :key="item.label"
-              class="wx-list-row wx-menu-row"
-              type="button"
-              @click="
-                item.label === '服务'
-                  ? (accountPage = 'services')
-                  : item.label === '设置'
-                    ? (accountPage = 'settings')
-                    : showUnavailable(item.label)
-              "
-            >
-              <span class="wx-line-icon" :class="item.color"><WeChatIcon :name="item.icon" /></span
-              ><strong>{{ item.label }}</strong
-              ><WeChatIcon class="wx-row-chevron" name="chevron" />
+          <div class="wx-menu-group">
+            <button class="wx-list-row wx-menu-row" type="button" @click="accountPage = 'services'">
+              <span class="wx-line-icon blue-text"><WeChatServiceIcon name="wallet" /></span><strong>余额与转账</strong>
+              <WeChatIcon class="wx-row-chevron" name="chevron" />
+            </button>
+            <button class="wx-list-row wx-menu-row" type="button" @click="accountPage = 'settings'">
+              <span class="wx-line-icon purple"><WeChatIcon name="settings" /></span><strong>账号与图片</strong>
+              <WeChatIcon class="wx-row-chevron" name="chevron" />
             </button>
           </div>
         </template>
       </div>
-      <nav class="wx-tabs" aria-label="微信导航">
+      <nav class="wx-tabs" aria-label="Weline 导航">
         <button
           v-for="item in tabs"
           :key="item.id"
@@ -699,23 +671,6 @@
                   ? '设置'
                   : '钱包'
         }}</strong>
-        <button
-          v-if="accountPage === 'services'"
-          class="wx-account-header-action"
-          type="button"
-          aria-label="更多"
-          @click="showUnavailable('更多')"
-        >
-          <WeChatIcon name="more" />
-        </button>
-        <button
-          v-if="accountPage === 'wallet'"
-          class="wx-account-header-action"
-          type="button"
-          @click="showUnavailable('账单')"
-        >
-          账单
-        </button>
       </header>
       <template v-if="accountPage === 'settings'">
         <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
@@ -724,7 +679,7 @@
       </template>
       <template v-else-if="accountPage === 'profile'">
         <div class="wx-avatar-upload">
-          <strong>头像</strong><small>选择一张图片作为微信头像，保存后对好友可见</small>
+          <strong>头像</strong><small>选择图片作为账号头像，保存后对好友可见</small>
           <label class="wx-upload-target">
             <img v-if="profileImage" :src="resolveWechatImage(profileImage)" alt="头像预览" />
             <span v-else class="wx-upload-placeholder">＋</span>
@@ -733,7 +688,7 @@
           <p v-if="profileImageNotice" role="status">{{ profileImageNotice }}</p>
         </div>
         <label class="wx-account-row">名字<input v-model="profileName" maxlength="40" aria-label="名字" /></label>
-        <div class="wx-account-row">微信号 <span>user</span></div>
+        <div class="wx-account-row">账号 <span>user</span></div>
         <button class="wx-account-save" type="button" :disabled="savingProfile" @click="saveProfile">保存</button>
       </template>
       <template v-else-if="accountPage === 'services'">
@@ -744,13 +699,6 @@
             <WeChatServiceIcon name="wallet" /><span>钱包</span><small>¥{{ walletBalance }}</small>
           </button>
         </div>
-        <div v-for="group in serviceGroups" :key="group.title" class="wx-service-group">
-          <p>{{ group.title }}</p>
-          <button v-for="item in group.items" :key="item.label" type="button" @click="showUnavailable(item.label)">
-            <WeChatServiceIcon :name="item.icon" :class="item.color" /><span>{{ item.label }}</span>
-          </button>
-        </div>
-        <div class="wx-service-group wx-service-group-next"><p>购物消费</p></div>
       </template>
       <template v-else-if="accountPage === 'payments'"
         ><div class="wx-wallet-card">
@@ -765,49 +713,23 @@
         </div></template
       >
       <template v-else-if="accountPage === 'wallet'">
-        <div v-for="(group, index) in walletGroups" :key="index" class="wx-wallet-group">
-          <button
-            v-for="item in group"
-            :key="item.label"
-            class="wx-wallet-row"
-            type="button"
-            @click="showUnavailable(item.label)"
-          >
-            <WeChatServiceIcon :name="item.icon" :class="item.color" />
-            <span class="wx-wallet-row-content"
-              ><span>{{ item.label }}</span
-              ><span v-if="item.label === '零钱'" class="wx-wallet-value">¥{{ walletBalance }}</span
-              ><WeChatIcon name="chevron"
-            /></span>
-          </button>
+        <div class="wx-wallet-card">
+          <span>余额</span><strong>¥{{ walletBalance }}</strong
+          ><small>收到的款项可在聊天中确认</small>
         </div>
-        <div class="wx-wallet-footer">
-          <button type="button" @click="showUnavailable('身份信息')">身份信息</button><span></span
-          ><button type="button" @click="showUnavailable('支付设置')">支付设置</button>
-        </div>
+        <button class="wx-list-row wx-menu-row" type="button" @click="accountPage = 'payments'">
+          <strong>转账给好友</strong><WeChatIcon class="wx-row-chevron" name="chevron" />
+        </button>
       </template>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
     </section>
-    <div v-if="unavailable" class="wx-dialog-backdrop" @click.self="unavailable = ''">
-      <div
-        class="wx-dialog wx-unavailable-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="wx-unavailable-title"
-      >
-        <span class="wx-dialog-symbol" aria-hidden="true">⌁</span>
-        <strong id="wx-unavailable-title">{{ unavailable }}</strong>
-        <p>这个功能暂未开放</p>
-        <button type="button" @click="unavailable = ''">知道了</button>
-      </div>
-    </div>
     <div v-if="paymentView" class="wx-dialog-backdrop" @click.self="paymentView = null">
       <div class="wx-payment-dialog" role="dialog" aria-modal="true" aria-label="款项详情">
         <button class="wx-dialog-close" type="button" @click="paymentView = null">×</button
         ><span class="wx-payment-dialog-icon">{{ paymentView.kind === '红包' ? '🧧' : '⇄' }}</span
-        ><strong>{{ paymentView.kind === '红包' ? '微信红包' : '微信转账' }}</strong
+        ><strong>{{ paymentView.kind === '红包' ? '红包' : '转账' }}</strong
         ><b>{{ paymentView.kind === '转账' ? `¥${paymentView.amount.replace(/g$/i, '')}` : paymentView.amount }}</b>
-        <p>{{ paymentView.remark || (paymentView.kind === '红包' ? '微信红包' : '转账') }}</p>
+        <p>{{ paymentView.remark || (paymentView.kind === '红包' ? '红包' : '转账') }}</p>
         <small>{{ paymentView.status || '待处理' }}</small>
         <div v-if="paymentView.message.发送者 !== 'user' && !paymentView.status" class="wx-payment-dialog-actions">
           <button
@@ -830,7 +752,7 @@
     <div v-if="cardView" class="wx-dialog-backdrop" @click.self="cardView = null">
       <div class="wx-card-dialog" role="dialog" aria-modal="true" aria-label="联系人名片">
         <WeChatAvatar :id="cardView" :accounts="accounts" /><strong>{{ accounts[cardView]?.昵称 || cardView }}</strong
-        ><small>微信号：{{ cardView }}</small
+        ><small>账号：{{ cardView }}</small
         ><button v-if="self?.好友.includes(cardView)" type="button" @click="openCardChat">发消息</button
         ><button v-else-if="!outgoingRequest(cardView)" type="button" @click="requestCardFriend">添加朋友</button
         ><small v-else>好友申请已发送</small><button type="button" @click="cardView = null">关闭</button>
@@ -869,94 +791,13 @@ const props = defineProps<{ openRequest?: { key: string; id: number } | null }>(
 const emit = defineEmits<{ 'open-map': [key: string] }>();
 const adminOpen = ref(false);
 
-type Tab = 'chats' | 'contacts' | 'discover' | 'me';
+type Tab = 'chats' | 'contacts' | 'me';
 const tabs: { id: Tab; label: string }[] = [
-  { id: 'chats', label: '微信' },
-  { id: 'contacts', label: '通讯录' },
-  { id: 'discover', label: '发现' },
-  { id: 'me', label: '我' },
-];
-const contactFeatures = [
-  { label: '仅聊天的朋友', icon: 'contacts', color: 'orange' },
-  { label: '群聊', icon: 'group', color: 'green' },
-  { label: '标签', icon: 'tag', color: 'blue' },
-  { label: '公众号', icon: 'book', color: 'blue' },
-  { label: '服务号', icon: 'book', color: 'cyan' },
-];
-const discoverGroups = [
-  [{ label: '朋友圈', icon: 'moments', color: 'multi' }],
-  [
-    { label: '视频号', icon: 'video', color: 'orange-text' },
-    { label: '直播', icon: 'live', color: 'red' },
-  ],
-  [
-    { label: '扫一扫', icon: 'scan', color: 'blue-text' },
-    { label: '听一听', icon: 'music', color: 'red' },
-  ],
-  [
-    { label: '看一看', icon: 'look', color: 'gold' },
-    { label: '搜一搜', icon: 'search', color: 'red' },
-  ],
-  [{ label: '附近的人', icon: 'people', color: 'blue-text' }],
-  [{ label: '游戏', icon: 'discover', color: 'multi' }],
-  [{ label: '小程序', icon: 'discover', color: 'purple' }],
-];
-const meGroups = [
-  [{ label: '服务', icon: 'chats', color: 'green-text' }],
-  [
-    { label: '收藏', icon: 'look', color: 'multi' },
-    { label: '朋友圈', icon: 'moments', color: 'blue-text' },
-    { label: '作品', icon: 'video', color: 'blue-text' },
-    { label: '小店与卡包', icon: 'tag', color: 'red' },
-    { label: '表情', icon: 'discover', color: 'gold' },
-  ],
-  [{ label: '设置', icon: 'settings', color: 'blue-text' }],
-];
-const serviceGroups = [
-  {
-    title: '金融理财',
-    items: [
-      { label: '信用卡还款', icon: 'credit', color: 'wx-icon-green' },
-      { label: '微粒贷借钱', icon: 'loan', color: 'wx-icon-orange' },
-      { label: '理财通', icon: 'wealth', color: 'wx-icon-blue' },
-      { label: '保险服务', icon: 'insurance', color: 'wx-icon-orange' },
-    ],
-  },
-  {
-    title: '生活服务',
-    items: [
-      { label: '手机充值', icon: 'phone', color: 'wx-icon-blue' },
-      { label: '生活缴费', icon: 'utilities', color: 'wx-icon-green' },
-      { label: 'Q币充值', icon: 'qq', color: 'wx-icon-blue' },
-      { label: '城市服务', icon: 'city', color: 'wx-icon-green' },
-      { label: '腾讯公益', icon: 'charity', color: 'wx-icon-red' },
-      { label: '医疗健康', icon: 'health', color: 'wx-icon-orange' },
-    ],
-  },
-  {
-    title: '交通出行',
-    items: [
-      { label: '出行服务', icon: 'travel', color: 'wx-icon-blue' },
-      { label: '火车票机票', icon: 'train', color: 'wx-icon-green' },
-      { label: '滴滴出行', icon: 'ride', color: 'wx-icon-orange' },
-      { label: '酒店民宿', icon: 'hotel', color: 'wx-icon-green' },
-    ],
-  },
-];
-const walletGroups = [
-  [
-    { label: '零钱', icon: 'cash', color: 'wx-icon-gold' },
-    { label: '零钱通', icon: 'gem', color: 'wx-icon-gold' },
-    { label: '银行卡', icon: 'bank', color: 'wx-icon-blue' },
-    { label: '亲属卡', icon: 'family', color: 'wx-icon-orange' },
-  ],
-  [
-    { label: '支付分', icon: 'score', color: 'wx-icon-green' },
-    { label: '客服中心', icon: 'support', color: 'wx-icon-green' },
-  ],
+  { id: 'chats', label: '消息' },
+  { id: 'contacts', label: '联系人' },
+  { id: 'me', label: '我的' },
 ];
 const darkMode = ref(false);
-const unavailable = ref('');
 const searchOpen = ref(false);
 const generating = ref(false);
 const extrasOpen = ref(false);
@@ -1011,7 +852,7 @@ function openExtra(label: string) {
     cardMessage.value = '';
     selectedCard.value = null;
     cardPickerOpen.value = true;
-  } else showUnavailable(label);
+  }
 }
 async function sendPayment() {
   if (!paymentKind.value || !selectedKey.value || sending.value) return;
@@ -1047,14 +888,9 @@ async function sendPayment() {
   }
 }
 const extraActions = [
-  { label: '相册', icon: 'photo' },
-  { label: '拍摄', icon: 'camera' },
-  { label: '视频通话', icon: 'video-call' },
   { label: '位置', icon: 'location' },
-  { label: '礼物', icon: 'gift' },
   { label: '转账', icon: 'transfer' },
   { label: '名片', icon: 'contacts' },
-  { label: '收藏', icon: 'favorite' },
 ];
 const stickerFileInput = ref<HTMLInputElement>();
 const newStickerName = ref('');
@@ -1087,9 +923,6 @@ async function saveSticker() {
   } finally {
     savingSticker.value = false;
   }
-}
-function showUnavailable(label: string) {
-  unavailable.value = label;
 }
 function syncTheme() {
   darkMode.value = getVariables({ type: 'script', script_id: getScriptId() })?.darkMode === true;
@@ -1169,7 +1002,7 @@ function startServiceTransfer(id: string) {
 const worldTime = computed(() => store.statData?.世界?.时间 || '');
 function openLocation(key: string) {
   if (!findPhoneMapPath(store.statData?.地图 ?? {}, key)) {
-    error.value = `地图中找不到位置 key：${key}`;
+    error.value = `地图中找不到位置：${key}`;
     return;
   }
   error.value = '';
@@ -1517,7 +1350,7 @@ async function performOperation(event: Omit<OperationEvent, '类型' | '时间'>
   try {
     await store.performWeChatOperation({ 类型: '操作', 时间: worldTime.value, ...event });
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '微信操作失败。';
+    error.value = cause instanceof Error ? cause.message : '操作失败。';
   } finally {
     sending.value = false;
   }
@@ -1667,7 +1500,7 @@ async function clearFailedLog() {
   try {
     await store.clearFailedWeChatLog();
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '清除失败日志失败。';
+    error.value = cause instanceof Error ? cause.message : '清除异常记录失败。';
   }
 }
 async function sendSticker(name: string) {

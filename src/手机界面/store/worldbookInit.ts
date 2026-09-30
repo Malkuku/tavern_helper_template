@@ -61,7 +61,7 @@ function completeWechatAccounts(data: JsonRecord): void {
   const phone = data.手机;
   const wechat = isRecord(phone) ? phone.微信 : undefined;
   const accountMap = isRecord(wechat) ? wechat.账号 : undefined;
-  if (!isRecord(accountMap)) throw new Error('唯一开局缺少微信账号表。');
+  if (!isRecord(accountMap)) throw new Error('唯一开局缺少 Weline 账号表。');
   const roles = data.角色 as JsonRecord;
   if (!('user' in accountMap)) accountMap.user = { 昵称: '我', 表情包: {}, 好友: [] };
   for (const [id, account] of Object.entries(accountMap)) {

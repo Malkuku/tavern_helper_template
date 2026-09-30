@@ -147,7 +147,7 @@ export function deleteWeChatFromFloor(current: 微信数据, conversation: strin
   const next = normalizeWeChatIds(current);
   const session = next.会话[conversation];
   if (!session || !Number.isSafeInteger(floorId) || floorId < 1 || floorId > session.消息.length)
-    throw new Error('要删除的微信楼层不存在。');
+    throw new Error('要删除的消息楼层不存在。');
   if (next.准备发送?.会话 === conversation) throw new Error('请先处理当前会话的待发送消息。');
   session.消息.splice(floorId - 1);
   return next;
@@ -194,7 +194,7 @@ export function operationSummary(item: 微信操作): string {
   if (item.操作 === '领取红包') return `${item.操作者}领取了红包`;
   if (item.操作 === '领取转账') return `${item.操作者}确认了收款`;
   if (item.操作 === '退回转账') return `${item.操作者}退回了转账`;
-  throw new Error('未知微信操作。');
+  throw new Error('未知聊天操作。');
 }
 
 export function chatTitle(key: string, session: 微信会话, data: 微信数据): string {
@@ -321,13 +321,13 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
 export function applyWeChatOperation(current: 微信数据, event: OperationEvent): 微信数据 {
   const next = normalizeWeChatIds(current);
   event = { ...event, 楼层ID: next.会话[event.会话]?.消息.length + 1 || 1 };
-  if (!validEvent(event)) throw new Error('微信操作格式无效。');
+  if (!validEvent(event)) throw new Error('聊天操作格式无效。');
   applyOperationInPlace(next, event);
   return next;
 }
 
 function applyOperationInPlace(next: 微信数据, event: OperationEvent): void {
-  if (!next.账号[event.操作者]) throw new Error('微信操作人不存在。');
+  if (!next.账号[event.操作者]) throw new Error('聊天操作人不存在。');
   if (event.楼层ID !== (next.会话[event.会话]?.消息.length ?? 0) + 1)
     throw new Error(`会话 ${event.会话} 的楼层 ID 不连续。`);
   if (event.操作 === '创建群聊') {
@@ -373,7 +373,7 @@ function applyOperationInPlace(next: 微信数据, event: OperationEvent): void 
   }
   const session = next.会话[event.会话];
   if (!session) throw new Error(`操作引用了不存在的会话 ${event.会话}。`);
-  if (!session.成员.includes(event.操作者)) throw new Error('微信操作人不是会话成员。');
+  if (!session.成员.includes(event.操作者)) throw new Error('聊天操作人不是会话成员。');
   if (event.操作 === '邀请进群') {
     if (session.类型 !== '群聊' || !next.账号[event.目标] || session.成员.includes(event.目标))
       throw new Error('群邀请目标无效。');
@@ -466,7 +466,7 @@ export function decideFriendRequest(current: 微信数据, applicantId: string, 
 
 export function addSticker(current: 微信数据, name: string, source: string): 微信数据 {
   const user = current.账号.user;
-  if (!user) throw new Error('微信用户账号不存在。');
+  if (!user) throw new Error('Weline 用户账号不存在。');
   const trimmed = name.trim();
   if (!trimmed) throw new Error('请填写表情包名称。');
   if (!source.startsWith('data:image/') && !source.startsWith('script-image://')) throw new Error('请选择图片文件。');

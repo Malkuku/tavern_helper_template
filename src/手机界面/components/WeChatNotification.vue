@@ -1,6 +1,11 @@
 <template>
-  <div class="phone-notification" role="status">
-    <button class="phone-notification-open" type="button" :aria-label="`打开${title}的微信消息`" @click="emit('open')">
+  <div class="phone-notification weline-notification" role="status">
+    <button
+      class="phone-notification-open"
+      type="button"
+      :aria-label="`打开${title}的 Weline 消息`"
+      @click="emit('open')"
+    >
       <span v-if="appearance.image" class="phone-notification-avatar"><img :src="appearance.image" alt="" /></span>
       <span v-else-if="session?.类型 === '群聊'" class="phone-notification-avatar phone-notification-group">群</span>
       <WeChatAvatar v-else :id="avatarId" :accounts="data.账号" />
@@ -9,7 +14,7 @@
         <small>{{ preview }}</small>
       </span>
     </button>
-    <button class="phone-notification-close" type="button" aria-label="关闭微信消息提示" @click="emit('close')">
+    <button class="phone-notification-close" type="button" aria-label="关闭 Weline 消息提示" @click="emit('close')">
       ×
     </button>
   </div>
@@ -34,7 +39,7 @@ const appearance = computed<{ name?: string; image?: string }>(() => {
   }
 });
 const title = computed(
-  () => appearance.value.name || (session.value ? chatTitle(props.notice.key, session.value, props.data) : '微信'),
+  () => appearance.value.name || (session.value ? chatTitle(props.notice.key, session.value, props.data) : 'Weline'),
 );
 const avatarId = computed(() => session.value?.成员.find(id => id !== 'user') || props.notice.message.发送者);
 const preview = computed(() => {
