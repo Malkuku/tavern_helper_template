@@ -11,6 +11,7 @@ import {
 } from '../src/手机界面/apps/itemShop/itemShop';
 import { initialStatDataSchema } from '../src/手机界面/store/initialDataSchema';
 import type { stat_data } from '../src/手机界面/types';
+import { directedRefreshSurcharge } from '../src/手机界面/apps/shopRefresh';
 
 const icon =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#5274a2" d="M8 12h32v24H8z"/></svg>';
@@ -41,6 +42,17 @@ const data = {
   仓库: { 仓库药剂: item(5, 2, 1) },
   商店: { 旧扣: item(3, 2, 10) },
 } as unknown as stat_data;
+for (const [contribution, surcharge] of [
+  [0, 20],
+  [10, 30],
+  [40, 40],
+  [120, 50],
+  [360, 60],
+]) {
+  const ranked = structuredClone(data);
+  ranked.角色.user.评级贡献 = contribution;
+  assert.equal(directedRefreshSurcharge(ranked), surcharge);
+}
 const stock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`道具${index}`, item(3 + index, 2, 10)]));
 stock.旧扣 = { ...item(999, 2, 8), 图标: icon.replace('#5274a2', '#ffffff'), 描述: '错误的新描述' };
 delete stock.道具0;
@@ -56,7 +68,7 @@ applyItemRefresh(
   `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
   true,
 );
-assert.equal(directedData.角色.user.恶堕积分, 145, '定向道具刷新按普通价额外加收 50 点');
+assert.equal(directedData.角色.user.恶堕积分, 175, 'D 级定向道具刷新按普通价额外加收 20 点');
 assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
 const parsed = parseItemResult(message, data);
 assert.equal(Object.keys(parsed).length, 6);

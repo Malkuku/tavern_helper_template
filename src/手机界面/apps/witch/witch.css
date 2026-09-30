@@ -1982,18 +1982,18 @@
   color: #ffcae0;
   cursor: help;
 }
-.witch-app .profile-points svg {
+.witch-app .profile-points .points-help-trigger > svg {
   flex: none;
   width: 19px;
   height: 19px;
   color: #ff9bc8;
   filter: drop-shadow(0 0 5px #ff8ab583);
 }
-.witch-app .profile-points span {
+.witch-app .profile-points .points-help-trigger > span {
   font-size: 10px;
   white-space: nowrap;
 }
-.witch-app .profile-points strong {
+.witch-app .profile-points .points-help-trigger > strong {
   margin-left: 4px;
   color: #fff1f7;
   font-size: 16px;

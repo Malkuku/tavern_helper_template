@@ -5,10 +5,10 @@
         <WitchMark class="witch-brand-mark" />
         <div><small>PRIVATE MEMBERSHIP</small><strong>魔女恶堕计划</strong></div>
       </div>
-      <div class="witch-balance" aria-label="恶堕积分" :title="corruptionPointsHelp">
+      <CorruptionPointsHelp class="witch-balance">
         <span class="witch-balance-gem" aria-hidden="true">◆</span>
         <strong>{{ balance }}</strong>
-      </div>
+      </CorruptionPointsHelp>
     </header>
 
     <Transition name="witch-page" mode="out-in" appear>
@@ -192,7 +192,7 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { taskWeekStats } from '../quests/quests';
 import { witchStabilityNotices, witchTaskNotices } from './witchNotifications';
 import { ratingVisualClass } from './ratingVisual';
-import { corruptionPointsHelp } from './corruptionPointsHelp';
+import CorruptionPointsHelp from './CorruptionPointsHelp.vue';
 import type { DataAppName } from '../../desktopApps';
 import DataApp from '../data/DataApp.vue';
 import QuestApp from '../quests/QuestApp.vue';

@@ -15,7 +15,7 @@
         <label class="directed-refresh-toggle">
           <input v-model="directed" type="checkbox" :disabled="busy || store.skillRefreshing" />
           <span
-            >定向刷新 <small>额外 {{ DIRECTED_REFRESH_SURCHARGE }} 积分</small></span
+            >定向刷新 <small>额外 {{ directedSurcharge }} 积分</small></span
           >
         </label>
         <div v-if="directed" class="directed-refresh">
@@ -141,7 +141,7 @@
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { enabledSkillCount, isSkillEnabled, nextSkillSlotPrice, refreshQuote, skillSlotCount } from './skillShop';
-import { DIRECTED_REFRESH_SURCHARGE } from '../shopRefresh';
+import { directedRefreshSurcharge } from '../shopRefresh';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import { ratingVisualClass } from '../witch/ratingVisual';
@@ -168,7 +168,8 @@ const quote = computed(() => {
     return { price: Number.POSITIVE_INFINITY, count: 0, next: '' };
   }
 });
-const refreshPrice = computed(() => quote.value.price + (directed.value ? DIRECTED_REFRESH_SURCHARGE : 0));
+const directedSurcharge = computed(() => (store.statData ? directedRefreshSurcharge(store.statData) : 20));
+const refreshPrice = computed(() => quote.value.price + (directed.value ? directedSurcharge.value : 0));
 function toggleEntry(name: string) {
   expandedName.value = expandedName.value === name ? '' : name;
   confirmSale.value = null;

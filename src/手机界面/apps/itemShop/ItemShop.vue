@@ -17,7 +17,7 @@
         <label class="directed-refresh-toggle">
           <input v-model="directed" type="checkbox" :disabled="busy || store.itemRefreshing" />
           <span
-            >定向刷新 <small>额外 {{ DIRECTED_REFRESH_SURCHARGE }} 积分</small></span
+            >定向刷新 <small>额外 {{ directedSurcharge }} 积分</small></span
           >
         </label>
         <div v-if="directed" class="directed-refresh">
@@ -129,7 +129,7 @@
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { itemRefreshQuote } from './itemShop';
-import { DIRECTED_REFRESH_SURCHARGE } from '../shopRefresh';
+import { directedRefreshSurcharge } from '../shopRefresh';
 import type { InventorySide } from '../data/inventoryTransfer';
 import InventoryIcon from '../data/InventoryIcon.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
@@ -168,7 +168,8 @@ const quote = computed(() => {
     };
   }
 });
-const refreshPrice = computed(() => quote.value.price + (directed.value ? DIRECTED_REFRESH_SURCHARGE : 0));
+const directedSurcharge = computed(() => (store.statData ? directedRefreshSurcharge(store.statData) : 20));
+const refreshPrice = computed(() => quote.value.price + (directed.value ? directedSurcharge.value : 0));
 
 function quantityFor(key: string): number {
   return quantities.value[key] ?? 1;
