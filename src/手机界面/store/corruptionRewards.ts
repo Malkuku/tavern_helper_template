@@ -1,6 +1,6 @@
 import type { stat_data } from '../types';
 
-const ratingReward = { D: 60, C: 120, B: 240, A: 480, S: 1100 } as const;
+const ratingReward = { D: 60, C: 100, B: 150, A: 220, S: 300 } as const;
 
 export function corruptionRewardForRating(rating: string | undefined): number | undefined {
   return rating && Object.hasOwn(ratingReward, rating) ? ratingReward[rating as keyof typeof ratingReward] : undefined;

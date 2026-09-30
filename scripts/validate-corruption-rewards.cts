@@ -38,19 +38,19 @@ assert.equal(establishNewRoleRewardBaselines(data), true, '新加入角色建立
 assert.equal(data.手机.恶堕奖励.已奖励等级['主要角色:S角色'], 4, '初始等级不发奖');
 assert.equal(settleCharacterStages(data), true);
 assert.equal(settleCorruptionRewards(data), true);
-assert.equal(data.角色.user.恶堕积分, 970, 'A 级跨入 1/2 级均发放 480 点');
+assert.equal(data.角色.user.恶堕积分, 450, 'A 级跨入 1/2 级均发放 220 点');
 assert.deepEqual(
   data.手机.恶堕奖励.邮件.map(mail => mail.积分),
-  [480, 480],
+  [220, 220],
 );
 assert.equal(data.手机.恶堕奖励.邮件[0].已读, false);
 assert.equal(data.手机.恶堕奖励.已奖励等级['次要角色:未知评级'], 0, '评级未知时保留待发等级');
 assert.equal(settleCorruptionRewards(data), false, '重复事件不重复发放');
-assert.equal(data.角色.user.恶堕积分, 970);
+assert.equal(data.角色.user.恶堕积分, 450);
 
 data.角色.次要角色.未知评级.当前评级 = 'D';
 assert.equal(settleCorruptionRewards(data), true, '评级确定后补发新晋级');
-assert.equal(data.角色.user.恶堕积分, 1030);
+assert.equal(data.角色.user.恶堕积分, 510);
 assert.equal(markCorruptionRewardMailRead(data, '次要角色:未知评级:1'), true);
 assert.equal(markCorruptionRewardMailRead(data, '次要角色:未知评级:1'), false);
 assert.equal(data.手机.恶堕奖励.邮件.filter(mail => !mail.已读).length, 2);
@@ -65,15 +65,15 @@ sGrade.角色.主要角色.S角色.人设阶段.恶堕度.累计经验 = 174;
 establishNewRoleRewardBaselines(sGrade);
 settleCharacterStages(sGrade);
 settleCorruptionRewards(sGrade);
-assert.equal(sGrade.手机.恶堕奖励.邮件.find(mail => mail.角色 === 'S角色')?.积分, 1100);
+assert.equal(sGrade.手机.恶堕奖励.邮件.find(mail => mail.角色 === 'S角色')?.积分, 300);
 assert.equal(sGrade.手机.恶堕奖励.已奖励等级['主要角色:S角色'], 5);
 
 for (const [rating, each] of [
   ['D', 60],
-  ['C', 120],
-  ['B', 240],
-  ['A', 480],
-  ['S', 1100],
+  ['C', 100],
+  ['B', 150],
+  ['A', 220],
+  ['S', 300],
 ] as const) {
   const fullProgression = fixture();
   fullProgression.角色.主要角色.A角色.当前评级 = rating;

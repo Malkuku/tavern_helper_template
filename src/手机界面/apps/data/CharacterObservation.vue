@@ -12,7 +12,7 @@
       aria-controls="observation-selector"
       @click="selectorOpen ? closeSelector() : openSelector()"
     >
-      <ObservationAvatar />
+      <ObservationAvatar :src="selectedTarget && targetAvatar(selectedTarget)" />
       <span class="selector-copy"
         ><small>{{ selectedIsTarget ? '正在观测' : '已知人物' }}</small
         ><strong>{{ selectedTarget?.key }}</strong></span
@@ -52,11 +52,11 @@
         :key="target.id"
         type="button"
         class="observation-selector-option"
-        :class="{ active: selectedTarget?.id === target.id }"
+        :class="{ active: selectedTarget?.id === target.id, chosen: targetIsChosen(target.key) }"
         :aria-current="selectedTarget?.id === target.id ? 'true' : undefined"
         @click="selectTarget(target.id)"
       >
-        <ObservationAvatar />
+        <ObservationAvatar :src="targetAvatar(target)" />
         <span class="selector-copy"
           ><strong>{{ target.key }}</strong
           ><small>{{ targetIsChosen(target.key) ? '已选目标' : '可选目标' }}</small></span
@@ -437,7 +437,7 @@ import {
   type CharacterImageForm,
 } from './characterImages';
 import { firstTargetChoices } from './firstTarget';
-import { observationRoster } from './observationTargets';
+import { observationRoster, type ObservationTarget } from './observationTargets';
 import { additionalTargetPrice } from './selectTarget';
 import { currentAbilityLimit } from './characterArchive';
 import CharacterPortrait from './CharacterPortrait.vue';
@@ -468,6 +468,12 @@ const pages = ['概览', '身体', '档案'] as const;
 const page = ref<(typeof pages)[number]>('概览');
 const visibleTargets = computed(() => observationRoster(props.data));
 const targetIsChosen = (key: string) => props.data.系统?.已发现目标?.includes(key) === true;
+const targetAvatar = (target: ObservationTarget): string | undefined =>
+  target.kind === '主要角色'
+    ? props.data.角色?.主要角色?.[target.key]?.meta?.avatar
+    : target.kind === '次要角色'
+      ? props.data.角色?.次要角色?.[target.key]?.meta?.avatar
+      : undefined;
 const selectedIsTarget = computed(() => !!selectedTarget.value && targetIsChosen(selectedTarget.value.key));
 const balance = computed(() => props.data.角色.user.恶堕积分);
 watch(

@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { reconcileWorldbookStatData } from '../src/手机界面/store/worldbookInit';
+import { applyWeChatLogs } from '../src/手机界面/apps/wechat/wechatData';
 import { firstTargetKeys } from '../src/手机界面/apps/data/firstTarget';
 import { sanitizeMapSvg } from '../src/创意工坊/scenario/map';
 import { buyItem } from '../src/手机界面/apps/itemShop/itemShop';
@@ -112,7 +113,30 @@ assert.deepEqual(assembled.data.手机.微信.账号.user.好友, ['林沐沐'])
 assert.deepEqual(assembled.data.手机.微信.账号.林沐沐.好友, ['user']);
 assert.equal(assembled.data.手机.微信.账号.林沐沐.昵称, '沐沐');
 assert.ok(assembled.data.手机.微信.账号['987'].头像);
-assert.deepEqual(assembled.data.手机.微信.会话, openingDocument.固定数据.手机.微信.会话);
+assert.deepEqual(assembled.data.手机.微信.会话['私聊:user&林沐沐'], {
+  类型: '私聊',
+  成员: ['user', '林沐沐'],
+  消息: [],
+});
+assert.deepEqual(
+  Object.entries(openingDocument.固定数据.手机.微信.会话).filter(([key]) => key !== '私聊:user&林沐沐'),
+  Object.entries(assembled.data.手机.微信.会话).filter(([key]) => key !== '私聊:user&林沐沐'),
+);
+const firstAiMessage = applyWeChatLogs(assembled.data.手机.微信, [
+  {
+    事件: [
+      {
+        类型: '消息',
+        楼层ID: 1,
+        会话: '私聊:user&林沐沐',
+        发送者: '林沐沐',
+        时间: '2026-09-28T22:15[1]',
+        内容: ['老哥，你睡了吗？', '客厅饮水机好像没水了，烧水壶在哪里呀……', '<表情包>可爱猫猫-困惑</表情包>'],
+      },
+    ],
+  },
+]);
+assert.equal(firstAiMessage.会话['私聊:user&林沐沐'].消息.length, 1);
 assert.deepEqual(assembled.data.手机.恶堕奖励.邮件, []);
 assert.equal(assembled.data.手机.定向刷新, null);
 for (const [key, role] of Object.entries(assembled.data.角色.主要角色) as [string, any][]) {

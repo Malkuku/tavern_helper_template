@@ -5,6 +5,7 @@ import { wechatRoleAvatar } from '../../尘史使徒/UI/components/common/roleAv
 import { emptyTaskWeek, taskWeekKey } from '../apps/quests/quests';
 import { completeMinorRole, parseMinorCorruptionTemplate } from './minorCorruption';
 import { completeCurrentRating } from './roleRating';
+import { privateKey } from '../apps/wechat/wechatData';
 
 type JsonRecord = Record<string, unknown>;
 type ConfigEntry = Pick<WorldbookEntry, 'name' | 'content'>;
@@ -72,6 +73,23 @@ function completeWechatAccounts(data: JsonRecord): void {
       | { meta?: z.infer<typeof roleMetaSchema> }
       | undefined;
     account.头像 = wechatRoleAvatar(role?.meta, id);
+  }
+  const sessions = (wechat as JsonRecord).会话;
+  if (!isRecord(sessions)) throw new Error('唯一开局缺少 Weline 会话表。');
+  for (const [id, account] of Object.entries(accountMap)) {
+    if (!isRecord(account) || !Array.isArray(account.好友)) continue;
+    for (const friend of account.好友) {
+      if (typeof friend !== 'string' || friend === id || !isRecord(accountMap[friend])) continue;
+      const other = accountMap[friend] as JsonRecord;
+      if (!Array.isArray(other.好友) || !other.好友.includes(id)) continue;
+      const key = privateKey(id, friend);
+      if (key in sessions || (id !== 'user' && friend !== 'user' && `私聊:${friend}&${id}` in sessions)) continue;
+      sessions[key] = {
+        类型: '私聊',
+        成员: id === 'user' ? [id, friend] : friend === 'user' ? [friend, id] : [id, friend].sort(),
+        消息: [],
+      };
+    }
   }
 }
 

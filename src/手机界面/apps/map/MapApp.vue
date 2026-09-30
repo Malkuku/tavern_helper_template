@@ -65,8 +65,8 @@
             <span class="phone-map-point-icon"><MapNodeIcon :svg="visible[point.name]?.图标" /></span>
             <strong>{{ point.name }}</strong>
             <span v-if="world?.地图索引 === point.name" class="phone-map-point-current">当前位置</span>
-            <small class="phone-map-point-action">
-              {{ Object.keys(visible[point.name]?.子地图 ?? {}).length ? '可进入内部 ›' : '点按查看' }}
+            <small v-if="Object.keys(visible[point.name]?.子地图 ?? {}).length" class="phone-map-point-action">
+              可进入内部 ›
             </small>
           </button>
           <div v-if="!points.length" class="phone-map-no-points">该地区暂无下级地点</div>
@@ -360,11 +360,11 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   min-height: 0;
   width: 100%;
   overflow: hidden;
-  border: 1px solid #dfe8f2;
-  border-radius: 23px;
+  border: 1px solid #e3e9ec;
+  border-radius: 20px;
   background:
-    radial-gradient(circle at 25% 18%, #dff5ec 0, transparent 36%),
-    radial-gradient(circle at 80% 75%, #e6e9fb 0, transparent 40%), #eaf2f7;
+    radial-gradient(circle at 20% 15%, #edf7f3 0, transparent 46%),
+    radial-gradient(circle at 85% 80%, #f0f2fa 0, transparent 48%), #f4f7f8;
   touch-action: none;
   user-select: none;
 }
@@ -377,8 +377,8 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(#9bb4c817 1px, transparent 1px), linear-gradient(90deg, #9bb4c817 1px, transparent 1px);
-  background-size: 25px 25px;
+    linear-gradient(#91a8af0d 1px, transparent 1px), linear-gradient(90deg, #91a8af0d 1px, transparent 1px);
+  background-size: 32px 32px;
   pointer-events: none;
 }
 .phone-map-hint {
@@ -399,14 +399,14 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  width: 108px;
-  height: 112px;
-  padding: 9px 7px 7px;
-  border: 1px solid #dce6ed;
-  border-radius: 18px;
-  background: #ffffffed;
-  box-shadow: 0 5px 14px #35506b18;
+  gap: 2px;
+  width: 94px;
+  height: 96px;
+  padding: 7px 6px;
+  border: 1px solid #e2e9eb;
+  border-radius: 15px;
+  background: #fffffff2;
+  box-shadow: 0 3px 10px #35506b12;
   color: #34435b;
   transform: translate(-50%, -50%);
   cursor: pointer;
@@ -414,10 +414,19 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
 .phone-map-point:hover,
 .phone-map-point:focus-visible,
 .phone-map-point.selected {
-  border-color: #5a9fb5;
-  background: #fff;
-  box-shadow: 0 6px 18px #315d7940;
   outline: none;
+}
+.phone-map-point:hover,
+.phone-map-point:focus-visible {
+  border-color: #8cb7bd;
+  box-shadow: 0 5px 14px #315d7926;
+}
+.phone-map-point.selected {
+  border-color: #4b91a5;
+  background: #f8fcfd;
+  box-shadow:
+    0 0 0 2px #4b91a526,
+    0 5px 14px #315d7926;
 }
 .phone-map-point-icon {
   display: grid;
@@ -434,7 +443,7 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-height: 1.2;
-  font-size: 12px;
+  font-size: 11px;
 }
 .phone-map-point-action {
   color: #657b91;
@@ -445,7 +454,13 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   color: #257a83;
 }
 .phone-map-point.current {
-  border-color: #52b49a;
+  border-color: #51ad92;
+}
+.phone-map-point.current.selected {
+  border-color: #4b91a5;
+  box-shadow:
+    0 0 0 2px #4b91a526,
+    0 5px 14px #315d7926;
 }
 .phone-map-point-current {
   position: absolute;
@@ -474,13 +489,13 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   left: 8px;
   right: 8px;
   bottom: 8px;
-  max-height: 42%;
+  max-height: 32%;
   overflow-y: auto;
-  padding: 10px 12px;
+  padding: 11px 13px;
   border: 1px solid #e4eaf1;
   border-radius: 17px;
   background: #fff;
-  box-shadow: 0 4px 14px #31445c0b;
+  box-shadow: 0 8px 24px #31445c1a;
 }
 .phone-map-selectable .phone-map-detail {
   max-height: none;

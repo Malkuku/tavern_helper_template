@@ -1,6 +1,7 @@
 <template>
   <span class="selector-avatar" aria-hidden="true">
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <img v-if="src && failedSrc !== src" :src="src" alt="" @error="failedSrc = src" />
+    <svg v-else viewBox="0 0 32 32" fill="none" aria-hidden="true">
       <circle cx="16" cy="16" r="12.5" class="avatar-orbit" />
       <circle cx="16" cy="12.5" r="3.2" class="avatar-figure" />
       <path d="M9.3 23.1c.5-3.6 3.1-5.6 6.7-5.6s6.2 2 6.7 5.6" class="avatar-figure" />
@@ -8,3 +9,10 @@
     </svg>
   </span>
 </template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+
+defineProps<{ src?: string }>();
+const failedSrc = ref<string>();
+</script>
