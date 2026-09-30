@@ -5,7 +5,7 @@
         <div>
           <span>个人资料</span>
           <h1>我的档案</h1>
-          <div class="profile-points" aria-label="恶堕积分">
+          <div class="profile-points" aria-label="恶堕积分" :title="corruptionPointsHelp">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M7 3h10l5 7-10 12L2 10l5-7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
               <path
@@ -90,6 +90,7 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { profileFieldValue, type ProfileField } from './profileEdit';
 import RatingEmblem from './RatingEmblem.vue';
 import { ratingThreshold, ratings, userRatingFromContribution } from '../../store/userRating';
+import { corruptionPointsHelp } from '../witch/corruptionPointsHelp';
 
 const props = defineProps<{ data: stat_data }>();
 const user = computed(() => props.data.角色?.user);

@@ -14,7 +14,8 @@
     >
       <span class="selector-avatar" aria-hidden="true">{{ selectedTarget?.key.slice(0, 1) }}</span>
       <span class="selector-copy"
-        ><small>正在观测</small><strong>{{ selectedTarget?.key }}</strong></span
+        ><small>{{ selectedIsTarget ? '正在观测' : '已知人物' }}</small
+        ><strong>{{ selectedTarget?.key }}</strong></span
       >
       <span class="switcher-chevron" aria-hidden="true">⌄</span>
     </button>
@@ -58,14 +59,14 @@
         <span class="selector-avatar" aria-hidden="true">{{ target.key.slice(0, 1) }}</span>
         <span class="selector-copy"
           ><strong>{{ target.key }}</strong
-          ><small>{{ target.kind }}</small></span
+          ><small>{{ targetIsChosen(target.key) ? '已选目标' : '可选目标' }}</small></span
         >
         <span v-if="selectedTarget?.id === target.id" class="observation-selector-check" aria-hidden="true">✓</span>
       </button>
       <p v-if="!filteredTargets.length" class="observation-selector-empty">没有找到角色</p>
     </div>
   </section>
-  <div v-if="selectedMain || selectedMinor" class="data-sections">
+  <div v-if="selectedIsTarget && (selectedMain || selectedMinor)" class="data-sections">
     <section v-if="selectedMain" class="data-hero monitor-hero">
       <CharacterPortrait :src="heroImageUrl" :name="selectedMainKey!" cover />
       <h2>{{ selectedMainKey }}</h2>
@@ -121,6 +122,7 @@
             </div>
             <p class="observation-stage-description">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
             <StageProgress :stage="stage" :kind="key" />
+            <CorruptionNextReward v-if="key === '恶堕度'" :level="stage.当前等级" :rating="selectedMain.当前评级" />
           </LockedField>
           <section v-else class="data-card observation-stage" :data-stage="key">
             <div class="observation-stage-head">
@@ -175,6 +177,7 @@
             {{ currentLevelDescription(selectedMinor.人设阶段.恶堕度) || '暂无当前阶段描述' }}
           </p>
           <StageProgress :stage="selectedMinor.人设阶段.恶堕度" kind="恶堕度" />
+          <CorruptionNextReward :level="selectedMinor.人设阶段.恶堕度.当前等级" :rating="selectedMinor.当前评级" />
         </LockedField>
       </template>
     </template>
@@ -267,9 +270,10 @@
           <LockedField class="archive-secret-field" kind="主要角色" :character-key="selectedMainKey!" field="性格">
             <p class="data-prose">{{ selectedMain.性格 || '暂无记录' }}</p>
           </LockedField>
-          <LockedField class="archive-secret-field" kind="主要角色" :character-key="selectedMainKey!" field="背景">
+          <section class="data-card archive-secret-field">
+            <div class="item-heading"><h3>背景</h3></div>
             <p class="data-prose">{{ selectedMain.基础信息.背景 || '暂无记录' }}</p>
-          </LockedField>
+          </section>
         </section>
         <section class="archive-private">
           <div class="archive-section-head"><span>04 / 魔力</span><strong>能力与创伤</strong></div>
@@ -311,7 +315,7 @@
       </template>
     </template>
   </div>
-  <div v-else-if="pendingTarget" class="data-sections">
+  <div v-else-if="selectedIsTarget && pendingTarget" class="data-sections">
     <section class="data-hero monitor-hero">
       <CharacterPortrait :src="characterImageUrl(pendingTarget.key, '魔法少女')" :name="pendingTarget.key" cover />
       <div class="hero-overline">首次接触目标 · 档案待建立</div>
@@ -356,7 +360,67 @@
     </button>
     <p v-if="choiceError" class="data-error" role="alert">{{ choiceError }}</p>
   </section>
+  <section v-else-if="selectedMain || selectedMinor" class="data-sections candidate-profile">
+    <div class="data-hero monitor-hero">
+      <CharacterPortrait
+        :src="selectedMainKey ? characterImageUrl(selectedMainKey, '日常') : null"
+        :name="selectedTarget!.key"
+        cover
+      />
+      <h2>{{ selectedTarget!.key }}</h2>
+    </div>
+    <section class="data-card">
+      <h3>身份</h3>
+      <p class="data-prose">{{ candidateIdentity }}</p>
+    </section>
+    <section class="data-card">
+      <h3>背景</h3>
+      <p class="data-prose">{{ candidateBackground }}</p>
+    </section>
+    <section class="data-card">
+      <h3>当前评级</h3>
+      <RatingEmblem :rating="candidateRating" />
+    </section>
+    <button
+      class="first-target-confirm"
+      type="button"
+      :disabled="choosing || balance < additionalTargetPrice"
+      @click="beginAdditionalChoice"
+    >
+      花费 {{ additionalTargetPrice }} 点选为目标
+    </button>
+    <p v-if="balance < additionalTargetPrice" class="lock-balance">当前 {{ balance }} 点，积分不足</p>
+    <p v-if="choiceError" class="data-error" role="alert">{{ choiceError }}</p>
+  </section>
   <div v-else class="data-empty"><strong>暂无可观测角色</strong></div>
+  <section
+    v-if="confirmStep"
+    class="target-confirm"
+    :class="{ 'target-confirm-final': confirmStep === 'final' }"
+    role="dialog"
+    aria-modal="true"
+    aria-label="确认目标选择"
+  >
+    <div class="target-confirm-card">
+      <h2>{{ confirmStep === 'n' ? '无奖励目标' : confirmStep === 'sister' ? '她是我的亲妹妹' : '你真的确认吗？' }}</h2>
+      <p>
+        {{
+          confirmStep === 'n'
+            ? '恶堕她不会获得晋级积分奖励，确定继续吗？'
+            : confirmStep === 'sister'
+              ? '我真的要把她作为目标吗？'
+              : '一旦确认，就无法把这次选择当作没发生过。'
+        }}
+      </p>
+      <div class="target-confirm-actions">
+        <button type="button" @click="confirmStep = null">取消</button>
+        <button type="button" :disabled="choosing" @click="advanceAdditionalChoice">
+          {{ choosing ? '选取中…' : confirmStep === 'final' ? '确认选取' : '确定继续' }}
+        </button>
+      </div>
+    </div>
+  </section>
+  <div v-if="sisterReveal" class="sister-reveal" role="alert">{{ '被发现了'.repeat(30) }}</div>
 </template>
 
 <script setup lang="ts">
@@ -371,13 +435,15 @@ import {
   type CharacterImageForm,
 } from './characterImages';
 import { firstTargetChoices } from './firstTarget';
-import { visibleObservationTargets } from './observationTargets';
+import { observationRoster } from './observationTargets';
+import { additionalTargetPrice } from './selectTarget';
 import { currentAbilityLimit } from './characterArchive';
 import CharacterPortrait from './CharacterPortrait.vue';
 import LockedField from './LockedField.vue';
 import RatingEmblem from './RatingEmblem.vue';
 import StageHelp from './StageHelp.vue';
 import StageProgress from './StageProgress.vue';
+import CorruptionNextReward from './CorruptionNextReward.vue';
 
 const props = defineProps<{ data: stat_data; targetKey?: string | null }>();
 const emit = defineEmits<{ firstTargetChosen: [] }>();
@@ -392,10 +458,15 @@ const choiceIndex = ref(0);
 const expandedBodyParts = ref<string[]>([]);
 const choosing = ref(false);
 const choiceError = ref('');
+const confirmStep = ref<'n' | 'sister' | 'final' | null>(null);
+const sisterReveal = ref(false);
 const statStore = useMagicGirlStatStore();
 const pages = ['概览', '身体', '档案'] as const;
 const page = ref<(typeof pages)[number]>('概览');
-const visibleTargets = computed(() => visibleObservationTargets(props.data));
+const visibleTargets = computed(() => observationRoster(props.data));
+const targetIsChosen = (key: string) => props.data.系统?.已发现目标?.includes(key) === true;
+const selectedIsTarget = computed(() => !!selectedTarget.value && targetIsChosen(selectedTarget.value.key));
+const balance = computed(() => props.data.角色.user.恶堕积分);
 watch(
   () => props.targetKey,
   key => {
@@ -424,6 +495,20 @@ const selectedMain = computed<角色人设 | undefined>(() =>
 );
 const selectedMinor = computed<次要角色人设 | undefined>(() =>
   selectedMinorKey.value ? props.data.角色?.次要角色?.[selectedMinorKey.value] : undefined,
+);
+const isSister = computed(() => selectedMainKey.value === '林沐沐');
+const candidateIdentity = computed(() =>
+  isSister.value
+    ? '星川市立北原高中学生'
+    : selectedMain.value?.基础信息.身份.join('、') || selectedMinor.value?.身份.join('、') || '身份未记录',
+);
+const candidateBackground = computed(() =>
+  isSister.value
+    ? '林沐沐是星川市立北原高中的学生，与哥哥一同生活，只是一个无辜的普通人。'
+    : selectedMain.value?.基础信息.背景 || selectedMinor.value?.背景 || '暂无记录',
+);
+const candidateRating = computed(() =>
+  isSister.value ? 'N' : selectedMain.value?.当前评级 || selectedMinor.value?.当前评级 || '',
 );
 const currentMainAbilityLimit = computed(() =>
   selectedMain.value ? currentAbilityLimit(selectedMain.value) : undefined,
@@ -462,6 +547,8 @@ const bodyEntries = computed(() =>
 watch(
   () => selectedTarget.value?.id,
   () => {
+    confirmStep.value = null;
+    choiceError.value = '';
     page.value = '概览';
     expandedBodyParts.value = [];
     imageForm.value = '魔法少女';
@@ -479,6 +566,42 @@ async function openSelector() {
   selectorOpen.value = true;
   await nextTick();
   selectorPanel.value?.focus();
+}
+function beginAdditionalChoice() {
+  if (!selectedTarget.value || selectedIsTarget.value || choosing.value) return;
+  choiceError.value = '';
+  confirmStep.value = candidateRating.value === 'N' ? 'n' : isSister.value ? 'sister' : null;
+  if (!confirmStep.value) void chooseAdditionalTarget();
+}
+function advanceAdditionalChoice() {
+  if (confirmStep.value === 'n' && isSister.value) {
+    confirmStep.value = 'sister';
+    return;
+  }
+  if (confirmStep.value === 'sister') {
+    confirmStep.value = 'final';
+    return;
+  }
+  confirmStep.value = null;
+  void chooseAdditionalTarget();
+}
+async function chooseAdditionalTarget() {
+  const target = selectedTarget.value;
+  if (!target || target.kind === '档案待建立' || choosing.value) return;
+  choosing.value = true;
+  try {
+    await statStore.chooseAdditionalTarget(target.kind, target.key);
+    if (target.key === '林沐沐') {
+      sisterReveal.value = true;
+      window.setTimeout(() => {
+        sisterReveal.value = false;
+      }, 2400);
+    }
+  } catch (error) {
+    choiceError.value = error instanceof Error ? error.message : '目标选择失败，请重试。';
+  } finally {
+    choosing.value = false;
+  }
 }
 function closeSelector() {
   selectorOpen.value = false;

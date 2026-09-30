@@ -4,7 +4,7 @@
       <button class="wx-back" type="button" aria-label="返回设置" @click="closeManager">‹</button
       ><strong>账号管理</strong>
     </header>
-    <form v-if="!unlocked" class="wx-manager-gate" @submit.prevent="unlock">
+    <form v-if="view === 'account' && !unlocked" class="wx-manager-gate" @submit.prevent="unlock">
       <strong>进入账号管理</strong>
       <p>管理当前聊天的账号、头像、好友和表情包。</p>
       <label>管理密码<input v-model="password" type="password" autocomplete="off" /></label>

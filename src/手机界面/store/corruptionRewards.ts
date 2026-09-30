@@ -1,6 +1,10 @@
 import type { stat_data } from '../types';
 
-const ratingBase = { D: 3, C: 5, B: 8, A: 12, S: 20 } as const;
+const ratingReward = { D: 60, C: 120, B: 240, A: 480, S: 1100 } as const;
+
+export function corruptionRewardForRating(rating: string | undefined): number | undefined {
+  return rating && Object.hasOwn(ratingReward, rating) ? ratingReward[rating as keyof typeof ratingReward] : undefined;
+}
 
 function corruptionRoles(data: stat_data) {
   return [
@@ -36,11 +40,10 @@ export function settleCorruptionRewards(data: stat_data): boolean {
     if (!Number.isSafeInteger(current) || current < previous) throw new Error(`${id} 的恶堕等级低于已奖励等级。`);
     const rating = role.当前评级;
     if (!rating) continue;
-    if (!Object.hasOwn(ratingBase, rating)) throw new Error(`${id} 的当前评级无效。`);
-    const base = ratingBase[rating as keyof typeof ratingBase];
+    const points = corruptionRewardForRating(rating);
+    if (points === undefined) throw new Error(`${id} 的当前评级无效。`);
     for (let level = previous + 1; level <= Math.min(current, 6); level++) {
       if (level < 1) continue;
-      const points = level * base;
       if (!Number.isSafeInteger(data.角色.user.恶堕积分) || data.角色.user.恶堕积分 < 0)
         throw new Error('恶堕积分余额无效。');
       if (!Number.isSafeInteger(data.角色.user.恶堕积分 + points)) throw new Error('恶堕积分余额超出安全范围。');
@@ -48,7 +51,7 @@ export function settleCorruptionRewards(data: stat_data): boolean {
       records.邮件.unshift({
         id: `${id}:${level}`,
         角色: key,
-        评级: rating as keyof typeof ratingBase,
+        评级: rating as keyof typeof ratingReward,
         等级: level,
         积分: points,
         时间: data.世界.时间,

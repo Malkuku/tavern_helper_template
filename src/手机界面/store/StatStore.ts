@@ -42,6 +42,7 @@ import { isNewGenerationResult, latestGeneratedTag, removeGeneratedTag } from '.
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyProfileEdit, type ProfileField } from '../apps/data/profileEdit';
 import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
+import { selectAdditionalTarget, additionalTargetPrice } from '../apps/data/selectTarget';
 import { applyInventoryTransfers, type InventorySide, type InventoryTransfer } from '../apps/data/inventoryTransfer';
 import {
   initialReadCursors,
@@ -79,6 +80,7 @@ import {
   acceptTask as applyTaskAccept,
   claimTask as applyTaskClaim,
   refreshTasks as applyTaskRefresh,
+  taskRefreshState,
 } from '../apps/quests/quests';
 import { QUEST_CLAIM_REQUEST, QUEST_CLAIM_RESULT, type QuestClaimRequest } from '../apps/quests/questClaimBridge';
 
@@ -439,6 +441,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
+  async function chooseAdditionalTarget(kind: '主要角色' | '次要角色', key: string): Promise<void> {
+    await changeCharacterData(
+      data => selectAdditionalTarget(data, kind, key),
+      () => `在「魔女恶堕计划」中将${escapeSystemLogText(key)}列为目标，消耗${additionalTargetPrice}点恶堕积分。`,
+    );
+  }
+
   async function transferInventory(transfers: InventoryTransfer[]): Promise<void> {
     if (!transfers.length) return;
     await changeCharacterData(
@@ -636,6 +645,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) throw new Error('聊天已切换，任务刷新已取消。');
     const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
     if (!current?.系统 || !current?.任务 || !current?.任务候选) throw new Error('任务变量尚未初始化。');
+    if (!taskRefreshState(current).available) throw new Error('本周任务刷新次数已用完。');
     if (preparingShopRefresh || taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const startMessageId = getLastMessageId();
@@ -1601,6 +1611,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     changeRuntimeMinorRole,
     unlockCharacterInfo,
     chooseFirstTarget,
+    chooseAdditionalTarget,
     transferInventory,
     refreshSkillShop,
     cancelSkillRefresh,

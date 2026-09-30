@@ -549,39 +549,12 @@
       </div>
     </template>
 
-    <template v-else-if="subPage === 'add'">
-      <header class="wx-header">
-        <button class="wx-back" type="button" aria-label="返回上一页" @click="subPage = null">‹</button>
-        <strong>添加朋友</strong>
-      </header>
-      <div class="wx-body">
-        <label class="wx-search"
-          ><span>⌕</span><input v-model="query" aria-label="搜索账号" placeholder="搜索昵称或账号"
-        /></label>
-        <label class="wx-request-message"
-          >验证消息<input v-model="requestMessage" maxlength="100" placeholder="请求添加好友"
-        /></label>
-        <div v-for="[id, account] in addCandidates" :key="id" class="wx-list-row">
-          <WeChatAvatar :id="id" :accounts="accounts" />
-          <strong>{{ account.昵称 || id }}</strong>
-          <button type="button" class="wx-small-action" :disabled="!!outgoingRequest(id)" @click="requestFriend(id)">
-            {{ outgoingRequest(id) ? '已申请' : '申请' }}
-          </button>
-        </div>
-        <p v-if="!addCandidates.length" class="wx-empty">没有可添加的账号</p>
-        <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
-      </div>
-    </template>
-
     <template v-else-if="!accountPage">
       <header v-if="tab !== 'me'" class="wx-header wx-main-header">
         <strong>{{ tab === 'chats' ? 'Weline' : tabs.find(item => item.id === tab)?.label }}</strong>
         <div class="wx-header-actions">
           <button type="button" aria-label="搜索" @click="searchOpen = !searchOpen">
             <WeChatIcon name="search" />
-          </button>
-          <button type="button" aria-label="添加联系人" @click="subPage = 'add'">
-            <WeChatIcon name="plus" />
           </button>
         </div>
       </header>
@@ -626,10 +599,6 @@
           </button>
           <button class="wx-list-row wx-contact-feature" type="button" @click="openNearbyPage">
             <span class="wx-feature-icon blue"><WeChatIcon name="people" /></span><strong>附近的人</strong>
-            <WeChatIcon class="wx-row-chevron" name="chevron" />
-          </button>
-          <button class="wx-list-row wx-contact-feature" type="button" @click="subPage = 'add'">
-            <span class="wx-feature-icon green"><WeChatIcon name="plus" /></span><strong>添加朋友</strong>
             <WeChatIcon class="wx-row-chevron" name="chevron" />
           </button>
           <div class="wx-section-label">{{ contacts.length ? '好友' : '暂无好友' }}</div>
@@ -824,7 +793,11 @@
         <WeChatAvatar :id="cardView" :accounts="accounts" /><strong>{{ accounts[cardView]?.昵称 || cardView }}</strong
         ><small>账号：{{ cardView }}</small
         ><button v-if="self?.好友.includes(cardView)" type="button" @click="openCardChat">发消息</button
-        ><button v-else-if="!outgoingRequest(cardView)" type="button" @click="requestCardFriend">添加朋友</button
+        ><template v-else-if="!outgoingRequest(cardView)">
+          <label class="wx-request-message"
+            >验证消息<input v-model="requestMessage" maxlength="100" placeholder="请求添加好友"
+          /></label>
+          <button type="button" @click="requestCardFriend">添加朋友</button> </template
         ><small v-else>好友申请已发送</small><button type="button" @click="cardView = null">关闭</button>
       </div>
     </div>
@@ -1139,7 +1112,7 @@ const filteredStickerNames = computed(() => {
   return query ? stickerNames.value.filter(name => name.toLocaleLowerCase().includes(query)) : stickerNames.value;
 });
 const tab = ref<Tab>('chats');
-const subPage = ref<'requests' | 'add' | 'nearby' | null>(null);
+const subPage = ref<'requests' | 'nearby' | null>(null);
 const nearbyText = ref('');
 const nearbyAvatarChoices = new Map<string, string>();
 function openNearbyPage() {
@@ -1193,7 +1166,10 @@ async function openNearby(person: { id: string; name: string }) {
   try {
     await store.ensureWeChatAccount(person.id, person.name, nearbyAvatar(person.id));
     if (self.value?.好友.includes(person.id)) openChat(privateChatKey(person.id));
-    else cardView.value = person.id;
+    else {
+      requestMessage.value = '';
+      cardView.value = person.id;
+    }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '创建账号失败。';
   }
@@ -1299,15 +1275,6 @@ const outgoingRequests = computed(() =>
 function outgoingRequest(id: string) {
   return friendRequest(wechat.value?.会话[privateChatKey(id)])?.操作者 === 'user';
 }
-const addCandidates = computed(() =>
-  Object.entries(accounts.value).filter(
-    ([id, account]) =>
-      id !== 'user' &&
-      !self.value?.好友.includes(id) &&
-      !friendRequest(wechat.value?.会话[privateChatKey(id)]) &&
-      `${id} ${account.昵称}`.includes(query.value.trim()),
-  ),
-);
 const visibleContacts = computed(() =>
   contacts.value.filter(([id, account]) => `${id} ${account.昵称}`.includes(query.value.trim())),
 );
@@ -1458,6 +1425,7 @@ function openCard(id: string) {
     error.value = '名片中的账号不存在。';
     return;
   }
+  requestMessage.value = '';
   cardView.value = id;
 }
 function openCardChat() {

@@ -454,10 +454,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 10px;
+  width: 100%;
   padding: 8px;
-  background: #fff;
-  color: #777;
+  border-radius: 8px;
+  background: var(--wx-nav);
+  color: var(--wx-muted);
   font-size: 12px;
 }
 .wx-request-message input {
@@ -465,8 +466,9 @@
   min-width: 0;
   border: 0;
   outline: none;
+  background: transparent;
   font: inherit;
-  color: #222;
+  color: var(--wx-text);
 }
 .wx-group-avatar {
   background: linear-gradient(145deg, #90b6b2, #5c9291);

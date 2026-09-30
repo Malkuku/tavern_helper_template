@@ -125,6 +125,7 @@
   background: #ffffff0b;
   color: #ffe0ec;
   font-size: 12px;
+  cursor: help;
 }
 .witch-balance-gem {
   color: #fa85b6;
@@ -696,6 +697,97 @@
   border-radius: 10px;
   background: #b5417b !important;
   font-weight: 700;
+}
+.witch-app .candidate-profile .data-card {
+  margin-top: 10px;
+}
+.witch-app .candidate-profile .first-target-confirm {
+  margin-top: 14px;
+}
+.witch-app .target-confirm {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #100910d9;
+}
+.witch-app .target-confirm-card {
+  width: 100%;
+  max-width: 340px;
+  padding: 20px;
+  border: 1px solid #b56a97;
+  border-radius: 18px;
+  background: #2b172d;
+  text-align: center;
+}
+.witch-app .target-confirm-card h2 {
+  margin: 0 0 12px;
+}
+.witch-app .target-confirm-card p {
+  line-height: 1.6;
+}
+.witch-app .target-confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.witch-app .target-confirm-actions button {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 10px;
+  background: #643451 !important;
+}
+.witch-app .target-confirm-actions button:last-child {
+  background: #a8335f !important;
+}
+.witch-app .target-confirm-final .target-confirm-card {
+  border-color: #f14a55;
+  background: #330d17;
+  box-shadow: 0 0 34px #d21e394d;
+}
+.witch-app .target-confirm-final .target-confirm-card h2 {
+  color: #ff5a64;
+}
+.witch-app .target-confirm-final .target-confirm-actions button:last-child {
+  background: #b71933 !important;
+}
+.witch-app .sister-reveal {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 16px;
+  background: #180307f0;
+  color: #ff2626;
+  font-size: 25px;
+  font-weight: 900;
+  line-height: 1.4;
+  word-break: break-all;
+  animation: sister-shake 0.12s infinite;
+}
+@keyframes sister-shake {
+  0%,
+  100% {
+    transform: translate(0);
+  }
+  25% {
+    transform: translate(-4px, 2px);
+  }
+  50% {
+    transform: translate(4px, -3px);
+  }
+  75% {
+    transform: translate(-2px, -2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .witch-app .sister-reveal {
+    animation: none;
+  }
 }
 .witch-app :is(.intro, .shop-intro, .item-shop-intro)::after {
   position: absolute;
@@ -1642,6 +1734,16 @@
 .witch-app .observation-stage-progress {
   margin-top: 14px;
 }
+.witch-app .observation-corruption-reward {
+  margin: 12px 0 0;
+  color: #e7c9f5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.witch-app .observation-corruption-reward strong {
+  color: #fff0b8;
+  font-variant-numeric: tabular-nums;
+}
 .witch-app .observation-stage-progress-caption {
   display: block;
   margin-bottom: 5px;
@@ -1823,6 +1925,7 @@
   border-radius: 11px;
   background: #4c2542;
   color: #ffcae0;
+  cursor: help;
 }
 .witch-app .profile-points svg {
   flex: none;
