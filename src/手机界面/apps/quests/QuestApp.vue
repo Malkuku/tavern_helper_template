@@ -5,14 +5,9 @@
         <span class="witch-eyebrow">MEMBER MISSIONS</span>
         <h1>你的任务</h1>
         <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7 项</p>
-        <button
-          type="button"
-          :disabled="busy || store.taskRefreshing || !refreshAvailable"
-          @click="run(() => store.refreshTaskBoard())"
-        >
-          {{ store.taskRefreshing ? '刷新中…' : refreshAvailable ? '刷新任务' : '本周次数已用完' }}
+        <button type="button" :disabled="busy || store.taskRefreshing" @click="run(() => store.refreshTaskBoard())">
+          {{ store.taskRefreshing ? '刷新中…' : '刷新任务' }}
         </button>
-        <p>本周剩余刷新 {{ refreshState?.remaining ?? 0 }}/5 次</p>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消等待
         </button>
@@ -123,7 +118,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { taskRefreshState, taskWeekHistory, taskWeekStats, type 任务评级 } from './quests';
+import { taskWeekHistory, taskWeekStats, type 任务评级 } from './quests';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import QuestCard from './QuestCard.vue';
 import { buildQuestPrompt } from './questPrompt';
@@ -174,15 +169,6 @@ const lifetimeStats = computed(() => {
   }
   return result;
 });
-const refreshState = computed(() => {
-  try {
-    return store.statData ? taskRefreshState(store.statData) : null;
-  } catch {
-    return null;
-  }
-});
-const refreshAvailable = computed(() => refreshState.value?.available ?? false);
-
 function ratingSummary(counts: Record<任务评级, number>): string {
   return (['D', 'C', 'B', 'A', 'S'] as const).map(rating => `${rating} ${counts[rating]}`).join(' · ');
 }

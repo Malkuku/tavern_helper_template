@@ -26,6 +26,7 @@ import {
   type AccountMediaSnapshot,
 } from '../apps/wechat/accountManagement';
 import {
+  addNamedSticker,
   hasWechatImage,
   isImageDataUrl,
   refreshWechatImageLibrary,
@@ -76,7 +77,6 @@ import {
   acceptTask as applyTaskAccept,
   claimTask as applyTaskClaim,
   refreshTasks as applyTaskRefresh,
-  taskRefreshState,
 } from '../apps/quests/quests';
 import { QUEST_CLAIM_REQUEST, QUEST_CLAIM_RESULT, type QuestClaimRequest } from '../apps/quests/questClaimBridge';
 
@@ -631,7 +631,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) throw new Error('聊天已切换，任务刷新已取消。');
     const current = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data as stat_data | undefined;
     if (!current?.系统 || !current?.任务 || !current?.任务候选) throw new Error('任务变量尚未初始化。');
-    if (!taskRefreshState(current).available) throw new Error('本周任务刷新次数已用完。');
     if (preparingShopRefresh || taskRefreshing.value || skillRefreshing.value || itemRefreshing.value)
       throw new Error('已有生成任务正在进行，请等待完成。');
     const startMessageId = getLastMessageId();
@@ -960,21 +959,34 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function addWeChatSticker(name: string, source: string) {
-    const url = isImageDataUrl(source) ? storeWechatImage(source) : source;
-    if (!hasWechatImage(url)) throw new Error('图片库中缺少所选图片。');
-    await updateWeChat(
-      current => addSticker(current, name, url),
-      undefined,
-      data => {
-        updateVariablesWith(
-          variables => ({ ...variables, [WECHAT_MEDIA_SNAPSHOT_KEY]: mediaSnapshot(data.手机.微信.账号) }),
-          {
-            type: 'script',
-            script_id: getScriptId(),
-          },
-        );
-      },
-    );
+    const user = statData.value?.手机?.微信?.账号?.user;
+    if (!user) throw new Error('Weline 用户账号不存在。');
+    if (Object.hasOwn(user.表情包, name.trim())) throw new Error('当前账号已有同名表情。');
+    const url = addNamedSticker(name, source);
+    try {
+      await updateWeChat(
+        current => addSticker(current, name, url),
+        undefined,
+        data => {
+          updateVariablesWith(
+            variables => ({ ...variables, [WECHAT_MEDIA_SNAPSHOT_KEY]: mediaSnapshot(data.手机.微信.账号) }),
+            {
+              type: 'script',
+              script_id: getScriptId(),
+            },
+          );
+        },
+      );
+      return { warning: '' };
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : '账号更新失败。';
+      const assigned = statData.value?.手机?.微信?.账号?.user?.表情包[name.trim()] === url;
+      return {
+        warning: assigned
+          ? `表情已选用，但媒体备份更新失败：${reason}`
+          : `表情已入库，但当前账号选用失败：${reason} 请到“管理表情”中重新选用。`,
+      };
+    }
   }
 
   async function syncStickerSnapshot() {

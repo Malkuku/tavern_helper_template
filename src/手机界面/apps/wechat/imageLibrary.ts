@@ -4,9 +4,12 @@ import { removeImagePlacement, WECHAT_IMAGE_CATEGORIES_KEY } from './imageCatego
 
 export const WECHAT_IMAGE_LIBRARY_KEY = 'magicGirlWeChatImageLibrary';
 export const WECHAT_MEDIA_SNAPSHOT_KEY = 'magicGirlWeChatMediaSnapshot';
+export const WECHAT_STICKER_LIBRARY_KEY = 'magicGirlWeChatStickerLibrary';
 const prefix = 'script-image://';
+const stickerPrefix = 'sticker://';
 const scope = () => ({ type: 'script' as const, script_id: getScriptId() });
 const libraryState = shallowRef<Record<string, string>>({});
+const stickerState = shallowRef<Record<string, string>>({});
 
 export function isImageDataUrl(value: unknown): value is string {
   return typeof value === 'string' && /^data:image\/[\w.+-]+;base64,[A-Za-z0-9+/=]+$/.test(value);
@@ -14,7 +17,7 @@ export function isImageDataUrl(value: unknown): value is string {
 
 export function readWechatImageLibrary(): Record<string, string> {
   const raw = getVariables(scope())?.[WECHAT_IMAGE_LIBRARY_KEY];
-  const library: Record<string, string> = {};
+  const library: Record<string, string> = Object.create(null);
   if (raw && typeof raw === 'object' && !Array.isArray(raw))
     for (const [id, value] of Object.entries(raw)) if (isImageDataUrl(value)) library[id] = value;
   return library;
@@ -22,15 +25,61 @@ export function readWechatImageLibrary(): Record<string, string> {
 
 export function refreshWechatImageLibrary(): void {
   libraryState.value = readWechatImageLibrary();
+  stickerState.value = readWechatStickerLibrary();
+}
+
+export function readWechatStickerLibrary(): Record<string, string> {
+  const raw = getVariables(scope())?.[WECHAT_STICKER_LIBRARY_KEY];
+  const library: Record<string, string> = Object.create(null);
+  if (raw && typeof raw === 'object' && !Array.isArray(raw))
+    for (const [name, url] of Object.entries(raw))
+      if (name.trim() && typeof url === 'string' && url) library[name] = url;
+  return library;
+}
+
+export function stickerLibraryEntries(): [string, string][] {
+  return Object.entries(stickerState.value);
+}
+
+export function stickerReference(name: string): string {
+  return `${stickerPrefix}${name}`;
+}
+
+export function addNamedSticker(name: string, source: string): string {
+  const label = name.trim();
+  if (!label) throw new Error('请填写表情包名称。');
+  if (label.includes('<') || label.includes('>')) throw new Error('表情包名称不能包含尖括号。');
+  if (['__proto__', 'constructor', 'prototype'].includes(label)) throw new Error('该表情包名称不可用。');
+  if (Object.hasOwn(readWechatStickerLibrary(), label)) throw new Error('表情包名称已存在。');
+  if (!isImageDataUrl(source) && !(source.startsWith(prefix) && hasWechatImage(source)) && !/^https?:\/\//.test(source))
+    throw new Error('请选择有效的表情图片。');
+  const url = isImageDataUrl(source) ? storeWechatImage(source) : source;
+  updateVariablesWith(
+    variables => ({
+      ...variables,
+      [WECHAT_STICKER_LIBRARY_KEY]: { ...(variables[WECHAT_STICKER_LIBRARY_KEY] || {}), [label]: url },
+    }),
+    scope(),
+  );
+  refreshWechatImageLibrary();
+  return stickerReference(label);
 }
 
 export function resolveWechatImage(url: string | undefined): string {
   if (!url) return '';
+  if (url.startsWith(stickerPrefix)) {
+    const source = stickerState.value[url.slice(stickerPrefix.length)];
+    return source && !source.startsWith(stickerPrefix) ? resolveWechatImage(source) : '';
+  }
   if (!url.startsWith(prefix)) return url;
   return libraryState.value[url.slice(prefix.length)] || '';
 }
 
 export function hasWechatImage(url: string): boolean {
+  if (url.startsWith(stickerPrefix)) {
+    const source = readWechatStickerLibrary()[url.slice(stickerPrefix.length)];
+    return !!source && !source.startsWith(stickerPrefix) && hasWechatImage(source);
+  }
   if (!url.startsWith(prefix)) return true;
   return !!readWechatImageLibrary()[url.slice(prefix.length)];
 }
@@ -72,6 +121,7 @@ export async function readWechatImageFile(file: File): Promise<string> {
 
 export function imageReferences(accounts: 微信数据['账号']): Set<string> {
   const refs = new Set<string>();
+  for (const image of Object.values(readWechatStickerLibrary())) if (image.startsWith(prefix)) refs.add(image);
   for (const account of Object.values(accounts)) {
     if (account.头像.startsWith(prefix)) refs.add(account.头像);
     for (const image of Object.values(account.表情包)) if (image.startsWith(prefix)) refs.add(image);

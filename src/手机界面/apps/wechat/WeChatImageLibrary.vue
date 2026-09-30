@@ -9,7 +9,7 @@
         >＋ 上传图片<input type="file" accept="image/*" multiple @change="upload"
       /></label>
     </div>
-    <p class="wx-library-help">点选图片可复制地址，或设为当前账号的头像、表情包。</p>
+    <p class="wx-library-help">点选图片可复制地址、设为头像，或命名后引入共享表情库。</p>
 
     <div class="wx-library-folder-head"><strong>文件分类</strong><span>移动分类不会影响已使用的图片</span></div>
     <div class="wx-library-folders" aria-label="一级文件夹">
@@ -77,7 +77,7 @@
         <div class="wx-library-actions">
           <button type="button" @click="copyReference">复制引用</button>
           <button type="button" :disabled="!assignable" @click="emit('avatar', selectedImage[0])">设为头像</button>
-          <button type="button" :disabled="!assignable" @click="emit('sticker', selectedImage[0])">选作表情</button>
+          <button type="button" :disabled="!assignable" @click="emit('sticker', selectedImage[0])">引入为表情</button>
         </div>
         <small v-if="!assignable">请先为当前角色创建账号，再选用图片。</small>
         <label

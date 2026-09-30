@@ -7,7 +7,6 @@ import {
   claimTask,
   emptyTaskWeek,
   refreshTasks,
-  taskRefreshState,
   taskWeekKey,
   taskWeekStats,
 } from '../src/手机界面/apps/quests/quests';
@@ -49,7 +48,6 @@ const data: any = {
   任务统计: { 开始周: '2026-9-28', 周记录: { '2026-9-28': emptyTaskWeek('2026-9-28') } },
 };
 
-assert.equal(taskRefreshState(data).available, true);
 assert.throws(() => refreshTasks(data, '<questVariable>{}</questVariable>'), /没有可接取的候选任务/);
 for (const count of [5, 7, 8]) {
   const variableCountData = structuredClone(data);
@@ -64,7 +62,7 @@ refreshTasks(
 );
 assert.equal(invalidRewardData.任务候选.任务1, undefined, '奖励字段错误的候选不展示');
 assert.equal(Object.keys(invalidRewardData.任务候选).length, 5);
-assert.equal(invalidRewardData.系统.任务主动刷新次数, 1, '部分有效仍结算一次');
+assert.equal(invalidRewardData.系统.任务主动刷新次数, 0, '任务刷新不再记录限制次数');
 const invalidRatingData = structuredClone(data);
 refreshTasks(invalidRatingData, `<questVariable>${JSON.stringify({ ...stock, 任务1: task('SS') })}</questVariable>`);
 assert.equal(invalidRatingData.任务候选.任务1, undefined, '评级错误的候选不展示');
@@ -80,23 +78,13 @@ assert.equal(tolerantData.任务候选.任务1.已完成, false, '候选完成�
 assert.equal(tolerantData.任务候选.任务1.备注, undefined, '额外字段不写入变量');
 refreshTasks(data, result);
 assert.equal(Object.keys(data.任务候选).length, 6);
-assert.equal(data.系统.任务下次刷新时间, '2026-10-5T00:00[1]');
-assert.equal(taskRefreshState(data).remaining, 4);
-const weeklyQuota = structuredClone(data);
-for (let used = 2; used <= 5; used++) {
-  refreshTasks(weeklyQuota, result);
-  assert.equal(taskRefreshState(weeklyQuota).remaining, 5 - used);
-}
-assert.throws(() => refreshTasks(weeklyQuota, result), /次数已用完/);
-assert.equal(weeklyQuota.系统.任务主动刷新次数, 5);
-weeklyQuota.世界.时间 = '2026-10-5T00:00[1]';
-assert.equal(taskRefreshState(weeklyQuota).remaining, 5, '周一恢复五次刷新机会');
-refreshTasks(weeklyQuota, result);
-assert.equal(weeklyQuota.系统.任务主动刷新次数, 1);
-const legacyDaily = structuredClone(data);
-legacyDaily.系统.任务下次刷新时间 = '2026-9-29T00:00[2]';
-legacyDaily.世界.时间 = '2026-9-30T09:00[3]';
-assert.equal(taskRefreshState(legacyDaily).remaining, 4, '旧每日刷新记录计入本周已用次数');
+const unlimited = structuredClone(data);
+unlimited.系统.任务主动刷新次数 = 5;
+unlimited.系统.任务下次刷新时间 = '2026-10-5T00:00[1]';
+for (let index = 0; index < 6; index++) refreshTasks(unlimited, result);
+assert.equal(Object.keys(unlimited.任务候选).length, 6, '同一周超过五次仍可刷新');
+assert.equal(unlimited.系统.任务主动刷新次数, 5, '旧计数不再写入');
+assert.equal(unlimited.系统.任务下次刷新时间, '2026-10-5T00:00[1]', '旧刷新时间不再写入');
 
 for (let index = 1; index <= 4; index++) acceptTask(data, `任务${index}`);
 assert.equal(Object.keys(data.任务候选).length, 2, '接取即从候选移除');
@@ -118,7 +106,6 @@ assert.equal(data.任务统计.周记录['2026-9-28'].放弃评级.D, 1);
 assert.equal(data.任务候选.任务2, undefined, '放弃不回候选');
 
 data.世界.时间 = '2026-9-29T00:00[2]';
-assert.equal(taskRefreshState(data).available, true);
 const duplicateData = structuredClone(data);
 refreshTasks(duplicateData, result);
 for (const name of Object.keys(data.任务))
@@ -202,5 +189,5 @@ assert.equal(withTarget.discoveredTargets[0].好感度.当前描述, '信任');
 assert.equal(generationPreview([]).discoveredTargets.length, 0, '没有已发现目标时不泄漏预置角色');
 assert.match(generationRule, /至少提供一项有机会提升其好感度的任务/);
 assert.match(generationRule, /保留至少 2 项恶堕、色情或调教倾向的任务/);
-assert.match(generationRule, /禁止全部集中于一个角色/);
+assert.match(generationRule, /禁止全部集中于主线角色的推进/);
 console.info('组织任务定向验证通过。');

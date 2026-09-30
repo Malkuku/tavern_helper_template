@@ -3025,6 +3025,102 @@
   background: transparent;
   color: var(--wx-green);
 }
+.wechat .wx-compose {
+  min-height: 60px;
+  padding: 8px 12px;
+  gap: 9px;
+}
+.wechat .wx-compose input {
+  height: 40px;
+  padding: 0 13px;
+  border-radius: 13px;
+}
+.wechat .wx-compose input::placeholder {
+  color: var(--wx-muted);
+}
+.wechat .wx-compose button.wx-compose-voice,
+.wechat .wx-compose button.wx-compose-sticker,
+.wechat .wx-compose button.wx-compose-plus {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--weline-soft);
+}
+.wechat .wx-compose button.wx-compose-voice svg,
+.wechat .wx-compose button.wx-compose-sticker svg,
+.wechat .wx-compose button.wx-compose-plus svg {
+  width: 24px;
+  height: 24px;
+}
+.wechat .wx-compose button.wx-compose-sticker[aria-pressed='true'],
+.wechat .wx-compose button.wx-compose-voice[aria-pressed='true'] {
+  background: var(--wx-green);
+  color: #fff;
+}
+.wechat .wx-sticker-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.wechat .wx-sticker-picker-head strong {
+  font-size: 14px;
+}
+.wechat .wx-sticker-picker .wx-sticker-picker-head button {
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--wx-line);
+  border-radius: 9px;
+  background: var(--wx-panel);
+  color: var(--wx-green);
+  font-size: 12px;
+}
+.wechat .wx-manager-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.wechat .wx-manager-sticker-page {
+  align-content: start;
+}
+.wechat .wx-manager-sticker-page .wx-manager-muted {
+  margin: -8px 0 0;
+}
+.wechat .wx-manager-sticker-page .wx-manager-sticker {
+  min-height: 60px;
+  padding: 8px 10px;
+}
+.wechat .wx-manager-sticker-page .wx-manager-sticker img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+.wechat .wx-manager-sticker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+.wechat .wx-manager-sticker-actions button,
+.wechat .wx-manager-upload {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--wx-line);
+  border-radius: 9px;
+  background: var(--wx-bg);
+  color: var(--wx-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.wechat .wx-manager-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
 .wechat .wx-send-confirm {
   border-top: 1px solid var(--wx-line);
 }

@@ -4,7 +4,7 @@
       消息更新失败：{{ store.wechatLogError }}
       <button type="button" @click="clearFailedLog">清除异常记录</button>
     </p>
-    <WeChatAccountManager v-if="adminOpen" @close="adminOpen = false" />
+    <WeChatAccountManager v-if="adminOpen" :initial-view="managerInitialView" @close="closeAccountManager" />
     <template v-else-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回 Weline" @click="selectedKey = null">
@@ -147,8 +147,12 @@
         <button type="button" aria-label="取消引用" @click="quoted = null">×</button>
       </div>
       <div v-if="stickerOpen" class="wx-sticker-picker">
+        <div class="wx-sticker-picker-head">
+          <strong>我的表情</strong>
+          <button type="button" @click="openStickerManager">管理表情</button>
+        </div>
         <div class="wx-custom-sticker-grid">
-          <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加图片后就能在聊天中发送。</p>
+          <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加后就能在这里选择发送。</p>
           <button
             v-for="name in stickerNames"
             :key="name"
@@ -160,13 +164,13 @@
             <img :src="resolveWechatImage(self?.表情包[name])" :alt="name" /><small>{{ name }}</small>
           </button>
           <button class="wx-sticker-add" type="button" @click="stickerFileInput?.click()">
-            <WeChatIcon name="plus" />添加表情包
+            <WeChatIcon name="plus" />上传表情
           </button>
           <input ref="stickerFileInput" class="wx-hidden-file" type="file" accept="image/*" @change="readStickerFile" />
           <form v-if="newStickerSource" class="wx-sticker-form" @submit.prevent="saveSticker">
             <img :src="newStickerSource" alt="新表情包预览" />
             <input v-model="newStickerName" aria-label="表情包名称" maxlength="30" placeholder="给表情包起个名字" />
-            <button type="submit" :disabled="savingSticker">保存</button>
+            <button type="submit" :disabled="savingSticker">入库并选用</button>
           </form>
         </div>
       </div>
@@ -184,14 +188,19 @@
           ref="messageInput"
           v-model="draft"
           aria-label="输入消息"
-          :placeholder="worldTime ? '' : '世界时间未设置'"
+          :placeholder="worldTime ? '输入消息' : '世界时间未设置'"
           :disabled="pendingLocked || sending || !worldTime"
         />
-        <button class="wx-compose-sticker" type="button" aria-label="选择表情" @click="stickerOpen = !stickerOpen">
+        <button
+          class="wx-compose-sticker"
+          type="button"
+          aria-label="选择表情"
+          :aria-pressed="stickerOpen"
+          @click="stickerOpen = !stickerOpen"
+        >
           <WeChatIcon name="emoji" />
         </button>
         <button v-if="draft.trim()" type="submit" :disabled="pendingLocked || sending || !worldTime">添加</button>
-        <button v-else-if="pending?.已确认 === false" type="submit" :disabled="sending">发送</button>
         <button
           v-if="!draft.trim()"
           class="wx-compose-plus"
@@ -673,7 +682,14 @@
         }}</strong>
       </header>
       <template v-if="accountPage === 'settings'">
-        <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
+        <button
+          class="wx-list-row wx-menu-row"
+          type="button"
+          @click="
+            managerInitialView = 'account';
+            adminOpen = true;
+          "
+        >
           <strong>账号管理</strong><WeChatIcon class="wx-row-chevron" name="chevron" />
         </button>
       </template>
@@ -790,6 +806,16 @@ import MapApp from '../map/MapApp.vue';
 const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
 const emit = defineEmits<{ 'open-map': [key: string] }>();
 const adminOpen = ref(false);
+const managerInitialView = ref<'account' | 'stickers'>('account');
+function openStickerManager() {
+  managerInitialView.value = 'stickers';
+  stickerOpen.value = false;
+  adminOpen.value = true;
+}
+function closeAccountManager() {
+  adminOpen.value = false;
+  if (managerInitialView.value === 'stickers' && selectedKey.value) stickerOpen.value = true;
+}
 
 type Tab = 'chats' | 'contacts' | 'me';
 const tabs: { id: Tab; label: string }[] = [
@@ -915,9 +941,10 @@ async function saveSticker() {
   savingSticker.value = true;
   error.value = '';
   try {
-    await store.addWeChatSticker(newStickerName.value, newStickerSource.value);
+    const result = await store.addWeChatSticker(newStickerName.value, newStickerSource.value);
     newStickerName.value = '';
     newStickerSource.value = '';
+    if (result.warning) error.value = result.warning;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '保存表情包失败。';
   } finally {

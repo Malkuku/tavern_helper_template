@@ -41,8 +41,9 @@
         </div>
       </section>
       <nav class="wx-manager-tabs" aria-label="管理内容">
-        <button type="button" :class="{ active: view === 'account' }" @click="view = 'account'">账号资料</button>
-        <button type="button" :class="{ active: view === 'library' }" @click="view = 'library'">图片库</button>
+        <button type="button" :class="{ active: view === 'account' }" @click="changeView('account')">资料</button>
+        <button type="button" :class="{ active: view === 'stickers' }" @click="changeView('stickers')">表情包</button>
+        <button type="button" :class="{ active: view === 'library' }" @click="changeView('library')">图片库</button>
       </nav>
       <section v-if="view === 'account' && selectedAccount" class="wx-manager-editor">
         <div class="wx-manager-section-head">
@@ -68,33 +69,6 @@
           <summary>使用外部头像 URL</summary>
           <input v-model="avatar" placeholder="https://… 或 data:image/…" aria-label="头像 URL" />
         </details>
-        <div class="wx-manager-subhead">
-          <strong>表情包</strong><span>{{ Object.keys(stickers).length }} 个</span>
-        </div>
-        <div v-if="Object.keys(stickers).length" class="wx-manager-stickers">
-          <div v-for="[label, url] in Object.entries(stickers)" :key="label" class="wx-manager-sticker">
-            <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
-            <span>{{ label }}</span
-            ><button type="button" :aria-label="`删除表情 ${label}`" @click="delete stickers[label]">删除</button>
-          </div>
-        </div>
-        <p v-else class="wx-manager-muted">当前账号还没有表情包。</p>
-        <div class="wx-manager-new-sticker">
-          <label class="wx-manager-field"
-            >表情名称<input v-model="stickerName" maxlength="30" placeholder="例如：开心"
-          /></label>
-          <div class="wx-manager-sticker-source">
-            <img v-if="resolveWechatImage(stickerUrl)" :src="resolveWechatImage(stickerUrl)" alt="待添加的表情" />
-            <span v-else>尚未选图</span>
-            <button type="button" @click="openLibrary('sticker')">从图片库选图</button>
-            <button v-if="stickerUrl" type="button" @click="stickerUrl = ''">清除选图</button>
-          </div>
-          <details class="wx-manager-external-url">
-            <summary>使用外部表情 URL</summary>
-            <input v-model="stickerUrl" placeholder="https://… 或 data:image/…" aria-label="表情图片 URL" />
-          </details>
-          <button type="button" @click="addSticker">添加表情</button>
-        </div>
         <details class="wx-manager-friends">
           <summary>
             好友关系 <span>{{ friends.length }} 位</span>
@@ -125,6 +99,79 @@
         </button>
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </section>
+      <section v-else-if="view === 'stickers' && selectedAccount" class="wx-manager-editor wx-manager-sticker-page">
+        <div class="wx-manager-section-head">
+          <div>
+            <small>{{ selectedAccount.昵称 || selectedId }}</small>
+            <h2>已选表情</h2>
+          </div>
+          <span>{{ Object.keys(selectedAccount.表情包).length }} 个</span>
+        </div>
+        <p class="wx-manager-muted">从下方表情库选用名称；移除仅影响当前账号。</p>
+        <div v-if="Object.keys(selectedAccount.表情包).length" class="wx-manager-stickers">
+          <div v-for="[label, url] in Object.entries(selectedAccount.表情包)" :key="label" class="wx-manager-sticker">
+            <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
+            <span>{{ label }}</span>
+            <button type="button" :disabled="saving" :aria-label="`移除表情 ${label}`" @click="removeSticker(label)">
+              移除
+            </button>
+          </div>
+        </div>
+        <p v-else class="wx-manager-empty">当前账号还没有选用表情。</p>
+        <div class="wx-manager-section-head">
+          <div>
+            <small>SHARED LIBRARY</small>
+            <h2>表情库</h2>
+          </div>
+          <span>{{ namedStickers.length }} 个</span>
+        </div>
+        <div v-if="namedStickers.length" class="wx-manager-stickers">
+          <div v-for="[label, url] in namedStickers" :key="label" class="wx-manager-sticker">
+            <img v-if="resolveWechatImage(url)" :src="resolveWechatImage(url)" :alt="label" />
+            <span>{{ label }}</span>
+            <button type="button" :disabled="saving || !!selectedAccount.表情包[label]" @click="assignSticker(label)">
+              {{
+                selectedAccount.表情包[label]
+                  ? selectedAccount.表情包[label] === stickerReference(label)
+                    ? '已选用'
+                    : '同名旧表情'
+                  : '选用'
+              }}
+            </button>
+          </div>
+        </div>
+        <p v-else class="wx-manager-empty">表情库为空。引入图片并命名后可供所有账号选用。</p>
+        <form class="wx-manager-new-sticker" @submit.prevent="addSticker">
+          <strong>引入表情到库</strong>
+          <label class="wx-manager-field"
+            >表情名称<input v-model="stickerName" maxlength="30" placeholder="例如：开心"
+          /></label>
+          <div class="wx-manager-sticker-source">
+            <img v-if="resolveWechatImage(stickerUrl)" :src="resolveWechatImage(stickerUrl)" alt="待添加的表情" />
+            <span v-else>尚未选图</span>
+            <div class="wx-manager-sticker-actions">
+              <label class="wx-manager-upload"
+                >上传图片<input type="file" accept="image/*" @change="readStickerFile"
+              /></label>
+              <button type="button" @click="openLibrary('sticker')">从图片库选择</button>
+              <button v-if="stickerUrl" type="button" @click="stickerUrl = ''">清除</button>
+            </div>
+          </div>
+          <details class="wx-manager-external-url">
+            <summary>使用外部图片 URL</summary>
+            <input v-model="stickerUrl" placeholder="https://… 或 data:image/…" aria-label="表情图片 URL" />
+          </details>
+          <button class="wx-manager-primary" type="submit" :disabled="saving">
+            {{ saving ? '正在保存…' : '入库并选用' }}
+          </button>
+        </form>
+        <p v-if="notice" class="wx-manager-notice" role="status">{{ notice }}</p>
+        <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
+      </section>
+      <section v-else-if="view === 'stickers'" class="wx-manager-editor">
+        <p class="wx-manager-empty">请先为此角色创建账号，再添加表情包。</p>
+        <button class="wx-manager-primary" type="button" @click="changeView('account')">前往创建账号</button>
+      </section>
       <WeChatImageLibrary
         v-else-if="view === 'library'"
         :accounts="accounts"
@@ -141,11 +188,18 @@
 import { computed, ref, watch } from 'vue';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { resolveWechatImage } from './imageLibrary';
+import {
+  addNamedSticker,
+  readWechatImageFile,
+  resolveWechatImage,
+  stickerLibraryEntries,
+  stickerReference,
+} from './imageLibrary';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatImageLibrary from './WeChatImageLibrary.vue';
 
 const emit = defineEmits<{ close: [] }>();
+const props = withDefaults(defineProps<{ initialView?: 'account' | 'stickers' }>(), { initialView: 'account' });
 const store = useMagicGirlStatStore();
 const password = ref('');
 const unlocked = ref(false);
@@ -155,7 +209,7 @@ const saving = ref(false);
 const creating = ref(false);
 const selectedId = ref('user');
 const accountSearch = ref('');
-const view = ref<'account' | 'library'>('account');
+const view = ref<'account' | 'stickers' | 'library'>(props.initialView);
 const accounts = computed(() => store.statData?.手机?.微信?.账号 ?? {});
 const accountEntries = computed(() => Object.entries(accounts.value));
 const roleEntries = computed(() => {
@@ -183,10 +237,10 @@ const filteredRoster = computed(() =>
   ),
 );
 const selectedAccount = computed(() => accounts.value[selectedId.value]);
+const namedStickers = computed(() => stickerLibraryEntries());
 const selectedRole = computed(() => roleEntries.value.find(role => role.id === selectedId.value));
 const name = ref('');
 const avatar = ref('');
-const stickers = ref<Record<string, string>>({});
 const friends = ref<string[]>([]);
 const stickerName = ref('');
 const stickerUrl = ref('');
@@ -195,7 +249,6 @@ const isDirty = computed(
     !!selectedAccount.value &&
     (name.value !== selectedAccount.value.昵称 ||
       avatar.value !== selectedAccount.value.头像 ||
-      JSON.stringify(stickers.value) !== JSON.stringify(selectedAccount.value.表情包) ||
       JSON.stringify(friends.value) !== JSON.stringify(selectedAccount.value.好友) ||
       !!stickerName.value ||
       !!stickerUrl.value),
@@ -215,7 +268,6 @@ watch(
   account => {
     name.value = account?.昵称 ?? '';
     avatar.value = account?.头像 ?? '';
-    stickers.value = { ...(account?.表情包 ?? {}) };
     friends.value = [...(account?.好友 ?? [])];
     stickerName.value = '';
     stickerUrl.value = '';
@@ -229,6 +281,29 @@ function selectAccount(id: string) {
   if (isDirty.value && !window.confirm('当前账号有未保存的修改，切换后会丢失。继续切换？')) return;
   selectedId.value = id;
   notice.value = '';
+}
+function changeView(next: 'account' | 'stickers' | 'library') {
+  if (next === view.value) return;
+  if (view.value === 'account' && isDirty.value && !window.confirm('账号资料尚未保存，切换后会丢失。继续？')) return;
+  if (
+    view.value !== 'account' &&
+    next === 'account' &&
+    (stickerName.value || stickerUrl.value) &&
+    !window.confirm('新表情尚未添加，切换后会丢失。继续？')
+  )
+    return;
+  if (view.value === 'account') {
+    name.value = selectedAccount.value?.昵称 ?? '';
+    avatar.value = selectedAccount.value?.头像 ?? '';
+    friends.value = [...(selectedAccount.value?.好友 ?? [])];
+  }
+  if (view.value !== 'account' && next === 'account') {
+    stickerName.value = '';
+    stickerUrl.value = '';
+  }
+  view.value = next;
+  notice.value = '';
+  error.value = '';
 }
 function closeManager() {
   if (isDirty.value && !window.confirm('当前账号有未保存的修改，离开后会丢失。继续返回？')) return;
@@ -248,45 +323,122 @@ async function createAccount() {
   }
 }
 function openLibrary(target: 'avatar' | 'sticker') {
-  view.value = 'library';
+  changeView('library');
+  if (view.value !== 'library') return;
   notice.value = target === 'avatar' ? '选中图片后点击“设为头像”。' : '选中图片后点击“选作表情”。';
 }
 function chooseAvatar(url: string) {
+  changeView('account');
+  if (view.value !== 'account') return;
   avatar.value = url;
-  view.value = 'account';
   notice.value = '头像已选中，点击“保存账号”后生效。';
 }
 function chooseSticker(url: string) {
   stickerUrl.value = url;
-  view.value = 'account';
-  notice.value = '图片已选中，填写表情名称并点击“添加表情”，然后保存账号。';
+  view.value = 'stickers';
+  notice.value = '图片已选中，填写名称后引入表情库。';
 }
-function addSticker() {
+async function readStickerFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  error.value = '';
+  try {
+    stickerUrl.value = await readWechatImageFile(file);
+    if (!stickerName.value.trim()) stickerName.value = file.name.replace(/\.[^.]+$/, '');
+    notice.value = '图片已选中，确认名称后引入表情库。';
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '无法读取图片。';
+  } finally {
+    input.value = '';
+  }
+}
+async function addSticker() {
+  if (!selectedAccount.value || saving.value) return;
   const label = stickerName.value.trim();
   if (!label || !stickerUrl.value.trim()) {
     error.value = '请填写表情名称并选择图片。';
     return;
   }
-  if (stickers.value[label]) {
-    error.value = '表情名称已存在。';
-    return;
-  }
-  stickers.value = { ...stickers.value, [label]: stickerUrl.value.trim() };
-  stickerName.value = '';
-  stickerUrl.value = '';
-  notice.value = '表情已加入草稿，点击“保存账号”后生效。';
+  saving.value = true;
   error.value = '';
-}
-async function save() {
-  if (!selectedAccount.value || saving.value) return;
-  if (stickerName.value.trim() || stickerUrl.value.trim()) {
-    error.value = '新表情尚未添加，请先点击“添加表情”或清空草稿。';
-    return;
+  let imported = false;
+  try {
+    addNamedSticker(label, stickerUrl.value.trim());
+    imported = true;
+    await assignStickerToAccount(label);
+    stickerName.value = '';
+    stickerUrl.value = '';
+    notice.value = '表情已入库并选入当前账号。';
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : '引入表情失败。';
+    const assigned = selectedAccount.value?.表情包[label] === stickerReference(label);
+    error.value = imported
+      ? assigned
+        ? `表情已入库并选用，但媒体备份更新失败：${reason}`
+        : `表情已入库，但选用失败：${reason} 请在表情库中重新选用。`
+      : reason;
+    if (imported) {
+      stickerName.value = '';
+      stickerUrl.value = '';
+    }
+  } finally {
+    saving.value = false;
   }
+}
+async function assignSticker(label: string) {
+  if (saving.value) return;
   saving.value = true;
   error.value = '';
   try {
-    await store.updateWeChatAccount(selectedId.value, name.value, avatar.value, stickers.value, friends.value);
+    await assignStickerToAccount(label);
+    notice.value = `已为当前账号选用「${label}」。`;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '选用表情失败。';
+  } finally {
+    saving.value = false;
+  }
+}
+async function assignStickerToAccount(label: string) {
+  const account = selectedAccount.value;
+  if (!account) throw new Error('请先创建账号。');
+  if (account.表情包[label]) throw new Error(`当前账号已有「${label}」，请先移除旧表情。`);
+  await store.updateWeChatAccount(
+    selectedId.value,
+    account.昵称,
+    account.头像,
+    { ...account.表情包, [label]: stickerReference(label) },
+    account.好友,
+  );
+}
+async function removeSticker(label: string) {
+  if (!selectedAccount.value || saving.value) return;
+  saving.value = true;
+  error.value = '';
+  try {
+    const account = selectedAccount.value;
+    const next = { ...account.表情包 };
+    delete next[label];
+    await store.updateWeChatAccount(selectedId.value, account.昵称, account.头像, next, account.好友);
+    notice.value = `已从当前账号移除「${label}」，表情库仍保留。`;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '删除表情失败。';
+  } finally {
+    saving.value = false;
+  }
+}
+async function save() {
+  if (!selectedAccount.value || saving.value) return;
+  saving.value = true;
+  error.value = '';
+  try {
+    await store.updateWeChatAccount(
+      selectedId.value,
+      name.value,
+      avatar.value,
+      selectedAccount.value.表情包,
+      friends.value,
+    );
     notice.value = '账号已保存。';
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '账号保存失败。';
