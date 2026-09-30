@@ -125,7 +125,6 @@
   background: #ffffff0b;
   color: #ffe0ec;
   font-size: 12px;
-  cursor: help;
 }
 .witch-balance-gem {
   color: #fa85b6;
@@ -1982,22 +1981,43 @@
   color: #ffcae0;
   cursor: help;
 }
-.witch-app .profile-points .points-help-trigger > svg {
+.witch-app .profile-points > svg {
   flex: none;
   width: 19px;
   height: 19px;
   color: #ff9bc8;
   filter: drop-shadow(0 0 5px #ff8ab583);
 }
-.witch-app .profile-points .points-help-trigger > span {
+.witch-app .profile-points > span {
   font-size: 10px;
   white-space: nowrap;
 }
-.witch-app .profile-points .points-help-trigger > strong {
+.witch-app .profile-points > strong {
   margin-left: 4px;
   color: #fff1f7;
   font-size: 16px;
   font-variant-numeric: tabular-nums;
+}
+.witch-app .profile-points-help {
+  display: none;
+  gap: 7px;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid #d06b9d88;
+  border-radius: 10px;
+  background: #4c2542;
+  color: #ffe7f0;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.witch-app .profile-points-help strong {
+  color: #f3b5d3;
+  font-size: 12px;
+}
+.witch-app .profile-points-help.open {
+  display: grid;
 }
 .witch-app .profile-rank {
   display: grid;

@@ -5,7 +5,22 @@
         <div>
           <span>个人资料</span>
           <h1>我的档案</h1>
-          <CorruptionPointsHelp class="profile-points">
+          <button
+            type="button"
+            class="profile-points"
+            aria-label="查看恶堕积分获取方式"
+            :aria-expanded="showPointsHelp || hoverPointsHelp"
+            :aria-controls="pointsHelpId"
+            @click="showPointsHelp = !showPointsHelp"
+            @mouseenter="hoverPointsHelp = true"
+            @mouseleave="hoverPointsHelp = false"
+            @focus="hoverPointsHelp = true"
+            @blur="hoverPointsHelp = false"
+            @keydown.esc="
+              showPointsHelp = false;
+              hoverPointsHelp = false;
+            "
+          >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M7 3h10l5 7-10 12L2 10l5-7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
               <path
@@ -16,12 +31,17 @@
               />
             </svg>
             <span>恶堕积分</span><strong>{{ user.恶堕积分 ?? '—' }}</strong>
-          </CorruptionPointsHelp>
+          </button>
         </div>
         <div class="profile-rank">
           <span>当前评级</span>
           <RatingEmblem :rating="user.当前评级" tooltip-align="right" kind="contribution" />
         </div>
+      </div>
+      <div :id="pointsHelpId" class="profile-points-help" :class="{ open: showPointsHelp || hoverPointsHelp }">
+        <strong>恶堕积分怎么获得？</strong>
+        <span>完成委派任务并领取奖励，即可获得恶堕积分。</span>
+        <span>魔法少女首次迈入新的恶堕等级时，组织会按她的评级发放一次性积分，自动入账。</span>
       </div>
       <div class="profile-rating-progress" aria-label="评级贡献进度">
         <div class="profile-rating-line">
@@ -90,7 +110,6 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { profileFieldValue, type ProfileField } from './profileEdit';
 import RatingEmblem from './RatingEmblem.vue';
 import { ratingThreshold, ratings, userRatingFromContribution } from '../../store/userRating';
-import CorruptionPointsHelp from '../witch/CorruptionPointsHelp.vue';
 
 const props = defineProps<{ data: stat_data }>();
 const user = computed(() => props.data.角色?.user);
@@ -108,6 +127,9 @@ const draft = ref('');
 const error = ref('');
 const ratingHelpId = useId();
 const showRatingHelp = ref(false);
+const pointsHelpId = useId();
+const showPointsHelp = ref(false);
+const hoverPointsHelp = ref(false);
 function startEdit(field: ProfileField) {
   if (!user.value) return;
   draft.value = profileFieldValue(user.value, field);
