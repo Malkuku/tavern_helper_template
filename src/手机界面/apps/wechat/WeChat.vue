@@ -837,6 +837,7 @@ import WeChatServiceIcon from './WeChatServiceIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
 import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
+import { chooseImageCrop } from '../../imageCrop';
 import { nearbyAvatars } from './nearbyAvatars';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { findPhoneMapPath } from '../map/phoneMap';
@@ -985,7 +986,9 @@ async function readStickerFile(event: Event) {
   if (!file) return;
   error.value = '';
   try {
-    newStickerSource.value = await readWechatImageFile(file);
+    const cropped = await chooseImageCrop(file);
+    if (!cropped) return;
+    newStickerSource.value = await readWechatImageFile(cropped);
     newStickerName.value = file.name.replace(/\.[^.]+$/, '');
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '无法读取图片。';
@@ -1062,13 +1065,18 @@ watch(accountPage, page => {
   error.value = '';
 });
 async function chooseProfileImage(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
   if (!file) return;
   try {
-    profileImage.value = storeWechatImage(await readWechatImageFile(file));
+    const cropped = await chooseImageCrop(file, 'square');
+    if (!cropped) return;
+    profileImage.value = storeWechatImage(await readWechatImageFile(cropped));
     profileImageNotice.value = '图片已选好，点击下方保存后生效。';
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '无法读取头像。';
+  } finally {
+    input.value = '';
   }
 }
 async function saveProfile() {
@@ -1399,17 +1407,15 @@ async function setDetailImage(event: Event) {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    detailImage.value = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('图片读取失败。'));
-      reader.readAsDataURL(file);
-    });
+    const cropped = await chooseImageCrop(file);
+    if (!cropped) return;
+    detailImage.value = await readWechatImageFile(cropped);
     await saveAppearance();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '保存图片失败。';
+  } finally {
+    input.value = '';
   }
-  input.value = '';
 }
 function openGroupPicker() {
   groupQuery.value = '';

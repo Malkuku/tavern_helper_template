@@ -70,6 +70,7 @@
     <section v-if="selectedMain" class="data-hero monitor-hero">
       <CharacterPortrait :src="heroImageUrl" :name="selectedMainKey!" cover />
       <h2>{{ selectedMainKey }}</h2>
+      <p class="monitor-hero-identity">{{ selectedMain.基础信息.身份.join('、') || '身份未记录' }}</p>
       <div
         v-if="selectedMainKey && characterImages[selectedMainKey as keyof typeof characterImages]"
         class="monitor-image-picker"
@@ -368,8 +369,9 @@
         cover
       />
       <h2>{{ selectedTarget!.key }}</h2>
+      <p class="monitor-hero-identity">{{ candidateIdentity }}</p>
     </div>
-    <section class="data-card">
+    <section class="data-card candidate-identity-card">
       <h3>身份</h3>
       <p class="data-prose">{{ candidateIdentity }}</p>
     </section>

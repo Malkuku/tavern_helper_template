@@ -126,6 +126,7 @@ import {
   type ScriptBackup,
 } from './scriptBackup';
 import { readPhoneWallpaper, savePhoneWallpaper, uploadPhoneWallpaper } from '../wallpaper';
+import { chooseImageCrop } from '../imageCrop';
 
 const props = defineProps<{ app: string }>();
 const emit = defineEmits<{ wallpaperChanged: [path: string]; testNotifications: [] }>();
@@ -246,7 +247,9 @@ async function changeWallpaper(event: Event) {
   if (!file) return;
   wallpaperBusy.value = true;
   try {
-    const path = await uploadPhoneWallpaper(file);
+    const cropped = await chooseImageCrop(file, 'wallpaper');
+    if (!cropped) return;
+    const path = await uploadPhoneWallpaper(cropped);
     savePhoneWallpaper(path);
     wallpaper.value = path;
     emit('wallpaperChanged', path);
@@ -292,34 +295,30 @@ const photos = ref<Photo[]>(
     : [],
 );
 const selectedPhoto = ref<Photo | null>(null);
-function addPhoto(event: Event) {
+async function addPhoto(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
-  if (!file.type.startsWith('image/') || file.size > 2 * 1024 * 1024) {
-    notice.value = '请选择不超过 2 MB 的图片';
+  try {
+    const cropped = await chooseImageCrop(file);
+    if (!cropped) return;
+    if (cropped.size > 2 * 1024 * 1024) throw new Error('请选择不超过 2 MB 的图片');
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('图片读取失败'));
+      reader.onerror = () => reject(new Error('图片读取失败'));
+      reader.readAsDataURL(cropped);
+    });
+    const next = [{ id: crypto.randomUUID(), name: cropped.name, data }, ...photos.value];
+    saveValue('magicGirlPhonePhotos', next);
+    photos.value = next;
+    notice.value = '照片已保存';
+  } catch (error) {
+    notice.value = error instanceof Error ? error.message : '照片保存失败';
+  } finally {
     input.value = '';
-    return;
   }
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (typeof reader.result !== 'string') return;
-    const next = [{ id: crypto.randomUUID(), name: file.name, data: reader.result }, ...photos.value];
-    try {
-      saveValue('magicGirlPhonePhotos', next);
-      photos.value = next;
-      notice.value = '照片已保存';
-    } catch (error) {
-      console.error('照片保存失败', error);
-      notice.value = '照片保存失败';
-    }
-    input.value = '';
-  };
-  reader.onerror = () => {
-    notice.value = '图片读取失败';
-    input.value = '';
-  };
-  reader.readAsDataURL(file);
 }
 function deletePhoto(id: string) {
   const next = photos.value.filter(photo => photo.id !== id);

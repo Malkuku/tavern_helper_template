@@ -591,6 +591,24 @@
 .witch-app .monitor-hero.minor-hero {
   min-height: 105px;
 }
+.witch-app .monitor-hero-identity {
+  display: none;
+  margin: 0;
+  color: #eed1df;
+  font-size: 12px;
+}
+.witch-app .monitor-hero:has(.character-portrait-empty) {
+  min-height: 0;
+}
+.witch-app .monitor-hero:has(.character-portrait-empty) .character-portrait {
+  display: none;
+}
+.witch-app .monitor-hero:has(.character-portrait-empty) .monitor-hero-identity {
+  display: block;
+}
+.witch-app .candidate-profile:has(.character-portrait-empty) .candidate-identity-card {
+  display: none;
+}
 .witch-app .minor-hero p {
   margin: 0;
   color: #eed1df;

@@ -158,6 +158,7 @@ import {
   stickerLibraryEntries,
   storeWechatImage,
 } from './imageLibrary';
+import { chooseImageCrop } from '../../imageCrop';
 
 const props = defineProps<{ accounts: 微信数据['账号']; assignable: boolean }>();
 const emit = defineEmits<{ avatar: [url: string]; sticker: [url: string] }>();
@@ -280,15 +281,19 @@ async function upload(event: Event) {
   const input = event.target as HTMLInputElement;
   const files = [...(input.files ?? [])];
   if (!files.length) return;
+  let uploaded = 0;
   try {
     for (const file of files) {
-      const url = storeWechatImage(await readWechatImageFile(file));
+      const cropped = await chooseImageCrop(file);
+      if (!cropped) continue;
+      const url = storeWechatImage(await readWechatImageFile(cropped));
       if (activeGroup.value)
         categories.value = placeImage(imageIdFromUrl(url), activeGroup.value.id, activeFolderId.value || null);
       selectedUrl.value = url;
+      uploaded++;
     }
     images.value = imageLibraryEntries();
-    notice.value = `已上传 ${files.length} 张图片。`;
+    if (uploaded) notice.value = `已上传 ${uploaded} 张图片。`;
     error.value = '';
   } catch (cause) {
     images.value = imageLibraryEntries();

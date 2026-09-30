@@ -226,6 +226,7 @@ import { klona } from 'klona';
 import RoleAvatar from '../../../尘史使徒/UI/components/common/RoleAvatar.vue';
 import { roleAvatarStyleNames } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { useMagicGirlStatStore } from '../../store/StatStore';
+import { chooseImageCrop } from '../../imageCrop';
 import { minorRoleSchema } from '../../store/initialDataSchema';
 import type { 次要角色人设 } from '../../types';
 import {
@@ -582,33 +583,34 @@ async function confirmDialog() {
     busy.value = false;
   }
 }
-function chooseAvatar(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
+async function chooseAvatar(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
   if (!file || !draft.value) return;
-  const reader = new FileReader();
-  reader.onload = () => {
+  try {
+    const cropped = await chooseImageCrop(file, 'square', true);
+    if (!cropped) return;
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('无法读取头像文件。'));
+      reader.onerror = () => reject(new Error('无法读取头像文件。'));
+      reader.readAsDataURL(cropped);
+    });
     const image = new Image();
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 256;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        error.value = '无法处理头像图片。';
-        return;
-      }
-      const side = Math.min(image.width, image.height);
-      context.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, 256, 256);
-      if (draft.value) draft.value.meta!.avatar = canvas.toDataURL('image/png');
-    };
-    image.onerror = () => {
-      error.value = '头像不是可读取的图片。';
-    };
-    image.src = String(reader.result ?? '');
-  };
-  reader.onerror = () => {
-    error.value = '无法读取头像文件。';
-  };
-  reader.readAsDataURL(file);
+    image.src = data;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 256;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('无法处理头像图片。');
+    context.drawImage(image, 0, 0, image.width, image.height, 0, 0, 256, 256);
+    if (draft.value) draft.value.meta!.avatar = canvas.toDataURL('image/png');
+  } catch (cause) {
+    error.value = messageOf(cause);
+  } finally {
+    input.value = '';
+  }
 }
 function messageOf(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);

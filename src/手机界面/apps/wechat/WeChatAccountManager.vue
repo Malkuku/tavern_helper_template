@@ -211,6 +211,7 @@
 import { computed, ref, watch } from 'vue';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { useMagicGirlStatStore } from '../../store/StatStore';
+import { chooseImageCrop } from '../../imageCrop';
 import {
   addNamedSticker,
   readWechatImageFile,
@@ -379,7 +380,9 @@ async function readStickerFile(event: Event) {
   if (!file) return;
   error.value = '';
   try {
-    stickerUrl.value = await readWechatImageFile(file);
+    const cropped = await chooseImageCrop(file);
+    if (!cropped) return;
+    stickerUrl.value = await readWechatImageFile(cropped);
     if (!stickerName.value.trim()) stickerName.value = file.name.replace(/\.[^.]+$/, '');
     notice.value = '图片已选中，确认名称后引入表情库。';
   } catch (cause) {

@@ -189,6 +189,7 @@
         </div>
       </div>
     </Transition>
+    <ImageCropper v-if="imageCropRequest" :request="imageCropRequest" />
     <WeChatNotification
       v-if="!open && statStore.wechatNotification && statStore.statData?.手机?.微信"
       :data="statStore.statData.手机.微信"
@@ -220,6 +221,8 @@ import ControlCenter from './components/ControlCenter.vue';
 import PhoneDesktop from './components/PhoneDesktop.vue';
 import WeChatNotification from './components/WeChatNotification.vue';
 import WitchNotification from './components/WitchNotification.vue';
+import ImageCropper from './components/ImageCropper.vue';
+import { imageCropRequest } from './imageCrop';
 import {
   activeWitchNoticeHistory,
   nextWitchNotice,

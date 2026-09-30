@@ -1,5 +1,9 @@
 <template>
-  <div class="character-portrait" :class="{ 'character-portrait-cover': cover }" :aria-label="`${name}的角色画像`">
+  <div
+    class="character-portrait"
+    :class="{ 'character-portrait-cover': cover, 'character-portrait-empty': !src || failed }"
+    :aria-label="src && !failed ? `${name}的角色画像` : undefined"
+  >
     <img v-if="src && !failed" :src="src" :alt="`${name}的角色画像`" @error="failed = true" />
   </div>
 </template>
