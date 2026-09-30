@@ -197,20 +197,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let readCursors: ReadCursors = {};
   let activeWeChatConversation: string | null = null;
 
-  function persistReadCursors() {
-    if (!readChatId) return;
-    const chatId = readChatId;
+  function persistReadCursors(): boolean {
+    if (!readChatId) return false;
     const cursors = { ...readCursors };
     try {
-      updateVariablesWith(
-        variables => ({
-          ...variables,
-          magicGirlWeChatRead: { ...(variables.magicGirlWeChatRead || {}), [chatId]: cursors },
-        }),
-        { type: 'script', script_id: getScriptId() },
-      );
+      updateVariablesWith(variables => ({ ...variables, magicGirlWeChatRead: cursors }), { type: 'chat' });
+      return true;
     } catch (error) {
       console.error('微信已读位置保存失败', error);
+      return false;
     }
   }
 
@@ -223,8 +218,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       activeWeChatConversation = null;
       wechatNotification.value = null;
       let stored: unknown;
+      let storedInChat = false;
+      let hasLegacyRead = false;
       try {
-        stored = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWeChatRead?.[chatId];
+        stored = getVariables({ type: 'chat' })?.magicGirlWeChatRead;
+        storedInChat = stored != null;
+        const scriptVariables = getVariables({ type: 'script', script_id: getScriptId() });
+        hasLegacyRead = Object.prototype.hasOwnProperty.call(scriptVariables, 'magicGirlWeChatRead');
+        if (!storedInChat) stored = scriptVariables.magicGirlWeChatRead?.[chatId];
       } catch (error) {
         console.error('微信已读位置读取失败', error);
       }
@@ -232,7 +233,20 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         stored && typeof stored === 'object' && !Array.isArray(stored)
           ? reconcileReadCursors(current, stored as ReadCursors)
           : initialReadCursors(current);
-      if (!stored) persistReadCursors();
+      if ((!storedInChat ? persistReadCursors() : true) && hasLegacyRead) {
+        try {
+          updateVariablesWith(
+            variables => {
+              const next = { ...variables };
+              delete next.magicGirlWeChatRead;
+              return next;
+            },
+            { type: 'script', script_id: getScriptId() },
+          );
+        } catch (error) {
+          console.error('旧微信已读位置清理失败', error);
+        }
+      }
     } else {
       const next = reconcileReadCursors(current, readCursors);
       if (Object.entries(next).some(([key, value]) => readCursors[key] !== value)) {

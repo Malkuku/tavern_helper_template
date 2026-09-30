@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {
   createScriptBackup,
   parseScriptBackup,
-  readLocalScriptBackup,
+  readLocalScriptBackups,
   restoreScriptBackup,
   saveLocalScriptBackup,
 } from '../src/手机界面/apps/scriptBackup';
@@ -13,7 +13,9 @@ let scriptVariables: Record<string, unknown> = variables;
 (globalThis as any).getVariables = (option: { type: string }) =>
   option.type === 'global' ? globalVariables : scriptVariables;
 (globalThis as any).updateVariablesWith = (updater: (value: Record<string, unknown>) => Record<string, unknown>) => {
-  Object.assign(globalVariables, updater(globalVariables));
+  const next = updater(globalVariables);
+  Object.keys(globalVariables).forEach(key => delete globalVariables[key]);
+  Object.assign(globalVariables, next);
 };
 (globalThis as any).replaceVariables = (next: Record<string, unknown>, option: { type: string }) => {
   assert.equal(option.type, 'script');
@@ -24,8 +26,13 @@ const backup = createScriptBackup('phone-script', variables, new Date('2026-09-3
 variables.notes[0].title = '后来修改';
 assert.equal((backup.variables.notes as { title: string }[])[0].title, '原内容');
 saveLocalScriptBackup(backup);
-assert.deepEqual(readLocalScriptBackup('phone-script'), backup);
-assert.equal(readLocalScriptBackup('another-script'), null);
+assert.deepEqual(readLocalScriptBackups(), [backup]);
+const otherBackup = createScriptBackup('another-script', { other: true }, new Date('2026-10-01T00:00:00Z'));
+saveLocalScriptBackup(otherBackup);
+assert.deepEqual(readLocalScriptBackups(), [otherBackup, backup]);
+saveLocalScriptBackup(createScriptBackup('phone-script', { updated: true }, new Date('2026-10-02T00:00:00Z')));
+assert.equal(readLocalScriptBackups().length, 2);
+assert.equal(readLocalScriptBackups()[0].scriptId, 'phone-script');
 assert.deepEqual(globalVariables.unrelated, { keep: true });
 assert.deepEqual(parseScriptBackup(JSON.parse(JSON.stringify(backup))), backup);
 assert.throws(() => parseScriptBackup({ ...backup, version: 2 }), /格式无效/);

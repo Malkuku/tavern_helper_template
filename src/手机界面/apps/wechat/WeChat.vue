@@ -864,7 +864,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'contacts', label: '联系人' },
   { id: 'me', label: '我的' },
 ];
-const darkMode = ref(false);
+const darkMode = ref(true);
 const searchOpen = ref(false);
 const generating = ref(false);
 const extrasOpen = ref(false);
@@ -1012,7 +1012,7 @@ async function saveSticker() {
   }
 }
 function syncTheme() {
-  darkMode.value = getVariables({ type: 'script', script_id: getScriptId() })?.darkMode === true;
+  darkMode.value = getVariables({ type: 'script', script_id: getScriptId() })?.darkMode !== false;
 }
 function loadAppearance() {
   const value = getVariables({ type: 'script', script_id: getScriptId() })?.magicGirlWeChatAppearance;

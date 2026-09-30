@@ -72,18 +72,15 @@
       </button>
       <section class="script-backup-section" aria-label="脚本变量备份">
         <h2>脚本变量备份</h2>
-        <p>保存当前手机脚本的全部变量。酒馆本地备份会覆盖上一次备份；也可下载 JSON 文件。</p>
+        <p>保存当前手机脚本的全部变量。同一来源脚本的本地备份会覆盖旧备份；也可下载 JSON 文件。</p>
         <button class="utility-action" type="button" :disabled="backupBusy" @click="saveBackup">保存到酒馆本地</button>
-        <p v-if="localBackup">本地备份：{{ formatBackupTime(localBackup.createdAt) }}</p>
-        <button
-          v-if="localBackup"
-          class="utility-action"
-          type="button"
-          :disabled="backupBusy"
-          @click="confirmRestore(localBackup)"
-        >
-          从本地备份恢复
-        </button>
+        <p v-if="!localBackups.length">暂无酒馆本地备份。</p>
+        <div v-for="backup in localBackups" :key="backup.scriptId">
+          <p>本地备份：{{ formatBackupTime(backup.createdAt) }}（来源脚本 {{ backup.scriptId }}）</p>
+          <button class="utility-action" type="button" :disabled="backupBusy" @click="confirmRestore(backup)">
+            从这份备份恢复
+          </button>
+        </div>
         <button class="utility-action" type="button" :disabled="backupBusy" @click="exportBackup">
           导出当前变量 JSON
         </button>
@@ -120,7 +117,7 @@ import RewardInbox from './RewardInbox.vue';
 import {
   createScriptBackup,
   parseScriptBackup,
-  readLocalScriptBackup,
+  readLocalScriptBackups,
   restoreScriptBackup,
   saveLocalScriptBackup,
   type ScriptBackup,
@@ -152,11 +149,11 @@ const wallpaper = ref('');
 const wallpaperBusy = ref(false);
 const backupBusy = ref(false);
 const backupNotice = ref('');
-const localBackup = ref<ScriptBackup | null>(null);
+const localBackups = ref<ScriptBackup[]>([]);
 const importedBackup = ref<ScriptBackup | null>(null);
 if (props.app === '设置') {
   try {
-    localBackup.value = readLocalScriptBackup(getScriptId());
+    localBackups.value = readLocalScriptBackups();
   } catch (error) {
     console.error('本地脚本备份读取失败', error);
     backupNotice.value = '本地备份读取失败';
@@ -174,8 +171,10 @@ function saveBackup() {
   try {
     const backup = currentBackup();
     saveLocalScriptBackup(backup);
-    localBackup.value = readLocalScriptBackup(backup.scriptId);
-    if (!localBackup.value) throw new Error('保存后未能读回备份');
+    localBackups.value = readLocalScriptBackups();
+    if (!localBackups.value.some(item => item.scriptId === backup.scriptId && item.createdAt === backup.createdAt)) {
+      throw new Error('保存后未能读回备份');
+    }
     backupNotice.value = '脚本变量已备份到酒馆本地';
   } catch (error) {
     console.error('脚本变量本地备份失败', error);

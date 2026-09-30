@@ -6,10 +6,13 @@
         <h2>图片库</h2>
       </div>
       <label class="wx-manager-primary"
-        >＋ 上传图片<input type="file" accept="image/*" multiple @change="upload"
+        >＋ 上传图片<input type="file" accept="image/*" multiple :disabled="compressing" @change="upload"
       /></label>
     </div>
     <p class="wx-library-help">点选图片可复制地址、设为头像，或命名后引入共享表情库。</p>
+    <button v-if="images.length" type="button" :disabled="compressing" @click="compressExisting">
+      {{ compressing ? '压缩中…' : '压缩已有图片' }}
+    </button>
     <input
       v-model="imageSearch"
       class="wx-library-search"
@@ -105,7 +108,7 @@
         <button
           class="wx-library-delete"
           type="button"
-          :disabled="usedImages.has(selectedImage[0])"
+          :disabled="compressing || usedImages.has(selectedImage[0])"
           @click="removeSelected"
         >
           清理这张图片
@@ -149,6 +152,7 @@ import {
   renameImageGroup,
 } from './imageCategories';
 import {
+  compressWechatImageLibrary,
   deleteWechatImage,
   imageIdFromUrl,
   imageLibraryEntries,
@@ -181,6 +185,7 @@ const newFolderName = ref('');
 const renameName = ref('');
 const notice = ref('');
 const error = ref('');
+const compressing = ref(false);
 const activeGroup = computed(() => categories.value.groups.find(group => group.id === activeGroupId.value));
 const usedImages = computed(() => imageReferences(props.accounts));
 const visibleImages = computed(() =>
@@ -300,6 +305,22 @@ async function upload(event: Event) {
     error.value = cause instanceof Error ? cause.message : '图片上传失败。';
   }
   input.value = '';
+}
+async function compressExisting() {
+  if (compressing.value) return;
+  compressing.value = true;
+  error.value = '';
+  try {
+    const result = await compressWechatImageLibrary();
+    images.value = imageLibraryEntries();
+    notice.value = result.count
+      ? `已压缩 ${result.count} 张图片，图片库减少约 ${(result.savedBytes / 1024 / 1024).toFixed(1)} MB。`
+      : '现有图片没有可进一步缩小的内容。';
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '图片库压缩失败。';
+  } finally {
+    compressing.value = false;
+  }
 }
 function moveSelected(event: Event) {
   if (!selectedImage.value) return;

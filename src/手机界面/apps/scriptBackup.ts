@@ -47,9 +47,15 @@ function backupKey(scriptId: string): string {
   return `magicGirlPhoneScriptBackup:${scriptId}`;
 }
 
-export function readLocalScriptBackup(scriptId: string): ScriptBackup | null {
-  const value: unknown = getVariables({ type: 'global' })?.[backupKey(scriptId)];
-  return value == null ? null : parseScriptBackup(value);
+export function readLocalScriptBackups(): ScriptBackup[] {
+  return Object.entries(getVariables({ type: 'global' }) || {})
+    .filter(([key]) => key.startsWith('magicGirlPhoneScriptBackup:'))
+    .map(([key, value]) => {
+      const backup = parseScriptBackup(value);
+      if (key !== backupKey(backup.scriptId)) throw new Error(`备份来源脚本与存储键不一致：${key}`);
+      return backup;
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function saveLocalScriptBackup(backup: ScriptBackup): void {

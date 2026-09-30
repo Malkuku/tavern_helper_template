@@ -108,8 +108,7 @@ export function storeWechatImage(dataUrl: string): string {
   return `${prefix}${id}`;
 }
 
-export async function readWechatImageFile(file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error('请选择图片文件。');
+function readImageDataUrl(file: Blob): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () =>
@@ -117,6 +116,54 @@ export async function readWechatImageFile(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error('无法读取图片。'));
     reader.readAsDataURL(file);
   });
+}
+
+async function smallerWebp(file: Blob): Promise<Blob | null> {
+  if (!/^image\/(png|jpeg|webp|avif)$/.test(file.type) || typeof createImageBitmap !== 'function') return null;
+  const image = await createImageBitmap(file);
+  try {
+    const factor = Math.min(1, 2048 / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * factor));
+    canvas.height = Math.max(1, Math.round(image.height * factor));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('无法创建图片压缩画布。');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const compressed = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(value => (value ? resolve(value) : reject(new Error('图片压缩失败。'))), 'image/webp', 0.82),
+    );
+    return compressed.type === 'image/webp' && compressed.size < file.size ? compressed : null;
+  } finally {
+    image.close();
+  }
+}
+
+export async function readWechatImageFile(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('请选择图片文件。');
+  return readImageDataUrl((await smallerWebp(file)) ?? file);
+}
+
+export async function compressWechatImageLibrary(): Promise<{ count: number; savedBytes: number }> {
+  const original = readWechatImageLibrary();
+  const replacements: Record<string, string> = {};
+  let savedBytes = 0;
+  for (const [id, dataUrl] of Object.entries(original)) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const compressed = await smallerWebp(blob);
+    if (!compressed) continue;
+    replacements[id] = await readImageDataUrl(compressed);
+    savedBytes += dataUrl.length - replacements[id].length;
+  }
+  if (Object.keys(replacements).length) {
+    updateVariablesWith(variables => {
+      const library = { ...(variables[WECHAT_IMAGE_LIBRARY_KEY] || {}) };
+      for (const [id, replacement] of Object.entries(replacements))
+        if (library[id] === original[id]) library[id] = replacement;
+      return { ...variables, [WECHAT_IMAGE_LIBRARY_KEY]: library };
+    }, scope());
+    refreshWechatImageLibrary();
+  }
+  return { count: Object.keys(replacements).length, savedBytes };
 }
 
 export function imageReferences(accounts: 微信数据['账号']): Set<string> {
