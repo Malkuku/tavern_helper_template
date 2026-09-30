@@ -6,12 +6,17 @@
     <div class="owned-asset-topline">
       <button type="button" class="owned-asset-heading" :aria-expanded="expanded" @click="$emit('toggle')">
         <InventoryIcon :svg="entry.图标" :kind="kind" />
-        <strong class="owned-asset-name">{{ name }}</strong>
+        <span class="owned-asset-title">
+          <strong class="owned-asset-name">{{ name }}</strong>
+          <span class="owned-asset-expand-hint">
+            {{ expanded ? '收起详情' : '查看详情' }}
+            <span class="owned-asset-chevron" :class="{ 'is-expanded': expanded }" aria-hidden="true"></span>
+          </span>
+        </span>
         <span v-if="skill" class="owned-asset-badge owned-asset-grade"
           >{{ skill.评级 }}{{ skill.启用 === false ? ' · 未启用' : '' }}</span
         >
         <span v-else-if="item" class="owned-asset-badge">× {{ item.数量 }}</span>
-        <span class="owned-asset-chevron" aria-hidden="true">{{ expanded ? '⌃' : '⌄' }}</span>
       </button>
       <div v-if="$slots.control" class="owned-asset-control"><slot name="control" /></div>
     </div>
@@ -133,8 +138,13 @@ const item = computed(() => (props.kind === '道具' ? (props.entry as 物品) :
   outline: 2px solid #ffc0da;
   outline-offset: 2px;
 }
-.owned-asset-skill .owned-asset-heading {
-  padding-top: 5px;
+.owned-asset-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
 }
 .owned-asset-name {
   flex: 1;
@@ -142,6 +152,14 @@ const item = computed(() => (props.kind === '道具' ? (props.entry as 物品) :
   color: #f9eaf1;
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+.owned-asset-expand-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #caa3bc;
+  font-size: 10px;
+  line-height: 1.2;
 }
 .owned-asset-item .owned-asset-name {
   font-size: 16px;
@@ -163,9 +181,14 @@ const item = computed(() => (props.kind === '道具' ? (props.entry as 物品) :
   color: var(--grade-color, #e7a0bf);
 }
 .owned-asset-chevron {
-  flex: none;
-  color: #e8a4c0;
-  font-size: 18px;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: translateY(-1px) rotate(45deg);
+}
+.owned-asset-chevron.is-expanded {
+  transform: translateY(2px) rotate(225deg);
 }
 .owned-asset-detail {
   display: grid;

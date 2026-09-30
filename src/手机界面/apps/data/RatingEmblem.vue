@@ -47,6 +47,7 @@ const props = withDefaults(
   },
 );
 const descriptions = {
+  N: '普通人。',
   D: '比普通人强，但能力和实战经验还有限。',
   C: '已经能稳定地在实战中使用能力。',
   B: '实力明显更强，通常有迅速改变战局的手段。',
@@ -54,7 +55,8 @@ const descriptions = {
   S: '能力强到可能造成大范围灾害，或让常规战斗方式失效。',
 } as const;
 const grade = computed(() => {
-  const match = /^([DCBAS])(?:级)?$/i.exec(props.rating?.trim() ?? '');
+  const pattern = props.kind === 'combat' ? /^([NDCBAS])(?:级)?$/i : /^([DCBAS])(?:级)?$/i;
+  const match = pattern.exec(props.rating?.trim() ?? '');
   return match?.[1].toUpperCase() as keyof typeof descriptions | undefined;
 });
 const tooltipId = useId();
@@ -67,6 +69,9 @@ const showTooltip = ref(false);
   display: inline-flex;
   vertical-align: middle;
   --rating-color: #aeb7c3;
+}
+.rating-n {
+  --rating-color: #9296a0;
 }
 .rating-c {
   --rating-color: #79d6b7;

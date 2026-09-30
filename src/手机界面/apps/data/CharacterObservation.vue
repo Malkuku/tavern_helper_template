@@ -243,7 +243,7 @@
               <p>{{ selectedMain.基础信息.姓名 }} · {{ selectedMain.基础信息.身份.join('、') || '身份未记录' }}</p>
             </div>
             <div class="archive-identity-rank">
-              <small>当前评级</small><RatingEmblem :rating="selectedMain.当前评级" />
+              <small>当前评级</small><RatingEmblem :rating="selectedMain.当前评级" tooltip-align="right" />
             </div>
           </div>
         </section>
