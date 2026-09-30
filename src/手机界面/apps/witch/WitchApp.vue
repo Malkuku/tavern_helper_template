@@ -100,6 +100,7 @@
           v-else-if="tab === 'observe'"
           app="主要角色"
           :target-key="props.openRequest?.tab === 'observe' ? props.openRequest.target : null"
+          :target-request-id="props.openRequest?.tab === 'observe' ? props.openRequest.id : null"
           @first-target-chosen="selectTab('tasks')"
         />
 
@@ -210,7 +211,14 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'mine', label: '我的' },
 ];
 const store = useMagicGirlStatStore();
-const props = defineProps<{ openRequest?: { tab: 'tasks' | 'observe'; target?: string; id: number } | null }>();
+const props = defineProps<{
+  openRequest?: {
+    tab: 'tasks' | 'observe' | 'shop';
+    target?: string;
+    shop?: '技能商店' | '道具商店';
+    id: number;
+  } | null;
+}>();
 const needsFirstTarget = (data: typeof store.statData) => data?.系统?.已发现目标?.length === 0;
 const tab = ref<Tab>(needsFirstTarget(store.statData) ? 'observe' : 'home');
 const subpage = ref('');
@@ -228,7 +236,10 @@ watch(
 watch(
   () => props.openRequest,
   request => {
-    if (request && !needsFirstTarget(store.statData)) selectTab(request.tab);
+    if (request && (request.tab === 'shop' || !needsFirstTarget(store.statData))) {
+      selectTab(request.tab);
+      if (request.tab === 'shop' && request.shop) subpage.value = request.shop;
+    }
   },
   { immediate: true },
 );

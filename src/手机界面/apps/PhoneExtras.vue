@@ -56,6 +56,11 @@
       <p>时间：{{ world?.时间 || '未设置' }}</p>
       <p>当前地点：{{ world?.地点 || '未设置' }}</p>
       <p>亮度和连接开关可在控制中心调整。</p>
+      <section aria-label="弹窗测试">
+        <h2>弹窗测试</h2>
+        <p>依次预览 Weline、任务、稳定度、人设阶段和刷新成功提示。关闭当前提示会显示下一条。</p>
+        <button class="utility-action" type="button" @click="emit('testNotifications')">测试全部弹窗</button>
+      </section>
       <h2>桌面壁纸</h2>
       <div class="wallpaper-setting-preview" :style="wallpaper ? { backgroundImage: `url('${wallpaper}')` } : {}"></div>
       <label class="utility-action file-picker"
@@ -123,7 +128,7 @@ import {
 import { readPhoneWallpaper, savePhoneWallpaper, uploadPhoneWallpaper } from '../wallpaper';
 
 const props = defineProps<{ app: string }>();
-const emit = defineEmits<{ wallpaperChanged: [path: string] }>();
+const emit = defineEmits<{ wallpaperChanged: [path: string]; testNotifications: [] }>();
 const store = useMagicGirlStatStore();
 const world = computed(() => store.statData?.世界);
 type Photo = { id: string; name: string; data: string };

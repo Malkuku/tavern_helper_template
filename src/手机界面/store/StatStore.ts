@@ -54,6 +54,12 @@ import {
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { settleCharacterStages } from './stageProgression';
 import {
+  refreshSuccessNotice,
+  stageChangeNotices,
+  stageLevelSnapshot,
+  type WitchNotice,
+} from '../apps/witch/witchNotifications';
+import {
   establishNewRoleRewardBaselines,
   markCorruptionRewardMailRead,
   settleCorruptionRewards,
@@ -163,6 +169,16 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let failedTagCleanupRunning = false;
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
+  const transientNotices = ref<WitchNotice[]>([]);
+  let previousStageLevels: ReturnType<typeof stageLevelSnapshot> | null = null;
+  let stageChatId: string | null = null;
+  let transientNoticeSerial = 0;
+  function enqueueTransientNotice(notice: WitchNotice) {
+    transientNotices.value = [
+      ...transientNotices.value,
+      { ...notice, key: `${notice.key}:${++transientNoticeSerial}` },
+    ];
+  }
   const failedWeChatMessageId = ref<number | null>(null);
   const failedWeChatLogIndex = ref<number | null>(null);
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
@@ -1202,6 +1218,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       await writeStatData(data, previous);
       refreshing.value = false;
       refreshError.value = '';
+      if (generation === chatGeneration) enqueueTransientNotice(refreshSuccessNotice(kind));
       console.info(`[手机${kind}商店生成] 变量写入成功`, { id });
     }).catch(async error => {
       if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
@@ -1298,6 +1315,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       await writeStatData(data, previous);
       taskRefreshing.value = false;
       taskRefreshError.value = '';
+      if (generation === chatGeneration) enqueueTransientNotice(refreshSuccessNotice('任务'));
       console.info('[手机任务生成] 变量写入成功', { id });
     }).catch(async error => {
       if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
@@ -1409,8 +1427,22 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function refresh() {
     try {
       const previousWechat = statData.value?.手机?.微信 ?? null;
+      const currentChatId = SillyTavern.getCurrentChatId();
+      if (stageChatId !== currentChatId) {
+        stageChatId = currentChatId;
+        previousStageLevels = null;
+        transientNotices.value = [];
+      }
       const data = getVariables({ type: 'message', message_id: -1 })?.stat_data;
       statData.value = data && typeof data === 'object' ? (data as stat_data) : null;
+      if (statData.value?.角色) {
+        const currentLevels = stageLevelSnapshot(statData.value);
+        if (previousStageLevels) {
+          const changes = stageChangeNotices(previousStageLevels, currentLevels);
+          for (const notice of changes) enqueueTransientNotice(notice);
+        }
+        previousStageLevels = currentLevels;
+      }
       if (statData.value?.手机?.微信)
         statData.value = {
           ...statData.value,
@@ -1468,6 +1500,9 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     activeWeChatConversation = null;
     unreadChatKeys.value = [];
     wechatNotification.value = null;
+    transientNotices.value = [];
+    previousStageLevels = null;
+    stageChatId = null;
     wechatLogError.value = '';
     skillRefreshError.value = '';
     skillRefreshing.value = false;
@@ -1587,6 +1622,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     initializationNoticePending,
     unreadChatKeys,
     wechatNotification,
+    transientNotices,
+    dismissTransientNotice: (key: string) => {
+      transientNotices.value = transientNotices.value.filter(notice => notice.key !== key);
+    },
     markWeChatRead,
     setActiveWeChatConversation,
     dismissWeChatNotification,

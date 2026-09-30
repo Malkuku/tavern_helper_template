@@ -10,6 +10,7 @@
         v-else-if="app === '主要角色' || app === '次要角色'"
         :data="statStore.statData"
         :target-key="targetKey"
+        :target-request-id="targetRequestId"
         @first-target-chosen="emit('firstTargetChosen')"
       />
       <Profile v-else-if="app === '我的档案'" :data="statStore.statData" />
@@ -27,7 +28,7 @@ import Profile from './Profile.vue';
 import Skills from './Skills.vue';
 import Items from './Items.vue';
 
-defineProps<{ app: DataAppName; targetKey?: string | null }>();
+defineProps<{ app: DataAppName; targetKey?: string | null; targetRequestId?: number | null }>();
 const emit = defineEmits<{ firstTargetChosen: [] }>();
 const statStore = useMagicGirlStatStore();
 </script>

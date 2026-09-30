@@ -125,6 +125,7 @@
                 :key="activeApp"
                 :app="activeApp"
                 @wallpaper-changed="wallpaper = $event"
+                @test-notifications="startNotificationPreview"
               />
 
               <main v-else :key="activeApp" class="app-screen">
@@ -149,14 +150,27 @@
             </Transition>
 
             <WeChatNotification
-              v-if="statStore.wechatNotification && statStore.statData?.手机?.微信"
+              v-if="notificationPreview?.kind === 'weline'"
+              :data="previewWeChatData"
+              :notice="previewWeChatNotice"
+              @open="advanceNotificationPreview"
+              @close="advanceNotificationPreview"
+            />
+            <WitchNotification
+              v-else-if="notificationPreview?.kind === 'witch'"
+              :notice="notificationPreview.notice"
+              @open="advanceNotificationPreview"
+              @close="advanceNotificationPreview"
+            />
+            <WeChatNotification
+              v-else-if="statStore.wechatNotification && statStore.statData?.手机?.微信"
               :data="statStore.statData.手机.微信"
               :notice="statStore.wechatNotification"
               @open="openNotificationChat"
               @close="statStore.dismissWeChatNotification()"
             />
             <WitchNotification
-              v-if="!statStore.wechatNotification && visibleWitchNotice"
+              v-if="!notificationPreview && !statStore.wechatNotification && visibleWitchNotice"
               :notice="visibleWitchNotice"
               @open="openWitchNotice"
               @close="dismissWitchNotice"
@@ -182,6 +196,12 @@
       @open="openNotificationChat"
       @close="statStore.dismissWeChatNotification()"
     />
+    <WitchNotification
+      v-if="!open && !statStore.wechatNotification && statStore.transientNotices[0]"
+      :notice="statStore.transientNotices[0]"
+      @open="openExternalWitchNotice"
+      @close="dismissExternalWitchNotice"
+    />
   </div>
 </template>
 
@@ -203,19 +223,59 @@ import WitchNotification from './components/WitchNotification.vue';
 import {
   activeWitchNoticeHistory,
   nextWitchNotice,
+  refreshSuccessNotice,
   witchNotices as collectWitchNotices,
   type WitchNotice,
 } from './apps/witch/witchNotifications';
 import { apps, dockApps } from './desktopApps';
 import { readPhoneWallpaper } from './wallpaper';
+import type { 微信数据, 微信消息 } from './types';
 
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
+type NotificationPreview = { kind: 'weline' } | { kind: 'witch'; notice: WitchNotice };
+const notificationPreviewQueue = ref<NotificationPreview[]>([]);
+const notificationPreview = computed(() => notificationPreviewQueue.value[0] ?? null);
+const previewWeChatData: 微信数据 = {
+  账号: {
+    user: { 昵称: '我', 头像: '', 表情包: {}, 好友: ['通知测试'] },
+    通知测试: { 昵称: '通知测试', 头像: '', 表情包: {}, 好友: ['user'] },
+  },
+  会话: { '私聊:user&通知测试': { 类型: '私聊', 成员: ['user', '通知测试'], 消息: [] } },
+  准备发送: null,
+};
+const previewWeChatNotice: { key: string; message: 微信消息 } = {
+  key: '私聊:user&通知测试',
+  message: { 楼层ID: 0, 发送者: '通知测试', 时间: '', 内容: ['这是一条 Weline 消息预览。'] },
+};
+function startNotificationPreview() {
+  const sample = (title: string, message: string, warning = false): NotificationPreview => ({
+    kind: 'witch',
+    notice: { key: `preview:${title}`, title, message, tab: 'observe', warning },
+  });
+  notificationPreviewQueue.value = [
+    { kind: 'weline' },
+    sample('任务奖励待领取', '1 项任务已完成，打开任务页领取奖励。'),
+    sample('创伤稳定度警告', '示例角色当前为 2 级，建议查看观测档案。', true),
+    sample('示例角色的创伤稳定度等级下降', '3 级 → 2 级，点击查看当前状态。', true),
+    sample('示例角色的好感度等级提升', '1 级 → 2 级，点击查看当前状态。'),
+    sample('示例角色的恶堕度等级提升', '0 级 → 1 级，点击查看当前状态。'),
+    { kind: 'witch', notice: refreshSuccessNotice('任务') },
+    { kind: 'witch', notice: refreshSuccessNotice('技能') },
+    { kind: 'witch', notice: refreshSuccessNotice('道具') },
+  ];
+}
+function advanceNotificationPreview() {
+  notificationPreviewQueue.value = notificationPreviewQueue.value.slice(1);
+}
 const wechatUnread = computed(
   () => statStore.unreadChatKeys.length > 0 || incomingFriendRequests(statStore.statData?.手机?.微信).length > 0,
 );
 const rewardMailUnread = computed(() => !!statStore.statData?.手机.恶堕奖励.邮件.some(mail => !mail.已读));
 const activeApp = ref<string | null>(null);
+watch([activeApp, open], ([app, isOpen]) => {
+  if (!isOpen || app !== '设置') notificationPreviewQueue.value = [];
+});
 const connectivityChecked = ref(false);
 async function markConnectivityChecked() {
   if (connectivityChecked.value) return;
@@ -236,9 +296,14 @@ function leaveRoleEditor() {
   activeApp.value = null;
 }
 const chatOpenRequest = ref<{ key: string; id: number } | null>(null);
-const witchOpenRequest = ref<{ tab: 'tasks' | 'observe'; target?: string; id: number } | null>(null);
+const witchOpenRequest = ref<{
+  tab: 'tasks' | 'observe' | 'shop';
+  target?: string;
+  shop?: '技能商店' | '道具商店';
+  id: number;
+} | null>(null);
 let witchOpenRequestId = 0;
-const witchNotices = computed(() => collectWitchNotices(statStore.statData));
+const witchNotices = computed(() => [...statStore.transientNotices, ...collectWitchNotices(statStore.statData)]);
 const visibleWitchNotice = ref<WitchNotice | null>(null);
 let witchNoticeChatId: string | null = null;
 let witchNoticeHistory: string[] = [];
@@ -279,6 +344,7 @@ function syncWitchNotice() {
       witchNoticeHistory = [];
     }
   }
+  if (notificationPreview.value) return;
   const active = activeWitchNoticeHistory(witchNoticeHistory, witchNotices.value);
   const historyChanged = active.length !== witchNoticeHistory.length;
   if (historyChanged) {
@@ -287,6 +353,12 @@ function syncWitchNotice() {
   if (visibleWitchNotice.value && !witchNotices.value.some(notice => notice.key === visibleWitchNotice.value?.key))
     visibleWitchNotice.value = null;
   if (!open.value || statStore.wechatNotification) {
+    if (
+      !open.value &&
+      visibleWitchNotice.value &&
+      statStore.transientNotices.some(notice => notice.key === visibleWitchNotice.value?.key)
+    )
+      statStore.dismissTransientNotice(visibleWitchNotice.value.key);
     visibleWitchNotice.value = null;
     if (historyChanged) saveWitchNoticeHistory();
     return;
@@ -304,9 +376,13 @@ function syncWitchNotice() {
   visibleWitchNotice.value = next;
   saveWitchNoticeHistory();
 }
-watch([witchNotices, () => statStore.wechatNotification, open], syncWitchNotice, { immediate: true });
+watch([witchNotices, () => statStore.wechatNotification, open, notificationPreview], syncWitchNotice, {
+  immediate: true,
+});
 function dismissWitchNotice() {
+  const key = visibleWitchNotice.value?.key;
   visibleWitchNotice.value = null;
+  if (key) statStore.dismissTransientNotice(key);
   syncWitchNotice();
 }
 function openWitchNotice() {
@@ -314,8 +390,21 @@ function openWitchNotice() {
   if (!notice) return;
   controlCenterOpen.value = false;
   activeApp.value = '魔女恶堕计划';
-  witchOpenRequest.value = { tab: notice.tab, target: notice.target, id: ++witchOpenRequestId };
+  witchOpenRequest.value = { tab: notice.tab, target: notice.target, shop: notice.shop, id: ++witchOpenRequestId };
   dismissWitchNotice();
+}
+function openExternalWitchNotice() {
+  const notice = statStore.transientNotices[0];
+  if (!notice) return;
+  statStore.dismissTransientNotice(notice.key);
+  openPhone();
+  controlCenterOpen.value = false;
+  activeApp.value = '魔女恶堕计划';
+  witchOpenRequest.value = { tab: notice.tab, target: notice.target, shop: notice.shop, id: ++witchOpenRequestId };
+}
+function dismissExternalWitchNotice() {
+  const notice = statStore.transientNotices[0];
+  if (notice) statStore.dismissTransientNotice(notice.key);
 }
 function openDesktopApp(name: string) {
   witchOpenRequest.value = null;

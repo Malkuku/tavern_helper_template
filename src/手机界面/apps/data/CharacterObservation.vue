@@ -445,7 +445,7 @@ import StageHelp from './StageHelp.vue';
 import StageProgress from './StageProgress.vue';
 import CorruptionNextReward from './CorruptionNextReward.vue';
 
-const props = defineProps<{ data: stat_data; targetKey?: string | null }>();
+const props = defineProps<{ data: stat_data; targetKey?: string | null; targetRequestId?: number | null }>();
 const emit = defineEmits<{ firstTargetChosen: [] }>();
 const selectedId = ref<string | null>(null);
 const selectorOpen = ref(false);
@@ -468,10 +468,13 @@ const targetIsChosen = (key: string) => props.data.系统?.已发现目标?.incl
 const selectedIsTarget = computed(() => !!selectedTarget.value && targetIsChosen(selectedTarget.value.key));
 const balance = computed(() => props.data.角色.user.恶堕积分);
 watch(
-  () => props.targetKey,
-  key => {
-    const target = visibleTargets.value.find(item => item.key === key && item.kind === '主要角色');
-    if (target) selectedId.value = target.id;
+  () => [props.targetKey, props.targetRequestId] as const,
+  ([key]) => {
+    const target = visibleTargets.value.find(item => item.key === key);
+    if (target) {
+      selectedId.value = target.id;
+      page.value = '概览';
+    }
   },
   { immediate: true },
 );
