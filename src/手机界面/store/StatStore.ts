@@ -18,6 +18,7 @@ import {
   sendFriendRequest,
   transferRecipient,
   unappliedWeChatLogs,
+  worldTimeAfterWeChatLogs,
 } from '../apps/wechat/wechatData';
 import {
   addWechatAccount,
@@ -1149,6 +1150,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const data = klona(previous.stat_data) as stat_data;
     data.手机.微信 = applyWeChatLogs(current, remaining);
     settlePayments(data, current, data.手机.微信);
+    data.世界.时间 = worldTimeAfterWeChatLogs(data.世界.时间, remaining);
     if (generation !== chatGeneration) return;
     await writeStatData(data, previous);
     wechatLogError.value = '';

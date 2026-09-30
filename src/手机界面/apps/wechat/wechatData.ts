@@ -114,6 +114,35 @@ export function unappliedWeChatLogs(current: 微信数据, logs: WeChatLog[]): W
   return applied === events.length ? [] : [{ 事件: events.slice(applied) }];
 }
 
+function sortableWorldTime(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[([1-7])\]$/);
+  if (!match) throw new Error(`聊天时间格式无效：${value}。`);
+  const [, year, month, day, hour, minute] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)));
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() + 1 !== Number(month) ||
+    date.getUTCDate() !== Number(day) ||
+    date.getUTCHours() !== Number(hour) ||
+    date.getUTCMinutes() !== Number(minute)
+  )
+    throw new Error(`聊天时间日期无效：${value}。`);
+  return `${year}${month.padStart(2, '0')}${day.padStart(2, '0')}${hour}${minute}`;
+}
+
+export function worldTimeAfterWeChatLogs(currentTime: string, logs: WeChatLog[]): string {
+  let latest = currentTime;
+  let latestKey = currentTime ? sortableWorldTime(currentTime) : '';
+  for (const event of logs.flatMap(log => log.事件)) {
+    const key = sortableWorldTime(event.时间);
+    if (key > latestKey) {
+      latest = event.时间;
+      latestKey = key;
+    }
+  }
+  return latest;
+}
+
 export function privateChatKey(otherId: string): string {
   return `私聊:user&${otherId}`;
 }

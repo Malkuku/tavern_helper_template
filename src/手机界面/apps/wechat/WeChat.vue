@@ -1,5 +1,5 @@
 <template>
-  <div class="wechat" :class="{ 'wx-dark': darkMode }">
+  <div ref="chatRoot" class="wechat" :class="{ 'wx-dark': darkMode }">
     <p v-if="store.wechatLogError" class="wx-log-error" role="alert">
       消息更新失败：{{ store.wechatLogError }}
       <button type="button" @click="clearFailedLog">清除异常记录</button>
@@ -57,9 +57,11 @@
                 }}</small>
                 <div
                   class="wx-bubble"
-                  :class="{ 'wx-bubble-special': isSpecialCard(part) }"
-                  @contextmenu.prevent="openMessageMenu(message, message.内容[sourceIndex], sourceIndex)"
-                  @touchstart.passive="startMessageHold(message, message.内容[sourceIndex], sourceIndex)"
+                  :class="{ 'wx-bubble-special': isSpecialCard(part), 'wx-bubble-sticker': isSticker(part) }"
+                  @contextmenu.prevent="
+                    openMessageMenu(message, message.内容[sourceIndex], sourceIndex, $event.clientX, $event.clientY)
+                  "
+                  @touchstart.passive="startMessageHold(message, message.内容[sourceIndex], sourceIndex, $event)"
                   @touchend="cancelMessageHold"
                   @touchmove="cancelMessageHold"
                   @touchcancel="cancelMessageHold"
@@ -92,7 +94,10 @@
           >
             <WeChatAvatar id="user" :accounts="accounts" />
             <div class="wx-message-main">
-              <div class="wx-bubble" :class="{ 'wx-bubble-special': isSpecialCard(part) }">
+              <div
+                class="wx-bubble"
+                :class="{ 'wx-bubble-special': isSpecialCard(part), 'wx-bubble-sticker': isSticker(part) }"
+              >
                 <WeChatMessageContent
                   :items="[part]"
                   :accounts="accounts"
@@ -130,8 +135,13 @@
         <button class="wx-send-discard" type="button" :disabled="sending" @click="discardDraft">清空</button>
         <button type="button" :disabled="sending" @click="confirmSend">确认发送给对方</button>
       </div>
-      <div v-if="messageMenu" class="wx-message-menu-backdrop" @click="messageMenu = null">
-        <div class="wx-message-menu" role="menu" @click.stop>
+      <div
+        v-if="messageMenu"
+        class="wx-message-menu-backdrop"
+        @click="messageMenu = null"
+        @contextmenu.prevent="messageMenu = null"
+      >
+        <div class="wx-message-menu" role="menu" :style="messageMenuPosition" @click.stop>
           <button
             type="button"
             role="menuitem"
@@ -158,7 +168,7 @@
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       <div v-if="quoted" class="wx-compose-quote">
         <span>引用 {{ accounts[quoted.发送者]?.昵称 || quoted.发送者 }}：{{ contentSummary(quoted.内容) }}</span>
-        <button type="button" aria-label="取消引用" @click="quoted = null">×</button>
+        <button type="button" aria-label="取消引用" @click.stop="quoted = null">取消引用</button>
       </div>
       <div v-if="stickerOpen" class="wx-sticker-picker">
         <div class="wx-sticker-picker-head">
@@ -1288,17 +1298,31 @@ const sending = ref(false);
 type SelectedMessage = 微信消息 & { 内容下标?: number };
 const quoted = ref<SelectedMessage | null>(null);
 const messageMenu = ref<SelectedMessage | null>(null);
+const messageMenuPosition = ref({ left: '8px', top: '8px' });
+const chatRoot = ref<HTMLElement>();
 function isSpecialCard(item: 微信消息内容): boolean {
   return typeof item === 'string' && /^<(?:转账|红包|名片|位置)(?:\s|>)/.test(item);
 }
+function isSticker(item: 微信消息内容): boolean {
+  return typeof item === 'string' && /^<表情包>[\s\S]*?<\/表情包>$/.test(item);
+}
 let messageHoldTimer: ReturnType<typeof setTimeout> | undefined;
-function openMessageMenu(message: 微信消息, part: 微信消息内容, index: number) {
+function openMessageMenu(message: 微信消息, part: 微信消息内容, index: number, clientX: number, clientY: number) {
   cancelMessageHold();
+  const rect = chatRoot.value?.getBoundingClientRect();
+  if (!rect) return;
+  messageMenuPosition.value = {
+    left: `${Math.max(8, Math.min(clientX - rect.left - 136, rect.width - 280))}px`,
+    top: `${Math.max(8, Math.min(clientY - rect.top + 10, rect.height - 58))}px`,
+  };
   messageMenu.value = { ...message, 内容: [part], 内容下标: index };
 }
-function startMessageHold(message: 微信消息, part: 微信消息内容, index: number) {
+function startMessageHold(message: 微信消息, part: 微信消息内容, index: number, event: TouchEvent) {
   cancelMessageHold();
-  messageHoldTimer = setTimeout(() => openMessageMenu(message, part, index), 500);
+  const touch = event.touches[0];
+  if (!touch) return;
+  const { clientX, clientY } = touch;
+  messageHoldTimer = setTimeout(() => openMessageMenu(message, part, index, clientX, clientY), 500);
 }
 function cancelMessageHold() {
   if (messageHoldTimer) clearTimeout(messageHoldTimer);

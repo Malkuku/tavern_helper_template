@@ -13,6 +13,7 @@ import {
   unappliedWeChatLogs,
   transferRecipient,
   visibleUserChats,
+  worldTimeAfterWeChatLogs,
 } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
 import { locationShare } from '../src/手机界面/apps/map/locationShare';
@@ -58,6 +59,30 @@ assert.deepEqual(displayContentParts(['文字', '<表情包>甲</表情包>', '�
   { part: '未闭合<表情包>甲', sourceIndex: 2 },
 ]);
 assert.equal(contentSummary([mixedSticker]), '还把我也拉进来了[表情包]');
+assert.equal(
+  worldTimeAfterWeChatLogs(time, parse([message(1, 'user', '稍后', { 时间: '2026-9-26T03:20[6]' })])),
+  '2026-9-26T03:20[6]',
+);
+assert.equal(
+  worldTimeAfterWeChatLogs('2026-09-26T04:00[6]', parse([message(1, 'user', '稍早')])),
+  '2026-09-26T04:00[6]',
+);
+assert.equal(worldTimeAfterWeChatLogs('', parse([message(1, 'user', '初始化')])), time);
+assert.equal(
+  worldTimeAfterWeChatLogs(
+    time,
+    parse([
+      message(1, 'user', '最新', { 时间: '2026-09-26T05:00[6]' }),
+      message(2, '小鸟游琉璃', '稍早', { 时间: '2026-09-26T04:00[6]' }),
+    ]),
+  ),
+  '2026-09-26T05:00[6]',
+);
+assert.equal(worldTimeAfterWeChatLogs('2026-09-26T05:00[6]', []), '2026-09-26T05:00[6]');
+assert.throws(
+  () => worldTimeAfterWeChatLogs(time, parse([message(1, 'user', '坏时间', { 时间: '2026-09-31T03:20[6]' })])),
+  /聊天时间日期无效/,
+);
 assert.equal(contentSummary([' <表情包>星星-眨眼</表情包>']), '[表情包]');
 assert.deepEqual(displayContentParts(['<语音 时长="3s">提到<表情包>星星-眨眼</表情包></语音>']), [
   { part: '<语音 时长="3s">提到<表情包>星星-眨眼</表情包></语音>', sourceIndex: 0 },
