@@ -65,6 +65,44 @@
       <button v-if="wallpaper" class="utility-action" type="button" :disabled="wallpaperBusy" @click="resetWallpaper">
         恢复默认壁纸
       </button>
+      <section class="script-backup-section" aria-label="脚本变量备份">
+        <h2>脚本变量备份</h2>
+        <p>保存当前手机脚本的全部变量。酒馆本地备份会覆盖上一次备份；也可下载 JSON 文件。</p>
+        <button class="utility-action" type="button" :disabled="backupBusy" @click="saveBackup">保存到酒馆本地</button>
+        <p v-if="localBackup">本地备份：{{ formatBackupTime(localBackup.createdAt) }}</p>
+        <button
+          v-if="localBackup"
+          class="utility-action"
+          type="button"
+          :disabled="backupBusy"
+          @click="confirmRestore(localBackup)"
+        >
+          从本地备份恢复
+        </button>
+        <button class="utility-action" type="button" :disabled="backupBusy" @click="exportBackup">
+          导出当前变量 JSON
+        </button>
+        <label class="utility-action file-picker"
+          >导入备份 JSON<input
+            type="file"
+            accept=".json,application/json"
+            :disabled="backupBusy"
+            @change="importBackup"
+        /></label>
+        <p v-if="importedBackup">
+          已读取文件备份：{{ formatBackupTime(importedBackup.createdAt) }}（来源脚本 {{ importedBackup.scriptId }}）
+        </p>
+        <button
+          v-if="importedBackup"
+          class="utility-action"
+          type="button"
+          :disabled="backupBusy"
+          @click="confirmRestore(importedBackup)"
+        >
+          从文件备份恢复
+        </button>
+        <p v-if="backupNotice" role="status">{{ backupNotice }}</p>
+      </section>
       <p v-if="notice" role="status">{{ notice }}</p>
     </template>
   </main>
@@ -74,9 +112,17 @@
 import { computed, onUnmounted, ref } from 'vue';
 import { useMagicGirlStatStore } from '../store/StatStore';
 import RewardInbox from './RewardInbox.vue';
+import {
+  createScriptBackup,
+  parseScriptBackup,
+  readLocalScriptBackup,
+  restoreScriptBackup,
+  saveLocalScriptBackup,
+  type ScriptBackup,
+} from './scriptBackup';
 import { readPhoneWallpaper, savePhoneWallpaper, uploadPhoneWallpaper } from '../wallpaper';
 
-defineProps<{ app: string }>();
+const props = defineProps<{ app: string }>();
 const emit = defineEmits<{ wallpaperChanged: [path: string] }>();
 const store = useMagicGirlStatStore();
 const world = computed(() => store.statData?.世界);
@@ -98,6 +144,91 @@ const message = ref(typeof draft === 'object' && draft && 'message' in draft ? S
 const notice = ref('');
 const wallpaper = ref('');
 const wallpaperBusy = ref(false);
+const backupBusy = ref(false);
+const backupNotice = ref('');
+const localBackup = ref<ScriptBackup | null>(null);
+const importedBackup = ref<ScriptBackup | null>(null);
+if (props.app === '设置') {
+  try {
+    localBackup.value = readLocalScriptBackup(getScriptId());
+  } catch (error) {
+    console.error('本地脚本备份读取失败', error);
+    backupNotice.value = '本地备份读取失败';
+  }
+}
+function formatBackupTime(value: string): string {
+  return new Date(value).toLocaleString('zh-CN');
+}
+function currentBackup(): ScriptBackup {
+  const scriptId = getScriptId();
+  return createScriptBackup(scriptId, getVariables({ type: 'script', script_id: scriptId }));
+}
+function saveBackup() {
+  backupBusy.value = true;
+  try {
+    const backup = currentBackup();
+    saveLocalScriptBackup(backup);
+    localBackup.value = readLocalScriptBackup(backup.scriptId);
+    if (!localBackup.value) throw new Error('保存后未能读回备份');
+    backupNotice.value = '脚本变量已备份到酒馆本地';
+  } catch (error) {
+    console.error('脚本变量本地备份失败', error);
+    backupNotice.value = error instanceof Error ? `备份失败：${error.message}` : '备份失败';
+  } finally {
+    backupBusy.value = false;
+  }
+}
+function exportBackup() {
+  backupBusy.value = true;
+  let url = '';
+  try {
+    const backup = currentBackup();
+    url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `手机脚本变量备份-${backup.createdAt.replace(/[:.]/g, '-')}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    backupNotice.value = '已发起 JSON 文件下载';
+  } catch (error) {
+    console.error('脚本变量导出失败', error);
+    backupNotice.value = error instanceof Error ? `导出失败：${error.message}` : '导出失败';
+  } finally {
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 0);
+    backupBusy.value = false;
+  }
+}
+async function importBackup(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  backupBusy.value = true;
+  importedBackup.value = null;
+  try {
+    importedBackup.value = parseScriptBackup(JSON.parse(await file.text()));
+    backupNotice.value = '备份文件已读取，请确认后恢复';
+  } catch (error) {
+    console.error('脚本变量备份导入失败', error);
+    backupNotice.value = error instanceof Error ? `导入失败：${error.message}` : '导入失败';
+  } finally {
+    input.value = '';
+    backupBusy.value = false;
+  }
+}
+function confirmRestore(backup: ScriptBackup) {
+  if (!window.confirm('恢复会完全覆盖当前手机脚本变量。确定继续吗？')) return;
+  backupBusy.value = true;
+  try {
+    restoreScriptBackup(backup, getScriptId());
+    backupNotice.value = '变量已恢复，请关闭并重新打开手机以刷新显示';
+  } catch (error) {
+    console.error('脚本变量恢复失败', error);
+    backupNotice.value = error instanceof Error ? `恢复失败：${error.message}` : '恢复失败';
+  } finally {
+    backupBusy.value = false;
+  }
+}
 try {
   wallpaper.value = readPhoneWallpaper();
 } catch (error) {

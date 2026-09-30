@@ -4,11 +4,14 @@ import {
   applyWeChatLogs,
   applyWeChatOperation,
   contentSummary,
+  displayContentParts,
   deleteWeChatFromFloor,
   logConfirmsPending,
   normalizeWeChatIds,
+  parseTransferMessage,
   parseWeChatLogs,
   unappliedWeChatLogs,
+  transferRecipient,
   visibleUserChats,
 } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
@@ -38,6 +41,28 @@ const message = (id: number, sender: string, content: string, extra: object = {}
 const parse = (events: object[]) => parseWeChatLogs(`<WeChatLog>${JSON.stringify({ 事件: events })}</WeChatLog>`);
 assert.deepEqual(parse([message(1, 'user', locationShare('学园区'))])[0].事件[0].内容, [locationShare('学园区')]);
 assert.equal(contentSummary([locationShare('学园区')]), '[位置] 学园区');
+const mixedSticker = '还把我也拉进来了<表情包>星星-眨眼</表情包>';
+assert.deepEqual(displayContentParts([mixedSticker]), [
+  { part: '还把我也拉进来了', sourceIndex: 0 },
+  { part: '<表情包>星星-眨眼</表情包>', sourceIndex: 0 },
+]);
+assert.deepEqual(displayContentParts(['前<表情包>甲</表情包>后<表情包>乙</表情包>']), [
+  { part: '前', sourceIndex: 0 },
+  { part: '<表情包>甲</表情包>', sourceIndex: 0 },
+  { part: '后', sourceIndex: 0 },
+  { part: '<表情包>乙</表情包>', sourceIndex: 0 },
+]);
+assert.deepEqual(displayContentParts(['文字', '<表情包>甲</表情包>', '未闭合<表情包>甲']), [
+  { part: '文字', sourceIndex: 0 },
+  { part: '<表情包>甲</表情包>', sourceIndex: 1 },
+  { part: '未闭合<表情包>甲', sourceIndex: 2 },
+]);
+assert.equal(contentSummary([mixedSticker]), '还把我也拉进来了[表情包]');
+assert.equal(contentSummary([' <表情包>星星-眨眼</表情包>']), '[表情包]');
+assert.deepEqual(displayContentParts(['<语音 时长="3s">提到<表情包>星星-眨眼</表情包></语音>']), [
+  { part: '<语音 时长="3s">提到<表情包>星星-眨眼</表情包></语音>', sourceIndex: 0 },
+]);
+assert.deepEqual(parse([message(1, 'user', mixedSticker)])[0].事件[0].内容, [mixedSticker]);
 assert.throws(() => parse([message(1, 'user', '<位置 key="">')]));
 const first = parse([
   message(1, 'user', '在吗', { 会话信息: { 类型: '私聊', 成员: ['user', '小鸟游琉璃'] } }),
@@ -134,6 +159,104 @@ assert.throws(
       目标: { 楼层ID: 5, 内容下标: 0 },
     }),
   /已经处理/,
+);
+const groupKey = '群聊:transfer-test';
+const group = structuredClone(empty);
+group.会话[groupKey] = { 类型: '群聊', 名称: '测试群', 成员: ['user', '小鸟游琉璃', '凛'], 消息: [] };
+const addressedTransfer = '<转账 金额="50" 收款人="凛">奶茶</转账>';
+assert.deepEqual(parseTransferMessage(addressedTransfer), { amount: '50', recipient: '凛', remark: '奶茶' });
+assert.equal(transferRecipient(group.会话[groupKey], 'user', addressedTransfer), '凛');
+assert.throws(() => transferRecipient(group.会话[groupKey], 'user', '<转账 金额="50">奶茶</转账>'), /指定/);
+assert.throws(
+  () => transferRecipient(group.会话[groupKey], 'user', '<转账 金额="50" 收款人="陌生人">奶茶</转账>'),
+  /指定/,
+);
+const groupTransfer = applyWeChatLogs(
+  group,
+  parse([
+    {
+      类型: '消息',
+      楼层ID: 1,
+      会话: groupKey,
+      发送者: 'user',
+      时间: time,
+      内容: [addressedTransfer],
+    },
+  ]),
+);
+assert.throws(
+  () =>
+    applyWeChatLogs(
+      group,
+      parse([
+        {
+          类型: '消息',
+          楼层ID: 1,
+          会话: groupKey,
+          发送者: 'user',
+          时间: time,
+          内容: ['<转账 金额="50">奶茶</转账>'],
+        },
+      ]),
+    ),
+  /指定/,
+);
+const groupReceive = (actor: string) =>
+  applyWeChatOperation(groupTransfer, {
+    类型: '操作',
+    楼层ID: 2,
+    操作: '领取转账',
+    会话: groupKey,
+    操作者: actor,
+    时间: time,
+    目标: { 楼层ID: 1, 内容下标: 0 },
+  });
+assert.throws(() => groupReceive('小鸟游琉璃'), /指定收款人/);
+assert.equal(
+  (groupReceive('凛').会话[groupKey].消息[0] as { 特殊内容状态?: Record<number, string> }).特殊内容状态?.[0],
+  '已收款',
+);
+const incomingGroup = applyWeChatLogs(
+  group,
+  parse([
+    {
+      类型: '消息',
+      楼层ID: 1,
+      会话: groupKey,
+      发送者: '凛',
+      时间: time,
+      内容: ['<转账 金额="8" 收款人="user">礼物</转账>'],
+    },
+  ]),
+);
+assert.equal(
+  (
+    applyWeChatOperation(incomingGroup, {
+      类型: '操作',
+      楼层ID: 2,
+      操作: '领取转账',
+      会话: groupKey,
+      操作者: 'user',
+      时间: time,
+      目标: { 楼层ID: 1, 内容下标: 0 },
+    }).会话[groupKey].消息[0] as { 特殊内容状态?: Record<number, string> }
+  ).特殊内容状态?.[0],
+  '已收款',
+);
+const legacyGroup = structuredClone(group);
+legacyGroup.会话[groupKey].消息.push({ 楼层ID: 1, 发送者: 'user', 时间: time, 内容: ['<转账 金额="5">旧记录</转账>'] });
+assert.throws(
+  () =>
+    applyWeChatOperation(legacyGroup, {
+      类型: '操作',
+      楼层ID: 2,
+      操作: '领取转账',
+      会话: groupKey,
+      操作者: '凛',
+      时间: time,
+      目标: { 楼层ID: 1, 内容下标: 0 },
+    }),
+  /指定/,
 );
 const other = applyWeChatLogs(
   paid,

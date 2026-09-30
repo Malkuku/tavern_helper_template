@@ -1,6 +1,6 @@
 <template>
-  <main class="app-screen phone-map-screen">
-    <header class="phone-map-header">
+  <main class="app-screen phone-map-screen" :class="{ 'phone-map-selectable': selectable }">
+    <header v-if="!selectable" class="phone-map-header">
       地图 <span v-if="world?.地图索引">· 当前：{{ world.地图索引 }}</span>
     </header>
 
@@ -79,12 +79,12 @@
           <button v-if="selectedHasChildren" class="phone-map-enter" type="button" @click="enterPoint(selectedName)">
             进入内部地图 <span aria-hidden="true">›</span>
           </button>
-          <p>{{ selected.描述 || '暂无地点描述' }}</p>
-          <ul v-if="selected.详情?.length">
+          <p v-if="!selectable">{{ selected.描述 || '暂无地点描述' }}</p>
+          <ul v-if="!selectable && selected.详情?.length">
             <li v-for="(detail, index) in selected.详情" :key="index">{{ detail }}</li>
           </ul>
           <button v-if="selectable" class="phone-map-select" type="button" @click="emit('select', selectedName)">
-            分享这个位置
+            加入待发送
           </button>
         </section>
       </div>
@@ -481,6 +481,23 @@ watch(() => [map.value, world.value?.地图索引], reset, { immediate: true });
   border-radius: 17px;
   background: #fff;
   box-shadow: 0 4px 14px #31445c0b;
+}
+.phone-map-selectable .phone-map-detail {
+  max-height: none;
+  overflow: visible;
+  padding: 12px;
+}
+.phone-map-selectable .phone-map-point {
+  width: 94px;
+  height: 94px;
+  padding: 8px 6px 6px;
+}
+.phone-map-selectable .phone-map-point-icon {
+  width: 39px;
+  height: 39px;
+}
+.phone-map-selectable .phone-map-point strong {
+  font-size: 11px;
 }
 .phone-map-detail-head {
   display: flex;

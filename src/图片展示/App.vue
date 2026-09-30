@@ -4,10 +4,7 @@
       <!-- 卡片头部 -->
       <button class="card-header" type="button" :aria-expanded="isOpen" @click="toggleCard">
         <span class="header-mark" aria-hidden="true">✦</span>
-        <span class="header-copy">
-          <span class="header-kicker">魔法少女 · 影像记录</span>
-          <span class="header-title">{{ formattedTitle }}</span>
-        </span>
+        <span class="header-kicker">魔法少女 · 影像记录</span>
         <span class="arrow-icon" aria-hidden="true">⌄</span>
       </button>
 
@@ -19,7 +16,7 @@
 
           <!-- 图片 -->
           <img
-            v-if="shouldLoadImage && !hasError"
+            v-if="!hasError"
             :src="currentSrc"
             :alt="rawName"
             class="gallery-image"
@@ -57,7 +54,7 @@
           :src="currentSrc"
           class="custom-lightbox-content"
           :style="lightboxTransformStyle"
-          :alt="formattedTitle"
+          :alt="rawName"
           draggable="false"
         />
       </div>
@@ -80,14 +77,9 @@ if (fixedName.length > 0 && !/\d$/.test(fixedName)) {
 const BASE_URL = 'https://gitgud.io/mouse789/magical-girl-corruption/-/raw/master/';
 const EXTENSION = '.webp';
 
-const formattedTitle = computed(() => {
-  return fixedName.replace(/\//g, ' · ');
-});
-
 const currentSrc = `${BASE_URL}${fixedName.split('/').map(encodeURIComponent).join('/')}${EXTENSION}`;
 
-const isOpen = ref(false);
-const shouldLoadImage = ref(false);
+const isOpen = ref(true);
 const isLoading = ref(true);
 const isLoaded = ref(false);
 const hasError = ref(false);
@@ -95,9 +87,6 @@ const lightboxShow = ref(false);
 
 const toggleCard = () => {
   isOpen.value = !isOpen.value;
-  if (isOpen.value && !shouldLoadImage.value) {
-    shouldLoadImage.value = true;
-  }
 };
 
 const onImageLoad = () => {
@@ -289,24 +278,11 @@ body {
   font-size: 20px;
   box-shadow: 0 0 18px #cb427e33;
 }
-.header-copy {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
 .header-kicker {
   color: var(--gallery-pink);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
-}
-.header-title {
-  overflow: hidden;
-  color: var(--gallery-text);
-  font-size: 15px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .arrow-icon {
   margin-left: auto;

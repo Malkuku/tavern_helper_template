@@ -36,8 +36,8 @@
           <div v-if="!isWeChatMessage(message)" class="wx-system-tip">{{ operationSummary(message) }}</div>
           <template v-else>
             <div
-              v-for="(part, contentIndex) in message.内容"
-              :key="contentIndex"
+              v-for="({ part, sourceIndex }, displayIndex) in displayContentParts(message.内容)"
+              :key="displayIndex"
               class="wx-message"
               :class="{ mine: message.发送者 === 'user' }"
             >
@@ -58,8 +58,8 @@
                 <div
                   class="wx-bubble"
                   :class="{ 'wx-bubble-special': isSpecialCard(part) }"
-                  @contextmenu.prevent="openMessageMenu(message, part, contentIndex)"
-                  @touchstart.passive="startMessageHold(message, part, contentIndex)"
+                  @contextmenu.prevent="openMessageMenu(message, message.内容[sourceIndex], sourceIndex)"
+                  @touchstart.passive="startMessageHold(message, message.内容[sourceIndex], sourceIndex)"
                   @touchend="cancelMessageHold"
                   @touchmove="cancelMessageHold"
                   @touchcancel="cancelMessageHold"
@@ -68,14 +68,15 @@
                     :items="[part]"
                     :accounts="accounts"
                     :sender="message.发送者"
+                    :group="selectedSession.类型 === '群聊'"
                     :states="message.特殊内容状态"
-                    :start-index="contentIndex"
+                    :start-index="sourceIndex"
                     @open-payment="openPayment(message, $event)"
                     @open-card="openCard"
                     @open-location="openLocation"
                   />
                 </div>
-                <div v-if="contentIndex === 0 && message.引用" class="wx-rich wx-quote">
+                <div v-if="displayIndex === 0 && message.引用" class="wx-rich wx-quote">
                   <small>{{ accounts[message.引用.发送者]?.昵称 || message.引用.发送者 }}：</small>
                   <span>{{ contentSummary(message.引用.内容) }}</span>
                 </div>
@@ -84,7 +85,11 @@
           </template>
         </template>
         <template v-if="pending">
-          <div v-for="(part, contentIndex) in pending.内容" :key="contentIndex" class="wx-message mine wx-pending">
+          <div
+            v-for="({ part }, displayIndex) in pendingDisplayParts"
+            :key="displayIndex"
+            class="wx-message mine wx-pending"
+          >
             <WeChatAvatar id="user" :accounts="accounts" />
             <div class="wx-message-main">
               <div class="wx-bubble" :class="{ 'wx-bubble-special': isSpecialCard(part) }">
@@ -92,22 +97,31 @@
                   :items="[part]"
                   :accounts="accounts"
                   sender="user"
+                  :group="selectedSession.类型 === '群聊'"
                   @open-location="openLocation"
                 />
               </div>
-              <div v-if="contentIndex === 0 && pending.引用" class="wx-rich wx-quote">
+              <div v-if="displayIndex === 0 && pending.引用" class="wx-rich wx-quote">
                 {{ accounts[pending.引用.发送者]?.昵称 || pending.引用.发送者 }}：{{
                   contentSummary(pending.引用.内容)
                 }}
               </div>
-              <small v-if="contentIndex === pending.内容.length - 1">
-                {{ pending.已确认 === false ? '待确认发送' : '发送中' }}
+              <small v-if="displayIndex === pendingDisplayParts.length - 1">
+                {{
+                  pending.已确认 === false
+                    ? '待确认发送'
+                    : store.wechatLogError
+                      ? '接收失败，待重试'
+                      : generating
+                        ? '发送中'
+                        : '等待回复'
+                }}
                 <button v-if="pending.已确认 !== false" type="button" @click="retrySend">重试发送</button>
               </small>
             </div>
           </div>
         </template>
-        <div v-if="pending && generating" class="wx-typing">
+        <div v-if="pending && generating && !store.wechatLogError" class="wx-typing">
           <span class="wx-typing-dots"><i></i><i></i><i></i></span>对方正在输入中...
         </div>
       </div>
@@ -227,7 +241,8 @@
       </div>
       <div v-if="locationPickerOpen" class="wx-map-picker">
         <div class="wx-map-picker-head">
-          <strong>选择分享的位置</strong><button type="button" @click="locationPickerOpen = false">取消</button>
+          <div><strong>分享位置</strong><small>点选地点，加入待发送</small></div>
+          <button type="button" @click="locationPickerOpen = false">取消</button>
         </div>
         <MapApp selectable @select="sendLocation" />
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
@@ -235,9 +250,19 @@
       <form v-if="paymentKind" class="wx-payment-compose" @submit.prevent="sendPayment">
         <button class="wx-transfer-back" type="button" @click="paymentKind = null">‹</button>
         <div class="wx-transfer-recipient">
-          <span>转账给 {{ selectedTitle }}</span
-          ><WeChatAvatar :id="selectedSession.成员.find(id => id !== 'user') || 'user'" :accounts="accounts" />
+          <span>{{ selectedSession.类型 === '群聊' ? '选择收款成员' : `转账给 ${selectedTitle}` }}</span>
+          <WeChatAvatar
+            v-if="selectedSession.类型 === '私聊'"
+            :id="selectedSession.成员.find(id => id !== 'user') || 'user'"
+            :accounts="accounts"
+          />
         </div>
+        <select v-if="selectedSession.类型 === '群聊'" v-model="paymentRecipient" aria-label="选择群聊转账收款人">
+          <option value="" disabled>请选择群成员</option>
+          <option v-for="id in selectedSession.成员.filter(id => id !== 'user')" :key="id" :value="id">
+            {{ accounts[id]?.昵称 || id }}
+          </option>
+        </select>
         <label class="wx-transfer-label" for="wx-transfer-amount">转账金额</label>
         <div class="wx-transfer-amount">
           ¥
@@ -256,20 +281,26 @@
         <button
           class="wx-transfer-submit"
           type="submit"
-          :disabled="pendingLocked || sending || !worldTime || transferInsufficient"
+          :disabled="
+            pendingLocked ||
+            sending ||
+            !worldTime ||
+            transferInsufficient ||
+            (selectedSession.类型 === '群聊' && !paymentRecipient)
+          "
         >
           加入待发送
         </button>
       </form>
-      <form v-if="voiceOpen" class="wx-action-panel" @submit.prevent="sendVoice">
-        <strong>发送语音消息</strong
-        ><input v-model="voiceText" aria-label="语音转写内容" placeholder="输入语音转写内容" /><input
-          v-model="voiceDuration"
-          aria-label="语音时长"
-          placeholder="时长（秒）"
-          inputmode="numeric"
-        /><button type="submit" :disabled="pendingLocked || sending">添加</button
-        ><button type="button" @click="voiceOpen = false">取消</button>
+      <form v-if="voiceOpen" class="wx-action-panel wx-voice-compose" @submit.prevent="sendVoice">
+        <div class="wx-voice-compose-head">
+          <strong>语音消息</strong><button type="button" aria-label="关闭语音输入" @click="voiceOpen = false">×</button>
+        </div>
+        <label>转写内容<textarea v-model="voiceText" rows="2" placeholder="输入语音转写内容"></textarea></label>
+        <div class="wx-voice-compose-foot">
+          <label>时长（秒）<input v-model="voiceDuration" inputmode="numeric" placeholder="例如 3" /></label>
+          <button type="submit" :disabled="pendingLocked || sending">加入待发送</button>
+        </div>
       </form>
       <div v-if="cardPickerOpen" class="wx-contact-picker">
         <header>
@@ -281,19 +312,19 @@
             "
           >
             ‹</button
-          ><strong>选择联系人</strong>
+          ><strong>选择角色名片</strong>
         </header>
-        <input v-model="cardQuery" aria-label="搜索联系人" placeholder="搜索" />
+        <input v-model="cardQuery" aria-label="搜索角色名片" placeholder="搜索昵称或账号" />
         <div class="wx-picker-list">
           <button v-for="[id, account] in filteredCardCandidates" :key="id" type="button" @click="selectedCard = id">
-            <WeChatAvatar :id="id" :accounts="accounts" /><span>{{ account.昵称 || id }}</span>
+            <WeChatAvatar :id="id" :accounts="cardAccounts" /><span>{{ account.昵称 || id }}</span>
           </button>
         </div>
         <div v-if="selectedCard" class="wx-picker-confirm">
           <strong>发送给：</strong><span>{{ selectedTitle }}</span>
           <div class="wx-picker-preview">
-            <WeChatAvatar :id="selectedCard" :accounts="accounts" /><span
-              >{{ accounts[selectedCard]?.昵称 || selectedCard }}<small>个人名片</small></span
+            <WeChatAvatar :id="selectedCard" :accounts="cardAccounts" /><span
+              >{{ cardAccounts[selectedCard]?.昵称 || selectedCard }}<small>个人名片</small></span
             >
           </div>
           <input v-model="cardMessage" aria-label="名片附言" placeholder="给朋友留言（可选）" />
@@ -755,8 +786,22 @@
         ><strong>{{ paymentView.kind === '红包' ? '红包' : '转账' }}</strong
         ><b>{{ paymentView.kind === '转账' ? `¥${paymentView.amount.replace(/g$/i, '')}` : paymentView.amount }}</b>
         <p>{{ paymentView.remark || (paymentView.kind === '红包' ? '红包' : '转账') }}</p>
+        <p v-if="paymentView.kind === '转账'">
+          {{
+            paymentView.recipient
+              ? `收款人：${accounts[paymentView.recipient]?.昵称 || paymentView.recipient}`
+              : '未指定收款人'
+          }}
+        </p>
         <small>{{ paymentView.status || '待处理' }}</small>
-        <div v-if="paymentView.message.发送者 !== 'user' && !paymentView.status" class="wx-payment-dialog-actions">
+        <div
+          v-if="
+            paymentView.message.发送者 !== 'user' &&
+            !paymentView.status &&
+            (paymentView.kind === '红包' || paymentView.recipient === 'user')
+          "
+          class="wx-payment-dialog-actions"
+        >
           <button
             type="button"
             :disabled="sending"
@@ -793,10 +838,12 @@ import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 地�
 import {
   chatTitle,
   contentSummary,
+  displayContentParts,
   friendRequest,
   incomingFriendRequests,
   isWeChatMessage,
   operationSummary,
+  parseTransferMessage,
   privateChatKey,
   visibleUserChats,
 } from './wechatData';
@@ -808,6 +855,7 @@ import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
 import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
 import { nearbyAvatars } from './nearbyAvatars';
+import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { findPhoneMapPath } from '../map/phoneMap';
 import { locationShare } from '../map/locationShare';
 import MapApp from '../map/MapApp.vue';
@@ -838,6 +886,7 @@ const generating = ref(false);
 const extrasOpen = ref(false);
 const paymentKind = ref<'转账' | null>(null);
 const paymentAmount = ref('');
+const paymentRecipient = ref('');
 const transferInsufficient = computed(() => {
   if (!/^\d+(?:\.\d{1,2})?$/.test(paymentAmount.value)) return false;
   const amountCents = Math.round(Number(paymentAmount.value) * 100);
@@ -851,6 +900,7 @@ const paymentView = ref<{
   kind: '红包' | '转账';
   amount: string;
   remark: string;
+  recipient?: string;
   status?: string;
 } | null>(null);
 const cardView = ref<string | null>(null);
@@ -878,8 +928,10 @@ const voiceDuration = ref('');
 const locationPickerOpen = ref(false);
 function openExtra(label: string) {
   extrasOpen.value = false;
-  if (label === '转账') paymentKind.value = label;
-  else if (label === '位置') {
+  if (label === '转账') {
+    paymentRecipient.value = '';
+    paymentKind.value = label;
+  } else if (label === '位置') {
     error.value = '';
     locationPickerOpen.value = true;
   } else if (label === '名片') {
@@ -891,6 +943,17 @@ function openExtra(label: string) {
 }
 async function sendPayment() {
   if (!paymentKind.value || !selectedKey.value || sending.value) return;
+  if (
+    selectedSession.value?.类型 === '群聊' &&
+    (paymentRecipient.value === 'user' || !selectedSession.value.成员.includes(paymentRecipient.value))
+  ) {
+    error.value = '请选择群聊转账的收款人。';
+    return;
+  }
+  if (/["<>]/.test(paymentRecipient.value)) {
+    error.value = '收款人账号无法用于转账标签。';
+    return;
+  }
   if (!/^\d+(?:\.\d{1,2})?$/.test(paymentAmount.value) || Number(paymentAmount.value) <= 0) {
     error.value = '请输入有效金额。';
     return;
@@ -906,7 +969,8 @@ async function sendPayment() {
   sending.value = true;
   error.value = '';
   const conversation = selectedKey.value;
-  const content = [`<转账 金额="${paymentAmount.value}">${paymentRemark.value}</转账>`];
+  const recipientAttribute = selectedSession.value?.类型 === '群聊' ? ` 收款人="${paymentRecipient.value}"` : '';
+  const content = [`<转账 金额="${paymentAmount.value}"${recipientAttribute}>${paymentRemark.value}</转账>`];
   let accepted = false;
   try {
     await store.sendWeChatMessage(conversation, content);
@@ -918,6 +982,7 @@ async function sendPayment() {
       paymentKind.value = null;
       paymentAmount.value = '';
       paymentRemark.value = '';
+      paymentRecipient.value = '';
     }
     sending.value = false;
   }
@@ -990,6 +1055,12 @@ function onGenerationEnd() {
   generating.value = false;
 }
 const store = useMagicGirlStatStore();
+watch(
+  () => store.wechatLogError,
+  failure => {
+    if (failure) generating.value = false;
+  },
+);
 const wechat = computed(() => store.statData?.手机?.微信 ?? null);
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
 const self = computed(() => accounts.value.user);
@@ -1143,6 +1214,7 @@ const selectedTitle = computed(() =>
     : '聊天',
 );
 const pending = computed(() => (wechat.value?.准备发送?.会话 === selectedKey.value ? wechat.value.准备发送 : null));
+const pendingDisplayParts = computed(() => displayContentParts(pending.value?.内容 || []));
 const pendingLocked = computed(() => !!pending.value && pending.value.已确认 !== false);
 const chats = computed(() =>
   (wechat.value ? visibleUserChats(wechat.value) : [])
@@ -1173,7 +1245,32 @@ const contacts = computed(() =>
     .map(id => [id, accounts.value[id]] as const)
     .sort((a, b) => (a[1].昵称 || a[0]).localeCompare(b[1].昵称 || b[0], 'zh-CN')),
 );
-const cardCandidates = computed(() => Object.entries(accounts.value).filter(([id]) => id !== 'user'));
+const cardAccounts = computed<微信数据['账号']>(() => {
+  const candidates = { ...accounts.value };
+  const roles = store.statData?.角色;
+  for (const [id, role] of Object.entries(roles?.主要角色 ?? {})) {
+    if (id === 'user' || candidates[id]) continue;
+    candidates[id] = {
+      昵称: role.基础信息.姓名 || id,
+      头像: wechatRoleAvatar(role.meta, id),
+      表情包: {},
+      好友: [],
+    };
+  }
+  for (const [id, role] of Object.entries(roles?.次要角色 ?? {})) {
+    if (id === '$template' || candidates[id]) continue;
+    candidates[id] = {
+      昵称: id,
+      头像: wechatRoleAvatar(role.meta, id),
+      表情包: {},
+      好友: [],
+    };
+  }
+  return candidates;
+});
+const cardCandidates = computed(() =>
+  Object.entries(cardAccounts.value).filter(([id]) => id !== 'user' && id !== '$template'),
+);
 const filteredCardCandidates = computed(() =>
   cardCandidates.value.filter(([id, account]) => `${id} ${account.昵称}`.includes(cardQuery.value.trim())),
 );
@@ -1262,6 +1359,8 @@ function selectTab(next: Tab) {
 }
 function openChat(key: string) {
   selectedKey.value = key;
+  paymentKind.value = null;
+  paymentRecipient.value = '';
   draft.value = '';
   quoted.value = null;
   messageMenu.value = null;
@@ -1373,14 +1472,20 @@ async function requestCardFriend() {
 function openPayment(message: 微信消息, index: number) {
   const item = message.内容[index];
   if (typeof item !== 'string') return;
-  const match = item.match(/^<(红包|转账) 金额="([^"]+)">([\s\S]*?)<\/\1>$/);
-  if (!match) return;
+  const transfer = parseTransferMessage(item);
+  const redpacket = item.match(/^<红包 金额="([^"]+)">([\s\S]*?)<\/红包>$/);
+  if (!transfer && !redpacket) return;
+  const recipient =
+    selectedSession.value?.类型 === '群聊'
+      ? transfer?.recipient
+      : selectedSession.value?.成员.find(id => id !== message.发送者);
   paymentView.value = {
     message,
     index,
-    kind: match[1] as '红包' | '转账',
-    amount: match[2],
-    remark: match[3],
+    kind: transfer ? '转账' : '红包',
+    amount: transfer ? transfer.amount : redpacket![1],
+    remark: transfer ? transfer.remark : redpacket![2],
+    ...(transfer ? { recipient } : {}),
     status: message.特殊内容状态?.[index],
   };
 }
@@ -1452,7 +1557,14 @@ async function sendCard(id: string) {
   const content = [`<名片 角色="${id}">`, ...(cardMessage.value.trim() ? [cardMessage.value.trim()] : [])];
   let accepted = false;
   try {
-    await store.sendWeChatMessage(conversation, content);
+    const account = cardAccounts.value[id];
+    if (!account) throw new Error('名片中的角色已不存在。');
+    await store.sendWeChatMessage(
+      conversation,
+      content,
+      undefined,
+      accounts.value[id] ? undefined : { id, name: account.昵称, avatar: account.头像 },
+    );
     accepted = true;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '名片发送失败。';
@@ -1564,6 +1676,7 @@ async function retrySend() {
   try {
     await store.retryWeChatSend();
   } catch (cause) {
+    generating.value = false;
     error.value = cause instanceof Error ? cause.message : '重试失败';
   }
 }
@@ -1574,6 +1687,7 @@ async function confirmSend() {
   try {
     await store.confirmWeChatSend();
   } catch (cause) {
+    generating.value = false;
     error.value = cause instanceof Error ? cause.message : '确认发送失败。';
   } finally {
     sending.value = false;
@@ -1623,7 +1737,7 @@ watch(wechat, data => {
     draft.value = '';
   }
   if (cardView.value && !data?.账号[cardView.value]) cardView.value = null;
-  if (selectedCard.value && !data?.账号[selectedCard.value]) selectedCard.value = null;
+  if (selectedCard.value && !cardAccounts.value[selectedCard.value]) selectedCard.value = null;
   if (forwardDestination.value && !data?.会话[forwardDestination.value]) forwardDestination.value = null;
   groupMembers.value = groupMembers.value.filter(id => !!data?.账号[id]);
 });

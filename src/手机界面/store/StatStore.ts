@@ -12,9 +12,11 @@ import {
   deleteWeChatFromFloor,
   logConfirmsPending,
   normalizeWeChatIds,
+  parseTransferMessage,
   parseWeChatLogs,
   privateChatKey,
   sendFriendRequest,
+  transferRecipient,
   unappliedWeChatLogs,
 } from '../apps/wechat/wechatData';
 import {
@@ -84,9 +86,12 @@ const generationResultWaitMs = 5000;
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
-  const match = content.match(new RegExp(`^<${kind} 金额="(\\d+(?:\\.\\d{1,2})?)g?">[\\s\\S]*<\\/${kind}>$`));
-  if (!match) throw new Error('款项金额无效。');
-  const [yuan, fraction = ''] = match[1].split('.');
+  const amount =
+    kind === '转账'
+      ? parseTransferMessage(content)?.amount.replace(/g$/i, '')
+      : content.match(/^<红包 金额="(\d+(?:\.\d{1,2})?)g?">[\s\S]*<\/红包>$/)?.[1];
+  if (!amount) throw new Error('款项金额无效。');
+  const [yuan, fraction = ''] = amount.split('.');
   const cents = Number(yuan) * 100 + Number(fraction.padEnd(2, '0'));
   if (!Number.isSafeInteger(cents) || cents <= 0) throw new Error('款项金额无效。');
   return cents;
@@ -718,6 +723,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     conversation: string,
     content: 微信消息内容[],
     quote?: 微信消息 & { 内容下标?: number },
+    cardAccount?: { id: string; name: string; avatar: string },
   ) {
     const generation = chatGeneration;
     await updateWeChat((current, stat) => {
@@ -732,6 +738,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const worldTime = stat.世界?.时间;
       if (!worldTime) throw new Error('世界时间尚未设置，无法发送消息。');
       const session = current.会话[conversation];
+      let transferSession = session;
       if (session) {
         if (!session.成员.includes('user')) throw new Error('不能从 user 手机向非本人会话发送消息。');
         if (
@@ -750,8 +757,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           !current.账号[other]
         )
           throw new Error('目标私聊不存在或对方不是好友。');
+        transferSession = { 类型: '私聊', 成员: ['user', other], 消息: [] };
       }
-      const wechat = normalizeWeChatIds(current);
+      for (const item of content) {
+        if (typeof item === 'string' && item.startsWith('<转账 ')) transferRecipient(transferSession, 'user', item);
+      }
+      let wechat = normalizeWeChatIds(current);
+      if (cardAccount && !wechat.账号[cardAccount.id]) {
+        if (!stat.角色.主要角色[cardAccount.id] && !stat.角色.次要角色[cardAccount.id])
+          throw new Error('名片中的角色已不存在。');
+        wechat = addWechatAccount(wechat, cardAccount.id, cardAccount.name, cardAccount.avatar);
+      }
       if (wechat.准备发送) {
         if (quote) throw new Error('引用只能添加在本批消息的第一项。');
         wechat.准备发送.内容.push(...klona(content));

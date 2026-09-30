@@ -716,6 +716,17 @@
   margin: 0;
   text-align: center;
 }
+.script-backup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid #dbe1ea;
+}
+.script-backup-section p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .utility-screen p {
   color: #697386;
 }

@@ -373,13 +373,10 @@
   display: block;
   font-size: 12px;
 }
-.wx-voice {
-  min-width: 135px;
-}
 .wx-sticker img {
   display: block;
-  max-width: 145px;
-  max-height: 145px;
+  max-width: 120px;
+  max-height: 120px;
   object-fit: contain;
 }
 .wx-payment {
@@ -1086,10 +1083,6 @@
   height: 42px;
   border-radius: 9px;
   background: #8dc8b5;
-  font-size: 30px;
-}
-.wechat .wx-location-card > span:last-child {
-  min-width: 0;
 }
 .wechat .wx-location-card strong,
 .wechat .wx-location-card small {
@@ -1498,6 +1491,14 @@
 .wechat .wx-transfer-label {
   font-size: 14px;
 }
+.wechat .wx-payment-compose select {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--wx-line);
+  border-radius: 8px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+}
 .wechat .wx-transfer-amount {
   display: flex;
   align-items: center;
@@ -1700,6 +1701,7 @@
   order: 5;
   display: flex;
   flex-direction: column;
+  flex-wrap: nowrap;
   min-height: 150px;
   max-height: 240px;
   overflow: hidden;
@@ -2011,7 +2013,7 @@
   overflow: hidden;
   border: 1px solid var(--wx-line);
   border-radius: 18px;
-  background: #f5f7fb;
+  background: var(--wx-panel);
   box-shadow: 0 14px 44px #0005;
 }
 .wechat .wx-map-picker-head {
@@ -2019,20 +2021,39 @@
   flex: none;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  color: #273348;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--wx-line);
+  color: var(--wx-text);
+}
+.wechat .wx-map-picker-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wechat .wx-map-picker-head strong {
+  font-size: 15px;
+}
+.wechat .wx-map-picker-head small {
+  color: var(--wx-muted);
+  font-size: 11px;
 }
 .wechat .wx-map-picker-head button {
   border: 0;
   background: transparent;
-  color: #6678bf;
+  color: var(--wx-green);
   font: inherit;
 }
 .wechat .wx-map-picker .phone-map-screen {
   flex: 1;
   min-height: 0;
   height: auto;
-  padding: 0 8px 10px;
+  padding: 10px 8px;
+}
+.wechat .wx-map-picker .phone-map-select {
+  background: #6678bf;
+}
+.wechat.wx-dark .wx-map-picker .phone-map-select {
+  background: #7184cf;
 }
 .wechat .wx-dialog-backdrop {
   padding: 14px;
@@ -3194,8 +3215,141 @@
   background: var(--weline-soft) !important;
 }
 .wechat .wx-location-pin {
+  flex: none;
+  width: 43px;
+  height: 43px;
+  border-radius: 12px;
   background: #cbd6f7;
   color: #405696;
+}
+.wechat .wx-location-card {
+  width: min(244px, 72vw);
+  min-height: 70px;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--wx-line);
+  box-shadow: var(--weline-shadow);
+}
+.wechat .wx-location-pin svg {
+  width: 23px;
+  height: 23px;
+}
+.wechat .wx-location-info {
+  flex: 1;
+  min-width: 0;
+}
+.wechat .wx-location-card strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+.wechat .wx-location-card small {
+  margin-top: 4px;
+  color: var(--wx-muted);
+  font-size: 11px;
+}
+.wechat .wx-location-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--wx-muted);
+}
+.wechat .wx-voice {
+  min-width: 155px;
+  max-width: min(220px, 62vw);
+  padding: 0;
+  background: transparent;
+}
+.wechat .wx-voice-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wechat .wx-voice-heading svg {
+  flex: none;
+  width: 21px;
+  height: 21px;
+}
+.wechat .wx-voice-heading strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+.wechat .wx-voice-heading strong span {
+  display: inline;
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.wechat .wx-voice .wx-voice-transcript {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.wechat .wx-voice-compose {
+  gap: 10px;
+  max-height: min(280px, 45vh);
+  padding: 12px 14px;
+}
+.wechat .wx-voice-compose-head,
+.wechat .wx-voice-compose-foot {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wechat .wx-voice-compose-head {
+  align-items: center;
+}
+.wechat .wx-voice-compose-head strong {
+  font-size: 14px;
+}
+.wechat .wx-voice-compose label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--wx-muted);
+  font-size: 12px;
+}
+.wechat .wx-voice-compose textarea,
+.wechat .wx-voice-compose input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--wx-line);
+  border-radius: 10px;
+  background: var(--wx-panel);
+  color: var(--wx-text);
+  font: inherit;
+  font-size: 13px;
+}
+.wechat .wx-voice-compose textarea {
+  min-height: 62px;
+  resize: vertical;
+}
+.wechat .wx-voice-compose-foot label {
+  width: 110px;
+}
+.wechat .wx-voice-compose-foot button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #6678bf;
+  color: white;
+  text-align: center;
+}
+.wechat.wx-dark .wx-voice-compose-foot button {
+  background: #7184cf;
+}
+.wechat .wx-voice-compose-head button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  color: var(--wx-muted);
+  text-align: center;
+  font-size: 20px;
 }
 .wechat .wx-request-card,
 .wechat .wx-detail-section,

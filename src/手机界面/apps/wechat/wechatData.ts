@@ -203,10 +203,33 @@ export function chatTitle(key: string, session: 微信会话, data: 微信数据
   return other ? data.账号[other]?.昵称 || other : key;
 }
 
+export function parseTransferMessage(value: string): { amount: string; recipient?: string; remark: string } | null {
+  const match = value.match(/^<转账 金额="(\d+(?:\.\d{1,2})?g?)"(?: 收款人="([^"<>]+)")?>([\s\S]*?)<\/转账>$/);
+  return match ? { amount: match[1], ...(match[2] ? { recipient: match[2] } : {}), remark: match[3] } : null;
+}
+
+export function transferRecipient(session: 微信会话, sender: string, value: string): string {
+  const transfer = parseTransferMessage(value);
+  if (!transfer) throw new Error('转账内容无效。');
+  const recipient = session.类型 === '群聊' ? transfer.recipient : session.成员.find(id => id !== sender);
+  if (!recipient || recipient === sender || !session.成员.includes(recipient))
+    throw new Error('群聊转账必须指定一位其他群成员收款。');
+  if (session.类型 === '私聊' && transfer.recipient && transfer.recipient !== recipient)
+    throw new Error('私聊转账收款人与会话成员不一致。');
+  return recipient;
+}
+
 export function contentSummary(content: 微信消息内容[]): string {
   return content
     .map(item => {
       if (typeof item === 'string') {
+        const displayParts = displayContentParts([item]);
+        if (displayParts.length > 1 || displayParts[0].part !== item)
+          return displayParts
+            .map(({ part }) =>
+              typeof part === 'string' && /^<表情包>[\s\S]*<\/表情包>$/.test(part) ? '[表情包]' : part,
+            )
+            .join('');
         if (item.startsWith('<语音')) return '[语音]';
         if (item.startsWith('<表情包>')) return '[表情包]';
         if (item.startsWith('<红包')) return '[红包]';
@@ -218,6 +241,24 @@ export function contentSummary(content: 微信消息内容[]): string {
       return '[转发]';
     })
     .join(' ');
+}
+
+export function displayContentParts(content: 微信消息内容[]): { part: 微信消息内容; sourceIndex: number }[] {
+  return content.flatMap((item, sourceIndex) => {
+    if (typeof item !== 'string') return [{ part: item, sourceIndex }];
+    if (/^<(语音|红包|转账)\s[^>]*>[\s\S]*<\/\1>$/.test(item)) return [{ part: item, sourceIndex }];
+    const result: { part: 微信消息内容; sourceIndex: number }[] = [];
+    const sticker = /<表情包>([\s\S]*?)<\/表情包>/g;
+    let start = 0;
+    for (const match of item.matchAll(sticker)) {
+      if (match.index > start && item.slice(start, match.index).trim())
+        result.push({ part: item.slice(start, match.index), sourceIndex });
+      result.push({ part: match[0], sourceIndex });
+      start = match.index + match[0].length;
+    }
+    if (start < item.length && item.slice(start).trim()) result.push({ part: item.slice(start), sourceIndex });
+    return result.length ? result : [{ part: item, sourceIndex }];
+  });
 }
 
 export function logConfirmsPending(current: 微信数据, log: WeChatLog): boolean {
@@ -282,6 +323,9 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
           session = next.会话[event.会话] = { ...klona(event.会话信息), 消息: [] };
         }
         if (!session.成员.includes(event.发送者)) throw new Error(`会话 ${event.会话} 包含非成员消息。`);
+        for (const item of event.内容) {
+          if (typeof item === 'string' && item.startsWith('<转账 ')) transferRecipient(session, event.发送者, item);
+        }
         if (session.类型 === '私聊' && !mutualFriends(next, session.成员[0], session.成员[1]))
           throw new Error('非好友不能发送普通私聊消息。');
         if (event.楼层ID !== session.消息.length + 1) throw new Error(`会话 ${event.会话} 的楼层 ID 不连续。`);
@@ -395,6 +439,8 @@ function applyOperationInPlace(next: 微信数据, event: OperationEvent): void 
       target.特殊内容状态?.[index]
     )
       throw new Error('款项目标不存在或已经处理。');
+    if (tag === '转账' && transferRecipient(session, target.发送者, target.内容[index] as string) !== event.操作者)
+      throw new Error('只有指定收款人可以收款或退回转账。');
     target.特殊内容状态 = {
       ...target.特殊内容状态,
       [index]: event.操作 === '领取红包' ? '已领取' : event.操作 === '领取转账' ? '已收款' : '已退回',
