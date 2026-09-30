@@ -360,6 +360,14 @@
 .wx-content-text {
   white-space: pre-wrap;
 }
+.wx-inline-emoji {
+  display: inline-block;
+  width: 23px;
+  height: 23px;
+  margin: 0 1px;
+  vertical-align: -5px;
+  object-fit: contain;
+}
 .wx-rich {
   border-radius: 5px;
   padding: 7px 9px;
@@ -1698,11 +1706,51 @@
 }
 .wechat .wx-sticker-picker {
   order: 5;
-  align-content: flex-start;
-  gap: 10px;
+  display: block;
   min-height: 150px;
   max-height: 240px;
   padding: 13px;
+}
+.wechat .wx-emoji-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.wechat .wx-sticker-picker .wx-emoji-tabs button {
+  padding: 5px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--wx-muted);
+}
+.wechat .wx-sticker-picker .wx-emoji-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--wx-green);
+  color: var(--wx-text);
+}
+.wechat .wx-default-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 3px;
+}
+.wechat .wx-sticker-picker .wx-default-emoji-grid button {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 3px;
+  border: 0;
+  background: none;
+}
+.wechat .wx-default-emoji-grid img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.wechat .wx-custom-sticker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .wechat .wx-sticker-empty {
   flex: 1 0 100%;

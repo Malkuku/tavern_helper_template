@@ -147,26 +147,49 @@
         <button type="button" aria-label="取消引用" @click="quoted = null">×</button>
       </div>
       <div v-if="stickerOpen" class="wx-sticker-picker">
-        <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加图片后就能在聊天中发送。</p>
-        <button
-          v-for="name in stickerNames"
-          :key="name"
-          class="wx-sticker-choice"
-          type="button"
-          :disabled="pendingLocked || sending || !worldTime"
-          @click="sendSticker(name)"
-        >
-          <img :src="resolveWechatImage(self?.表情包[name])" :alt="name" /><small>{{ name }}</small>
-        </button>
-        <button class="wx-sticker-add" type="button" @click="stickerFileInput?.click()">
-          <WeChatIcon name="plus" />添加表情包
-        </button>
-        <input ref="stickerFileInput" class="wx-hidden-file" type="file" accept="image/*" @change="readStickerFile" />
-        <form v-if="newStickerSource" class="wx-sticker-form" @submit.prevent="saveSticker">
-          <img :src="newStickerSource" alt="新表情包预览" />
-          <input v-model="newStickerName" aria-label="表情包名称" maxlength="30" placeholder="给表情包起个名字" />
-          <button type="submit" :disabled="savingSticker">保存</button>
-        </form>
+        <div class="wx-emoji-tabs" role="tablist" aria-label="表情类型">
+          <button type="button" role="tab" :aria-selected="emojiTab === 'default'" @click="emojiTab = 'default'">
+            默认表情
+          </button>
+          <button type="button" role="tab" :aria-selected="emojiTab === 'custom'" @click="emojiTab = 'custom'">
+            表情包
+          </button>
+        </div>
+        <div v-if="emojiTab === 'default'" class="wx-default-emoji-grid">
+          <button
+            v-for="emoji in defaultEmojis"
+            :key="emoji.name"
+            type="button"
+            :aria-label="emoji.name"
+            :title="emoji.name"
+            :disabled="pendingLocked || sending || !worldTime"
+            @click="chooseDefaultEmoji(emoji.name)"
+          >
+            <img :src="emoji.source" alt="" />
+          </button>
+        </div>
+        <div v-else class="wx-custom-sticker-grid">
+          <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加图片后就能在聊天中发送。</p>
+          <button
+            v-for="name in stickerNames"
+            :key="name"
+            class="wx-sticker-choice"
+            type="button"
+            :disabled="pendingLocked || sending || !worldTime"
+            @click="sendSticker(name)"
+          >
+            <img :src="resolveWechatImage(self?.表情包[name])" :alt="name" /><small>{{ name }}</small>
+          </button>
+          <button class="wx-sticker-add" type="button" @click="stickerFileInput?.click()">
+            <WeChatIcon name="plus" />添加表情包
+          </button>
+          <input ref="stickerFileInput" class="wx-hidden-file" type="file" accept="image/*" @change="readStickerFile" />
+          <form v-if="newStickerSource" class="wx-sticker-form" @submit.prevent="saveSticker">
+            <img :src="newStickerSource" alt="新表情包预览" />
+            <input v-model="newStickerName" aria-label="表情包名称" maxlength="30" placeholder="给表情包起个名字" />
+            <button type="submit" :disabled="savingSticker">保存</button>
+          </form>
+        </div>
       </div>
       <form class="wx-compose" @submit.prevent="sendMessage">
         <button
@@ -179,12 +202,13 @@
           <WeChatIcon name="voice" />
         </button>
         <input
+          ref="messageInput"
           v-model="draft"
           aria-label="输入消息"
           :placeholder="worldTime ? '' : '世界时间未设置'"
           :disabled="pendingLocked || sending || !worldTime"
         />
-        <button class="wx-compose-sticker" type="button" aria-label="选择表情包" @click="stickerOpen = !stickerOpen">
+        <button class="wx-compose-sticker" type="button" aria-label="选择表情" @click="stickerOpen = !stickerOpen">
           <WeChatIcon name="emoji" />
         </button>
         <button v-if="draft.trim()" type="submit" :disabled="pendingLocked || sending || !worldTime">添加</button>
@@ -856,6 +880,8 @@ import WeChatIcon from './WeChatIcon.vue';
 import WeChatServiceIcon from './WeChatServiceIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
+import { defaultEmojis } from './defaultEmoji';
+import { insertInlineEmoji } from './defaultEmojiText';
 import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
 import { nearbyAvatars } from './nearbyAvatars';
 import { findPhoneMapPath } from '../map/phoneMap';
@@ -1340,6 +1366,7 @@ const visibleContacts = computed(() =>
 const visibleChats = computed(() => chats.value.filter(item => item.title.includes(query.value.trim())));
 const query = ref('');
 const draft = ref('');
+const messageInput = ref<HTMLInputElement>();
 const requestMessage = ref('');
 const error = ref('');
 const sending = ref(false);
@@ -1363,7 +1390,19 @@ function cancelMessageHold() {
   messageHoldTimer = undefined;
 }
 const stickerOpen = ref(false);
+const emojiTab = ref<'default' | 'custom'>('default');
 const messagesElement = ref<HTMLElement>();
+
+async function chooseDefaultEmoji(name: string) {
+  const input = messageInput.value;
+  const start = input?.selectionStart ?? draft.value.length;
+  const end = input?.selectionEnd ?? start;
+  const inserted = insertInlineEmoji(draft.value, start, end, name);
+  draft.value = inserted.text;
+  await nextTick();
+  messageInput.value?.focus();
+  messageInput.value?.setSelectionRange(inserted.cursor, inserted.cursor);
+}
 
 function displayTime(value: string): string {
   return value.match(/T(\d{1,2}:\d{2})/)?.[1] || value;
