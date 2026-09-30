@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { 微信数据, 微信消息 } from '../src/手机界面/types';
+import { incomingFriendRequests } from '../src/手机界面/apps/wechat/wechatData';
 import {
   initialReadCursors,
   latestNotifiableMessage,
@@ -55,6 +56,31 @@ const withOperation = data(
 );
 assert.deepEqual(newIncomingMessages(historical, withOperation), [], '操作项不触发消息弹窗');
 assert.deepEqual(unreadConversationKeys(withOperation, baseline), [], '操作项不产生消息未读');
+
+const friendApplication = {
+  楼层ID: 2,
+  时间: '2026-09-27T10:00[7]',
+  操作: '好友申请' as const,
+  操作者: '甲',
+  目标: 'user',
+  验证消息: '你好，想加你为好友',
+};
+const withRequest = data([...historical.会话[chatA].消息, friendApplication], historical.会话[chatB].消息);
+assert.deepEqual(unreadConversationKeys(withRequest, baseline), [], '好友申请不进入普通聊天未读');
+assert.deepEqual(
+  incomingFriendRequests(withRequest).map(([id]) => id),
+  ['甲'],
+  '待处理申请供微信入口红点使用',
+);
+assert.deepEqual(newIncomingMessages(historical, withRequest), [], '申请不触发普通消息弹窗');
+const accepted = data(
+  [
+    ...withRequest.会话[chatA].消息,
+    { 楼层ID: 3, 时间: '2026-09-27T10:01[7]', 操作: '通过好友申请', 操作者: 'user', 目标: '甲' },
+  ],
+  historical.会话[chatB].消息,
+);
+assert.deepEqual(incomingFriendRequests(accepted), [], '申请处理后入口红点消失');
 
 const shortened = data([message(1, '甲')], []);
 assert.deepEqual(reconcileReadCursors(shortened, { [chatA]: 3, [chatB]: 2 }), { [chatA]: 1, [chatB]: 0 });

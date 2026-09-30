@@ -168,6 +168,13 @@ export function friendRequest(session: 微信会话 | undefined): 微信操作 |
   return null;
 }
 
+export function incomingFriendRequests(data: 微信数据 | null | undefined): [string, 微信操作][] {
+  return Object.values(data?.会话 ?? {})
+    .map(friendRequest)
+    .filter((item): item is 微信操作 => !!item && item.目标 === 'user')
+    .map(item => [item.操作者, item]);
+}
+
 export function visibleUserChats(data: 微信数据): [string, 微信会话][] {
   return Object.entries(data.会话).filter(([, session]) => {
     if (!session.成员.includes('user')) return false;

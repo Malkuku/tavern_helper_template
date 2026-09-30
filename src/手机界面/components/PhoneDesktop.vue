@@ -140,7 +140,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ open: [name: string] }>();
 function appNotice(name: string): string {
-  if (name === '微信' && props.wechatUnread) return '未读微信消息';
+  if (name === '微信' && props.wechatUnread) return '微信有未读消息或好友申请';
   if (name === '魔女恶堕计划' && props.witchUnread) return '魔女恶堕计划有待办提醒';
   if (name === '信息' && props.messageUnread) return '有未读奖励邮件';
   if (name === '连接诊断' && props.connectivityUnchecked) return '连接诊断尚未检查';

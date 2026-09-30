@@ -453,13 +453,6 @@
   background: #ddd;
   color: #999;
 }
-.wx-request-row {
-  gap: 8px;
-}
-.wx-request-row .wx-avatar {
-  width: 38px;
-  height: 38px;
-}
 .wx-request-message {
   display: flex;
   align-items: center;
@@ -1918,6 +1911,84 @@
 }
 .wechat .wx-contact-feature .wx-request-dot {
   margin-left: 3px;
+}
+.wechat .wx-requests-body {
+  padding-bottom: 16px;
+}
+.wechat .wx-requests-body .wx-section-label {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 18px 7px;
+  font-size: 12px;
+}
+.wechat .wx-request-card {
+  margin: 0 12px 10px;
+  padding: 14px;
+  border: 1px solid var(--wx-line);
+  border-radius: 10px;
+  background: var(--wx-panel);
+}
+.wechat .wx-request-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wechat .wx-request-person .wx-avatar {
+  width: 42px;
+  height: 42px;
+}
+.wechat .wx-request-identity {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.wechat .wx-request-identity strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wechat .wx-request-identity small,
+.wechat .wx-request-status {
+  color: var(--wx-muted);
+  font-size: 11px;
+}
+.wechat .wx-request-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wechat .wx-request-status {
+  flex: none;
+}
+.wechat .wx-request-verification {
+  margin: 12px 0;
+  color: var(--wx-text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.wechat .wx-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 11px;
+  border-top: 1px solid var(--wx-line);
+}
+.wechat .wx-request-actions .wx-small-action {
+  min-width: 62px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.wechat .wx-request-card-sent .wx-request-verification {
+  margin-bottom: 0;
+  color: var(--wx-muted);
 }
 .wechat .wx-tab-unread {
   box-shadow: 0 0 0 2px var(--wx-nav);

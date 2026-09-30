@@ -419,27 +419,54 @@
         <button class="wx-back" type="button" aria-label="返回通讯录" @click="subPage = null">‹</button>
         <strong>朋友申请</strong>
       </header>
-      <div class="wx-body">
-        <div class="wx-section-label">收到的申请</div>
-        <div v-for="[id, request] in incomingRequests" :key="id" class="wx-list-row wx-request-row">
-          <WeChatAvatar :id="id" :accounts="accounts" />
-          <div class="wx-row-main">
-            <strong>{{ accounts[id]?.昵称 || id }}</strong
-            ><small>{{ request.验证消息 }}</small>
-          </div>
-          <button type="button" class="wx-small-action" @click="respondFriend(id, true)">同意</button>
-          <button type="button" class="wx-small-action muted" @click="respondFriend(id, false)">拒绝</button>
+      <div class="wx-body wx-requests-body">
+        <div class="wx-section-label">
+          收到的申请 <span v-if="incomingRequests.length">{{ incomingRequests.length }}</span>
         </div>
+        <article v-for="[id, request] in incomingRequests" :key="id" class="wx-request-card">
+          <div class="wx-request-person">
+            <WeChatAvatar :id="id" :accounts="accounts" />
+            <div class="wx-request-identity">
+              <strong>{{ accounts[id]?.昵称 || id }}</strong>
+              <small>微信号：{{ id }}</small>
+            </div>
+            <span class="wx-request-status">申请添加你</span>
+          </div>
+          <p class="wx-request-verification">{{ request.验证消息 || '对方没有填写验证消息' }}</p>
+          <div class="wx-request-actions">
+            <button
+              type="button"
+              class="wx-small-action muted"
+              :disabled="respondingTo === id"
+              @click="respondFriend(id, false)"
+            >
+              拒绝
+            </button>
+            <button
+              type="button"
+              class="wx-small-action"
+              :disabled="respondingTo === id"
+              @click="respondFriend(id, true)"
+            >
+              同意
+            </button>
+          </div>
+        </article>
         <p v-if="!incomingRequests.length" class="wx-empty">暂无待处理申请</p>
-        <div class="wx-section-label">已发送</div>
-        <div v-for="[id, request] in outgoingRequests" :key="id" class="wx-list-row">
-          <WeChatAvatar :id="id" :accounts="accounts" />
-          <div class="wx-row-main">
-            <strong>{{ accounts[id]?.昵称 || id }}</strong
-            ><small>{{ request.验证消息 }}</small>
-          </div>
-          <span class="wx-muted">等待同意</span>
-        </div>
+        <template v-if="outgoingRequests.length">
+          <div class="wx-section-label">已发送</div>
+          <article v-for="[id, request] in outgoingRequests" :key="id" class="wx-request-card wx-request-card-sent">
+            <div class="wx-request-person">
+              <WeChatAvatar :id="id" :accounts="accounts" />
+              <div class="wx-request-identity">
+                <strong>{{ accounts[id]?.昵称 || id }}</strong>
+                <small>微信号：{{ id }}</small>
+              </div>
+              <span class="wx-request-status">等待同意</span>
+            </div>
+            <p class="wx-request-verification">{{ request.验证消息 || '未填写验证消息' }}</p>
+          </article>
+        </template>
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </div>
     </template>
@@ -817,6 +844,7 @@ import {
   chatTitle,
   contentSummary,
   friendRequest,
+  incomingFriendRequests,
   isWeChatMessage,
   operationSummary,
   privateChatKey,
@@ -1286,12 +1314,8 @@ const detailSearchResults = computed(() =>
     .filter(isWeChatMessage)
     .filter(item => contentSummary(item.内容).includes(detailSearch.value.trim())),
 );
-const incomingRequests = computed(() =>
-  Object.entries(wechat.value?.会话 ?? {})
-    .map(([, session]) => friendRequest(session))
-    .filter((item): item is NonNullable<typeof item> => !!item && item.目标 === 'user')
-    .map(item => [item.操作者, item] as const),
-);
+const incomingRequests = computed(() => incomingFriendRequests(wechat.value));
+const respondingTo = ref<string | null>(null);
 const outgoingRequests = computed(() =>
   Object.entries(wechat.value?.会话 ?? {})
     .map(([, session]) => friendRequest(session))
@@ -1698,11 +1722,15 @@ async function requestFriend(id: string) {
   }
 }
 async function respondFriend(id: string, accept: boolean) {
+  if (respondingTo.value) return;
+  respondingTo.value = id;
   error.value = '';
   try {
     await store.respondWeChatFriend(id, accept);
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '处理失败';
+  } finally {
+    respondingTo.value = null;
   }
 }
 watch(() => selectedSession.value?.消息.length, scrollBottom);
