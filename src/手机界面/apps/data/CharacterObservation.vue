@@ -193,9 +193,9 @@
         field="身体状态"
         class="body-unlock"
       >
-        <section v-if="selectedMain?.身体.特殊状态?.length" class="data-card">
+        <section v-if="(selectedMain ?? selectedMinor)?.身体?.特殊状态?.length" class="data-card">
           <h3>特殊状态</h3>
-          <p class="data-prose">{{ selectedMain.身体.特殊状态.map(formatValue).join('、') }}</p>
+          <p class="data-prose">{{ (selectedMain ?? selectedMinor)!.身体.特殊状态.map(formatValue).join('、') }}</p>
         </section>
         <section v-for="[key, part] in bodyEntries" :key="key" class="data-card monitor-card body-observation-card">
           <button
@@ -223,13 +223,6 @@
             <span>开发程度</span>
             <p>{{ part.开发程度 }}</p>
           </div>
-        </section>
-        <section v-if="selectedMinor" class="data-card body-observation-card">
-          <h3>身体开发状态</h3>
-          <ul v-if="selectedMinor.身体开发状态.length" class="body-record-list">
-            <li v-for="(state, index) in selectedMinor.身体开发状态" :key="index">{{ state }}</li>
-          </ul>
-          <p v-if="!selectedMinor.身体开发状态.length" class="data-prose">暂无记录</p>
         </section>
       </LockedField>
     </template>
@@ -552,8 +545,10 @@ const stageMeta = {
   恶堕度: { icon: '✦', meaning: '恶堕进程' },
 } as const;
 const bodyEntries = computed(() =>
-  selectedMain.value
-    ? (['小穴', '口穴', '菊穴', '胸部'] as const).map(key => [key, selectedMain.value!.身体[key]] as const)
+  (selectedMain.value ?? selectedMinor.value)?.身体
+    ? (['小穴', '口穴', '菊穴', '胸部'] as const).map(
+        key => [key, (selectedMain.value ?? selectedMinor.value)!.身体[key]] as const,
+      )
     : [],
 );
 watch(

@@ -70,11 +70,17 @@
               <p>{{ currentCharacter.性格 || '暂无记录' }}</p>
             </section>
             <section class="field">
-              <h3>身体开发状态</h3>
-              <ul v-if="currentCharacter.身体开发状态.length">
-                <li v-for="(state, index) in currentCharacter.身体开发状态" :key="index">{{ state }}</li>
+              <h3>身体状态</h3>
+              <p v-if="currentCharacter.身体.特殊状态.length">
+                特殊状态：{{ currentCharacter.身体.特殊状态.join('、') }}
+              </p>
+              <ul>
+                <li v-for="part in ['小穴', '口穴', '菊穴', '胸部']" :key="part">
+                  {{ part }}：{{ currentCharacter.身体[part].当前状态 || '暂无记录' }}； 开发程度：{{
+                    currentCharacter.身体[part].开发程度 || '暂无记录'
+                  }}
+                </li>
               </ul>
-              <p v-else>暂无记录</p>
             </section>
           </template>
           <section v-else class="field full-width">
@@ -108,8 +114,16 @@ import { completeMinorRole, loadMinorCorruptionTemplate } from '../手机界面/
 
 // 世界书的 <MinorCharInfo> 捕获组：{ "角色": [{ "名称": "…", ... }] }。
 const rawJson = $1 || {};
-const listFields = ['名称检索词', '身份', '身体开发状态', '能力描述'];
+const listFields = ['名称检索词', '身份', '能力描述'];
 const textFields = ['背景', '外貌', '性格'];
+const bodyParts = ['小穴', '口穴', '菊穴', '胸部'];
+const validBody = body =>
+  body &&
+  typeof body === 'object' &&
+  !Array.isArray(body) &&
+  Array.isArray(body.特殊状态) &&
+  body.特殊状态.every(state => typeof state === 'string') &&
+  bodyParts.every(part => ['当前状态', '特征', '开发程度'].every(field => typeof body[part]?.[field] === 'string'));
 const source = rawJson && typeof rawJson === 'object' && !Array.isArray(rawJson) ? rawJson.角色 : null;
 const isValidCharacter = character =>
   character &&
@@ -121,6 +135,7 @@ const isValidCharacter = character =>
     field => Array.isArray(character[field]) && character[field].every(item => typeof item === 'string'),
   ) &&
   textFields.every(field => typeof character[field] === 'string') &&
+  validBody(character.身体) &&
   (character.当前评级 === undefined || typeof character.当前评级 === 'string');
 const inputError =
   !Array.isArray(source) ||
@@ -173,7 +188,7 @@ async function recordCharacter() {
     if (!globalMvuData.value?.stat_data?.角色) throw new Error('当前楼层缺少角色数据');
     if (isRecorded.value) throw new Error('该角色已存在，原有档案不会被覆盖');
 
-    const { 名称, 名称检索词, 身份, 当前评级, 背景, 外貌, 性格, 身体开发状态, 能力描述 } = currentCharacter.value;
+    const { 名称, 名称检索词, 身份, 当前评级, 背景, 外貌, 性格, 身体, 能力描述 } = currentCharacter.value;
     await MvuUtil.updateMvuDataByDiff({
       角色: {
         次要角色: {
@@ -187,7 +202,7 @@ async function recordCharacter() {
               背景,
               外貌,
               性格,
-              身体开发状态: [...身体开发状态],
+              身体: structuredClone(身体),
               能力描述: [...能力描述],
             },
             minorTemplate,

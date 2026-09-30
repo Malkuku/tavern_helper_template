@@ -57,6 +57,13 @@ const bodyPart = z.strictObject({
   特征: z.string(),
   开发程度: z.string(),
 });
+const bodySchema = z.strictObject({
+  特殊状态: z.array(z.unknown()),
+  小穴: bodyPart,
+  口穴: bodyPart,
+  菊穴: bodyPart,
+  胸部: bodyPart,
+});
 
 export const roleMetaSchema = z.strictObject({
   avatar: z.string(),
@@ -76,13 +83,7 @@ export const mainRoleSchema = z.strictObject({
     日常外貌: z.string(),
     魔法少女形态: z.strictObject({ 正常: z.string(), 恶堕: z.string() }),
   }),
-  身体: z.strictObject({
-    特殊状态: z.array(z.unknown()),
-    小穴: bodyPart,
-    口穴: bodyPart,
-    菊穴: bodyPart,
-    胸部: bodyPart,
-  }),
+  身体: bodySchema,
   性格: z.string(),
   核心创伤: z.string(),
   人设阶段: z.strictObject({ 创伤稳定度: stage, 好感度: stage, 恶堕度: stage }),
@@ -103,7 +104,7 @@ export const minorRoleSchema = z.strictObject({
   背景: z.string(),
   外貌: z.string(),
   性格: z.string(),
-  身体开发状态: z.array(z.string()),
+  身体: bodySchema,
   能力描述: z.array(z.string()),
   人设阶段: z.strictObject({ 恶堕度: stage }).optional(),
 });

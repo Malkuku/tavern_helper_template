@@ -44,11 +44,17 @@
             ></textarea>
           </label>
           <label
-            >身体开发状态（每行一项）<textarea
-              :value="runtimeMinorDraft.身体开发状态.join('\n')"
-              @input="setMinorList('身体开发状态', $event)"
+            >身体特殊状态（每行一项）<textarea
+              :value="runtimeMinorDraft.身体.特殊状态.join('\n')"
+              @input="setMinorSpecialStates($event)"
             ></textarea>
           </label>
+          <div v-for="part in bodyPartNames" :key="part" class="pre-body-part">
+            <h3>{{ part }}</h3>
+            <label>当前状态<textarea v-model="runtimeMinorDraft.身体[part].当前状态"></textarea></label>
+            <label>特征<textarea v-model="runtimeMinorDraft.身体[part].特征"></textarea></label>
+            <label>开发程度<textarea v-model="runtimeMinorDraft.身体[part].开发程度"></textarea></label>
+          </div>
           <label
             >能力描述（每行一项）<textarea
               :value="runtimeMinorDraft.能力描述.join('\n')"
@@ -197,7 +203,7 @@
             <label>背景<textarea v-model="draft.data.背景" rows="4"></textarea></label>
             <label>外貌<textarea v-model="draft.data.外貌" rows="4"></textarea></label>
             <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
-            <p class="pre-hint">身份、身体开发状态和能力描述可在“编辑完整数据”中逐项修改。</p>
+            <p class="pre-hint">身份、身体状态和能力描述可在“编辑完整数据”中逐项修改。</p>
             <label class="pre-check"><input v-model="draft.data.在场" type="checkbox" />初始在场</label>
           </template>
         </section>
@@ -312,6 +318,7 @@ function defaultData(type: PhoneRoleType): Record<string, any> {
       技能: {},
       物品: {},
     };
+  const part = () => ({ 当前状态: '', 特征: '', 开发程度: '' });
   if (type === '次要角色')
     return {
       名称检索词: [],
@@ -322,10 +329,9 @@ function defaultData(type: PhoneRoleType): Record<string, any> {
       背景: '',
       外貌: '',
       性格: '',
-      身体开发状态: [],
+      身体: { 特殊状态: [], 小穴: part(), 口穴: part(), 菊穴: part(), 胸部: part() },
       能力描述: [],
     };
-  const part = () => ({ 当前状态: '', 特征: '', 开发程度: '' });
   const stage = () => ({ 当前等级: 0, 累计经验: 0, 描述: {} });
   return {
     在场: false,
@@ -358,13 +364,25 @@ function setDraft(id: string, asset: PhoneRoleAsset | null) {
 function openRuntimeMinor(key: string) {
   const role = runtime.value.次要角色?.[key] as 次要角色人设 | undefined;
   if (!role) return;
+  if (!role.身体) {
+    error.value = '该角色仍使用旧身体开发状态数组，无法按新身体结构编辑；请先迁移存档数据。';
+    return;
+  }
   runtimeMinorKey.value = key;
   runtimeMinorOriginal.value = klona(role);
   runtimeMinorDraft.value = klona(role);
   error.value = '';
   notice.value = '';
 }
-function setMinorList(field: '身份' | '名称检索词' | '区域检索词' | '身体开发状态' | '能力描述', event: Event) {
+const bodyPartNames = ['小穴', '口穴', '菊穴', '胸部'] as const;
+function setMinorSpecialStates(event: Event) {
+  if (runtimeMinorDraft.value)
+    runtimeMinorDraft.value.身体.特殊状态 = (event.target as HTMLTextAreaElement).value
+      .split('\n')
+      .map(item => item.trim())
+      .filter(Boolean);
+}
+function setMinorList(field: '身份' | '名称检索词' | '区域检索词' | '能力描述', event: Event) {
   if (runtimeMinorDraft.value)
     runtimeMinorDraft.value[field] = (event.target as HTMLTextAreaElement).value
       .split('\n')

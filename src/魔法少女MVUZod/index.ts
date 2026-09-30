@@ -24,6 +24,14 @@ const stage = object({ 当前等级: number.optional(), 累计经验: number.opt
 const item = object({ 数量: number.optional(), 耐久: number.optional(), 价格: number.optional() });
 const skill = object({ 价格: number.optional() });
 const quest = object({ 奖励: number.optional(), 已完成: z.boolean().optional() });
+const bodyPart = object({ 当前状态: z.string(), 特征: z.string(), 开发程度: z.string() });
+const body = object({
+  特殊状态: z.array(z.unknown()),
+  小穴: bodyPart,
+  口穴: bodyPart,
+  菊穴: bodyPart,
+  胸部: bodyPart,
+});
 const mapNode: z.ZodType = z.lazy(() =>
   object({
     详情: z.array(z.string()).optional(),
@@ -47,6 +55,7 @@ export const Schema = object({
     }).optional(),
     主要角色: map(
       object({
+        身体: body.optional(),
         人设阶段: object({
           创伤稳定度: stage.optional(),
           好感度: stage.optional(),
@@ -54,7 +63,9 @@ export const Schema = object({
         }).optional(),
       }),
     ).optional(),
-    次要角色: map(object({ 人设阶段: object({ 恶堕度: stage.optional() }).optional() })).optional(),
+    次要角色: map(
+      object({ 身体: body.optional(), 人设阶段: object({ 恶堕度: stage.optional() }).optional() }),
+    ).optional(),
   }).optional(),
   地图: map(mapNode).optional(),
   世界: object({ 时间: worldTime, 地图索引: z.string().optional() }).optional(),
