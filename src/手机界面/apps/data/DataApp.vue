@@ -9,8 +9,10 @@
       <CharacterObservation
         v-else-if="app === '主要角色' || app === '次要角色'"
         :data="statStore.statData"
+        :selected-target-id="selectedTargetId"
         :target-key="targetKey"
         :target-request-id="targetRequestId"
+        @update:selected-target-id="emit('update:selectedTargetId', $event)"
         @first-target-chosen="emit('firstTargetChosen')"
       />
       <Profile v-else-if="app === '我的档案'" :data="statStore.statData" />
@@ -28,7 +30,7 @@ import Profile from './Profile.vue';
 import Skills from './Skills.vue';
 import Items from './Items.vue';
 
-defineProps<{ app: DataAppName; targetKey?: string | null; targetRequestId?: number | null }>();
-const emit = defineEmits<{ firstTargetChosen: [] }>();
+defineProps<{ app: DataAppName; selectedTargetId?: string | null; targetKey?: string | null; targetRequestId?: number | null }>();
+const emit = defineEmits<{ firstTargetChosen: []; 'update:selectedTargetId': [id: string | null] }>();
 const statStore = useMagicGirlStatStore();
 </script>

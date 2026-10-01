@@ -99,8 +99,10 @@
         <DataApp
           v-else-if="tab === 'observe'"
           app="主要角色"
+          :selected-target-id="selectedTargetId"
           :target-key="props.openRequest?.tab === 'observe' ? props.openRequest.target : null"
           :target-request-id="props.openRequest?.tab === 'observe' ? props.openRequest.id : null"
+          @update:selected-target-id="emit('update:selectedTargetId', $event)"
           @first-target-chosen="selectTab('tasks')"
         />
 
@@ -211,6 +213,7 @@ const tabs: { key: Tab; label: string }[] = [
 ];
 const store = useMagicGirlStatStore();
 const props = defineProps<{
+  selectedTargetId?: string | null;
   openRequest?: {
     tab: 'tasks' | 'observe' | 'shop';
     target?: string;
@@ -218,6 +221,7 @@ const props = defineProps<{
     id: number;
   } | null;
 }>();
+const emit = defineEmits<{ 'update:selectedTargetId': [id: string | null] }>();
 const needsFirstTarget = (data: typeof store.statData) => data?.系统?.已发现目标?.length === 0;
 const tab = ref<Tab>(needsFirstTarget(store.statData) ? 'observe' : 'home');
 const subpage = ref('');

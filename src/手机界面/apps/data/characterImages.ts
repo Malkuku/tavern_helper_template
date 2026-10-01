@@ -9,6 +9,7 @@ export const characterImages = {
   索菲亚: { 日常: 1, 魔法少女: 1, 恶堕: 1 },
   小鸟游琉璃: { 日常: 1, 魔法少女: 1, 恶堕: 1 },
   林沐沐: { 日常: 1, 魔法少女: 1, 恶堕: 1 },
+  987:{ 日常: 2, 魔法少女: 1, 恶堕: 1 }
 } as const;
 
 export type CharacterImageForm = keyof (typeof characterImages)['鹭见凛'];

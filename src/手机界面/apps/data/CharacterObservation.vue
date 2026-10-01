@@ -441,9 +441,12 @@ import StageHelp from './StageHelp.vue';
 import StageProgress from './StageProgress.vue';
 import CorruptionNextReward from './CorruptionNextReward.vue';
 
-const props = defineProps<{ data: stat_data; targetKey?: string | null; targetRequestId?: number | null }>();
-const emit = defineEmits<{ firstTargetChosen: [] }>();
-const selectedId = ref<string | null>(null);
+const props = defineProps<{ data: stat_data; selectedTargetId?: string | null; targetKey?: string | null; targetRequestId?: number | null }>();
+const emit = defineEmits<{ firstTargetChosen: []; 'update:selectedTargetId': [id: string | null] }>();
+const selectedId = computed({
+  get: () => props.selectedTargetId ?? null,
+  set: id => emit('update:selectedTargetId', id),
+});
 const selectorOpen = ref(false);
 const selectorSearch = ref('');
 const selectorTrigger = ref<HTMLButtonElement | null>(null);
@@ -460,6 +463,11 @@ const statStore = useMagicGirlStatStore();
 const pages = ['概览', '身体', '档案'] as const;
 const page = ref<(typeof pages)[number]>('概览');
 const visibleTargets = computed(() => observationRoster(props.data));
+watch(visibleTargets, targets => {
+  if (selectedId.value && !targets.some(target => target.id === selectedId.value)) {
+    selectedId.value = targets[0]?.id ?? null;
+  }
+});
 const targetIsChosen = (key: string) => props.data.系统?.已发现目标?.includes(key) === true;
 const targetAvatar = (target: ObservationTarget): string | undefined =>
   target.kind === '主要角色'

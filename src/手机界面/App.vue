@@ -103,7 +103,7 @@
               </main>
 
               <main v-else-if="activeApp === '魔女恶堕计划'" :key="'witch-app'" class="data-app-screen">
-                <WitchApp :open-request="witchOpenRequest" />
+                <WitchApp v-model:selected-target-id="observationTargetId" :open-request="witchOpenRequest" />
               </main>
 
               <PhoneUtilities
@@ -276,6 +276,7 @@ const wechatUnread = computed(
 );
 const rewardMailUnread = computed(() => !!statStore.statData?.手机.恶堕奖励.邮件.some(mail => !mail.已读));
 const activeApp = ref<string | null>(null);
+const observationTargetId = ref<string | null>(null);
 watch([activeApp, open], ([app, isOpen]) => {
   if (!isOpen || app !== '设置') notificationPreviewQueue.value = [];
 });
