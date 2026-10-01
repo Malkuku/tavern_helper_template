@@ -5,6 +5,7 @@ import {
   stageExperienceProgress,
 } from '../src/手机界面/store/stageProgression';
 import type { stat_data, 阶段状态 } from '../src/手机界面/types';
+import { adjacentLevelDescription } from '../src/手机界面/apps/data/entries';
 
 function stage(min: number, max: number, level: number, experience: number): 阶段状态 {
   return {
@@ -51,6 +52,25 @@ assert.deepEqual(stageExperienceProgress(stage(0, 6, 2, -10), '恶堕度'), {
   direction: 'none',
   percent: 0,
 });
+const previewStage = { 当前等级: 1, 累计经验: 5, 描述: { '0': '上一阶段', '1': '当前阶段', '2': '下一阶段' } };
+assert.deepEqual(adjacentLevelDescription(previewStage, '好感度'), {
+  level: 2,
+  direction: '前进',
+  description: '下一阶段',
+});
+previewStage.累计经验 = -5;
+assert.deepEqual(adjacentLevelDescription(previewStage, '创伤稳定度'), {
+  level: 0,
+  direction: '回退',
+  description: '上一阶段',
+});
+assert.deepEqual(adjacentLevelDescription(previewStage, '恶堕度'), {
+  level: 2,
+  direction: '前进',
+  description: '下一阶段',
+});
+previewStage.当前等级 = 0;
+assert.equal(adjacentLevelDescription(previewStage, '好感度'), undefined);
 
 const mildPressure = data(stage(0, 5, 5, -30));
 assert.equal(settleCharacterStages(mildPressure), false, '单轮重大影响不能从全新 5 级直接降级');
@@ -88,6 +108,12 @@ const minor = data(stage(0, 5, 5, 0));
 minor.角色.次要角色.新角色.人设阶段!.恶堕度.累计经验 = 30;
 assert.equal(settleCharacterStages(minor), true, '新次要角色参与结算，旧存档缺字段可继续读取');
 assert.equal(minor.角色.次要角色.新角色.人设阶段!.恶堕度.当前等级, 1);
+minor.角色.次要角色.新角色.人设阶段!.好感度 = stage(-2, 5, 0, 20);
+assert.equal(settleCharacterStages(minor), true, '次要角色好感度沿用主要角色跨级规则');
+assert.equal(minor.角色.次要角色.新角色.人设阶段!.好感度!.当前等级, 1);
+minor.角色.次要角色.新角色.人设阶段!.好感度!.累计经验 = -20;
+assert.equal(settleCharacterStages(minor), true, '次要角色好感度允许回退');
+assert.equal(minor.角色.次要角色.新角色.人设阶段!.好感度!.当前等级, 0);
 
 const limits = data(stage(0, 5, 5, 1000), stage(-2, 3, -2, -1000));
 assert.equal(settleCharacterStages(limits), false, '范围端点保留超出经验，不产生不存在的描述等级');

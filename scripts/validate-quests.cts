@@ -26,6 +26,10 @@ entries.push({
   name: '<模板>通用恶堕值',
   content: readFileSync(`${root}\\系统配置\\通用恶堕值.json`, 'utf8'),
 });
+entries.push({
+  name: '<模板>通用好感度',
+  content: readFileSync(`${root}\\系统配置\\通用好感度.json`, 'utf8'),
+});
 const assembled = reconcileWorldbookStatData({ 作者: 987 }, entries);
 assert.equal(assembled.data.任务统计.开始周, taskWeekKey(assembled.data.世界.时间), '初始周由实际开局世界时间计算');
 assert.deepEqual(assembled.data.任务候选, {});
@@ -202,5 +206,5 @@ assert.equal(withTarget.discoveredTargets[0].好感度.当前描述, '信任');
 assert.equal(generationPreview([]).discoveredTargets.length, 0, '没有已发现目标时不泄漏预置角色');
 assert.match(generationRule, /至少提供一项有机会提升其好感度的任务/);
 assert.match(generationRule, /保留至少 2 项恶堕、色情或调教倾向的任务/);
-assert.match(generationRule, /禁止全部集中于一个角色/);
+assert.match(generationRule, /有已发现且具备好感度的角色时/);
 console.info('组织任务定向验证通过。');

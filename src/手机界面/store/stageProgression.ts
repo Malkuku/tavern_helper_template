@@ -95,8 +95,11 @@ export function settleCharacterStages(data: stat_data): boolean {
     }
   }
   for (const [key, role] of Object.entries(data.角色?.次要角色 ?? {})) {
-    if (!role.人设阶段?.恶堕度) continue; // 旧存档中的次要角色可缺少该字段。
-    changed = settleStage(role.人设阶段.恶堕度, '恶堕度', `角色.次要角色.${key}.人设阶段.恶堕度`) || changed;
+    for (const kind of ['好感度', '恶堕度'] as const) {
+      const value = role.人设阶段?.[kind];
+      if (!value) continue; // 旧存档中的次要角色可缺少该字段。
+      changed = settleStage(value, kind, `角色.次要角色.${key}.人设阶段.${kind}`) || changed;
+    }
   }
   return changed;
 }

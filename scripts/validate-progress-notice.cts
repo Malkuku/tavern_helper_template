@@ -7,7 +7,7 @@ function snapshot(progress = '进行中', completed = false, mainLevel = 2, mino
     任务: { 巡查: { 当前进度: progress, 已完成: completed } },
     角色: {
       主要角色: { 小雨: { 人设阶段: { 创伤稳定度: { 当前等级: mainLevel, 累计经验: experience } } } },
-      次要角色: { 小花: { 人设阶段: { 恶堕度: { 当前等级: minorLevel } } } },
+      次要角色: { 小花: { 人设阶段: { 好感度: { 当前等级: minorLevel }, 恶堕度: { 当前等级: minorLevel } } } },
     },
   } as unknown as stat_data;
 }
@@ -18,14 +18,15 @@ assert.deepEqual(progressNotices(before, snapshot()), []);
 assert.deepEqual(progressNotices(before, snapshot('进行中', false, 2, 0, 20)), []);
 
 const changes = progressNotices(before, snapshot('找到线索', true, 3, 1));
-assert.equal(changes.length, 3);
+assert.equal(changes.length, 4);
 assert.deepEqual(
   changes.map(item => item.title),
-  ['巡查', '小雨 · 创伤稳定度', '小花 · 恶堕度'],
+  ['巡查', '小雨 · 创伤稳定度', '小花 · 好感度', '小花 · 恶堕度'],
 );
 assert.equal(changes[0].detail, '进行中 → 找到线索 · 已完成');
 assert.equal(changes[1].detail, '2 级 → 3 级');
 assert.equal(changes[2].detail, '0 级 → 1 级');
+assert.equal(changes[3].detail, '0 级 → 1 级');
 
 const newTask = snapshot();
 newTask.任务['新任务'] = { 当前进度: '进行中' } as stat_data['任务'][string];

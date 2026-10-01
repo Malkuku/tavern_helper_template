@@ -1,4 +1,4 @@
-import type { 角色人设 } from '../../types';
+import type { 角色人设, 次要角色人设 } from '../../types';
 
 const baseUrl = 'https://gitgud.io/mouse789/magical-girl-corruption/-/raw/master';
 
@@ -8,8 +8,10 @@ export const characterImages = {
   雨宫雫: { 日常: 1, 魔法少女: 2, 恶堕: 1 },
   索菲亚: { 日常: 1, 魔法少女: 1, 恶堕: 1 },
   小鸟游琉璃: { 日常: 1, 魔法少女: 1, 恶堕: 1 },
-  林沐沐: { 日常: 1, 魔法少女: 1, 恶堕: 1 },
-  987:{ 日常: 2, 魔法少女: 1, 恶堕: 1 }
+  林沐沐: { 日常: 1, 魔法少女: 1, 恶堕: 1
+
+   },
+  "987":{ 日常: 2, 魔法少女: 1, 恶堕: 1 }
 } as const;
 
 export type CharacterImageForm = keyof (typeof characterImages)['鹭见凛'];
@@ -21,6 +23,6 @@ export function characterImageUrl(key: string, form: CharacterImageForm, index =
   return `${baseUrl}/${encodeURIComponent(key)}/${encodeURIComponent(`${filename}${index}.webp`)}`;
 }
 
-export function availableCharacterImageForms(role: Pick<角色人设, '人设阶段'>): CharacterImageForm[] {
-  return role.人设阶段.恶堕度.当前等级 >= 4 ? ['日常', '魔法少女', '恶堕'] : ['日常', '魔法少女'];
+export function availableCharacterImageForms(role: Pick<角色人设 | 次要角色人设, '人设阶段'>): CharacterImageForm[] {
+  return (role.人设阶段?.恶堕度?.当前等级 ?? 0) >= 4 ? ['日常', '魔法少女', '恶堕'] : ['日常', '魔法少女'];
 }

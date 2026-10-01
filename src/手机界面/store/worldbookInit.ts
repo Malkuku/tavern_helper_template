@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { initialStatDataSchema, roleMetaSchema } from './initialDataSchema';
 import { wechatRoleAvatar } from '../../尘史使徒/UI/components/common/roleAvatarFallback';
 import { emptyTaskWeek, taskWeekKey } from '../apps/quests/quests';
-import { completeMinorRole, parseMinorCorruptionTemplate } from './minorCorruption';
+import { completeMinorRole, parseMinorStageTemplates } from './minorStages';
 import { completeCurrentRating } from './roleRating';
 import { privateKey } from '../apps/wechat/wechatData';
 
@@ -125,7 +125,7 @@ export function reconcileWorldbookStatData(
       const role = { ...klona(entry.data), ...(entry.meta ? { meta: klona(entry.meta) } : {}) };
       bucket[entry.key] =
         entry.type === '次要角色'
-          ? completeMinorRole(role, parseMinorCorruptionTemplate(entries))
+          ? completeMinorRole(role, parseMinorStageTemplates(entries))
           : completeCurrentRating(role);
     }
   }

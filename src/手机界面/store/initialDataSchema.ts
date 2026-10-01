@@ -106,7 +106,7 @@ export const minorRoleSchema = z.strictObject({
   性格: z.string(),
   身体: bodySchema,
   能力描述: z.array(z.string()),
-  人设阶段: z.strictObject({ 恶堕度: stage }).optional(),
+  人设阶段: z.strictObject({ 恶堕度: stage.optional(), 好感度: stage.optional() }).optional(),
 });
 
 export const userRoleSchema = z.strictObject({

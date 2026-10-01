@@ -62,9 +62,9 @@
                     openMessageMenu(message, message.内容[sourceIndex], sourceIndex, $event.clientX, $event.clientY)
                   "
                   @touchstart.passive="startMessageHold(message, message.内容[sourceIndex], sourceIndex, $event)"
-                  @touchend="cancelMessageHold"
+                  @touchend="endMessageHold"
                   @touchmove="cancelMessageHold"
-                  @touchcancel="cancelMessageHold"
+                  @touchcancel="cancelMessageHoldGesture"
                 >
                   <WeChatMessageContent
                     :items="[part]"
@@ -162,7 +162,9 @@
           >
             引用
           </button>
-          <button type="button" role="menuitem" @click="deleteMessageFloor">删除本楼及后续消息</button>
+          <button class="wx-message-menu-delete" type="button" role="menuitem" @click="deleteMessageFloor">
+            删除本楼及后续消息
+          </button>
         </div>
       </div>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
@@ -1315,22 +1317,38 @@ function isSticker(item: 微信消息内容): boolean {
   return typeof item === 'string' && /^<表情包>[\s\S]*?<\/表情包>$/.test(item);
 }
 let messageHoldTimer: ReturnType<typeof setTimeout> | undefined;
+let messageHoldOpened = false;
 function openMessageMenu(message: 微信消息, part: 微信消息内容, index: number, clientX: number, clientY: number) {
   cancelMessageHold();
   const rect = chatRoot.value?.getBoundingClientRect();
   if (!rect) return;
   messageMenuPosition.value = {
-    left: `${Math.max(8, Math.min(clientX - rect.left - 136, rect.width - 280))}px`,
-    top: `${Math.max(8, Math.min(clientY - rect.top + 10, rect.height - 58))}px`,
+    left: `${Math.max(8, Math.min(clientX - rect.left - 116, rect.width - 240))}px`,
+    top: `${Math.max(8, Math.min(clientY - rect.top - 112, rect.height - 104))}px`,
   };
   messageMenu.value = { ...message, 内容: [part], 内容下标: index };
 }
 function startMessageHold(message: 微信消息, part: 微信消息内容, index: number, event: TouchEvent) {
   cancelMessageHold();
+  messageHoldOpened = false;
   const touch = event.touches[0];
   if (!touch) return;
   const { clientX, clientY } = touch;
-  messageHoldTimer = setTimeout(() => openMessageMenu(message, part, index, clientX, clientY), 500);
+  messageHoldTimer = setTimeout(() => {
+    messageHoldOpened = true;
+    openMessageMenu(message, part, index, clientX, clientY);
+  }, 500);
+}
+function endMessageHold(event: TouchEvent) {
+  cancelMessageHold();
+  if (messageHoldOpened) {
+    event.preventDefault();
+    messageHoldOpened = false;
+  }
+}
+function cancelMessageHoldGesture() {
+  cancelMessageHold();
+  messageHoldOpened = false;
 }
 function cancelMessageHold() {
   if (messageHoldTimer) clearTimeout(messageHoldTimer);

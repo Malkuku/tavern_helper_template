@@ -969,24 +969,35 @@
 }
 .wechat .wx-message-menu {
   position: absolute;
-  display: flex;
-  gap: 1px;
-  width: min(272px, calc(100% - 16px));
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(232px, calc(100% - 16px));
   padding: 4px;
-  border-radius: 8px;
-  background: #3b3b3b;
-  box-shadow: 0 8px 24px #0005;
+  border-radius: 12px;
+  background: #303237;
+  box-shadow: 0 8px 24px #0006;
 }
 .wechat .wx-message-menu button {
-  flex: 1;
   min-width: 0;
-  min-height: 38px;
-  padding: 4px;
+  min-height: 44px;
+  padding: 8px;
   border: 0;
+  border-radius: 8px;
   background: transparent;
   color: #fff;
-  font-size: 12px;
-  line-height: 1.2;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.wechat .wx-message-menu button:active,
+.wechat .wx-message-menu button:focus-visible {
+  background: #ffffff21;
+}
+.wechat .wx-message-menu .wx-message-menu-delete {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ffffff25;
+  border-radius: 0 0 8px 8px;
+  color: #ffaaa4;
 }
 .wechat .wx-compose-quote {
   min-height: 42px;
@@ -3015,7 +3026,8 @@
   border: 1px dashed var(--wx-green);
   box-shadow: none;
 }
-.wechat .wx-message .wx-bubble.wx-bubble-sticker {
+.wechat .wx-message .wx-bubble.wx-bubble-sticker,
+.wechat .wx-message.mine .wx-bubble.wx-bubble-sticker {
   padding: 0;
   border: 0;
   background: transparent;

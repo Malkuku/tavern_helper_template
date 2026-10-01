@@ -15,6 +15,7 @@ const load = (name: string) => readFileSync(join(fixtureRoot, '系统配置', na
 const entries = [
   ...['唯一开局', '角色资源', '地图资源'].map(name => entry('<配置>' + name, load(name))),
   entry('<模板>通用恶堕值', load('通用恶堕值')),
+  entry('<模板>通用好感度', load('通用好感度')),
 ];
 const withEntry = (name: string, value: unknown) =>
   entries.map(item => (item.name === '<配置>' + name ? entry('<配置>' + name, JSON.stringify(value)) : item));
@@ -38,7 +39,13 @@ withMinor[minorId] = {
     背景: '',
     外貌: '',
     性格: '',
-    身体开发状态: [],
+    身体: {
+      特殊状态: [],
+      小穴: { 当前状态: '', 特征: '', 开发程度: '' },
+      口穴: { 当前状态: '', 特征: '', 开发程度: '' },
+      菊穴: { 当前状态: '', 特征: '', 开发程度: '' },
+      胸部: { 当前状态: '', 特征: '', 开发程度: '' },
+    },
     能力描述: [],
   },
 };
@@ -49,6 +56,37 @@ const minorEntries = withEntry('唯一开局', openingWithMinor).map(item =>
 );
 const minorResult = reconcileWorldbookStatData({ 作者: 987 }, minorEntries).data as any;
 assert.deepEqual(minorResult.角色.次要角色.测试次要角色.人设阶段.恶堕度, JSON.parse(load('通用恶堕值')));
+assert.deepEqual(minorResult.角色.次要角色.测试次要角色.人设阶段.好感度, JSON.parse(load('通用好感度')));
+assert.throws(
+  () =>
+    reconcileWorldbookStatData(
+      { 作者: 987 },
+      minorEntries.filter(item => item.name !== '<模板>通用好感度'),
+    ),
+  /通用好感度/,
+);
+assert.throws(
+  () =>
+    reconcileWorldbookStatData(
+      { 作者: 987 },
+      minorEntries.map(item =>
+        item.name === '<模板>通用好感度' ? entry(item.name, '{"当前等级":0,"累计经验":0,"描述":{"0":"陌路"}}') : item,
+      ),
+    ),
+  /-2～5/,
+);
+assert.throws(
+  () =>
+    reconcileWorldbookStatData(
+      { 作者: 987 },
+      minorEntries.map(item =>
+        item.name === '<模板>通用好感度'
+          ? entry(item.name, JSON.stringify({ ...JSON.parse(load('通用好感度')), 当前等级: 1 }))
+          : item,
+      ),
+    ),
+  /0 级、0 经验/,
+);
 assert.equal(minorResult.角色.次要角色.测试次要角色.当前评级, '');
 assert.deepEqual(minorResult.角色.次要角色.测试次要角色.身份, []);
 assert.throws(

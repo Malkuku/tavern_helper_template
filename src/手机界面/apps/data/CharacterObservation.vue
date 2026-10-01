@@ -71,28 +71,25 @@
       <CharacterPortrait :src="heroImageUrl" :name="selectedMainKey!" cover />
       <h2>{{ selectedMainKey }}</h2>
       <p class="monitor-hero-identity">{{ selectedMain.基础信息.身份.join('、') || '身份未记录' }}</p>
-      <div
-        v-if="selectedMainKey && characterImages[selectedMainKey as keyof typeof characterImages]"
-        class="monitor-image-picker"
-      >
-        <button
-          v-for="form in imageForms"
-          :key="form"
-          type="button"
-          :class="{ active: imageForm === form }"
-          :disabled="form === '恶堕' && !unlockedForms.includes('恶堕')"
-          @click="setImageForm(form)"
-        >
-          {{ form === '恶堕' && !unlockedForms.includes('恶堕') ? '恶堕 · 等级 4 解锁' : form }}
-        </button>
-        <button v-if="imageCount > 1" type="button" @click="nextImage">{{ imageIndex }} / {{ imageCount }} →</button>
-      </div>
     </section>
-    <section v-else-if="selectedMinor" class="data-hero monitor-hero minor-hero">
-      <CharacterPortrait :src="null" :name="selectedMinorKey!" cover />
+    <section v-else-if="selectedMinor" class="data-hero monitor-hero" :class="{ 'minor-hero': !heroImageUrl }">
+      <CharacterPortrait :src="heroImageUrl" :name="selectedMinorKey!" cover />
       <h2>{{ selectedMinorKey }}</h2>
-      <p>{{ selectedMinor.身份.join('、') || '身份未记录' }}</p>
+      <p class="monitor-hero-identity">{{ selectedMinor.身份.join('、') || '身份未记录' }}</p>
     </section>
+    <div v-if="imageRoleKey && characterImages[imageRoleKey as keyof typeof characterImages]" class="monitor-image-picker">
+      <button
+        v-for="form in imageForms"
+        :key="form"
+        type="button"
+        :class="{ active: imageForm === form }"
+        :disabled="form === '恶堕' && !unlockedForms.includes('恶堕')"
+        @click="setImageForm(form)"
+      >
+        {{ form === '恶堕' && !unlockedForms.includes('恶堕') ? '恶堕 · 等级 4 解锁' : form }}
+      </button>
+      <button v-if="imageCount > 1" type="button" @click="nextImage">{{ imageIndex }} / {{ imageCount }} →</button>
+    </div>
     <nav class="data-pages" aria-label="角色档案分页">
       <button v-for="item in pages" :key="item" type="button" :class="{ active: page === item }" @click="page = item">
         {{ item }}
@@ -147,10 +144,6 @@
           <h3>当前记录</h3>
         </section>
         <section class="data-card">
-          <h3>当前评级</h3>
-          <RatingEmblem :rating="selectedMinor.当前评级" />
-        </section>
-        <section class="data-card">
           <h3>背景</h3>
           <p class="data-prose">{{ selectedMinor.背景 || '暂无记录' }}</p>
         </section>
@@ -158,6 +151,27 @@
           <h3>外貌</h3>
           <p class="data-prose">{{ selectedMinor.外貌 || '暂无记录' }}</p>
         </section>
+        <LockedField
+          v-if="selectedMinor.人设阶段?.好感度"
+          kind="次要角色"
+          :character-key="selectedMinorKey!"
+          field="好感度"
+          class="observation-stage"
+          data-stage="好感度"
+        >
+          <template #title><StageHelp kind="好感度" /></template>
+          <div class="observation-stage-head">
+            <span class="observation-stage-icon" aria-hidden="true">♡</span>
+            <span class="observation-stage-meaning">关系亲近程度</span>
+            <div class="observation-stage-level">
+              <small>等级</small><strong>{{ selectedMinor.人设阶段.好感度.当前等级 }}</strong>
+            </div>
+          </div>
+          <p class="observation-stage-description">
+            {{ currentLevelDescription(selectedMinor.人设阶段.好感度) || '暂无当前阶段描述' }}
+          </p>
+          <StageProgress :stage="selectedMinor.人设阶段.好感度" kind="好感度" />
+        </LockedField>
         <LockedField
           v-if="selectedMinor.人设阶段?.恶堕度"
           kind="次要角色"
@@ -293,14 +307,26 @@
         </section>
       </template>
       <template v-else-if="selectedMinor">
+        <section class="data-card archive-identity">
+          <div class="archive-section-head"><span>01 / 身份</span><strong>人物资料</strong></div>
+          <div class="archive-identity-row">
+            <div>
+              <small>公开身份</small>
+              <p>{{ selectedMinorKey }} · {{ selectedMinor.身份.join('、') || '身份未记录' }}</p>
+            </div>
+            <div class="archive-identity-rank">
+              <small>当前评级</small><RatingEmblem :rating="selectedMinor.当前评级" tooltip-align="right" />
+            </div>
+          </div>
+        </section>
         <section class="archive-private">
-          <div class="archive-section-head"><span>01 / 内在</span><strong>人物记录</strong></div>
+          <div class="archive-section-head"><span>02 / 内在</span><strong>人物记录</strong></div>
           <LockedField class="archive-secret-field" kind="次要角色" :character-key="selectedMinorKey!" field="性格侧写">
             <p class="data-prose">{{ selectedMinor.性格 || '暂无记录' }}</p>
           </LockedField>
         </section>
         <section class="archive-private">
-          <div class="archive-section-head"><span>02 / 能力</span><strong>能力记录</strong></div>
+          <div class="archive-section-head"><span>03 / 能力</span><strong>能力记录</strong></div>
           <LockedField class="archive-secret-field" kind="次要角色" :character-key="selectedMinorKey!" field="能力描述">
             <p v-for="(ability, index) in selectedMinor.能力描述" :key="index" class="data-prose">{{ ability }}</p>
             <p v-if="!selectedMinor.能力描述.length" class="data-prose">暂无记录</p>
@@ -357,7 +383,7 @@
   <section v-else-if="selectedMain || selectedMinor" class="data-sections candidate-profile">
     <div class="data-hero monitor-hero">
       <CharacterPortrait
-        :src="selectedMainKey ? characterImageUrl(selectedMainKey, '日常') : null"
+        :src="selectedTarget ? characterImageUrl(selectedTarget.key, '日常') : null"
         :name="selectedTarget!.key"
         cover
       />
@@ -527,15 +553,18 @@ const currentMainAbilityLimit = computed(() =>
   selectedMain.value ? currentAbilityLimit(selectedMain.value) : undefined,
 );
 const imageForms: CharacterImageForm[] = ['日常', '魔法少女', '恶堕'];
-const unlockedForms = computed(() => (selectedMain.value ? availableCharacterImageForms(selectedMain.value) : []));
+const imageRoleKey = computed(() => selectedMainKey.value ?? selectedMinorKey.value);
+const unlockedForms = computed(() =>
+  selectedMain.value || selectedMinor.value ? availableCharacterImageForms((selectedMain.value ?? selectedMinor.value)!) : [],
+);
 const imageCount = computed(() =>
-  selectedMainKey.value
-    ? (characterImages[selectedMainKey.value as keyof typeof characterImages]?.[imageForm.value] ?? 0)
+  imageRoleKey.value
+    ? (characterImages[imageRoleKey.value as keyof typeof characterImages]?.[imageForm.value] ?? 0)
     : 0,
 );
 const heroImageUrl = computed(() =>
-  selectedMainKey.value && unlockedForms.value.includes(imageForm.value)
-    ? characterImageUrl(selectedMainKey.value, imageForm.value, imageIndex.value)
+  imageRoleKey.value && unlockedForms.value.includes(imageForm.value)
+    ? characterImageUrl(imageRoleKey.value, imageForm.value, imageIndex.value)
     : null,
 );
 const choiceOptions = firstTargetChoices;
@@ -566,7 +595,7 @@ watch(
     choiceError.value = '';
     page.value = '概览';
     expandedBodyParts.value = [];
-    imageForm.value = '魔法少女';
+    imageForm.value = selectedMinor.value ? '日常' : '魔法少女';
     imageIndex.value = 1;
   },
 );

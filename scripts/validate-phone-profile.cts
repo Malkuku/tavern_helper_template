@@ -23,8 +23,9 @@ assert.equal(unlockPrice('主要角色', '恶堕度'), 2);
 assert.equal(unlockPrice('主要角色', '身体状态'), 2);
 assert.equal(unlockPrice('次要角色', '身体状态'), 2);
 assert.equal(unlockPrice('次要角色', '恶堕度'), 2);
+assert.equal(unlockPrice('次要角色', '好感度'), 2);
 assert.equal(unlockPrice('主要角色', '性格'), 3);
-assert.equal(unlockPrice('主要角色', '背景'), 4);
+assert.equal(unlockPrice('主要角色', '背景'), undefined, '主要角色背景免费展示');
 assert.equal(unlockPrice('主要角色', '核心能力'), 6);
 assert.equal(unlockPrice('主要角色', '核心创伤'), 8);
 assert.equal(unlockPrice('次要角色', '性格侧写'), 3);
@@ -38,8 +39,10 @@ assert.equal(applyCharacterUnlock(data, '次要角色', '丙', '性格侧写'), 
 assert.equal(data.角色.user.恶堕积分, 29);
 assert.equal(applyCharacterUnlock(data, '主要角色', '甲', '好感度'), true);
 assert.equal(data.角色.user.恶堕积分, 27);
-assert.equal(applyCharacterUnlock(data, '主要角色', '甲', '身体状态'), true);
+assert.equal(applyCharacterUnlock(data, '次要角色', '丙', '好感度'), true);
 assert.equal(data.角色.user.恶堕积分, 25);
+assert.equal(applyCharacterUnlock(data, '主要角色', '甲', '身体状态'), true);
+assert.equal(data.角色.user.恶堕积分, 23);
 assert.throws(() => applyCharacterUnlock(data, '主要角色', '甲', '日常外貌'), /无法解锁/);
 assert.equal(data.手机.档案解锁?.主要角色?.乙, undefined, '角色之间不共享解锁');
 

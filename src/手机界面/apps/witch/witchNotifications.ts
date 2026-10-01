@@ -39,9 +39,11 @@ export function stageLevelSnapshot(data: stat_data): Map<string, StageLevel> {
     }
   }
   for (const [key, role] of Object.entries(data.角色?.次要角色 ?? {})) {
-    const level = role.人设阶段?.恶堕度?.当前等级;
-    if (typeof level === 'number' && Number.isSafeInteger(level))
-      levels.set(`次要角色:${key}:恶堕度`, { kind: '次要角色', key, stage: '恶堕度', level });
+    for (const stage of ['好感度', '恶堕度'] as const) {
+      const level = role.人设阶段?.[stage]?.当前等级;
+      if (typeof level === 'number' && Number.isSafeInteger(level))
+        levels.set(`次要角色:${key}:${stage}`, { kind: '次要角色', key, stage, level });
+    }
   }
   return levels;
 }

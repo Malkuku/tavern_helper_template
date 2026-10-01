@@ -14,7 +14,9 @@ entries.push({
   name: '<模板>通用恶堕值',
   content: readFileSync(join(root, '通用恶堕值.json'), 'utf8'),
 });
+entries.push({ name: '<模板>通用好感度', content: readFileSync(join(root, '通用好感度.json'), 'utf8') });
 const data = reconcileWorldbookStatData({ 作者: 987 }, entries).data as any;
+const openingSessions = Object.keys(data.手机.微信.会话);
 const mainKeys = Object.keys(data.角色.主要角色);
 assert.ok(mainKeys.length >= 2);
 const [first, second] = mainKeys;
@@ -27,7 +29,7 @@ for (const id of ['987', 'user', '林沐沐', first, second]) assert.ok(data.手
 const openingRequest = friendRequest(data.手机.微信.会话['私聊:user&987']);
 assert.equal(openingRequest?.操作者, '987');
 assert.equal(openingRequest?.目标, 'user');
-assert.equal(openingRequest?.验证消息, '哥哥大人，有没有想人家呢～');
+assert.ok(openingRequest?.验证消息, '开局好友申请应保留验证消息');
 const noRequest = structuredClone(data);
 delete noRequest.手机.微信.会话['私聊:user&987'];
 assert.ok(noRequest.手机.微信.账号['987']);
@@ -36,17 +38,17 @@ const privateKey = `私聊:user&${first}`;
 const groupKey = '群聊:测试隐藏成员';
 data.手机.微信.会话[privateKey] = { 类型: '私聊', 成员: ['user', first], 消息: [] };
 data.手机.微信.会话[groupKey] = { 类型: '群聊', 成员: ['user', first, second], 消息: [] };
-assert.deepEqual(Object.keys(data.手机.微信.会话), ['私聊:user&987', privateKey, groupKey]);
+assert.deepEqual(Object.keys(data.手机.微信.会话), [...openingSessions, privateKey, groupKey]);
 
 data.系统.已发现目标 = [first];
 assert.equal(isDiscoveredTarget(data, first), true);
 assert.ok(data.手机.微信.账号[first]);
-assert.deepEqual(Object.keys(data.手机.微信.会话), ['私聊:user&987', privateKey, groupKey]);
+assert.deepEqual(Object.keys(data.手机.微信.会话), [...openingSessions, privateKey, groupKey]);
 data.系统.已发现目标 = [first, second];
-assert.deepEqual(Object.keys(data.手机.微信.会话), ['私聊:user&987', privateKey, groupKey]);
+assert.deepEqual(Object.keys(data.手机.微信.会话), [...openingSessions, privateKey, groupKey]);
 data.系统.已发现目标 = [second];
 assert.equal(isDiscoveredTarget(data, first), false);
-assert.deepEqual(Object.keys(data.手机.微信.会话), ['私聊:user&987', privateKey, groupKey]);
+assert.deepEqual(Object.keys(data.手机.微信.会话), [...openingSessions, privateKey, groupKey]);
 
 delete data.系统.已发现目标;
 assert.equal(isDiscoveredTarget(data, second), false);

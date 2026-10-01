@@ -5,11 +5,11 @@ import { mainRoleSchema, minorRoleSchema, roleMetaSchema, userRoleSchema } from 
 import type { 角色元数据, 次要角色人设, stat_data } from '../../types';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 import {
-  loadMinorCorruptionTemplate,
-  parseMinorCorruptionTemplate,
+  loadMinorStageTemplates,
+  parseMinorStageTemplates,
   completeMinorRole,
-  type MinorCorruptionTemplate,
-} from '../../store/minorCorruption';
+  type MinorStageTemplates,
+} from '../../store/minorStages';
 import { completeCurrentRating } from '../../store/roleRating';
 
 export const ROLE_ENTRY_NAME = '<配置>角色资源';
@@ -81,7 +81,7 @@ export async function savePhoneRoleAsset(id: string, asset: PhoneRoleAsset, orig
     checked.type === '主要角色'
       ? { ...checked, data: completeCurrentRating(checked.data) }
       : !original && checked.type === '次要角色'
-        ? { ...checked, data: completeMinorRole(checked.data, parseMinorCorruptionTemplate(next)) }
+        ? { ...checked, data: completeMinorRole(checked.data, parseMinorStageTemplates(next)) }
         : checked;
   entry.content = JSON.stringify(registry, null, 2);
   try {
@@ -117,7 +117,7 @@ export function applyPhoneRoleToStatData(
   current: Record<string, any>,
   asset: PhoneRoleAsset,
   overwrite: boolean,
-  minorTemplate?: MinorCorruptionTemplate,
+  minorTemplate?: MinorStageTemplates,
 ): Record<string, any> {
   const next = klona(current);
   const roles = next.角色;
@@ -129,7 +129,7 @@ export function applyPhoneRoleToStatData(
   if (exists && !overwrite) throw new Error('角色已经在当前剧情中，请选择替换。');
   let runtime = runtimeRoleOf(asset);
   if (asset.type === '次要角色') {
-    if (!minorTemplate) throw new Error('缺少次要角色通用恶堕值模板。');
+    if (!minorTemplate) throw new Error('缺少次要角色通用阶段模板。');
     runtime = completeMinorRole(runtime, minorTemplate, exists ? bucket[asset.key] : undefined);
   }
   if (asset.type === '主要角色') runtime = completeCurrentRating(runtime, exists ? bucket[asset.key] : undefined);
@@ -158,7 +158,7 @@ export async function getPhoneRuntimeRoles(): Promise<Record<string, any>> {
 
 export async function applyPhoneRoleToRuntime(asset: PhoneRoleAsset, overwrite: boolean): Promise<void> {
   validateRoleAsset(asset);
-  const minorTemplate = asset.type === '次要角色' ? await loadMinorCorruptionTemplate() : undefined;
+  const minorTemplate = asset.type === '次要角色' ? await loadMinorStageTemplates() : undefined;
   await waitGlobalInitialized('Mvu');
   if (getLastMessageId() < 0) throw new Error('当前聊天没有可写入的消息楼层。');
   const previous = klona(Mvu.getMvuData({ type: 'message', message_id: -1 }) as Record<string, any>);

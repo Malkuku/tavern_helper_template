@@ -48,7 +48,9 @@ export function progressNotices(before?: Snapshot, after?: Snapshot): ProgressNo
   for (const [name, role] of Object.entries(after.角色?.次要角色 ?? {})) {
     const previous = before.角色?.次要角色?.[name];
     if (!previous) continue;
-    addStage('次要角色', name, '恶堕度', previous.人设阶段?.恶堕度?.当前等级, role.人设阶段?.恶堕度?.当前等级);
+    for (const stageName of ['好感度', '恶堕度'] as const) {
+      addStage('次要角色', name, stageName, previous.人设阶段?.[stageName]?.当前等级, role.人设阶段?.[stageName]?.当前等级);
+    }
   }
 
   return notices;

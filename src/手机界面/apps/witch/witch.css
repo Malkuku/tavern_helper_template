@@ -608,11 +608,6 @@
 .witch-app .candidate-profile:has(.character-portrait-empty) .candidate-identity-card {
   display: none;
 }
-.witch-app .minor-hero p {
-  margin: 0;
-  color: #eed1df;
-  font-size: 12px;
-}
 .witch-app .monitor-image-picker {
   display: flex;
   flex-wrap: wrap;
@@ -1787,6 +1782,21 @@
 }
 .witch-app .observation-stage-progress {
   margin-top: 14px;
+}
+.witch-app .observation-stage-adjacent {
+  margin: 12px 0 0;
+  padding: 9px 10px;
+  border-left: 2px solid #ad6b91;
+  color: #dac5d3;
+  background: #ffffff0a;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.witch-app .observation-stage-adjacent span {
+  display: block;
+  margin-bottom: 3px;
+  color: #f4bed9;
 }
 .witch-app .observation-corruption-reward {
   margin: 12px 0 0;

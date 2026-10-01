@@ -110,7 +110,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
-import { completeMinorRole, loadMinorCorruptionTemplate } from '../手机界面/store/minorCorruption';
+import { completeMinorRole, loadMinorStageTemplates } from '../手机界面/store/minorStages';
 
 // 世界书的 <MinorCharInfo> 捕获组：{ "角色": [{ "名称": "…", ... }] }。
 const rawJson = $1 || {};
@@ -182,7 +182,7 @@ async function recordCharacter() {
     fetchGlobalData();
     if (!globalMvuData.value?.stat_data?.角色) throw new Error('当前楼层缺少角色数据');
     if (isRecorded.value) throw new Error('该角色已存在，原有档案不会被覆盖');
-    const minorTemplate = await loadMinorCorruptionTemplate();
+    const minorTemplate = await loadMinorStageTemplates();
     if (SillyTavern.getCurrentChatId() !== chatId) throw new Error('聊天已切换，请在当前剧情重新收录');
     fetchGlobalData();
     if (!globalMvuData.value?.stat_data?.角色) throw new Error('当前楼层缺少角色数据');

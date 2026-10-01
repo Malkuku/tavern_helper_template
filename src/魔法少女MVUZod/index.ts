@@ -64,7 +64,7 @@ export const Schema = object({
       }),
     ).optional(),
     次要角色: map(
-      object({ 身体: body.optional(), 人设阶段: object({ 恶堕度: stage.optional() }).optional() }),
+      object({ 身体: body.optional(), 人设阶段: object({ 好感度: stage.optional(), 恶堕度: stage.optional() }).optional() }),
     ).optional(),
   }).optional(),
   地图: map(mapNode).optional(),
