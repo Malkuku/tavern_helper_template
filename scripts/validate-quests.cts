@@ -102,11 +102,11 @@ legacyDaily.系统.任务下次刷新时间 = '2026-9-29T00:00[2]';
 legacyDaily.世界.时间 = '2026-9-30T09:00[3]';
 assert.equal(taskRefreshState(legacyDaily).remaining, 4, '旧每日刷新记录计入本周已用次数');
 
-for (let index = 1; index <= 4; index++) acceptTask(data, `任务${index}`);
-assert.equal(Object.keys(data.任务候选).length, 2, '接取即从候选移除');
-assert.throws(() => acceptTask(data, '任务5'), /最多同时接取/);
+for (let index = 1; index <= 5; index++) acceptTask(data, `任务${index}`);
+assert.equal(Object.keys(data.任务候选).length, 1, '第五项可接取且从候选移除');
+assert.throws(() => acceptTask(data, '任务6'), /最多同时接取 5 项/);
 data.任务.任务1.已完成 = true;
-assert.throws(() => acceptTask(data, '任务5'), /最多同时接取/, '完成未领奖仍占名额');
+assert.throws(() => acceptTask(data, '任务6'), /最多同时接取 5 项/, '完成未领奖仍占名额');
 assert.throws(() => abandonTask(data, '任务1'), /只能领取/);
 assert.throws(() => claimTask(data, '任务2'), /尚未完成/);
 assert.equal(claimTask(data, '任务1'), 8);
@@ -115,7 +115,7 @@ assert.equal(data.任务统计.周记录['2026-9-28'].完成, 1);
 assert.equal(data.任务统计.周记录['2026-9-28'].完成评级.D, 1);
 assert.equal(data.角色.user.评级贡献, 1, 'D 任务增加固定贡献');
 assert.throws(() => claimTask(data, '任务1'), /没有这项/);
-acceptTask(data, '任务5');
+acceptTask(data, '任务6');
 abandonTask(data, '任务2');
 assert.equal(data.任务统计.周记录['2026-9-28'].放弃, 1);
 assert.equal(data.任务统计.周记录['2026-9-28'].放弃评级.D, 1);
@@ -131,7 +131,7 @@ assert.ok(Object.keys(duplicateData.任务候选).length > 0, '其他候选仍�
 const nextStock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`新任务${index + 1}`, task('C')]));
 refreshTasks(data, `<questVariable>${JSON.stringify(nextStock)}</questVariable>`);
 assert.equal(data.任务候选.任务6, undefined, '成功刷新替换旧候选');
-assert.equal(Object.keys(data.任务).length, 3, '成功刷新保留已接任务');
+assert.equal(Object.keys(data.任务).length, 4, '成功刷新保留已接任务');
 
 data.世界.时间 = '2026-10-5T00:00[1]';
 assert.equal(taskWeekStats(data).previous?.完成, 1);

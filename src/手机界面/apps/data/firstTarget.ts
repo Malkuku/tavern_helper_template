@@ -1,6 +1,7 @@
 import type { stat_data, 物品 } from '../../types';
 import { characterImages } from './characterImages';
 import { mergeItemStack } from './inventoryTransfer';
+import { maxAcceptedTasks } from '../quests/quests';
 
 export const firstTargetChoices = [
   {
@@ -86,7 +87,7 @@ export function assignFirstTarget(data: stat_data, key: string): void {
   if (hasDiscoveredRole(data)) throw new Error('已经有已发现目标，不能重复选择初始目标。');
   const questName = `初始接触：${key}`;
   if (Object.hasOwn(data.任务, questName)) throw new Error('初始接触任务已存在，请检查当前任务。');
-  if (Object.keys(data.任务).length >= 4) throw new Error('已接任务已达上限，无法发放初始接触任务。');
+  if (Object.keys(data.任务).length >= maxAcceptedTasks) throw new Error('已接任务已达上限，无法发放初始接触任务。');
   const grant: 物品 = {
     图标: choice.item.icon,
     描述: choice.item.description,
