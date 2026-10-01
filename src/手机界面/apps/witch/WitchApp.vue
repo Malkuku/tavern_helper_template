@@ -21,7 +21,7 @@
           </div>
           <section
             class="witch-focus-card"
-            :class="featuredTask && ratingVisualClass(featuredTask[1].评级)"
+            :class="featuredTask && ratingVisualClass(effectiveTaskRating(featuredTask[1].评级))"
             aria-label="当前任务"
           >
             <svg class="witch-focus-art" viewBox="0 0 300 210" fill="none" aria-hidden="true">
@@ -55,14 +55,14 @@
             </svg>
             <div class="witch-focus-top">
               <span>当前任务</span>
-              <span v-if="featuredTask">{{ featuredTask[1].已完成 ? '待领取' : `${featuredTask[1].评级} 级` }}</span>
+              <span v-if="featuredTask">{{ featuredTask[1].已完成 ? '待领取' : `${effectiveTaskRating(featuredTask[1].评级)} 级` }}</span>
             </div>
             <template v-if="featuredTask">
               <h2>{{ featuredTask[0] }}</h2>
               <p>{{ featuredTask[1].目标 }}</p>
               <div class="witch-focus-foot">
                 <span>{{ featuredTask[1].已完成 ? '目标已完成' : featuredTask[1].当前进度 }}</span>
-                <strong>+{{ featuredTask[1].奖励 }} 积分</strong>
+                <strong>+{{ effectiveTaskReward(featuredTask[1]) }} 积分</strong>
               </div>
               <button type="button" class="witch-main-action" @click="openTasks">
                 {{ featuredTask[1].已完成 ? '领取奖励' : '查看任务' }} <span aria-hidden="true">↗</span>
@@ -191,7 +191,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { taskWeekStats } from '../quests/quests';
+import { effectiveTaskRating, effectiveTaskReward, taskWeekStats } from '../quests/quests';
 import { witchStabilityNotices, witchTaskNotices } from './witchNotifications';
 import { ratingVisualClass } from './ratingVisual';
 import type { DataAppName } from '../../desktopApps';

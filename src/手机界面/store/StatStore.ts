@@ -86,6 +86,7 @@ import {
   abandonTask as applyTaskAbandon,
   acceptTask as applyTaskAccept,
   claimTask as applyTaskClaim,
+  recoverNonnegativeInteger,
   refreshTasks as applyTaskRefresh,
   taskRefreshState,
 } from '../apps/quests/quests';
@@ -664,7 +665,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     return changeCharacterData(
       data => applyTaskClaim(data, name),
       (before, after, reward) =>
-        `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分、${after.角色.user.评级贡献 - before.角色.user.评级贡献}点评级贡献。`,
+        `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分、${after.角色.user.评级贡献 - recoverNonnegativeInteger(before.角色.user.评级贡献)}点评级贡献。`,
     );
   }
 

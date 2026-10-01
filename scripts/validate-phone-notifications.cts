@@ -7,6 +7,7 @@ import {
   witchTaskNotices,
 } from '../src/手机界面/apps/witch/witchNotifications';
 import type { stat_data } from '../src/手机界面/types';
+import { ratingVisualClass } from '../src/手机界面/apps/witch/ratingVisual';
 
 function data(time = '2026-9-28T12:00[1]'): stat_data {
   return {
@@ -62,6 +63,8 @@ assert.deepEqual(
 );
 
 initial.任务['已完成的任务'] = { 描述: '', 目标: '', 当前进度: '已完成', 评级: 'D', 奖励: 5, 已完成: true };
+assert.equal(ratingVisualClass(initial.任务['已完成的任务'].评级), 'witch-grade-d');
+assert.equal(ratingVisualClass(undefined), undefined, '异常评级不应使首页和任务卡片渲染中断');
 assert.deepEqual(
   witchTaskNotices(initial).map(item => item.title),
   ['任务奖励待领取'],
@@ -77,6 +80,11 @@ assert.deepEqual(
 
 delete initial.任务['已完成的任务'];
 assert.deepEqual(witchTaskNotices(initial), []);
+assert.deepEqual(
+  activeWitchNoticeHistory(['claim:已完成的任务'], witchTaskNotices(initial)),
+  [],
+  '任务已消失时清除脚本变量中的待领奖提醒记录',
+);
 
 initial.世界.时间 = '2026-9-29T00:00[2]';
 assert.deepEqual(

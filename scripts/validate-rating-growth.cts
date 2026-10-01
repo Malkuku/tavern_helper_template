@@ -1,8 +1,11 @@
 // eslint-disable-next-line import-x/no-nodejs-modules
 import assert from 'node:assert/strict';
 import {
+  abandonTask,
   claimTask,
   emptyTaskWeek,
+  effectiveTaskRating,
+  effectiveTaskReward,
   refreshTasks,
   taskWeekHistory,
   taskWeekStats,
@@ -74,4 +77,33 @@ assert.deepEqual(
 assert.equal(data.任务统计.周记录[week].完成, 40, '两周以前的汇总永久保留');
 assert.equal(data.任务统计.周记录['2026-10-12'].完成, 1);
 assert.throws(() => claimTask(data, '测试'), /没有这项/, '任务不能重复领奖');
+assert.equal(effectiveTaskRating(undefined), 'D');
+assert.equal(effectiveTaskRating('S'), 'S');
+const beforeFallbackPoints = data.角色.user.评级贡献;
+const beforeFallbackBalance = data.角色.user.恶堕积分;
+const beforeFallbackClaims = data.任务统计.周记录['2026-10-12'].完成评级.D;
+data.任务.缺失评级 = { ...task('D'), 评级: undefined };
+assert.equal(claimTask(data, '缺失评级'), 10, '评级缺失的已完成任务仍可领奖');
+assert.equal(data.角色.user.评级贡献, beforeFallbackPoints + 1, '缺失评级按 D 级贡献结算');
+assert.equal(data.角色.user.恶堕积分, beforeFallbackBalance + 10, '保留原任务积分奖励');
+assert.equal(data.任务统计.周记录['2026-10-12'].完成评级.D, beforeFallbackClaims + 1);
+assert.equal(data.任务.缺失评级, undefined, '领奖后移除任务以清除提醒');
+data.任务.无效评级 = { ...task('D'), 评级: '未知', 已完成: false };
+abandonTask(data, '无效评级');
+assert.equal(data.任务统计.周记录['2026-10-12'].放弃评级.D, 1, '放弃任务也按 D 级记录');
+const damaged = structuredClone(data);
+damaged.任务 = { 待领奖: { ...task('C'), 奖励: undefined } };
+damaged.角色.user.恶堕积分 = undefined;
+damaged.角色.user.评级贡献 = undefined;
+assert.equal(effectiveTaskReward(damaged.任务.待领奖), 20, '缺失奖励按评级最低值展示');
+assert.equal(claimTask(damaged, '待领奖'), 20, '异常奖励和余额仍可结算');
+assert.equal(damaged.角色.user.恶堕积分, 20);
+assert.equal(damaged.角色.user.评级贡献, 3);
+assert.equal(damaged.任务.待领奖, undefined, '领奖后删除任务，待领奖红点可消失');
+const capped = structuredClone(data);
+capped.任务 = { 待领奖: task('D') };
+capped.角色.user.恶堕积分 = Number.MAX_SAFE_INTEGER;
+capped.角色.user.评级贡献 = Number.MAX_SAFE_INTEGER;
+assert.equal(claimTask(capped, '待领奖'), 0, '数值达到上限时按实际入账额返回');
+assert.equal(capped.任务.待领奖, undefined);
 console.info('评级成长与永久周汇总验证通过。');

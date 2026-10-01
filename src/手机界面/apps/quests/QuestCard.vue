@@ -1,13 +1,17 @@
 <template>
-  <article class="quest-card" :class="ratingVisualClass(task.评级)">
+  <article class="quest-card" :class="ratingVisualClass(effectiveTaskRating(task.评级))">
     <div class="quest-card-heading">
       <strong>{{ name }}</strong
-      ><span>{{ task.评级 }} 级</span>
+      ><span>{{ effectiveTaskRating(task.评级) }} 级</span>
     </div>
     <p class="quest-card-description">{{ task.描述 }}</p>
     <div class="quest-card-detail">目标：{{ task.目标 }}</div>
     <div v-if="accepted" class="quest-card-detail">{{ task.已完成 ? '已完成 · 待领奖' : task.当前进度 }}</div>
-    <small>奖励 {{ task.奖励 }} 恶堕积分 · 评级贡献 +{{ ratingContribution[task.评级] }}</small>
+    <small>
+      奖励 {{ effectiveTaskReward(task) }} 恶堕积分 · 评级贡献 +{{ ratingContribution[effectiveTaskRating(task.评级)] }}
+      <template v-if="task.评级 !== effectiveTaskRating(task.评级)">（评级缺失，按 D 级结算）</template>
+      <template v-if="task.奖励 !== effectiveTaskReward(task)">（奖励异常，按评级最低值结算）</template>
+    </small>
     <slot name="actions" />
   </article>
 </template>
@@ -16,6 +20,7 @@
 import { ratingContribution } from '../../store/userRating';
 import type { 任务 } from '../../types';
 import { ratingVisualClass } from '../witch/ratingVisual';
+import { effectiveTaskRating, effectiveTaskReward } from './quests';
 
 defineProps<{ name: string; task: 任务; accepted: boolean }>();
 </script>

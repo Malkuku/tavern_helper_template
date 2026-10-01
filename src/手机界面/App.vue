@@ -311,12 +311,13 @@ const witchNotices = computed(() => [...statStore.transientNotices, ...collectWi
 const visibleWitchNotice = ref<WitchNotice | null>(null);
 let witchNoticeChatId: string | null = null;
 let witchNoticeHistory: string[] = [];
+let witchNoticeHistoryWrite = Promise.resolve();
 function saveWitchNoticeHistory() {
   if (!witchNoticeChatId) return;
   const chatId = witchNoticeChatId;
   const history = [...witchNoticeHistory];
-  try {
-    void Promise.resolve(
+  witchNoticeHistoryWrite = witchNoticeHistoryWrite
+    .then(() =>
       updateVariablesWith(
         variables => ({
           ...variables,
@@ -324,10 +325,9 @@ function saveWitchNoticeHistory() {
         }),
         { type: 'script', script_id: getScriptId() },
       ),
-    ).catch(error => console.error('应用通知记录保存失败', error));
-  } catch (error) {
-    console.error('应用通知记录保存失败', error);
-  }
+    )
+    .then(() => undefined)
+    .catch(error => console.error('应用通知记录保存失败', error));
 }
 function syncWitchNotice() {
   if (!statStore.statData) {

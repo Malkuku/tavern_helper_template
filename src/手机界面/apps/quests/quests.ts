@@ -7,6 +7,18 @@ import { isWithinGeneratedRating, ratingContribution, userRatingFromContribution
 export type 任务评级 = 任务['评级'];
 export const maxAcceptedTasks = 5;
 const ratings = ['D', 'C', 'B', 'A', 'S'] as const;
+export function effectiveTaskRating(rating: unknown): 任务评级 {
+  return ratings.includes(rating as 任务评级) ? (rating as 任务评级) : 'D';
+}
+const minimumTaskReward: Record<任务评级, number> = { D: 8, C: 20, B: 48, A: 125, S: 350 };
+export function effectiveTaskReward(task: 任务): number {
+  const reward = task.奖励;
+  return Number.isSafeInteger(reward) && reward > 0 ? reward : minimumTaskReward[effectiveTaskRating(task.评级)];
+}
+export function recoverNonnegativeInteger(value: unknown): number {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
 export const zeroRatingCounts = (): Record<任务评级, number> => ({ D: 0, C: 0, B: 0, A: 0, S: 0 });
 
 const resultQuestSchema = z.object(questSchema.shape).omit({ 当前进度: true, 已完成: true });
@@ -166,10 +178,10 @@ export function abandonTask(data: stat_data, name: string): void {
   const task = data.任务[name];
   if (!task) throw new Error('没有这项已接任务。');
   if (task.已完成) throw new Error('已完成任务只能领取奖励。');
-  if (!ratings.includes(task.评级)) throw new Error('任务评级无效。');
+  const rating = effectiveTaskRating(task.评级);
   const week = currentTaskWeek(data);
   week.放弃++;
-  week.放弃评级[task.评级]++;
+  week.放弃评级[rating]++;
   delete data.任务[name];
 }
 
@@ -177,22 +189,19 @@ export function claimTask(data: stat_data, name: string): number {
   const task = data.任务[name];
   if (!task) throw new Error('没有这项已接任务。');
   if (task.已完成 !== true) throw new Error('任务尚未完成，不能领取奖励。');
-  if (!ratings.includes(task.评级)) throw new Error('任务评级无效。');
-  const reward = task.奖励;
-  const balance = data.角色.user.恶堕积分;
-  const total = data.角色.user.评级贡献;
-  const gained = ratingContribution[task.评级];
-  if (!Number.isSafeInteger(reward) || reward <= 0) throw new Error('任务奖励无效。');
-  if (!Number.isSafeInteger(balance) || balance < 0 || !Number.isSafeInteger(balance + reward))
-    throw new Error('恶堕积分余额无效。');
-  if (!Number.isSafeInteger(total) || total < 0 || !Number.isSafeInteger(total + gained))
-    throw new Error('累计评级贡献无效。');
+  const rating = effectiveTaskRating(task.评级);
+  const reward = effectiveTaskReward(task);
+  const balance = recoverNonnegativeInteger(data.角色.user.恶堕积分);
+  const total = recoverNonnegativeInteger(data.角色.user.评级贡献);
+  const gained = ratingContribution[rating];
+  const creditedReward = Math.min(reward, Number.MAX_SAFE_INTEGER - balance);
+  const creditedContribution = Math.min(gained, Number.MAX_SAFE_INTEGER - total);
   const week = currentTaskWeek(data);
-  data.角色.user.恶堕积分 += reward;
-  data.角色.user.评级贡献 += gained;
+  data.角色.user.恶堕积分 = balance + creditedReward;
+  data.角色.user.评级贡献 = total + creditedContribution;
   data.角色.user.当前评级 = userRatingFromContribution(data.角色.user.评级贡献);
   week.完成++;
-  week.完成评级[task.评级]++;
+  week.完成评级[rating]++;
   delete data.任务[name];
-  return reward;
+  return creditedReward;
 }
