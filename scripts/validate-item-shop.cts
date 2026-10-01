@@ -58,17 +58,25 @@ stock.旧扣 = { ...item(999, 2, 8), 图标: icon.replace('#5274a2', '#ffffff'),
 delete stock.道具0;
 const message = `<shopVariable>${JSON.stringify(stock)}</shopVariable>`;
 assert.equal(initialStatDataSchema.shape.商店.safeParse({ 道具: item(3, 1) }).success, true);
-assert.equal(itemRefreshQuote(data).price, 5, '首次刷新收费 5 积分');
+const freeItemData = structuredClone(data);
+freeItemData.角色.user.恶堕积分 = 0;
+freeItemData.商店 = { 免费道具: item(0, 2) };
+assert.ok(parseItemResult(`<shopVariable>${JSON.stringify(freeItemData.商店)}</shopVariable>`, freeItemData).免费道具);
+buyItem(freeItemData, '免费道具', 1);
+assert.equal(freeItemData.角色.user.物品.免费道具.数量, 1, '零积分可购买免费道具');
+assert.equal(freeItemData.角色.user.恶堕积分, 0, '购买免费道具不扣积分');
+assert.equal(sellItem(freeItemData, '随身物品', '免费道具', 1), 0, '免费道具出售返还零积分');
+assert.equal(itemRefreshQuote(data).price, 0, '本周首次普通刷新免费');
 const directedData = structuredClone(data);
 directedData.手机 = {
-  定向刷新: { 请求ID: 'item-request', 类型: '道具', 要求: '适合调查的工具', 普通报价: 5 },
+  定向刷新: { 请求ID: 'item-request', 类型: '道具', 要求: '适合调查的工具', 普通报价: 0 },
 };
 applyItemRefresh(
   directedData,
   `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
   true,
 );
-assert.equal(directedData.角色.user.恶堕积分, 175, 'D 级定向道具刷新按普通价额外加收 20 点');
+assert.equal(directedData.角色.user.恶堕积分, 180, 'D 级首次定向道具刷新仍收取 20 点附加费');
 assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
 const parsed = parseItemResult(message, data);
 assert.equal(Object.keys(parsed).length, 6);
@@ -110,32 +118,32 @@ assert.deepEqual(data, before, '无效生成不得部分写入');
 const insufficient = structuredClone(data);
 insufficient.系统.商店下次刷新时间 = '2026-9-28T00:00[1]';
 insufficient.系统.商店主动刷新次数 = 3;
-insufficient.角色.user.恶堕积分 = 4;
+insufficient.角色.user.恶堕积分 = 3;
 const insufficientBefore = structuredClone(insufficient);
 assert.throws(() => applyItemRefresh(insufficient, message), /积分不足/);
-assert.deepEqual(insufficient, insufficientBefore, '不足 5 积分不得刷新或改写货架');
+assert.deepEqual(insufficient, insufficientBefore, '不足当前报价不得刷新或改写货架');
 applyItemRefresh(data, message);
 assert.equal(data.系统.商店主动刷新次数, 1);
 assert.equal(data.系统.商店下次刷新时间, '2026-9-28T00:00[1]');
-assert.equal(itemRefreshQuote(data).price, 5);
-assert.equal(data.角色.user.恶堕积分, 195, '首次刷新扣除 5 积分');
+assert.equal(itemRefreshQuote(data).price, 2);
+assert.equal(data.角色.user.恶堕积分, 200, '首次刷新不扣积分');
 const repeated = structuredClone(data);
 applyItemRefresh(repeated, message);
 assert.equal(repeated.系统.商店主动刷新次数, 2);
-assert.equal(itemRefreshQuote(repeated).price, 5, '第二次刷新仍收取 5 积分');
+assert.equal(itemRefreshQuote(repeated).price, 3, '第三次刷新报价 3 积分');
 applyItemRefresh(repeated, message);
 assert.equal(repeated.系统.商店主动刷新次数, 3);
-assert.equal(repeated.角色.user.恶堕积分, 185, '前三次刷新每次扣除 5 积分');
-assert.equal(itemRefreshQuote(repeated).price, 5, '第四次刷新仍收取 5 积分');
+assert.equal(repeated.角色.user.恶堕积分, 195, '前三次刷新累计扣除 5 积分');
+assert.equal(itemRefreshQuote(repeated).price, 4, '第四次刷新收取 4 积分');
 applyItemRefresh(repeated, message);
-assert.equal(repeated.角色.user.恶堕积分, 180, '第四次刷新扣除 5 积分');
+assert.equal(repeated.角色.user.恶堕积分, 191, '第四次刷新扣除 4 积分');
 applyItemRefresh(repeated, message);
-assert.equal(repeated.角色.user.恶堕积分, 175, '第五次刷新仍扣除 5 积分');
+assert.equal(repeated.角色.user.恶堕积分, 186, '第五次刷新扣除 5 积分');
 buyItem(data, '旧扣', 2);
 assert.equal(data.角色.user.物品.旧扣.数量, 3);
 assert.equal(data.角色.user.物品.旧扣.耐久, 6, '一件耐久 2 与两件耐久 8 加权向上取整');
 assert.equal(data.商店.旧扣, undefined);
-assert.equal(data.角色.user.恶堕积分, 189);
+assert.equal(data.角色.user.恶堕积分, 194);
 assert.equal(sellItem(data, '随身物品', '旧扣', 2), 2, '奇数单件价格先向下取整再乘数量');
 assert.equal(data.角色.user.物品.旧扣.数量, 1);
 assert.equal(sellItem(data, '仓库', '仓库药剂', 1), 2);
@@ -147,10 +155,10 @@ assert.deepEqual(data, unchanged, '失败购买和出售不得改变量');
 data.系统.商店主动刷新次数 = 200;
 assert.equal(itemRefreshQuote(data).price, 5, '多次刷新费用保持 5 积分');
 data.世界.时间 = '2026-9-28T00:00[1]';
-assert.equal(itemRefreshQuote(data).price, 5, '周一后的首次刷新仍收费');
+assert.equal(itemRefreshQuote(data).price, 0, '周一后恢复免费首次刷新');
 assert.ok(Object.keys(data.商店).length > 0, '跨周保留货架');
 const balanceAfterWeekChange = data.角色.user.恶堕积分;
 applyItemRefresh(data, message);
 assert.equal(data.系统.商店主动刷新次数, 1, '跨周成功刷新从第一次重新计数');
-assert.equal(data.角色.user.恶堕积分, balanceAfterWeekChange - 5, '跨周第一次刷新扣除 5 积分');
+assert.equal(data.角色.user.恶堕积分, balanceAfterWeekChange, '跨周第一次刷新不扣积分');
 console.info('组织道具商店定向验证通过。');

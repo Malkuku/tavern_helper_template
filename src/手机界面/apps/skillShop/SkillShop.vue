@@ -10,7 +10,13 @@
           :disabled="busy || store.skillRefreshing || balance < refreshPrice || (directed && !preference.trim())"
           @click="refreshShop"
         >
-          {{ store.skillRefreshing ? '刷新中…' : `刷新货架 · ${refreshPrice} 积分` }}
+          {{
+            store.skillRefreshing
+              ? '刷新中…'
+              : refreshPrice === 0
+                ? '刷新货架 · 免费'
+                : `刷新货架 · ${refreshPrice} 积分`
+          }}
         </button>
         <label class="directed-refresh-toggle">
           <input v-model="directed" type="checkbox" :disabled="busy || store.skillRefreshing" />

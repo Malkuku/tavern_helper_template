@@ -12,7 +12,15 @@
           "
           @click="run(() => store.refreshItemShop(directed ? preference.trim() : undefined))"
         >
-          {{ store.itemRefreshing ? '刷新中…' : quote.error ? '刷新货架' : `刷新货架 · ${refreshPrice} 积分` }}
+          {{
+            store.itemRefreshing
+              ? '刷新中…'
+              : quote.error
+                ? '刷新货架'
+                : refreshPrice === 0
+                  ? '刷新货架 · 免费'
+                  : `刷新货架 · ${refreshPrice} 积分`
+          }}
         </button>
         <label class="directed-refresh-toggle">
           <input v-model="directed" type="checkbox" :disabled="busy || store.itemRefreshing" />

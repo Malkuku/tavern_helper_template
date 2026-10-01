@@ -72,14 +72,12 @@ export function applyNewChatMediaSnapshot(
     if (!account || !value || typeof value !== 'object' || Array.isArray(value)) continue;
     const media = value as { 头像?: unknown; 表情包?: unknown };
     if (typeof media.头像 === 'string') {
-      if (media.头像 && !hasImage(media.头像)) throw new Error(`${id} 的头像在 Weline 图片库中缺失。`);
-      account.头像 = media.头像;
+      if (!media.头像 || hasImage(media.头像)) account.头像 = media.头像;
     }
     if (media.表情包 && typeof media.表情包 === 'object' && !Array.isArray(media.表情包)) {
       for (const [name, url] of Object.entries(media.表情包)) {
         if (typeof url !== 'string' || !name) continue;
-        if (!hasImage(url)) throw new Error(`${id} 的表情包「${name}」在 Weline 图片库中缺失。`);
-        account.表情包[name] = url;
+        if (hasImage(url)) account.表情包[name] = url;
       }
     }
   }

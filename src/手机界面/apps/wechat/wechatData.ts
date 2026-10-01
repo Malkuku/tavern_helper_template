@@ -78,9 +78,7 @@ function parseLog(value: unknown): WeChatLog {
 }
 
 export function parseWeChatLogs(content: string): WeChatLog[] {
-  const openCount = [...content.matchAll(/<WeChatLog>/g)].length;
-  const matches = [...content.matchAll(/<WeChatLog>\s*([\s\S]*?)\s*<\/WeChatLog>/g)];
-  if (openCount !== matches.length) throw new Error('正文中的 WeChatLog 标签未闭合。');
+  const matches = [...content.matchAll(/<WeChatLog>\s*((?:(?!<WeChatLog>)[\s\S])*?)\s*<\/WeChatLog>/g)];
   return matches.map(([, json]) => {
     try {
       return parseLog(JSON.parse(json));

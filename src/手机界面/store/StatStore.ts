@@ -1105,7 +1105,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) return;
     const message = getChatMessages(messageId)[0];
     if (!message || message.role !== 'assistant' || !message.message.includes('<WeChatLog>')) return;
-    const tags = [...message.message.matchAll(/<WeChatLog>\s*[\s\S]*?\s*<\/WeChatLog>/g)];
+    const tags = [...message.message.matchAll(/<WeChatLog>\s*(?:(?!<WeChatLog>)[\s\S])*?\s*<\/WeChatLog>/g)];
     const logs = tags.map((match, index) => {
       try {
         return parseWeChatLogs(match[0])[0];
@@ -1114,8 +1114,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         throw error;
       }
     });
-    if ([...message.message.matchAll(/<WeChatLog>/g)].length !== tags.length)
-      throw new Error('正文中的 WeChatLog 标签未闭合，无法自动定位清理范围。');
     if (!logs.length) return;
     await waitGlobalInitialized('Mvu');
     if (generation !== chatGeneration) return;

@@ -40,6 +40,10 @@ const message = (id: number, sender: string, content: string, extra: object = {}
   ...extra,
 });
 const parse = (events: object[]) => parseWeChatLogs(`<WeChatLog>${JSON.stringify({ 事件: events })}</WeChatLog>`);
+const completeLog = `<WeChatLog>${JSON.stringify({ 事件: [message(1, 'user', '完整消息')] })}</WeChatLog>`;
+assert.deepEqual(parseWeChatLogs(`<WeChatLog>{"事件":[ ${completeLog}`), parseWeChatLogs(completeLog));
+assert.deepEqual(parseWeChatLogs(`${completeLog}<WeChatLog>{"事件":[`), parseWeChatLogs(completeLog));
+assert.deepEqual(parseWeChatLogs('<WeChatLog>{"事件":['), []);
 assert.deepEqual(parse([message(1, 'user', locationShare('学园区'))])[0].事件[0].内容, [locationShare('学园区')]);
 assert.equal(contentSummary([locationShare('学园区')]), '[位置] 学园区');
 const mixedSticker = '还把我也拉进来了<表情包>星星-眨眼</表情包>';

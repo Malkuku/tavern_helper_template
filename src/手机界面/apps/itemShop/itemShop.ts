@@ -41,7 +41,7 @@ export function parseItemResult(message: string, data: stat_data): Record<string
     const result = generatedItemSchema.safeParse(value);
     if (!name.trim() || !result.success) continue;
     const item = result.data;
-    if (!item.描述.trim() || !item.作用.trim() || item.耐久 <= 0 || item.价格 <= 0) continue;
+    if (!item.描述.trim() || !item.作用.trim() || item.耐久 <= 0) continue;
     const old = previous.map(source => source[name]).filter((value): value is 物品 => !!value);
     if (old.some(value => !itemSchema.safeParse(value).success)) continue;
     if (old.length > 1 && old.some(value => !sameItemSpec(value, old[0]))) continue;
@@ -78,7 +78,7 @@ export function buyItem(data: stat_data, name: string, quantity: number): void {
   if (!item) throw new Error('货架中没有这件道具。');
   if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > item.数量)
     throw new Error('购买数量无效或超过库存。');
-  if (!Number.isSafeInteger(item.价格) || item.价格 <= 0) throw new Error('道具价格无效。');
+  if (!Number.isSafeInteger(item.价格) || item.价格 < 0) throw new Error('道具价格无效。');
   const cost = item.价格 * quantity;
   if (!Number.isSafeInteger(cost)) throw new Error('道具总价超出有效范围。');
   const balance = data.角色.user.恶堕积分;
