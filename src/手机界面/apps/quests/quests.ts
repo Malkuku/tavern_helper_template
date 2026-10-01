@@ -51,6 +51,10 @@ function nextMonday(date: Date): string {
   return `${dayKey(next)}T00:00[1]`;
 }
 
+export function nextTaskWeekTime(time: string): string {
+  return nextMonday(worldDate(time));
+}
+
 export function taskRefreshState(data: stat_data): {
   available: boolean;
   remaining: number;

@@ -137,6 +137,15 @@ assert.deepEqual(assembled.data.角色.user.物品, {});
 assert.equal(assembled.data.角色.user.技能.暗影折步, undefined);
 assert.equal(assembled.data.系统.商店主动刷新次数, 0);
 assert.equal(assembled.data.系统.技能主动刷新次数, 0);
+for (const key of ['商店下次刷新时间', '任务下次刷新时间', '技能下次刷新时间']) {
+  assert.equal(assembled.data.系统[key], '2026-10-5T00:00[1]');
+}
+const yearEndOpening = structuredClone(openingDocument);
+(Object.values(yearEndOpening.开场白)[0] as any).内容配置.世界.时间 = '2026-12-31T23:10[4]';
+const yearEndData = reconcileWorldbookStatData({ 作者: 987 }, withEntry('唯一开局', yearEndOpening)).data as any;
+for (const key of ['商店下次刷新时间', '任务下次刷新时间', '技能下次刷新时间']) {
+  assert.equal(yearEndData.系统[key], '2027-1-4T00:00[1]');
+}
 const starterPurchase = structuredClone(assembled.data) as unknown as stat_data;
 buyItem(starterPurchase, '快拆防护扣', 1);
 assert.equal(starterPurchase.角色.user.物品.快拆防护扣.数量, 1);

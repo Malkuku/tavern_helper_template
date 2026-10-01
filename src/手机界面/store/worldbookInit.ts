@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { initialStatDataSchema, roleMetaSchema } from './initialDataSchema';
 import { wechatRoleAvatar } from '../../尘史使徒/UI/components/common/roleAvatarFallback';
-import { emptyTaskWeek, taskWeekKey } from '../apps/quests/quests';
+import { emptyTaskWeek, nextTaskWeekTime, taskWeekKey } from '../apps/quests/quests';
 import { completeMinorRole, parseMinorStageTemplates } from './minorStages';
 import { completeCurrentRating } from './roleRating';
 import { privateKey } from '../apps/wechat/wechatData';
@@ -142,6 +142,12 @@ export function reconcileWorldbookStatData(
     仓库: klona(opening.内容配置.仓库),
   };
   const startWeek = taskWeekKey((data.世界 as { 时间: string }).时间);
+  const nextRefreshTime = nextTaskWeekTime((data.世界 as { 时间: string }).时间);
+  const system = data.系统;
+  if (!isRecord(system)) throw new Error('唯一开局缺少系统数据。');
+  system.商店下次刷新时间 = nextRefreshTime;
+  system.任务下次刷新时间 = nextRefreshTime;
+  system.技能下次刷新时间 = nextRefreshTime;
   data.任务统计 = { 开始周: startWeek, 周记录: { [startWeek]: emptyTaskWeek(startWeek) } };
   const rewardLevels: Record<string, number> = {};
   for (const kind of ['主要角色', '次要角色'] as const) {
