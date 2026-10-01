@@ -4,7 +4,7 @@
       <section class="intro">
         <span class="witch-eyebrow">MEMBER MISSIONS</span>
         <h1>你的任务</h1>
-        <p>已接 {{ activeEntries.length }}/4 · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7 项</p>
+        <p>已接 {{ activeEntries.length }}/{{ maxAcceptedTasks }} · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7 项</p>
         <button
           type="button"
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
@@ -37,7 +37,7 @@
             <button
               type="button"
               class="quest-card-action"
-              :disabled="busy || activeEntries.length >= 4"
+              :disabled="busy || activeEntries.length >= maxAcceptedTasks"
               @click="run(() => store.acceptTask(name))"
             >
               接取任务
@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useMagicGirlStatStore } from '../../store/StatStore';
-import { taskRefreshState, taskWeekHistory, taskWeekStats, type 任务评级 } from './quests';
+import { maxAcceptedTasks, taskRefreshState, taskWeekHistory, taskWeekStats, type 任务评级 } from './quests';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 import QuestCard from './QuestCard.vue';
 import { buildQuestPrompt } from './questPrompt';

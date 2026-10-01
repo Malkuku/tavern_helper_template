@@ -5,6 +5,7 @@ import { latestGeneratedPayload } from '../generationResult';
 import { isWithinGeneratedRating, ratingContribution, userRatingFromContribution } from '../../store/userRating';
 
 export type 任务评级 = 任务['评级'];
+export const maxAcceptedTasks = 5;
 const ratings = ['D', 'C', 'B', 'A', 'S'] as const;
 export const zeroRatingCounts = (): Record<任务评级, number> => ({ D: 0, C: 0, B: 0, A: 0, S: 0 });
 
@@ -155,7 +156,8 @@ export function acceptTask(data: stat_data, name: string): void {
   const task = data.任务候选[name];
   if (!task) throw new Error('候选列表中没有这项任务。');
   if (Object.hasOwn(data.任务, name)) throw new Error('这项任务已经接取。');
-  if (Object.keys(data.任务).length >= 4) throw new Error('最多同时接取 4 项任务，已完成未领奖仍占名额。');
+  if (Object.keys(data.任务).length >= maxAcceptedTasks)
+    throw new Error(`最多同时接取 ${maxAcceptedTasks} 项任务，已完成未领奖仍占名额。`);
   data.任务[name] = { ...task, 当前进度: '进行中' };
   delete data.任务候选[name];
 }
