@@ -39,7 +39,12 @@ import {
 import type { OperationEvent } from '../apps/wechat/wechatData';
 import { parseLocationShare } from '../apps/map/locationShare';
 import { findPhoneMapPath } from '../apps/map/phoneMap';
-import { isNewGenerationResult, latestGeneratedTag, removeGeneratedTag } from '../apps/generationResult';
+import {
+  isNewGenerationResult,
+  latestGeneratedTag,
+  removeGeneratedTag,
+  type GeneratedMarker,
+} from '../apps/generationResult';
 import { applyCharacterUnlock, type CharacterKind } from '../apps/data/profileUnlock';
 import { applyProfileEdit, type ProfileField } from '../apps/data/profileEdit';
 import { assignFirstTarget, firstTargetSystemLog } from '../apps/data/firstTarget';
@@ -92,8 +97,6 @@ import {
   taskRefreshState,
 } from '../apps/quests/quests';
 import { QUEST_CLAIM_REQUEST, QUEST_CLAIM_RESULT, type QuestClaimRequest } from '../apps/quests/questClaimBridge';
-
-const generationResultWaitMs = 5000;
 
 function paymentCents(content: unknown, kind: '红包' | '转账'): number {
   if (typeof content !== 'string') throw new Error('款项金额无效。');
@@ -170,6 +173,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const failedGeneratedTags: { messageId: number; tag: string; index: number }[] = [];
   let failedTagCleanupTimer: ReturnType<typeof setTimeout> | undefined;
   let failedTagCleanupRunning = false;
+  let sendButtonObserver: MutationObserver | undefined;
+  let sendButtonPollTimer: ReturnType<typeof setInterval> | undefined;
+  let observedSendButton: HTMLElement | null = null;
+  let tavernBusy = false;
   const unreadChatKeys = ref<string[]>([]);
   const wechatNotification = ref<{ key: string; message: 微信消息 } | null>(null);
   const transientNotices = ref<WitchNotice[]>([]);
@@ -1233,6 +1240,48 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     });
   }
 
+  function findNewGeneratedMessage(
+    marker: GeneratedMarker,
+    startId: number,
+    startText: string,
+  ): ChatMessage | undefined {
+    const lastId = getLastMessageId();
+    if (lastId < startId || lastId < 0) return undefined;
+    const messages = getChatMessages(`${Math.max(0, startId)}-${lastId}`);
+    return messages.reverse().find(message => isNewGenerationResult(message, marker, startId, startText));
+  }
+
+  function checkTavernSendButton() {
+    if (typeof window === 'undefined') return;
+    try {
+      const button = window.parent.document.getElementById('send_but');
+      if (button !== observedSendButton) {
+        sendButtonObserver?.disconnect();
+        observedSendButton = button;
+        if (button) {
+          sendButtonObserver = new MutationObserver(checkTavernSendButton);
+          sendButtonObserver.observe(button, { attributes: true, attributeFilter: ['style', 'class', 'disabled'] });
+        }
+      }
+      if (!button) return;
+      const style = window.getComputedStyle(button);
+      const busy =
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        button.hasAttribute('disabled') ||
+        button.classList.contains('fa-circle-stop') ||
+        button.classList.contains('fa-stop');
+      if (tavernBusy && !busy) {
+        scheduleShopResult('技能', undefined, '酒馆发送按钮恢复');
+        scheduleShopResult('道具', undefined, '酒馆发送按钮恢复');
+        scheduleTaskResult(undefined, '酒馆发送按钮恢复');
+      }
+      tavernBusy = busy;
+    } catch (error) {
+      console.warn('手机商店无法监听酒馆发送按钮', error);
+    }
+  }
+
   function scheduleShopResult(kind: '技能' | '道具', messageId?: number, source = '消息事件') {
     const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
     const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
@@ -1252,14 +1301,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         console.info(`[手机${kind}商店生成] 已取消或已结算，跳过${source}`);
         return;
       }
-      const id = messageId ?? getLastMessageId();
-      if (id < 0 || generation !== chatGeneration) return;
-      const message = getChatMessages(id)[0];
-      const matched = isNewGenerationResult(message, marker, startMessageId, startMessage);
+      if (generation !== chatGeneration) return;
+      const message = findNewGeneratedMessage(marker, startMessageId, startMessage);
+      const id = message?.message_id ?? -1;
+      const matched = !!message;
       console.info(`[手机${kind}商店生成] 检查原始楼层`, {
         source,
         id,
         startMessageId,
+        eventMessageId: messageId,
         role: message?.role,
         length: message?.message.length ?? 0,
         hasTag: message?.message.includes(marker) ?? false,
@@ -1300,38 +1350,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function onShopGenerationEnd(kind: '技能' | '道具', messageId?: number, eventName = 'GENERATION_ENDED') {
     scheduleShopResult(kind, messageId, eventName);
-    const refreshing = kind === '技能' ? skillRefreshing : itemRefreshing;
-    const refreshError = kind === '技能' ? skillRefreshError : itemRefreshError;
-    const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
-    const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
-    const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
-    const directedRequestId = kind === '技能' ? skillRefreshRequestId : itemRefreshRequestId;
-    if (!refreshing.value) return;
-    const requestSerial = refreshRequestSerial;
-    setTimeout(() => {
-      if (!refreshing.value || requestSerial !== refreshRequestSerial) return;
-      const id = messageId ?? getLastMessageId();
-      const message = id >= 0 ? getChatMessages(id)[0] : null;
-      const observation = {
-        role: message?.role,
-        length: message?.message.length ?? 0,
-        hasTag: message?.message.includes(marker) ?? false,
-      };
-      if (!isNewGenerationResult(message, marker, startMessageId, startMessage)) {
-        console.warn(`[手机${kind}商店生成] 结束后未找到本次结果`, {
-          id,
-          startMessageId,
-          ...observation,
-        });
-        refreshing.value = false;
-        refreshError.value = `本次生成没有返回${kind}商店结果`;
-        void clearDirectedRefresh(directedRequestId, chatGeneration).catch(error =>
-          console.error('定向刷新请求清理失败', error),
-        );
-      } else {
-        scheduleShopResult(kind, id, '生成结束复查');
-      }
-    }, generationResultWaitMs);
   }
 
   function scheduleTaskResult(messageId?: number, source = '消息事件') {
@@ -1347,19 +1365,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         console.info('[手机任务生成] 已取消或已结算，跳过' + source);
         return;
       }
-      const id = messageId ?? getLastMessageId();
-      if (id < 0 || generation !== chatGeneration) return;
-      const message = getChatMessages(id)[0];
-      const matched = isNewGenerationResult(
-        message,
-        '<questVariable',
-        taskRefreshStartMessageId,
-        taskRefreshStartMessage,
-      );
+      if (generation !== chatGeneration) return;
+      const message = findNewGeneratedMessage('<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage);
+      const id = message?.message_id ?? -1;
+      const matched = !!message;
       console.info('[手机任务生成] 检查原始楼层', {
         source,
         id,
         startMessageId: taskRefreshStartMessageId,
+        eventMessageId: messageId,
         role: message?.role,
         length: message?.message.length ?? 0,
         hasTag: message?.message.includes('<questVariable') ?? false,
@@ -1394,29 +1408,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function onTaskGenerationEnd(messageId?: number, eventName = 'GENERATION_ENDED') {
     scheduleTaskResult(messageId, eventName);
-    if (!taskRefreshing.value) return;
-    const requestSerial = refreshRequestSerial;
-    setTimeout(() => {
-      if (!taskRefreshing.value || requestSerial !== refreshRequestSerial) return;
-      const id = messageId ?? getLastMessageId();
-      const message = id >= 0 ? getChatMessages(id)[0] : null;
-      const observation = {
-        role: message?.role,
-        length: message?.message.length ?? 0,
-        hasTag: message?.message.includes('<questVariable') ?? false,
-      };
-      if (!isNewGenerationResult(message, '<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage)) {
-        console.warn('[手机任务生成] 结束后未找到本次结果', {
-          id,
-          startMessageId: taskRefreshStartMessageId,
-          ...observation,
-        });
-        taskRefreshing.value = false;
-        taskRefreshError.value = '本次生成没有返回任务结果';
-      } else {
-        scheduleTaskResult(id, '生成结束复查');
-      }
-    }, generationResultWaitMs);
   }
 
   async function checkWorldbook() {
@@ -1602,6 +1593,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function initialize() {
     refresh();
     startPolling();
+    checkTavernSendButton();
+    sendButtonPollTimer = setInterval(checkTavernSendButton, 500);
     eventOn(QUEST_CLAIM_REQUEST, (request: QuestClaimRequest) => {
       if (!request || typeof request.id !== 'string' || typeof request.name !== 'string') return;
       void (async () => {
@@ -1664,6 +1657,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       if (worldbookRetryTimer) clearTimeout(worldbookRetryTimer);
       if (failedTagCleanupTimer) clearTimeout(failedTagCleanupTimer);
+      if (sendButtonPollTimer) clearInterval(sendButtonPollTimer);
+      sendButtonObserver?.disconnect();
+      sendButtonObserver = undefined;
+      observedSendButton = null;
       pollingTimer = undefined;
       refreshTimer = undefined;
       worldbookRetryTimer = undefined;

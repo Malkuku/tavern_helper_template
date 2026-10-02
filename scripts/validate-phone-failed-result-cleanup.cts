@@ -36,6 +36,20 @@ let data: any = {
 let cleanupAttempts = 0;
 let failFirstCleanup = true;
 let generationCount = 0;
+let tavernBusy = false;
+
+const sendButton = {
+  hasAttribute: () => false,
+  classList: { contains: () => false },
+};
+host.window = {
+  parent: { document: { getElementById: () => sendButton } },
+  getComputedStyle: () => ({ display: tavernBusy ? 'none' : 'block', visibility: 'visible' }),
+};
+host.MutationObserver = class {
+  observe() {}
+  disconnect() {}
+};
 
 host.waitGlobalInitialized = async () => undefined;
 host.getLastMessageId = () => 7;
@@ -74,10 +88,19 @@ host.eventEmit = async (name: string) => {
   generationCount++;
   const deliver = () => {
     message += generationCount === 1 ? tag : validTag;
-    for (const listener of listeners.get('message_received') ?? []) listener(7);
+    if (generationCount === 3) {
+      tavernBusy = false;
+      return;
+    }
+    for (const listener of listeners.get('message_received') ?? []) listener(6);
   };
   if (generationCount === 1) deliver();
-  else setTimeout(deliver, 1200);
+  else if (generationCount === 2) setTimeout(deliver, 1200);
+  else {
+    tavernBusy = true;
+    for (const listener of listeners.get('generation_ended') ?? []) listener(6);
+    setTimeout(deliver, 5500);
+  }
 };
 
 setActivePinia(createPinia());
@@ -104,6 +127,11 @@ async function main() {
   await until(() => cleanupAttempts >= 2 && !message.includes(tag));
   assert.equal(message, `正文${validTag}`, '旧失败标签被清理，新结果保留并正常结算');
   assert.equal(data.系统.商店主动刷新次数, 1);
+  await store.refreshItemShop();
+  await new Promise(resolve => setTimeout(resolve, 5100));
+  assert.equal(store.itemRefreshing, true, '生成结束五秒后正文仍可继续写入结果');
+  await until(() => data.系统.商店主动刷新次数 === 2);
+  assert.equal(store.itemRefreshError, '', '迟到结果不应被误报为没有返回');
   console.info('手机失败生成标签自动清理与重试验证通过。');
 }
 
