@@ -27,6 +27,7 @@ host.eventEmit = async () => {
   notificationCount++;
 };
 host.getVariables = () => null;
+host.SillyTavern = { getCurrentChatId: () => 'test-chat' };
 
 function reset() {
   message = '原正文';
@@ -117,6 +118,35 @@ async function main() {
   assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);
   assert.match(message, /存入仓库药剂×2；从仓库取出药剂×1/);
   assert.equal(data.角色.user.物品.药剂.数量, 2);
+
+  reset();
+  data.系统 = { 已发现目标: ['鹭见凛'] };
+  data.角色.主要角色 = { 鹭见凛: {}, 林沐沐: {} };
+  await store.chooseAdditionalTarget('主要角色', '林沐沐');
+  assert.deepEqual(data.系统.已发现目标, ['鹭见凛', '林沐沐']);
+  assert.equal(data.角色.user.恶堕积分, 80);
+  assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);
+  assert.match(
+    message,
+    /将林沐沐列为目标，消耗20点恶堕积分。\n林沐沐也察觉到了。这意味着哥哥将会得知她最大的秘密。被发现了被发现了/,
+  );
+  await assert.rejects(store.chooseAdditionalTarget('主要角色', '林沐沐'), /已经是目标/);
+  assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);
+
+  reset();
+  data.系统 = { 已发现目标: ['鹭见凛'] };
+  data.角色.次要角色 = { 路人: {} };
+  await store.chooseAdditionalTarget('次要角色', '路人');
+  assert.doesNotMatch(message, /林沐沐也察觉到了|被发现了/);
+
+  reset();
+  data.系统 = { 已发现目标: ['鹭见凛'] };
+  data.角色.主要角色 = { 林沐沐: {} };
+  failMvu = true;
+  await assert.rejects(store.chooseAdditionalTarget('主要角色', '林沐沐'), /变量写入失败/);
+  assert.deepEqual(data.系统.已发现目标, ['鹭见凛']);
+  assert.equal(data.角色.user.恶堕积分, 100);
+  assert.equal(message, '原正文');
 
   reset();
   data.商店.药剂 = { ...item };

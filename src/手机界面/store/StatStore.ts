@@ -476,7 +476,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function chooseAdditionalTarget(kind: '主要角色' | '次要角色', key: string): Promise<void> {
     await changeCharacterData(
       data => selectAdditionalTarget(data, kind, key),
-      () => `在「魔女恶堕计划」中将${escapeSystemLogText(key)}列为目标，消耗${additionalTargetPrice}点恶堕积分。`,
+      () => {
+        const selection = `在「魔女恶堕计划」中将${escapeSystemLogText(key)}列为目标，消耗${additionalTargetPrice}点恶堕积分。`;
+        return key === '林沐沐'
+          ? `${selection}\n而林沐沐也察觉到了这一点，这意味着哥哥将会得知她最大的秘密。${'被发现了'.repeat(30)}`
+          : selection;
+      },
     );
   }
 
