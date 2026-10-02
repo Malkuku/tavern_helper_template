@@ -55,7 +55,9 @@
             </svg>
             <div class="witch-focus-top">
               <span>当前任务</span>
-              <span v-if="featuredTask">{{ featuredTask[1].已完成 ? '待领取' : `${effectiveTaskRating(featuredTask[1].评级)} 级` }}</span>
+              <span v-if="featuredTask">{{
+                featuredTask[1].已完成 ? '待领取' : `${effectiveTaskRating(featuredTask[1].评级)} 级`
+              }}</span>
             </div>
             <template v-if="featuredTask">
               <h2>{{ featuredTask[0] }}</h2>
@@ -250,7 +252,7 @@ const minePage = computed<DataAppName>(() =>
   subpage.value === '技能' || subpage.value === '随身物品' ? subpage.value : '我的档案',
 );
 const balance = computed(() => store.statData?.角色?.user?.恶堕积分 ?? '—');
-const activeTasks = computed(() => Object.entries(store.statData?.任务 ?? {}));
+const activeTasks = computed(() => Object.entries(store.statData?.任务 ?? {}).filter(([, task]) => !task.已失败));
 const featuredTask = computed(() => activeTasks.value.find(([, item]) => item.已完成) ?? activeTasks.value[0]);
 const readyToClaim = computed(() => activeTasks.value.filter(([, item]) => item.已完成).length);
 const taskNotices = computed(() => witchTaskNotices(store.statData));

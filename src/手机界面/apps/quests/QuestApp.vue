@@ -27,6 +27,9 @@
         <button type="button" :class="{ selected: tab === 'active' }" @click="tab = 'active'">
           已接 {{ activeEntries.length }}
         </button>
+        <button type="button" :class="{ selected: tab === 'failed' }" @click="tab = 'failed'">
+          待结算失败 {{ failedEntries.length }}
+        </button>
         <button type="button" :class="{ selected: tab === 'stats' }" @click="tab = 'stats'">统计</button>
       </nav>
 
@@ -94,6 +97,11 @@
         </QuestCard>
       </div>
 
+      <div v-else-if="tab === 'failed'" class="list">
+        <p v-if="!failedEntries.length" class="empty">目前没有待结算的失败任务。</p>
+        <QuestCard v-for="[name, task] in failedEntries" :key="name" :name="name" :task="task" :accepted="true" />
+      </div>
+
       <div v-else class="list">
         <p class="stats-note">
           每周至少完成 7 项任务。完成后记得领取奖励，才算进本周成绩。满 7
@@ -130,12 +138,15 @@ import { buildQuestPrompt } from './questPrompt';
 import type { stat_data } from '../../types';
 
 const store = useMagicGirlStatStore();
-const tab = ref<'board' | 'active' | 'stats'>(Object.keys(store.statData?.任务 ?? {}).length ? 'active' : 'board');
+const tab = ref<'board' | 'active' | 'failed' | 'stats'>(
+  Object.values(store.statData?.任务 ?? {}).some(task => !task.已失败) ? 'active' : 'board',
+);
 const busy = ref(false);
 const error = ref('');
 const confirmAbandon = ref<string | null>(null);
 const boardEntries = computed(() => Object.entries(store.statData?.任务候选 ?? {}));
-const activeEntries = computed(() => Object.entries(store.statData?.任务 ?? {}));
+const activeEntries = computed(() => Object.entries(store.statData?.任务 ?? {}).filter(([, task]) => !task.已失败));
+const failedEntries = computed(() => Object.entries(store.statData?.任务 ?? {}).filter(([, task]) => task.已失败));
 const stats = computed(() => {
   try {
     return store.statData ? taskWeekStats(store.statData) : null;

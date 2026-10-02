@@ -36,6 +36,8 @@ export const questSchema = z.strictObject({
   评级: z.enum(['D', 'C', 'B', 'A', 'S']),
   奖励: z.number().int().positive().safe(),
   已完成: z.boolean(),
+  已失败: z.boolean().optional(),
+  失败惩罚: z.string().optional(),
 });
 const ratingCountsSchema = z.strictObject({
   D: z.number().int().nonnegative().safe(),

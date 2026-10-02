@@ -6,8 +6,11 @@
     </div>
     <p class="quest-card-description">{{ task.描述 }}</p>
     <div class="quest-card-detail">目标：{{ task.目标 }}</div>
-    <div v-if="accepted" class="quest-card-detail">{{ task.已完成 ? '已完成 · 待领奖' : task.当前进度 }}</div>
-    <small>
+    <div v-if="accepted" class="quest-card-detail">
+      {{ task.已失败 ? '已失败 · 待剧情结算' : task.已完成 ? '已完成 · 待领奖' : task.当前进度 }}
+    </div>
+    <div class="quest-card-detail">失败惩罚：{{ task.失败惩罚 || '无' }}</div>
+    <small v-if="!task.已失败">
       奖励 {{ effectiveTaskReward(task) }} 恶堕积分 · 评级贡献 +{{ ratingContribution[effectiveTaskRating(task.评级)] }}
       <template v-if="task.评级 !== effectiveTaskRating(task.评级)">（评级缺失，按 D 级结算）</template>
       <template v-if="task.奖励 !== effectiveTaskReward(task)">（奖励异常，按评级最低值结算）</template>

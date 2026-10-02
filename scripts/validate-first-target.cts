@@ -52,8 +52,9 @@ assert.throws(() => assignFirstTarget(hidden, '林沐沐'), /不能作为初始/
 assert.deepEqual(hidden.系统.已发现目标, []);
 const full = emptyData();
 full.任务 = Object.fromEntries(['a', 'b', 'c', 'd'].map(key => [key, {}])) as stat_data['任务'];
-assert.throws(() => assignFirstTarget(full, '鹭见凛'), /上限/);
-assert.deepEqual(full.系统.已发现目标, []);
+assignFirstTarget(full, '鹭见凛');
+assert.equal(Object.keys(full.任务).length, 5, '初始接触任务不受手动接取上限限制');
+assert.equal(full.任务['初始接触：鹭见凛'].失败惩罚, '无');
 const existingItem = emptyData();
 const rinItem = firstTargetChoices[0].item;
 existingItem.角色.user.物品[rinItem.name] = {

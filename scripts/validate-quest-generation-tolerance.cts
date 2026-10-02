@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { refreshTasks } from '../src/手机界面/apps/quests/quests';
 
-const task = () => ({ 描述: '调查异动', 目标: '确认原因', 评级: 'D', 奖励: 8 });
+const task = () => ({ 描述: '调查异动', 目标: '确认原因', 评级: 'D', 奖励: 8, 失败惩罚: '无' });
 const stock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`任务${index + 1}`, task()]));
 const data: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },

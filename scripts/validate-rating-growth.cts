@@ -59,9 +59,9 @@ for (const [points, next, count] of [
 data.角色.user.评级贡献 = 0;
 data.角色.user.当前评级 = 'D';
 const generated = {
-  D: { 描述: '低级', 目标: '完成', 评级: 'D', 奖励: 1 },
-  C: { 描述: '越级', 目标: '完成', 评级: 'C', 奖励: 9999 },
-  B: { 描述: '超限', 目标: '完成', 评级: 'B', 奖励: 60 },
+  D: { 描述: '低级', 目标: '完成', 评级: 'D', 奖励: 1, 失败惩罚: '无' },
+  C: { 描述: '越级', 目标: '完成', 评级: 'C', 奖励: 9999, 失败惩罚: '无' },
+  B: { 描述: '超限', 目标: '完成', 评级: 'B', 奖励: 60, 失败惩罚: '无' },
 };
 refreshTasks(data, `<questVariable>${JSON.stringify(generated)}</questVariable>`);
 assert.deepEqual(Object.keys(data.任务候选), ['D', 'C'], '超限单项跳过，金额区间不硬拦截');

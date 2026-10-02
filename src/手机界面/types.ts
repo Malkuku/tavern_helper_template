@@ -144,6 +144,9 @@ export interface 任务 {
   /** 可领取的恶堕积分。 */
   奖励: number;
   已完成: boolean;
+  /** 旧存档可能缺失；新任务必须提供。 */
+  已失败?: boolean;
+  失败惩罚?: string;
 }
 
 export interface 任务周统计 {

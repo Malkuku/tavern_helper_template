@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { refreshTasks, taskRefreshState } from '../src/手机界面/apps/quests/quests';
 
-const task = { 描述: '调查', 目标: '取得线索', 评级: 'D', 奖励: 8 };
+const task = { 描述: '调查', 目标: '取得线索', 评级: 'D', 奖励: 8, 失败惩罚: '无' };
 const candidates = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`任务${index + 1}`, { ...task }]));
 const second = candidates.任务2 as Record<string, unknown>;
 second.current_progress = '误写';

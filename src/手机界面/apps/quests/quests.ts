@@ -21,7 +21,10 @@ export function recoverNonnegativeInteger(value: unknown): number {
 }
 export const zeroRatingCounts = (): Record<任务评级, number> => ({ D: 0, C: 0, B: 0, A: 0, S: 0 });
 
-const resultQuestSchema = z.object(questSchema.shape).omit({ 当前进度: true, 已完成: true });
+const resultQuestSchema = z
+  .object(questSchema.shape)
+  .omit({ 当前进度: true, 已完成: true, 已失败: true })
+  .extend({ 失败惩罚: z.string().trim().min(1) });
 const generatedRecordSchema = z.record(z.string(), z.unknown());
 const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[([1-7])\]$/;
 
@@ -106,7 +109,7 @@ function parseResult(message: string, active: stat_data['任务'], playerRating:
     if (!name.trim() || Object.hasOwn(active, name)) continue;
     const parsed = resultQuestSchema.safeParse(value);
     if (!parsed.success || !isWithinGeneratedRating(playerRating, parsed.data.评级)) continue;
-    accepted.push([name, { ...parsed.data, 当前进度: '未接取', 已完成: false }]);
+    accepted.push([name, { ...parsed.data, 当前进度: '未接取', 已完成: false, 已失败: false }]);
   }
   if (!accepted.length) throw new Error('任务生成结果没有可接取的候选任务。');
   return Object.fromEntries(accepted);
@@ -168,9 +171,9 @@ export function acceptTask(data: stat_data, name: string): void {
   const task = data.任务候选[name];
   if (!task) throw new Error('候选列表中没有这项任务。');
   if (Object.hasOwn(data.任务, name)) throw new Error('这项任务已经接取。');
-  if (Object.keys(data.任务).length >= maxAcceptedTasks)
+  if (activeTaskCount(data.任务) >= maxAcceptedTasks)
     throw new Error(`最多同时接取 ${maxAcceptedTasks} 项任务，已完成未领奖仍占名额。`);
-  data.任务[name] = { ...task, 当前进度: '进行中' };
+  data.任务[name] = { ...task, 当前进度: '进行中', 已失败: false };
   delete data.任务候选[name];
 }
 
@@ -178,16 +181,19 @@ export function abandonTask(data: stat_data, name: string): void {
   const task = data.任务[name];
   if (!task) throw new Error('没有这项已接任务。');
   if (task.已完成) throw new Error('已完成任务只能领取奖励。');
+  if (task.已失败) throw new Error('任务已经失败，等待剧情结算。');
   const rating = effectiveTaskRating(task.评级);
   const week = currentTaskWeek(data);
   week.放弃++;
   week.放弃评级[rating]++;
-  delete data.任务[name];
+  task.已失败 = true;
+  task.当前进度 = '已放弃，等待失败惩罚结算';
 }
 
 export function claimTask(data: stat_data, name: string): number {
   const task = data.任务[name];
   if (!task) throw new Error('没有这项已接任务。');
+  if (task.已失败) throw new Error('失败任务不能领取奖励。');
   if (task.已完成 !== true) throw new Error('任务尚未完成，不能领取奖励。');
   const rating = effectiveTaskRating(task.评级);
   const reward = effectiveTaskReward(task);
@@ -204,6 +210,10 @@ export function claimTask(data: stat_data, name: string): number {
   week.完成评级[rating]++;
   delete data.任务[name];
   return creditedReward;
+}
+
+export function activeTaskCount(tasks: stat_data['任务']): number {
+  return Object.values(tasks).filter(task => !task.已失败).length;
 }
 
 /** 领奖后的正文删除指令，保证 MVU 重算时任务仍保持已领奖。 */

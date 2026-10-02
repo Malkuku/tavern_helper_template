@@ -280,7 +280,9 @@ const parsedLogs = ref<VariableLog[]>([]);
 const options = computed(() => parseMessageOptions(messageStore.message));
 const skills = computed(() => Object.entries(messageStore.statData?.角色?.user?.技能 ?? {}) as [string, 技能][]);
 const items = computed(() => Object.entries(messageStore.statData?.角色?.user?.物品 ?? {}) as [string, 物品][]);
-const quests = computed(() => Object.entries(messageStore.statData?.任务 ?? {}) as [string, 任务][]);
+const quests = computed(
+  () => Object.entries(messageStore.statData?.任务 ?? {}).filter(([, task]) => !task.已失败) as [string, 任务][],
+);
 const activeTab = ref<'options' | 'variables' | 'skills' | 'items' | 'quests'>('options');
 const selectedOption = ref<number | null>(null);
 const inputError = ref('');
