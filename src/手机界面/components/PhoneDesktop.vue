@@ -8,8 +8,15 @@
     @touchend="endPageTouch"
   >
     <div class="home-heading">
-      <span>今天</span>
-      <strong>{{ dateLabel }}</strong>
+      <div class="home-date">
+        <span>今天</span>
+        <strong>{{ dateLabel }}</strong>
+        <small class="home-location" :title="location || '当前位置未设置'">⌖ {{ location || '当前位置未设置' }}</small>
+      </div>
+      <div class="home-weather" :title="weather || '天气未设置'">
+        <span>天气</span>
+        <strong>{{ weather || '未设置' }}</strong>
+      </div>
     </div>
 
     <Transition name="desktop-page" mode="out-in">
@@ -133,6 +140,8 @@ import DesktopAppIcon from './DesktopAppIcon.vue';
 const props = defineProps<{
   dateLabel: string;
   today: number;
+  weather: string;
+  location: string;
   wechatUnread: boolean;
   witchUnread: boolean;
   messageUnread: boolean;

@@ -87,6 +87,8 @@
                 :key="'desktop'"
                 :date-label="dateLabel"
                 :today="worldDay"
+                :weather="statStore.statData?.世界?.天气 ?? ''"
+                :location="statStore.statData?.世界?.地点 ?? ''"
                 :wechat-unread="wechatUnread"
                 :witch-unread="witchNotices.length > 0"
                 :message-unread="rewardMailUnread"
