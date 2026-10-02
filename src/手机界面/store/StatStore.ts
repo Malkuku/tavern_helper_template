@@ -160,11 +160,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   let skillRefreshRequestId = '';
   const itemRefreshError = ref('');
   const itemRefreshing = ref(false);
+  let skillResultCheckQueued = false;
+  let itemResultCheckQueued = false;
   let itemRefreshStartMessageId = -1;
   let itemRefreshStartMessage = '';
   let itemRefreshRequestId = '';
   const taskRefreshError = ref('');
   const taskRefreshing = ref(false);
+  let taskResultCheckQueued = false;
   let taskRefreshStartMessageId = -1;
   let taskRefreshStartMessage = '';
   let refreshRequestSerial = 0;
@@ -1290,12 +1293,16 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
     const directedRequestId = kind === '技能' ? skillRefreshRequestId : itemRefreshRequestId;
     if (!refreshing.value) return;
+    if (kind === '技能' ? skillResultCheckQueued : itemResultCheckQueued) return;
+    if (kind === '技能') skillResultCheckQueued = true;
+    else itemResultCheckQueued = true;
     const generation = chatGeneration;
     const requestSerial = refreshRequestSerial;
     let failedMessageId = -1;
     let failedTag: string | undefined;
     let failedTagIndex = -1;
-    console.info(`[手机${kind}商店生成] 收到${source}`, { messageId, lastMessageId: getLastMessageId() });
+    if (source !== '等待期间检查正文')
+      console.info(`[手机${kind}商店生成] 收到${source}`, { messageId, lastMessageId: getLastMessageId() });
     void queueStatWork(async () => {
       if (!refreshing.value || requestSerial !== refreshRequestSerial) {
         console.info(`[手机${kind}商店生成] 已取消或已结算，跳过${source}`);
@@ -1305,16 +1312,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const message = findNewGeneratedMessage(marker, startMessageId, startMessage);
       const id = message?.message_id ?? -1;
       const matched = !!message;
-      console.info(`[手机${kind}商店生成] 检查原始楼层`, {
-        source,
-        id,
-        startMessageId,
-        eventMessageId: messageId,
-        role: message?.role,
-        length: message?.message.length ?? 0,
-        hasTag: message?.message.includes(marker) ?? false,
-        matched,
-      });
+      if (matched || source !== '等待期间检查正文')
+        console.info(`[手机${kind}商店生成] 检查原始楼层`, {
+          source,
+          id,
+          startMessageId,
+          eventMessageId: messageId,
+          role: message?.role,
+          length: message?.message.length ?? 0,
+          hasTag: message?.message.includes(marker) ?? false,
+          matched,
+        });
       if (!matched) return;
       failedMessageId = id;
       failedTag = latestGeneratedTag(message.message, marker);
@@ -1335,17 +1343,22 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       refreshError.value = '';
       if (generation === chatGeneration) enqueueTransientNotice(refreshSuccessNotice(kind));
       console.info(`[手机${kind}商店生成] 变量写入成功`, { id });
-    }).catch(async error => {
-      if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
-      refreshing.value = false;
-      void clearDirectedRefresh(directedRequestId, generation).catch(cleanupError =>
-        console.error('定向刷新请求清理失败', cleanupError),
-      );
-      const detail = error instanceof Error ? error.message : `${kind}生成结果无效。`;
-      refreshError.value = detail;
-      if (failedTag) scheduleFailedTagCleanup(failedMessageId, failedTag, failedTagIndex);
-      console.error(`${kind}商店生成结果处理失败`, error);
-    });
+    })
+      .catch(async error => {
+        if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
+        refreshing.value = false;
+        void clearDirectedRefresh(directedRequestId, generation).catch(cleanupError =>
+          console.error('定向刷新请求清理失败', cleanupError),
+        );
+        const detail = error instanceof Error ? error.message : `${kind}生成结果无效。`;
+        refreshError.value = detail;
+        if (failedTag) scheduleFailedTagCleanup(failedMessageId, failedTag, failedTagIndex);
+        console.error(`${kind}商店生成结果处理失败`, error);
+      })
+      .finally(() => {
+        if (kind === '技能') skillResultCheckQueued = false;
+        else itemResultCheckQueued = false;
+      });
   }
 
   function onShopGenerationEnd(kind: '技能' | '道具', messageId?: number, eventName = 'GENERATION_ENDED') {
@@ -1354,12 +1367,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function scheduleTaskResult(messageId?: number, source = '消息事件') {
     if (!taskRefreshing.value) return;
+    if (taskResultCheckQueued) return;
+    taskResultCheckQueued = true;
     const generation = chatGeneration;
     const requestSerial = refreshRequestSerial;
     let failedMessageId = -1;
     let failedTag: string | undefined;
     let failedTagIndex = -1;
-    console.info('[手机任务生成] 收到' + source, { messageId, lastMessageId: getLastMessageId() });
+    if (source !== '等待期间检查正文')
+      console.info('[手机任务生成] 收到' + source, { messageId, lastMessageId: getLastMessageId() });
     void queueStatWork(async () => {
       if (!taskRefreshing.value || requestSerial !== refreshRequestSerial) {
         console.info('[手机任务生成] 已取消或已结算，跳过' + source);
@@ -1369,16 +1385,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const message = findNewGeneratedMessage('<questVariable', taskRefreshStartMessageId, taskRefreshStartMessage);
       const id = message?.message_id ?? -1;
       const matched = !!message;
-      console.info('[手机任务生成] 检查原始楼层', {
-        source,
-        id,
-        startMessageId: taskRefreshStartMessageId,
-        eventMessageId: messageId,
-        role: message?.role,
-        length: message?.message.length ?? 0,
-        hasTag: message?.message.includes('<questVariable') ?? false,
-        matched,
-      });
+      if (matched || source !== '等待期间检查正文')
+        console.info('[手机任务生成] 检查原始楼层', {
+          source,
+          id,
+          startMessageId: taskRefreshStartMessageId,
+          eventMessageId: messageId,
+          role: message?.role,
+          length: message?.message.length ?? 0,
+          hasTag: message?.message.includes('<questVariable') ?? false,
+          matched,
+        });
       if (!matched) return;
       failedMessageId = id;
       failedTag = latestGeneratedTag(message.message, '<questVariable');
@@ -1396,14 +1413,18 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       taskRefreshError.value = '';
       if (generation === chatGeneration) enqueueTransientNotice(refreshSuccessNotice('任务'));
       console.info('[手机任务生成] 变量写入成功', { id });
-    }).catch(async error => {
-      if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
-      taskRefreshing.value = false;
-      const detail = error instanceof Error ? error.message : '任务生成结果无效。';
-      taskRefreshError.value = detail;
-      if (failedTag) scheduleFailedTagCleanup(failedMessageId, failedTag, failedTagIndex);
-      console.error('任务生成结果处理失败', error);
-    });
+    })
+      .catch(async error => {
+        if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
+        taskRefreshing.value = false;
+        const detail = error instanceof Error ? error.message : '任务生成结果无效。';
+        taskRefreshError.value = detail;
+        if (failedTag) scheduleFailedTagCleanup(failedMessageId, failedTag, failedTagIndex);
+        console.error('任务生成结果处理失败', error);
+      })
+      .finally(() => {
+        taskResultCheckQueued = false;
+      });
   }
 
   function onTaskGenerationEnd(messageId?: number, eventName = 'GENERATION_ENDED') {
@@ -1594,7 +1615,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refresh();
     startPolling();
     checkTavernSendButton();
-    sendButtonPollTimer = setInterval(checkTavernSendButton, 500);
+    sendButtonPollTimer = setInterval(() => {
+      checkTavernSendButton();
+      if (skillRefreshing.value) scheduleShopResult('技能', undefined, '等待期间检查正文');
+      if (itemRefreshing.value) scheduleShopResult('道具', undefined, '等待期间检查正文');
+      if (taskRefreshing.value) scheduleTaskResult(undefined, '等待期间检查正文');
+    }, 500);
     eventOn(QUEST_CLAIM_REQUEST, (request: QuestClaimRequest) => {
       if (!request || typeof request.id !== 'string' || typeof request.name !== 'string') return;
       void (async () => {

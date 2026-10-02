@@ -24,13 +24,29 @@ const tag = '<shopVariable>{}</shopVariable>';
 const validTag = `<shopVariable>${JSON.stringify({
   新商品: { 描述: '新商品', 作用: '可使用', 评级: 'D', 价格: 5, 数量: 1, 耐久: 1 },
 })}</shopVariable>`;
+const validSkillTag = `<skillVariable>${JSON.stringify({
+  新技能: { 描述: '新技能', 作用: '可使用', 评级: 'D', 价格: 5 },
+})}</skillVariable>`;
+const validTaskTag = `<questVariable>${JSON.stringify({
+  新任务: { 描述: '新任务', 目标: '完成目标', 评级: 'D', 奖励: 10, 失败惩罚: '无' },
+})}</questVariable>`;
 let message = '正文';
 let data: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },
-  系统: { 商店下次刷新时间: '', 商店主动刷新次数: 0 },
-  角色: { 主要角色: {}, 次要角色: {}, user: { 当前评级: 'D', 评级贡献: 0, 恶堕积分: 100, 物品: {} } },
+  系统: {
+    商店下次刷新时间: '',
+    商店主动刷新次数: 0,
+    技能下次刷新时间: '',
+    技能主动刷新次数: 0,
+    任务下次刷新时间: '',
+    任务主动刷新次数: 0,
+  },
+  角色: { 主要角色: {}, 次要角色: {}, user: { 当前评级: 'D', 评级贡献: 0, 恶堕积分: 100, 物品: {}, 技能: {} } },
   仓库: {},
   商店: { 原商品: { 描述: '原商品', 作用: '可使用', 评级: 'D', 价格: 5, 数量: 1, 耐久: 1 } },
+  技能商店: {},
+  任务: {},
+  任务候选: {},
   手机: { 定向刷新: null, 恶堕奖励: { 已奖励等级: {}, 邮件: [] } },
 };
 let cleanupAttempts = 0;
@@ -84,6 +100,18 @@ host.eventOn = (name: string, callback: (id?: number) => void) => {
   listeners.set(name, [...(listeners.get(name) ?? []), callback]);
 };
 host.eventEmit = async (name: string) => {
+  if (name === 'Chat_On_Quest') {
+    setTimeout(() => {
+      message += validTaskTag;
+    }, 1200);
+    return;
+  }
+  if (name === 'Chat_On_SkillShop') {
+    setTimeout(() => {
+      message += validSkillTag;
+    }, 1200);
+    return;
+  }
   if (name !== 'Chat_On_ItemShop') return;
   generationCount++;
   const deliver = () => {
@@ -92,15 +120,16 @@ host.eventEmit = async (name: string) => {
       tavernBusy = false;
       return;
     }
+    if (generationCount === 4) return;
     for (const listener of listeners.get('message_received') ?? []) listener(6);
   };
   if (generationCount === 1) deliver();
   else if (generationCount === 2) setTimeout(deliver, 1200);
-  else {
+  else if (generationCount === 3) {
     tavernBusy = true;
     for (const listener of listeners.get('generation_ended') ?? []) listener(6);
     setTimeout(deliver, 5500);
-  }
+  } else setTimeout(deliver, 1200);
 };
 
 setActivePinia(createPinia());
@@ -132,6 +161,17 @@ async function main() {
   assert.equal(store.itemRefreshing, true, '生成结束五秒后正文仍可继续写入结果');
   await until(() => data.系统.商店主动刷新次数 === 2);
   assert.equal(store.itemRefreshError, '', '迟到结果不应被误报为没有返回');
+  await store.refreshItemShop();
+  await until(() => data.系统.商店主动刷新次数 === 3);
+  assert.equal(store.itemRefreshError, '', '正文写入没有消息或按钮事件时仍应接收结果');
+  await store.refreshSkillShop();
+  await until(() => data.系统.技能主动刷新次数 === 1);
+  assert.ok(data.技能商店.新技能, '无通知的技能正文写入后应上架');
+  assert.equal(store.skillRefreshError, '');
+  await store.refreshTaskBoard();
+  await until(() => data.系统.任务主动刷新次数 === 1);
+  assert.ok(data.任务候选.新任务, '无通知的任务正文写入后应成为候选');
+  assert.equal(store.taskRefreshError, '');
   console.info('手机失败生成标签自动清理与重试验证通过。');
 }
 
