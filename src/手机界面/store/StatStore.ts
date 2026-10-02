@@ -54,6 +54,7 @@ import {
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { settleCharacterStages } from './stageProgression';
+import { stageSettlementPatch } from './stageJournal';
 import {
   refreshSuccessNotice,
   stageChangeNotices,
@@ -310,6 +311,35 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     }
   }
 
+  async function writeStageSettlement(data: stat_data, previous: Mvu.MvuData, generation: number) {
+    const patch = stageSettlementPatch(previous.stat_data as stat_data, data);
+    if (!patch) throw new Error('阶段结算没有可记录的变量差异。');
+    const chatId = SillyTavern.getCurrentChatId();
+    const messageId = getLastMessageId();
+    const message = getChatMessages(messageId)[0];
+    if (!message || generation !== chatGeneration) throw new Error('当前楼层已切换，阶段结算已取消。');
+    const originalText = message.message;
+    await setChatMessages([{ message_id: messageId, message: originalText + patch }], { refresh: 'none' });
+    try {
+      if (
+        generation !== chatGeneration ||
+        chatId !== SillyTavern.getCurrentChatId() ||
+        messageId !== getLastMessageId()
+      )
+        throw new Error('聊天或楼层已切换，阶段结算已取消。');
+      await writeStatData(data, previous);
+    } catch (error) {
+      if (chatId !== SillyTavern.getCurrentChatId())
+        throw new AggregateError([error], '阶段结算失败，聊天已切换，无法安全回滚旧聊天的正文记录。');
+      try {
+        await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], '阶段结算失败，正文记录回滚也失败，请检查当前楼层。');
+      }
+      throw error;
+    }
+  }
+
   async function writeLoggedStatData(
     data: stat_data,
     previous: Mvu.MvuData,
@@ -368,7 +398,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const ratingChanged = settleUserRating(data);
       if (!baselinesChanged && !stagesChanged && !rewardsChanged && !ratingChanged) return;
       if (generation !== chatGeneration) return;
-      await writeStatData(data, previous);
+      await writeStageSettlement(data, previous, generation);
     })
       .catch(error => console.error('人设阶段经验结算失败', error))
       .finally(() => {

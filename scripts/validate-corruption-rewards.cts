@@ -21,10 +21,10 @@ function fixture(): stat_data {
     角色: {
       user: { 恶堕积分: 10 },
       主要角色: {
-        A角色: { 当前评级: 'A', 人设阶段: { 创伤稳定度: stage(5), 好感度: stage(0), 恶堕度: stage(0, 101) } },
+        A角色: { 当前评级: 'A', 人设阶段: { 创伤稳定度: stage(5), 好感度: stage(0), 恶堕度: stage(0, 124) } },
         S角色: { 当前评级: 'S', 人设阶段: { 创伤稳定度: stage(5), 好感度: stage(0), 恶堕度: stage(4) } },
       },
-      次要角色: { 未知评级: { 当前评级: '', 人设阶段: { 恶堕度: stage(0, 30) } } },
+      次要角色: { 未知评级: { 当前评级: '', 人设阶段: { 恶堕度: stage(0, 33) } } },
     },
     手机: {
       微信: {},
@@ -61,7 +61,7 @@ assert.equal(settleCorruptionRewards(replay), false, '存档重载后不重复�
 assert.throws(() => markCorruptionRewardMailRead(replay, 'missing'), /已不存在/);
 
 const sGrade = fixture();
-sGrade.角色.主要角色.S角色.人设阶段.恶堕度.累计经验 = 244;
+sGrade.角色.主要角色.S角色.人设阶段.恶堕度.累计经验 = 314;
 establishNewRoleRewardBaselines(sGrade);
 settleCharacterStages(sGrade);
 settleCorruptionRewards(sGrade);

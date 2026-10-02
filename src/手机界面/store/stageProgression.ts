@@ -2,7 +2,7 @@ import type { stat_data, 阶段状态 } from '../types';
 
 export type StageKind = '恶堕度' | '好感度' | '创伤稳定度';
 
-const corruptionCostMultiplier = { D: 1, C: 1.1, B: 1.2, A: 1.3, S: 1.4 } as const;
+const corruptionCostMultiplier = { D: 1.1, C: 1.2, B: 1.4, A: 1.6, S: 1.8 } as const;
 
 function levelRange(stage: 阶段状态, path: string): { min: number; max: number } {
   if (!stage || typeof stage !== 'object' || !stage.描述 || typeof stage.描述 !== 'object')
@@ -37,7 +37,9 @@ export function stageExperienceCost(
     if (rating && !Object.hasOwn(corruptionCostMultiplier, rating))
       throw new Error(`魔法少女当前评级“${rating}”无效。`);
     const base = Math.ceil(30 * 1.55 ** Math.max(lowerLevel, 0));
-    cost = Math.ceil(base * (corruptionCostMultiplier[rating as keyof typeof corruptionCostMultiplier] ?? 1));
+    cost = Math.ceil(
+      base * (corruptionCostMultiplier[rating as keyof typeof corruptionCostMultiplier] ?? corruptionCostMultiplier.D),
+    );
   } else if (kind === '好感度') {
     const distance = Math.max(Math.abs(lowerLevel), Math.abs(lowerLevel + 1));
     cost = Math.ceil(16 * (1 + 0.25 * distance ** 2));

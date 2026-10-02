@@ -13,6 +13,8 @@ const resolveFilename = (Module as any)._resolveFilename;
 };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useMagicGirlStatStore } = require('../src/手机界面/store/StatStore');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { stageSettlementPatch } = require('../src/手机界面/store/stageJournal');
 
 const host = globalThis as any;
 let data: any;
@@ -206,6 +208,67 @@ async function main() {
   await assert.rejects(store.purchaseItem('药剂', 1), /变量写入失败/);
   assert.equal(data.角色.user.恶堕积分, 100);
   assert.equal(message, '原正文');
+
+  reset();
+  data.角色.主要角色 = {
+    测试角色: {
+      当前评级: 'D',
+      人设阶段: {
+        创伤稳定度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '稳定' } },
+        好感度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '普通' } },
+        恶堕度: { 当前等级: 1, 累计经验: 50, 描述: { '0': '零', '1': '一', '2': '二' } },
+      },
+    },
+  };
+  data.角色.次要角色 = {};
+  data.手机 = { 恶堕奖励: { 已奖励等级: { '主要角色:测试角色': 1 }, 邮件: [] } };
+  const stageInput = structuredClone(data);
+  host.getVariables = () => ({ stat_data: data });
+  store.refresh();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.当前等级, 2);
+  assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.累计经验, 3);
+  assert.equal(data.角色.user.恶堕积分, 160);
+  const stagePatch = JSON.parse(message.match(/<JSONPatch>(.*?)<\/JSONPatch>/)?.[1] ?? '[]');
+  assert.deepEqual(
+    stagePatch.filter((op: any) => op.path.includes('/人设阶段/恶堕度/')),
+    [
+      { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/当前等级', value: 2 },
+      { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/累计经验', value: 3 },
+    ],
+  );
+  assert.ok(stagePatch.some((op: any) => op.path === '/角色/user/恶堕积分' && op.value === 160));
+  assert.ok(stagePatch.some((op: any) => op.path === '/手机/恶堕奖励/已奖励等级/主要角色:测试角色' && op.value === 2));
+  assert.ok(stagePatch.some((op: any) => op.path === '/手机/恶堕奖励/邮件' && op.value[0].等级 === 2));
+  assert.equal(stageSettlementPatch(data, structuredClone(data)), '', '无变化不生成正文补丁');
+
+  data = structuredClone(stageInput);
+  message = '原正文';
+  failMvu = true;
+  const originalConsoleError = console.error;
+  console.error = () => undefined;
+  try {
+    store.refresh();
+    await new Promise(resolve => setTimeout(resolve, 20));
+  } finally {
+    console.error = originalConsoleError;
+    failMvu = false;
+  }
+  assert.equal(message, '原正文', '变量写入失败时回滚升级正文补丁');
+  assert.deepEqual(data, stageInput, '变量写入失败时不保留部分结算');
+
+  data = structuredClone(stageInput);
+  failMessage = true;
+  console.error = () => undefined;
+  try {
+    store.refresh();
+    await new Promise(resolve => setTimeout(resolve, 20));
+  } finally {
+    console.error = originalConsoleError;
+    failMessage = false;
+  }
+  assert.equal(message, '原正文', '正文写入失败时不留下升级补丁');
+  assert.deepEqual(data, stageInput, '正文写入失败时不写变量');
 
   console.log('phone system log validation passed');
 }
