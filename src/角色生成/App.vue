@@ -109,7 +109,6 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { MvuUtil } from '@/Utils/MvuUtil';
 import { completeMinorRole, loadMinorStageTemplates } from '../手机界面/store/minorStages';
 
 // 世界书的 <MinorCharInfo> 捕获组：{ "角色": [{ "名称": "…", ... }] }。
@@ -189,29 +188,71 @@ async function recordCharacter() {
     if (isRecorded.value) throw new Error('该角色已存在，原有档案不会被覆盖');
 
     const { 名称, 名称检索词, 身份, 当前评级, 背景, 外貌, 性格, 身体, 能力描述 } = currentCharacter.value;
-    await MvuUtil.updateMvuDataByDiff({
-      角色: {
-        次要角色: {
-          [名称]: completeMinorRole(
-            {
-              名称检索词: [...名称检索词],
-              区域检索词: currentMapIndex.value ? [currentMapIndex.value] : [],
-              在场: true,
-              身份: [...身份],
-              当前评级: 当前评级 ?? '',
-              背景,
-              外貌,
-              性格,
-              身体: structuredClone(身体),
-              能力描述: [...能力描述],
-            },
-            minorTemplate,
-          ),
-        },
+    const role = completeMinorRole(
+      {
+        名称检索词: [...名称检索词],
+        区域检索词: currentMapIndex.value ? [currentMapIndex.value] : [],
+        在场: true,
+        身份: [...身份],
+        当前评级: 当前评级 ?? '',
+        背景,
+        外貌,
+        性格,
+        身体: structuredClone(身体),
+        能力描述: [...能力描述],
       },
-    });
+      minorTemplate,
+    );
+    const messageId = getCurrentMessageId();
+    const dataMessageId = getLastMessageId();
+    const message = getChatMessages(messageId)[0];
+    if (!message) throw new Error('当前楼层尚未准备好，无法收录人物');
+    const originalText = message.message;
+    const previous = globalMvuData.value;
+    const next = JSON.parse(JSON.stringify(previous));
+    next.stat_data.角色.次要角色[名称] = role;
+    if (SillyTavern.getCurrentChatId() !== chatId || getLastMessageId() !== dataMessageId)
+      throw new Error('聊天或楼层已切换，请在当前剧情重新收录');
+    const logEntry = `\n<systemLog>\n<user>将新人物${名称}收录到当前剧情。\n</systemLog>\n`;
+    const logText = originalText + logEntry;
+    await setChatMessages(
+      [
+        {
+          message_id: messageId,
+          message: logText,
+        },
+      ],
+      { refresh: 'none' },
+    );
+    try {
+      if (SillyTavern.getCurrentChatId() !== chatId || getLastMessageId() !== dataMessageId)
+        throw new Error('聊天或楼层已切换，请在当前剧情重新收录');
+      await Mvu.replaceMvuData(next, { type: 'message', message_id: dataMessageId });
+    } catch (error) {
+      try {
+        await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], '人物收录失败，正文记录回滚也失败，请检查当前楼层');
+      }
+      throw error;
+    }
+    try {
+      await eventEmit('mag_variable_update_ended', next, previous);
+    } catch (error) {
+      console.error('人物已收录，但变量更新通知失败', error);
+    }
     fetchGlobalData();
     feedback.value = `${名称}已收录到当前剧情。`;
+    try {
+      const currentText = getChatMessages(messageId)[0]?.message;
+      if (typeof currentText !== 'string') throw new Error('当前楼层正文不可读取');
+      const savedText = currentText.includes(logEntry) ? currentText : currentText + logEntry;
+      await setChatMessages([{ message_id: messageId, message: savedText }], { refresh: 'affected' });
+      if (!getChatMessages(messageId)[0]?.message?.includes(logEntry)) throw new Error('当前楼层正文未保留系统日志');
+    } catch (error) {
+      feedback.value = `${名称}已收录，但系统日志未能显示，请检查当前楼层。`;
+      console.error('人物收录系统日志写入或刷新失败', error);
+    }
   } catch (error) {
     feedback.value = `收录失败：${error instanceof Error ? error.message : String(error)}`;
   } finally {
