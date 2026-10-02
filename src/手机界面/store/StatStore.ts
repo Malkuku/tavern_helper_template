@@ -87,6 +87,7 @@ import {
   acceptTask as applyTaskAccept,
   claimTask as applyTaskClaim,
   recoverNonnegativeInteger,
+  claimedTaskRemovalPatch,
   refreshTasks as applyTaskRefresh,
   taskRefreshState,
 } from '../apps/quests/quests';
@@ -309,14 +310,20 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     }
   }
 
-  async function writeLoggedStatData(data: stat_data, previous: Mvu.MvuData, detail: string, generation: number) {
+  async function writeLoggedStatData(
+    data: stat_data,
+    previous: Mvu.MvuData,
+    detail: string,
+    generation: number,
+    suffix = '',
+  ) {
     const messageId = getLastMessageId();
     const message = getChatMessages(messageId)[0];
     if (!message) throw new Error('当前楼层尚未准备好，无法记录操作。');
     const originalText = message.message;
     if (generation !== chatGeneration || messageId !== getLastMessageId())
       throw new Error('聊天或楼层已切换，操作已取消。');
-    await setChatMessages([{ message_id: messageId, message: originalText + phoneSystemLog(detail) }], {
+    await setChatMessages([{ message_id: messageId, message: originalText + phoneSystemLog(detail) + suffix }], {
       refresh: 'none',
     });
     const next = { ...previous, stat_data: data };
@@ -398,6 +405,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function changeCharacterData<T>(
     change: (data: stat_data) => T,
     log?: (before: stat_data, after: stat_data, result: T) => string,
+    suffix?: string,
   ): Promise<T> {
     const generation = chatGeneration;
     return queueStatWork(async () => {
@@ -409,7 +417,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const result = change(data);
       if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
       if (log)
-        await writeLoggedStatData(data, previous, log(previous.stat_data as stat_data, data, result), generation);
+        await writeLoggedStatData(
+          data,
+          previous,
+          log(previous.stat_data as stat_data, data, result),
+          generation,
+          suffix,
+        );
       else await writeStatData(data, previous);
       return result;
     });
@@ -671,6 +685,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       data => applyTaskClaim(data, name),
       (before, after, reward) =>
         `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分、${after.角色.user.评级贡献 - recoverNonnegativeInteger(before.角色.user.评级贡献)}点评级贡献。`,
+      claimedTaskRemovalPatch(name),
     );
   }
 

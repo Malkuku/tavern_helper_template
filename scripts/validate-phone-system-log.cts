@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
+import Module from 'node:module';
+import path from 'node:path';
 import { createPinia, setActivePinia } from 'pinia';
-import { useMagicGirlStatStore } from '../src/手机界面/store/StatStore';
+
+const resolveFilename = (Module as any)._resolveFilename;
+(Module as any)._resolveFilename = function (request: string, ...args: unknown[]) {
+  return resolveFilename.call(
+    this,
+    request.startsWith('@/') ? path.resolve(__dirname, '../src', request.slice(2)) : request,
+    ...args,
+  );
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { useMagicGirlStatStore } = require('../src/手机界面/store/StatStore');
 
 const host = globalThis as any;
 let data: any;
@@ -82,6 +94,39 @@ async function main() {
   assert.match(message, /领取组织任务「领奖」的奖励，获得5点恶堕积分/);
   assert.equal(data.角色.user.恶堕积分, 105);
   assert.equal(data.角色.user.评级贡献, 1);
+  assert.match(message, /<JSONPatch>\[\{"op":"remove","path":"\/任务\/领奖"\}\]<\/JSONPatch>/);
+
+  reset();
+  const completedPatch = [
+    { op: 'replace', path: '/世界/时间', value: '2026-09-28T22:05[1]' },
+    { op: 'replace', path: '/角色/主要角色/林沐沐/人设阶段/恶堕度/累计经验', value: 3 },
+    { op: 'replace', path: '/任务/使魔的恶趣味跑腿/当前进度', value: '已成功潜入妹妹房间。' },
+    { op: 'replace', path: '/任务/使魔的恶趣味跑腿/已完成', value: true },
+  ];
+  message = `正文<UpdateVariable><JSONPatch>\n${JSON.stringify(completedPatch)}\n</JSONPatch></UpdateVariable>`;
+  const originalCompletedMessage = message;
+  data.任务['使魔的恶趣味跑腿'] = { ...task, 已完成: true };
+  assert.equal(await store.claimTask('使魔的恶趣味跑腿'), 5);
+  assert.equal(data.任务['使魔的恶趣味跑腿'], undefined);
+  assert.equal(data.角色.user.恶堕积分, 105);
+  assert.equal(data.任务统计.周记录['2026-9-28'].完成, 1);
+  assert.ok(message.startsWith(originalCompletedMessage), '原始计算记录逐字保留');
+  assert.match(message, /\/任务\/使魔的恶趣味跑腿\/当前进度/);
+  assert.match(message, /\/任务\/使魔的恶趣味跑腿\/已完成/);
+  assert.match(message, /"op":"remove","path":"\/任务\/使魔的恶趣味跑腿"/);
+  assert.match(message, /\/世界\/时间/);
+  assert.match(message, /\/角色\/主要角色\/林沐沐/);
+  assert.match(message, /领取组织任务「使魔的恶趣味跑腿」/);
+  await assert.rejects(store.claimTask('使魔的恶趣味跑腿'), /没有这项已接任务/);
+
+  reset();
+  message = `<UpdateVariable><JSONPatch>${JSON.stringify(completedPatch)}</JSONPatch></UpdateVariable>`;
+  const originalRollbackMessage = message;
+  data.任务['使魔的恶趣味跑腿'] = { ...task, 已完成: true };
+  failMvu = true;
+  await assert.rejects(store.claimTask('使魔的恶趣味跑腿'), /变量写入失败/);
+  assert.equal(message, originalRollbackMessage);
+  assert.equal(data.角色.user.恶堕积分, 100);
 
   reset();
   data.商店.药剂 = { ...item };
@@ -128,7 +173,7 @@ async function main() {
   assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);
   assert.match(
     message,
-    /将林沐沐列为目标，消耗20点恶堕积分。\n林沐沐也察觉到了。这意味着哥哥将会得知她最大的秘密。被发现了被发现了/,
+    /将林沐沐列为目标，消耗20点恶堕积分。\n而林沐沐也察觉到了这一点，这意味着哥哥将会得知她最大的秘密。被发现了被发现了/,
   );
   await assert.rejects(store.chooseAdditionalTarget('主要角色', '林沐沐'), /已经是目标/);
   assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);

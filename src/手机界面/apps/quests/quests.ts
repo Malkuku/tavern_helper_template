@@ -205,3 +205,9 @@ export function claimTask(data: stat_data, name: string): number {
   delete data.任务[name];
   return creditedReward;
 }
+
+/** 领奖后的正文删除指令，保证 MVU 重算时任务仍保持已领奖。 */
+export function claimedTaskRemovalPatch(name: string): string {
+  const taskPath = `/任务/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+  return `<UpdateVariable><JSONPatch>[${JSON.stringify({ op: 'remove', path: taskPath })}]</JSONPatch></UpdateVariable>`;
+}
