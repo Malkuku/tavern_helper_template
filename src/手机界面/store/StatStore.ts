@@ -88,7 +88,6 @@ import {
   acceptTask as applyTaskAccept,
   claimTask as applyTaskClaim,
   recoverNonnegativeInteger,
-  claimedTaskRemovalPatch,
   refreshTasks as applyTaskRefresh,
   taskRefreshState,
 } from '../apps/quests/quests';
@@ -435,7 +434,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function changeCharacterData<T>(
     change: (data: stat_data) => T,
     log?: (before: stat_data, after: stat_data, result: T) => string,
-    suffix?: string,
+    suffix?: (before: stat_data, after: stat_data) => string,
   ): Promise<T> {
     const generation = chatGeneration;
     return queueStatWork(async () => {
@@ -452,7 +451,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           previous,
           log(previous.stat_data as stat_data, data, result),
           generation,
-          suffix,
+          suffix?.(previous.stat_data as stat_data, data),
         );
       else await writeStatData(data, previous);
       return result;
@@ -707,6 +706,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(
       data => applyTaskAbandon(data, name),
       () => `放弃组织任务「${escapeSystemLogText(name)}」。`,
+      stageSettlementPatch,
     );
   }
 
@@ -715,7 +715,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       data => applyTaskClaim(data, name),
       (before, after, reward) =>
         `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分、${after.角色.user.评级贡献 - recoverNonnegativeInteger(before.角色.user.评级贡献)}点评级贡献。`,
-      claimedTaskRemovalPatch(name),
+      stageSettlementPatch,
     );
   }
 
@@ -1498,7 +1498,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         previousStageLevels = null;
         transientNotices.value = [];
       }
-      const data = getVariables({ type: 'message', message_id: -1 })?.stat_data;
+      const data = Mvu.getMvuData({ type: 'message', message_id: -1 })?.stat_data;
       statData.value = data && typeof data === 'object' ? (data as stat_data) : null;
       if (statData.value?.角色) {
         const currentLevels = stageLevelSnapshot(statData.value);

@@ -28,10 +28,10 @@ let message = '正文';
 let data: any = {
   世界: { 时间: '2026-9-28T09:00[1]' },
   系统: { 商店下次刷新时间: '', 商店主动刷新次数: 0 },
-  角色: { user: { 恶堕积分: 100, 物品: {} } },
+  角色: { 主要角色: {}, 次要角色: {}, user: { 当前评级: 'D', 评级贡献: 0, 恶堕积分: 100, 物品: {} } },
   仓库: {},
   商店: { 原商品: { 描述: '原商品', 作用: '可使用', 评级: 'D', 价格: 5, 数量: 1, 耐久: 1 } },
-  手机: { 定向刷新: null },
+  手机: { 定向刷新: null, 恶堕奖励: { 已奖励等级: {}, 邮件: [] } },
 };
 let cleanupAttempts = 0;
 let failFirstCleanup = true;
@@ -100,6 +100,7 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 1050));
   assert.equal(cleanupAttempts, 1, '新一轮生成期间暂停旧标签清理');
   await until(() => !!data.商店.新商品);
+  assert.ok(store.statData?.商店.新商品, '写回成功后商店页面读取同一份 MVU 货架');
   await until(() => cleanupAttempts >= 2 && !message.includes(tag));
   assert.equal(message, `正文${validTag}`, '旧失败标签被清理，新结果保留并正常结算');
   assert.equal(data.系统.商店主动刷新次数, 1);

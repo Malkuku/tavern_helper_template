@@ -50,7 +50,8 @@ function reset() {
   notificationCount = 0;
   data = {
     世界: { 时间: '2026-09-28T12:00[1]' },
-    角色: { user: { 恶堕积分: 100, 当前评级: 'D', 评级贡献: 0, 物品: {}, 技能: {} } },
+    角色: { user: { 恶堕积分: 100, 当前评级: 'D', 评级贡献: 0, 物品: {}, 技能: {} }, 主要角色: {}, 次要角色: {} },
+    手机: { 恶堕奖励: { 已奖励等级: {}, 邮件: [] } },
     仓库: {},
     任务: {},
     任务候选: {},
@@ -74,6 +75,13 @@ function reset() {
 const item = { 描述: '道具', 作用: '测试', 评级: 'D', 价格: 6, 数量: 3, 耐久: 100 };
 const skill = { 描述: '技能', 作用: '测试', 评级: 'D', 价格: 8 };
 const task = { 描述: '任务', 目标: '测试', 当前进度: '未接取', 评级: 'D', 奖励: 5, 已完成: false };
+const role = {
+  人设阶段: {
+    创伤稳定度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '稳定' } },
+    好感度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '普通' } },
+    恶堕度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '初始' } },
+  },
+};
 
 setActivePinia(createPinia());
 const store = useMagicGirlStatStore();
@@ -89,6 +97,10 @@ async function main() {
   assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);
   await store.abandonTask('调查<目标>');
   assert.match(message, /放弃组织任务「调查&lt;目标&gt;」/);
+  const abandonPatch = JSON.parse([...message.matchAll(/<JSONPatch>(.*?)<\/JSONPatch>/g)].at(-1)?.[1] ?? '[]');
+  assert.ok(abandonPatch.some((op: any) => op.path === '/任务/调查<目标>/已失败' && op.value === true));
+  assert.ok(abandonPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/放弃' && op.value === 1));
+  assert.ok(abandonPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/放弃评级/D' && op.value === 1));
 
   reset();
   data.任务.领奖 = { ...task, 已完成: true };
@@ -96,7 +108,25 @@ async function main() {
   assert.match(message, /领取组织任务「领奖」的奖励，获得5点恶堕积分/);
   assert.equal(data.角色.user.恶堕积分, 105);
   assert.equal(data.角色.user.评级贡献, 1);
-  assert.match(message, /<JSONPatch>\[\{"op":"remove","path":"\/任务\/领奖"\}\]<\/JSONPatch>/);
+  const claimPatch = JSON.parse([...message.matchAll(/<JSONPatch>(.*?)<\/JSONPatch>/g)].at(-1)?.[1] ?? '[]');
+  assert.ok(claimPatch.some((op: any) => op.op === 'remove' && op.path === '/任务/领奖'));
+  assert.ok(claimPatch.some((op: any) => op.path === '/角色/user/恶堕积分' && op.value === 105));
+  assert.ok(claimPatch.some((op: any) => op.path === '/角色/user/评级贡献' && op.value === 1));
+  assert.ok(claimPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/完成' && op.value === 1));
+  assert.ok(claimPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/完成评级/D' && op.value === 1));
+
+  reset();
+  data.世界.时间 = '2026-10-05T12:00[1]';
+  data.任务['跨周/领奖'] = { ...task, 已完成: true };
+  await store.claimTask('跨周/领奖');
+  const newWeekPatch = JSON.parse([...message.matchAll(/<JSONPatch>(.*?)<\/JSONPatch>/g)].at(-1)?.[1] ?? '[]');
+  assert.ok(newWeekPatch.some((op: any) => op.op === 'remove' && op.path === '/任务/跨周~1领奖'));
+  assert.ok(
+    newWeekPatch.some(
+      (op: any) =>
+        op.op === 'add' && op.path === '/任务统计/周记录/2026-10-5' && op.value.完成 === 1 && op.value.完成评级.D === 1,
+    ),
+  );
 
   reset();
   const completedPatch = [
@@ -168,7 +198,7 @@ async function main() {
 
   reset();
   data.系统 = { 已发现目标: ['鹭见凛'] };
-  data.角色.主要角色 = { 鹭见凛: {}, 林沐沐: {} };
+  data.角色.主要角色 = { 鹭见凛: structuredClone(role), 林沐沐: structuredClone(role) };
   await store.chooseAdditionalTarget('主要角色', '林沐沐');
   assert.deepEqual(data.系统.已发现目标, ['鹭见凛', '林沐沐']);
   assert.equal(data.角色.user.恶堕积分, 80);
@@ -182,13 +212,13 @@ async function main() {
 
   reset();
   data.系统 = { 已发现目标: ['鹭见凛'] };
-  data.角色.次要角色 = { 路人: {} };
+  data.角色.次要角色 = { 路人: structuredClone(role) };
   await store.chooseAdditionalTarget('次要角色', '路人');
   assert.doesNotMatch(message, /林沐沐也察觉到了|被发现了/);
 
   reset();
   data.系统 = { 已发现目标: ['鹭见凛'] };
-  data.角色.主要角色 = { 林沐沐: {} };
+  data.角色.主要角色 = { 林沐沐: structuredClone(role) };
   failMvu = true;
   await assert.rejects(store.chooseAdditionalTarget('主要角色', '林沐沐'), /变量写入失败/);
   assert.deepEqual(data.系统.已发现目标, ['鹭见凛']);
@@ -216,7 +246,7 @@ async function main() {
       人设阶段: {
         创伤稳定度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '稳定' } },
         好感度: { 当前等级: 0, 累计经验: 0, 描述: { '0': '普通' } },
-        恶堕度: { 当前等级: 1, 累计经验: 50, 描述: { '0': '零', '1': '一', '2': '二' } },
+        恶堕度: { 当前等级: 1, 累计经验: 55, 描述: { '0': '零', '1': '一', '2': '二' } },
       },
     },
   };
