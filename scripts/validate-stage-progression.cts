@@ -31,6 +31,21 @@ assert.deepEqual(
 );
 assert.equal(stageExperienceCost('创伤稳定度', -2, -2, 7), 68, '自定义负等级范围仍按比例计算');
 assert.equal(stageExperienceCost('恶堕度', 6, 0, 8), 417, '恶堕度 6 级以上继续使用公式');
+assert.deepEqual(
+  (['D', 'C', 'B', 'A', 'S'] as const).map(rating =>
+    Array.from({ length: 6 }, (_, level) => stageExperienceCost('恶堕度', level, 0, 6, rating)),
+  ),
+  [
+    [30, 47, 73, 112, 174, 269],
+    [33, 52, 81, 124, 192, 296],
+    [36, 57, 88, 135, 209, 323],
+    [39, 62, 95, 146, 227, 350],
+    [42, 66, 103, 157, 244, 377],
+  ],
+  '恶堕经验按角色评级提高，D 级保持原曲线',
+);
+assert.equal(stageExperienceCost('恶堕度', 0, 0, 6, ''), 30, '评级未确定时沿用基础需求');
+assert.throws(() => stageExperienceCost('恶堕度', 0, 0, 6, 'A级'), /当前评级.*无效/);
 assert.equal(stageExperienceCost('好感度', -2, -2, 3), 32, '好感度负极端边界与正极端对称');
 assert.deepEqual(stageExperienceProgress(stage(0, 5, 3, 13), '创伤稳定度'), {
   direction: 'forward',
@@ -51,6 +66,10 @@ assert.deepEqual(stageExperienceProgress(stage(0, 5, 0, -10), '创伤稳定度')
 assert.deepEqual(stageExperienceProgress(stage(0, 6, 2, -10), '恶堕度'), {
   direction: 'none',
   percent: 0,
+});
+assert.deepEqual(stageExperienceProgress(stage(0, 6, 0, 21), '恶堕度', 'S'), {
+  direction: 'forward',
+  percent: 50,
 });
 const previewStage = { 当前等级: 1, 累计经验: 5, 描述: { '0': '上一阶段', '1': '当前阶段', '2': '下一阶段' } };
 assert.deepEqual(adjacentLevelDescription(previewStage, '好感度'), {
@@ -103,6 +122,18 @@ corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验 += 
 assert.equal(settleCharacterStages(corruption), true);
 assert.equal(corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.当前等级, 3);
 assert.equal(corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验, 0);
+
+const rated = data(stage(0, 5, 5, 0), stage(-2, 3, 1, 0), stage(0, 8, 0, 101));
+rated.角色.主要角色.索菲亚.当前评级 = 'A';
+assert.equal(settleCharacterStages(rated), true);
+assert.equal(rated.角色.主要角色.索菲亚.人设阶段.恶堕度.当前等级, 2);
+assert.equal(rated.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验, 0);
+const ratedMinor = data(stage(0, 5, 5, 0));
+ratedMinor.角色.次要角色.新角色.当前评级 = 'S';
+ratedMinor.角色.次要角色.新角色.人设阶段!.恶堕度.累计经验 = 41;
+assert.equal(settleCharacterStages(ratedMinor), false, 'S 级次要角色在 41 点时尚未晋级');
+ratedMinor.角色.次要角色.新角色.人设阶段!.恶堕度.累计经验 = 42;
+assert.equal(settleCharacterStages(ratedMinor), true, 'S 级次要角色按 42 点晋级');
 
 const minor = data(stage(0, 5, 5, 0));
 minor.角色.次要角色.新角色.人设阶段!.恶堕度.累计经验 = 30;

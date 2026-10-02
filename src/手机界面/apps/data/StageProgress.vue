@@ -23,7 +23,7 @@ import type { 阶段状态 } from '../../types';
 import { stageExperienceProgress, type StageKind } from '../../store/stageProgression';
 import { adjacentLevelDescription } from './entries';
 
-const props = defineProps<{ stage: 阶段状态; kind: StageKind }>();
-const progress = computed(() => stageExperienceProgress(props.stage, props.kind));
+const props = defineProps<{ stage: 阶段状态; kind: StageKind; rating?: string }>();
+const progress = computed(() => stageExperienceProgress(props.stage, props.kind, props.rating));
 const adjacent = computed(() => adjacentLevelDescription(props.stage, props.kind));
 </script>

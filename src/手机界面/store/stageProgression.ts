@@ -2,6 +2,8 @@ import type { stat_data, 阶段状态 } from '../types';
 
 export type StageKind = '恶堕度' | '好感度' | '创伤稳定度';
 
+const corruptionCostMultiplier = { D: 1, C: 1.1, B: 1.2, A: 1.3, S: 1.4 } as const;
+
 function levelRange(stage: 阶段状态, path: string): { min: number; max: number } {
   if (!stage || typeof stage !== 'object' || !stage.描述 || typeof stage.描述 !== 'object')
     throw new Error(`${path} 缺少阶段描述。`);
@@ -21,12 +23,22 @@ function levelRange(stage: 阶段状态, path: string): { min: number; max: numb
   return { min: levels[0], max: levels[levels.length - 1] };
 }
 
-export function stageExperienceCost(kind: StageKind, lowerLevel: number, min: number, max: number): number {
+export function stageExperienceCost(
+  kind: StageKind,
+  lowerLevel: number,
+  min: number,
+  max: number,
+  rating?: string,
+): number {
   if (!Number.isSafeInteger(lowerLevel) || !Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min >= max)
     throw new Error('人设阶段等级范围无效。');
   let cost: number;
-  if (kind === '恶堕度') cost = Math.ceil(30 * 1.55 ** Math.max(lowerLevel, 0));
-  else if (kind === '好感度') {
+  if (kind === '恶堕度') {
+    if (rating && !Object.hasOwn(corruptionCostMultiplier, rating))
+      throw new Error(`魔法少女当前评级“${rating}”无效。`);
+    const base = Math.ceil(30 * 1.55 ** Math.max(lowerLevel, 0));
+    cost = Math.ceil(base * (corruptionCostMultiplier[rating as keyof typeof corruptionCostMultiplier] ?? 1));
+  } else if (kind === '好感度') {
     const distance = Math.max(Math.abs(lowerLevel), Math.abs(lowerLevel + 1));
     cost = Math.ceil(16 * (1 + 0.25 * distance ** 2));
   } else {
@@ -40,6 +52,7 @@ export function stageExperienceCost(kind: StageKind, lowerLevel: number, min: nu
 export function stageExperienceProgress(
   stage: 阶段状态,
   kind: StageKind,
+  rating?: string,
 ): {
   direction: 'forward' | 'backward' | 'none';
   percent: number;
@@ -57,16 +70,16 @@ export function stageExperienceProgress(
   if (level >= max) return { direction: 'forward', percent: 100 };
   return {
     direction: 'forward',
-    percent: Math.min((experience / stageExperienceCost(kind, level, min, max)) * 100, 100),
+    percent: Math.min((experience / stageExperienceCost(kind, level, min, max, rating)) * 100, 100),
   };
 }
 
-function settleStage(stage: 阶段状态, kind: StageKind, path: string): boolean {
+function settleStage(stage: 阶段状态, kind: StageKind, path: string, rating?: string): boolean {
   const { min, max } = levelRange(stage, path);
   let level = stage.当前等级;
   let experience = stage.累计经验;
   while (level < max && Object.hasOwn(stage.描述, String(level + 1))) {
-    const cost = stageExperienceCost(kind, level, min, max);
+    const cost = stageExperienceCost(kind, level, min, max, rating);
     if (experience < cost) break;
     experience -= cost;
     level++;
@@ -91,14 +104,14 @@ export function settleCharacterStages(data: stat_data): boolean {
     for (const kind of ['创伤稳定度', '好感度', '恶堕度'] as const) {
       const path = `角色.主要角色.${key}.人设阶段.${kind}`;
       if (!role.人设阶段?.[kind]) throw new Error(`${path} 缺少阶段数据。`);
-      changed = settleStage(role.人设阶段[kind], kind, path) || changed;
+      changed = settleStage(role.人设阶段[kind], kind, path, role.当前评级) || changed;
     }
   }
   for (const [key, role] of Object.entries(data.角色?.次要角色 ?? {})) {
     for (const kind of ['好感度', '恶堕度'] as const) {
       const value = role.人设阶段?.[kind];
       if (!value) continue; // 旧存档中的次要角色可缺少该字段。
-      changed = settleStage(value, kind, `角色.次要角色.${key}.人设阶段.${kind}`) || changed;
+      changed = settleStage(value, kind, `角色.次要角色.${key}.人设阶段.${kind}`, role.当前评级) || changed;
     }
   }
   return changed;

@@ -21,7 +21,7 @@ function fixture(): stat_data {
     角色: {
       user: { 恶堕积分: 10 },
       主要角色: {
-        A角色: { 当前评级: 'A', 人设阶段: { 创伤稳定度: stage(5), 好感度: stage(0), 恶堕度: stage(0, 77) } },
+        A角色: { 当前评级: 'A', 人设阶段: { 创伤稳定度: stage(5), 好感度: stage(0), 恶堕度: stage(0, 101) } },
         S角色: { 当前评级: 'S', 人设阶段: { 创伤稳定度: stage(5), 好感度: stage(0), 恶堕度: stage(4) } },
       },
       次要角色: { 未知评级: { 当前评级: '', 人设阶段: { 恶堕度: stage(0, 30) } } },
@@ -61,7 +61,7 @@ assert.equal(settleCorruptionRewards(replay), false, '存档重载后不重复�
 assert.throws(() => markCorruptionRewardMailRead(replay, 'missing'), /已不存在/);
 
 const sGrade = fixture();
-sGrade.角色.主要角色.S角色.人设阶段.恶堕度.累计经验 = 174;
+sGrade.角色.主要角色.S角色.人设阶段.恶堕度.累计经验 = 244;
 establishNewRoleRewardBaselines(sGrade);
 settleCharacterStages(sGrade);
 settleCorruptionRewards(sGrade);
@@ -91,7 +91,6 @@ for (const [rating, each] of [
 const invalidRating = fixture();
 invalidRating.角色.主要角色.A角色.当前评级 = 'A级';
 establishNewRoleRewardBaselines(invalidRating);
-settleCharacterStages(invalidRating);
-assert.throws(() => settleCorruptionRewards(invalidRating), /当前评级无效/);
+assert.throws(() => settleCharacterStages(invalidRating), /当前评级.*无效/);
 
 console.log('恶堕晋级奖励：初始及新角色基线、跨级、评级、一次性、邮件已读和重载通过。');

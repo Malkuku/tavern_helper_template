@@ -77,7 +77,10 @@
       <h2>{{ selectedMinorKey }}</h2>
       <p class="monitor-hero-identity">{{ selectedMinor.身份.join('、') || '身份未记录' }}</p>
     </section>
-    <div v-if="imageRoleKey && characterImages[imageRoleKey as keyof typeof characterImages]" class="monitor-image-picker">
+    <div
+      v-if="imageRoleKey && characterImages[imageRoleKey as keyof typeof characterImages]"
+      class="monitor-image-picker"
+    >
       <button
         v-for="form in imageForms"
         :key="form"
@@ -119,7 +122,7 @@
               </div>
             </div>
             <p class="observation-stage-description">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
-            <StageProgress :stage="stage" :kind="key" />
+            <StageProgress :stage="stage" :kind="key" :rating="selectedMain.当前评级" />
             <CorruptionNextReward v-if="key === '恶堕度'" :level="stage.当前等级" :rating="selectedMain.当前评级" />
           </LockedField>
           <section v-else class="data-card observation-stage" :data-stage="key">
@@ -191,7 +194,7 @@
           <p class="observation-stage-description">
             {{ currentLevelDescription(selectedMinor.人设阶段.恶堕度) || '暂无当前阶段描述' }}
           </p>
-          <StageProgress :stage="selectedMinor.人设阶段.恶堕度" kind="恶堕度" />
+          <StageProgress :stage="selectedMinor.人设阶段.恶堕度" kind="恶堕度" :rating="selectedMinor.当前评级" />
           <CorruptionNextReward :level="selectedMinor.人设阶段.恶堕度.当前等级" :rating="selectedMinor.当前评级" />
         </LockedField>
       </template>
@@ -467,7 +470,12 @@ import StageHelp from './StageHelp.vue';
 import StageProgress from './StageProgress.vue';
 import CorruptionNextReward from './CorruptionNextReward.vue';
 
-const props = defineProps<{ data: stat_data; selectedTargetId?: string | null; targetKey?: string | null; targetRequestId?: number | null }>();
+const props = defineProps<{
+  data: stat_data;
+  selectedTargetId?: string | null;
+  targetKey?: string | null;
+  targetRequestId?: number | null;
+}>();
 const emit = defineEmits<{ firstTargetChosen: []; 'update:selectedTargetId': [id: string | null] }>();
 const selectedId = computed({
   get: () => props.selectedTargetId ?? null,
@@ -555,7 +563,9 @@ const currentMainAbilityLimit = computed(() =>
 const imageForms: CharacterImageForm[] = ['日常', '魔法少女', '恶堕'];
 const imageRoleKey = computed(() => selectedMainKey.value ?? selectedMinorKey.value);
 const unlockedForms = computed(() =>
-  selectedMain.value || selectedMinor.value ? availableCharacterImageForms((selectedMain.value ?? selectedMinor.value)!) : [],
+  selectedMain.value || selectedMinor.value
+    ? availableCharacterImageForms((selectedMain.value ?? selectedMinor.value)!)
+    : [],
 );
 const imageCount = computed(() =>
   imageRoleKey.value
