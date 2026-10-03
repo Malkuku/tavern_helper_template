@@ -14,6 +14,7 @@
           v-for="character in characters"
           :key="character.名称"
           type="button"
+          :disabled="isSaving"
           :class="{ active: selectedName === character.名称 }"
           :aria-pressed="selectedName === character.名称"
           @click="
@@ -71,14 +72,13 @@
             </section>
             <section class="field">
               <h3>身体状态</h3>
-              <p v-if="currentCharacter.身体.特殊状态.length">
-                特殊状态：{{ currentCharacter.身体.特殊状态.join('、') }}
-              </p>
+              <p>特殊状态：{{ currentCharacter.身体.特殊状态.join('、') || '暂无记录' }}</p>
               <ul>
-                <li v-for="part in ['小穴', '口穴', '菊穴', '胸部']" :key="part">
-                  {{ part }}：{{ currentCharacter.身体[part].当前状态 || '暂无记录' }}； 开发程度：{{
-                    currentCharacter.身体[part].开发程度 || '暂无记录'
-                  }}
+                <li v-for="part in bodyParts" :key="part">
+                  <strong>{{ part }}</strong>
+                  <p>当前状态：{{ currentCharacter.身体[part].当前状态 || '暂无记录' }}</p>
+                  <p>特征：{{ currentCharacter.身体[part].特征 || '暂无记录' }}</p>
+                  <p>开发程度：{{ currentCharacter.身体[part].开发程度 || '暂无记录' }}</p>
                 </li>
               </ul>
             </section>
@@ -100,7 +100,21 @@
           <button type="button" class="record-button" :disabled="isRecorded || isSaving" @click="recordCharacter">
             {{ isRecorded ? '已收录' : isSaving ? '正在收录…' : '收录人物' }}
           </button>
+          <button
+            v-if="isMinorRecorded"
+            type="button"
+            class="record-button"
+            :disabled="isSaving"
+            @click="requestCancelRecord"
+          >
+            取消收录
+          </button>
         </footer>
+        <div v-if="cancelRecordOriginal" class="cancel-record" role="alert">
+          <p>确认取消收录{{ selectedName }}？这会删除当前剧情中的次要角色变量，保留聊天记录。</p>
+          <button type="button" :disabled="isSaving" @click="cancelRecordOriginal = null">保留记录</button>
+          <button type="button" :disabled="isSaving" @click="cancelRecord">确认取消收录</button>
+        </div>
         <p v-if="feedback" class="feedback" role="status">{{ feedback }}</p>
       </article>
     </template>
@@ -110,6 +124,9 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { completeMinorRole, loadMinorStageTemplates } from '../手机界面/store/minorStages';
+import { changeRuntimeMinorRole } from '../手机界面/apps/roleEditor/roleAssets';
+import { addWechatAccount } from '../手机界面/apps/wechat/accountManagement';
+import { wechatRoleAvatar } from '../尘史使徒/UI/components/common/roleAvatarFallback';
 
 // 世界书的 <MinorCharInfo> 捕获组：{ "角色": [{ "名称": "…", ... }] }。
 const rawJson = $1 || {};
@@ -149,8 +166,11 @@ const currentDetailTab = ref(detailTabs[0]);
 const globalMvuData = ref(null);
 const isSaving = ref(false);
 const feedback = ref('');
+const cancelRecordOriginal = ref(null);
+let cancelRecordChatId = null;
 watch(selectedName, () => {
   currentDetailTab.value = detailTabs[0];
+  cancelRecordOriginal.value = null;
 });
 
 const currentCharacter = computed(() => characters.find(character => character.名称 === selectedName.value));
@@ -162,6 +182,50 @@ const isRecorded = computed(() => {
   const roles = globalMvuData.value?.stat_data?.角色;
   return Boolean(roles?.次要角色?.[selectedName.value] || roles?.主要角色?.[selectedName.value]);
 });
+const isMinorRecorded = computed(() => Boolean(globalMvuData.value?.stat_data?.角色?.次要角色?.[selectedName.value]));
+
+function requestCancelRecord() {
+  fetchGlobalData();
+  const role = globalMvuData.value?.stat_data?.角色?.次要角色?.[selectedName.value];
+  if (!role) {
+    feedback.value = '当前剧情已没有该次要角色记录。';
+    return;
+  }
+  cancelRecordOriginal.value = JSON.parse(JSON.stringify(role));
+  cancelRecordChatId = SillyTavern.getCurrentChatId();
+}
+
+async function cancelRecord() {
+  if (!cancelRecordOriginal.value || isSaving.value) return;
+  const name = selectedName.value;
+  const original = cancelRecordOriginal.value;
+  const chatId = cancelRecordChatId;
+  isSaving.value = true;
+  feedback.value = '';
+  try {
+    await waitGlobalInitialized('Mvu');
+    if (SillyTavern.getCurrentChatId() !== chatId) throw new Error('聊天已切换，请重新操作');
+    const messageId = getLastMessageId();
+    if (messageId < 0) throw new Error('当前聊天没有可写入的楼层');
+    const previous = Mvu.getMvuData({ type: 'message', message_id: messageId });
+    if (!previous?.stat_data?.角色?.次要角色) throw new Error('当前楼层缺少次要角色数据');
+    const next = JSON.parse(JSON.stringify(previous));
+    changeRuntimeMinorRole(next.stat_data, name, original, null);
+    await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+    cancelRecordOriginal.value = null;
+    try {
+      await eventEmit('mag_variable_update_ended', next, previous);
+    } catch (error) {
+      console.error('人物记录已删除，但变量更新通知失败', error);
+    }
+    fetchGlobalData();
+    feedback.value = `${name}已取消收录，可重新收录。`;
+  } catch (error) {
+    feedback.value = `取消收录失败：${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    isSaving.value = false;
+  }
+}
 
 function fetchGlobalData() {
   try {
@@ -210,7 +274,14 @@ async function recordCharacter() {
     const originalText = message.message;
     const previous = globalMvuData.value;
     const next = JSON.parse(JSON.stringify(previous));
+    if (!next.stat_data.手机?.微信?.账号) throw new Error('当前楼层缺少 Weline 账号数据，无法完整收录人物');
     next.stat_data.角色.次要角色[名称] = role;
+    next.stat_data.手机.微信 = addWechatAccount(
+      next.stat_data.手机.微信,
+      名称,
+      名称,
+      wechatRoleAvatar(role.meta, 名称),
+    );
     if (SillyTavern.getCurrentChatId() !== chatId || getLastMessageId() !== dataMessageId)
       throw new Error('聊天或楼层已切换，请在当前剧情重新收录');
     const logEntry = `\n<systemLog>\n<user>将新人物${名称}收录到当前剧情。\n</systemLog>\n`;
@@ -491,6 +562,13 @@ button:focus-visible {
   margin: 0;
   padding: 0 12px 12px;
   color: #f5b7d2;
+}
+.cancel-record {
+  padding: 12px;
+  color: var(--archive-accent);
+}
+.cancel-record button {
+  margin-right: 8px;
 }
 .notice {
   padding: 16px;

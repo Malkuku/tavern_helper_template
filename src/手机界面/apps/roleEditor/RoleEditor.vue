@@ -64,7 +64,7 @@
         </section>
         <div class="pre-actions">
           <button type="button" class="primary" :disabled="busy" @click="requestMinorSave">保存到当前剧情</button>
-          <button type="button" class="pre-danger" :disabled="busy" @click="requestMinorDelete">删除次要角色</button>
+          <button type="button" class="pre-danger" :disabled="busy" @click="requestMinorDelete()">删除变量记录</button>
         </div>
       </template>
       <template v-else-if="!draft">
@@ -84,18 +84,15 @@
           <h2>当前剧情次要角色</h2>
           <p class="pre-hint">编辑或删除当前楼层变量中的角色。</p>
           <div v-if="!runtimeMinorKeys.length" class="pre-empty">当前剧情没有次要角色</div>
-          <button
-            v-for="key in runtimeMinorKeys"
-            :key="key"
-            type="button"
-            class="pre-row"
-            @click="openRuntimeMinor(key)"
-          >
-            <span class="pre-row-main"
-              ><strong>{{ key }}</strong
-              ><small>当前剧情变量</small></span
-            ><span class="pre-row-arrow">›</span>
-          </button>
+          <div v-for="key in runtimeMinorKeys" :key="key" class="pre-runtime-row">
+            <button type="button" class="pre-row" :disabled="busy" @click="openRuntimeMinor(key)">
+              <span class="pre-row-main"
+                ><strong>{{ key }}</strong
+                ><small>当前剧情变量</small></span
+              ><span class="pre-row-arrow">›</span>
+            </button>
+            <button type="button" class="pre-danger" :disabled="busy" @click="requestMinorDelete(key)">删除记录</button>
+          </div>
         </section>
         <div v-if="loading" class="pre-empty">正在读取角色资源…</div>
         <div v-else-if="!rows.length" class="pre-empty">主世界书中还没有角色资源</div>
@@ -275,6 +272,7 @@ type Dialog = {
   fields: string[];
 };
 const dialog = ref<Dialog | null>(null);
+let minorActionChatId: string | null = null;
 const leaving = ref(false);
 const refreshing = ref(false);
 const rows = computed(() => Object.entries(registry.value).map(([id, asset]) => ({ id, asset })));
@@ -401,6 +399,7 @@ function requestMinorSave() {
     notice.value = '没有需要保存的修改。';
     return;
   }
+  minorActionChatId = SillyTavern.getCurrentChatId();
   dialog.value = {
     kind: 'minor-save',
     title: '保存次要角色',
@@ -409,12 +408,22 @@ function requestMinorSave() {
     fields,
   };
 }
-function requestMinorDelete() {
-  if (!runtimeMinorDraft.value) return;
+function requestMinorDelete(key = runtimeMinorKey.value) {
+  if (busy.value) return;
+  if (!runtimeMinorDraft.value) {
+    const role = runtime.value.次要角色?.[key];
+    if (!role) {
+      error.value = '该次要角色已不存在，请刷新列表。';
+      return;
+    }
+    runtimeMinorKey.value = key;
+    runtimeMinorOriginal.value = klona(role);
+  }
+  minorActionChatId = SillyTavern.getCurrentChatId();
   dialog.value = {
     kind: 'minor-delete',
     title: '删除次要角色',
-    body: `从当前剧情变量中删除${runtimeMinorKey.value}。主世界书资源不会改变。`,
+    body: `从当前剧情变量中删除${runtimeMinorKey.value}的记录，保留 Weline 账号与聊天历史。主世界书资源不会改变。`,
     action: '确认删除',
     fields: [],
   };
@@ -572,7 +581,9 @@ async function confirmDialog() {
   error.value = '';
   try {
     if (action.kind === 'minor-save' || action.kind === 'minor-delete') {
-      if (!runtimeMinorOriginal.value || !runtimeMinorDraft.value) throw new Error('次要角色草稿已失效。');
+      if (minorActionChatId !== SillyTavern.getCurrentChatId()) throw new Error('聊天已切换，请刷新后重新操作。');
+      if (!runtimeMinorOriginal.value || (action.kind === 'minor-save' && !runtimeMinorDraft.value))
+        throw new Error('次要角色草稿已失效。');
       const key = runtimeMinorKey.value;
       const next = action.kind === 'minor-delete' ? null : minorRoleSchema.parse(runtimeMinorDraft.value);
       await statStore.changeRuntimeMinorRole(key, runtimeMinorOriginal.value, next);

@@ -138,6 +138,27 @@
   color: #a84d59;
   border-color: #e9c8cf;
 }
+.pre-runtime-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.pre-runtime-row .pre-row {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.pre-runtime-row .pre-danger {
+  flex: none;
+  padding: 8px;
+  color: #a84d59;
+  background: #fff;
+  border: 1px solid #e9c8cf;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12px;
+}
 .pre-row {
   display: flex;
   align-items: center;
