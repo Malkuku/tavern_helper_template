@@ -34,7 +34,7 @@
           <small>偏好会提高相关内容出现机会，不保证必出。</small>
         </div>
         <button v-if="store.skillRefreshing" class="cancel-refresh" type="button" @click="store.cancelSkillRefresh()">
-          取消等待
+          取消生成
         </button>
         <RefreshFeedback v-if="store.skillRefreshing" label="正在更新技能货架" />
         <p v-if="balance < refreshPrice" class="shop-error">积分不足，需要 {{ refreshPrice }} 点。</p>

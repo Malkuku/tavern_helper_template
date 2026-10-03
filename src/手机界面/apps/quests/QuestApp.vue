@@ -14,7 +14,7 @@
         </button>
         <p>本周剩余刷新 {{ refreshState?.remaining ?? 0 }}/5 次</p>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
-          取消等待
+          取消生成
         </button>
         <RefreshFeedback v-if="store.taskRefreshing" label="正在寻找新任务" />
         <p v-if="store.taskRefreshError" class="error">{{ store.taskRefreshError }}</p>

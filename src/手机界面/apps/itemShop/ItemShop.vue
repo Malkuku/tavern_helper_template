@@ -33,7 +33,7 @@
           <textarea id="item-refresh-wish" v-model="preference" placeholder="描述希望出现的道具、用途或效果"></textarea>
           <small>偏好会提高相关内容出现机会，不保证必出。</small>
         </div>
-        <button v-if="store.itemRefreshing" type="button" @click="store.cancelItemRefresh()">取消等待</button>
+        <button v-if="store.itemRefreshing" type="button" @click="store.cancelItemRefresh()">取消生成</button>
         <RefreshFeedback v-if="store.itemRefreshing" label="正在更新道具货架" />
         <p v-if="quote.error" class="item-shop-error">{{ quote.error }}</p>
         <p v-else-if="balance < refreshPrice" class="item-shop-error">积分不足，需要 {{ refreshPrice }} 点。</p>

@@ -172,7 +172,89 @@ async function main() {
   await until(() => data.系统.任务主动刷新次数 === 1);
   assert.ok(data.任务候选.新任务, '无通知的任务正文写入后应成为候选');
   assert.equal(store.taskRefreshError, '');
-  console.info('手机失败生成标签自动清理与重试验证通过。');
+
+  function emit(name: string) {
+    for (const listener of listeners.get(name) ?? []) listener(7);
+  }
+  let stopCalls = 0;
+  host.SillyTavern.stopGeneration = () => {
+    stopCalls++;
+    tavernBusy = false;
+    emit('generation_stopped');
+    return true;
+  };
+  const generationEvents = ['Chat_On_SkillShop', 'Chat_On_ItemShop', 'Chat_On_Quest'];
+  host.eventEmit = async (name: string) => {
+    if (generationEvents.includes(name)) tavernBusy = true;
+  };
+  const refreshCases = [
+    {
+      start: () => store.refreshSkillShop('防御技能'),
+      cancel: () => store.cancelSkillRefresh(),
+      refreshing: () => store.skillRefreshing,
+      error: () => store.skillRefreshError,
+      result: validSkillTag,
+    },
+    {
+      start: () => store.refreshItemShop('治疗道具'),
+      cancel: () => store.cancelItemRefresh(),
+      refreshing: () => store.itemRefreshing,
+      error: () => store.itemRefreshError,
+      result: validTag,
+    },
+    {
+      start: () => store.refreshTaskBoard(),
+      cancel: () => store.cancelTaskRefresh(),
+      refreshing: () => store.taskRefreshing,
+      error: () => store.taskRefreshError,
+      result: validTaskTag,
+    },
+  ];
+  for (const scenario of refreshCases) {
+    for (const source of ['手机', '酒馆']) {
+      const before = structuredClone(data);
+      const previousStopCalls = stopCalls;
+      await scenario.start();
+      assert.equal(scenario.refreshing(), true);
+      if (source === '手机') scenario.cancel();
+      else {
+        // 完整结果已到达并排队时，停止事件也必须优先取消结算。
+        message += scenario.result;
+        emit('message_received');
+        host.SillyTavern.stopGeneration();
+      }
+      assert.equal(scenario.refreshing(), false, `${source}取消应立即结束手机刷新`);
+      assert.equal(tavernBusy, false, '手机取消也应停止宿主生成');
+      assert.equal(stopCalls, previousStopCalls + 1, '停止事件不能递归调用停止接口');
+      assert.match(scenario.error(), /已取消生成/);
+      await until(() => data.手机.定向刷新 === null);
+      message += scenario.result;
+      emit('generation_ended');
+      emit('message_received');
+      emit('message_updated');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      assert.deepEqual(data, before, '取消后排队和迟到结果均不得改货架、扣费或计次');
+      scenario.cancel();
+      assert.equal(stopCalls, previousStopCalls + 1, '无活动刷新时取消不影响宿主');
+    }
+  }
+
+  for (const scenario of refreshCases) {
+    let rejectGeneration!: (error: Error) => void;
+    host.eventEmit = (name: string) =>
+      generationEvents.includes(name)
+        ? new Promise((_resolve, reject) => (rejectGeneration = reject))
+        : Promise.resolve();
+    const pending = scenario.start();
+    await until(() => !!rejectGeneration);
+    scenario.cancel();
+    rejectGeneration(new Error('生成已中止'));
+    await pending;
+    assert.equal(scenario.refreshing(), false);
+    assert.match(scenario.error(), /已取消生成/, '中止导致的旧事件拒绝不能覆盖取消状态');
+    await until(() => data.手机.定向刷新 === null);
+  }
+  console.info('手机失败标签清理、迟到结果与生成双向取消验证通过。');
 }
 
 void main()
