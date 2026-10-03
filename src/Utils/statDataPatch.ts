@@ -1,9 +1,7 @@
-import type { stat_data } from '../types';
-
 type PatchOperation = { op: 'add' | 'replace' | 'remove'; path: string; value?: unknown };
 
-/** 只记录本次阶段结算改变的字段，供楼层变量重算时重放。 */
-export function stageSettlementPatch(before: stat_data, after: stat_data): string {
+/** 只记录本次 stat_data 变更，供楼层变量从正文重算时重放。 */
+export function statDataPatch(before: object, after: object): string {
   const patch: PatchOperation[] = [];
   const escape = (key: string) => key.replace(/~/g, '~0').replace(/\//g, '~1');
 
@@ -37,5 +35,8 @@ export function stageSettlementPatch(before: stat_data, after: stat_data): strin
   }
 
   visit(before, after, '');
-  return patch.length ? `<UpdateVariable><JSONPatch>${JSON.stringify(patch)}</JSONPatch></UpdateVariable>` : '';
+  // 字段中的标签只作为 JSON 字符串保存，不能提前闭合正文的 JSONPatch。
+  return patch.length
+    ? `<UpdateVariable><JSONPatch>${JSON.stringify(patch).replaceAll('<', '\\u003c')}</JSONPatch></UpdateVariable>`
+    : '';
 }

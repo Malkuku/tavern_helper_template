@@ -154,7 +154,8 @@ async function main() {
   await until(() => !!data.商店.新商品);
   assert.ok(store.statData?.商店.新商品, '写回成功后商店页面读取同一份 MVU 货架');
   await until(() => cleanupAttempts >= 2 && !message.includes(tag));
-  assert.equal(message, `正文${validTag}`, '旧失败标签被清理，新结果保留并正常结算');
+  assert.ok(message.startsWith(`正文${validTag}`), '旧失败标签被清理，新结果保留并正常结算');
+  assert.match(message.slice(`正文${validTag}`.length), /<JSONPatch>/, '货架结算留下可重放的正文差分');
   assert.equal(data.系统.商店主动刷新次数, 1);
   await store.refreshItemShop();
   await new Promise(resolve => setTimeout(resolve, 5100));

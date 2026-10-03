@@ -1,3 +1,58 @@
+import { klona } from 'klona';
+import { isEqual } from 'lodash';
+import { statDataPatch } from './statDataPatch';
+
+/** 将完整目标数据的差分追加到当前正文，再保存变量；失败时撤回本次正文追加。 */
+const updateMvuDataByObjWithPatch = async (
+  obj: object,
+  options: { previous?: Mvu.MvuData; messageSuffix?: string; isCurrent?: () => boolean } = {},
+) => {
+  const chatId = SillyTavern.getCurrentChatId();
+  const messageId = getLastMessageId();
+  await waitGlobalInitialized('Mvu');
+  const scope = { type: 'message' as const, message_id: messageId };
+  const isCurrent = () =>
+    chatId === SillyTavern.getCurrentChatId() && messageId === getLastMessageId() && (options.isCurrent?.() ?? true);
+  if (!isCurrent()) throw new Error('操作已取消或聊天、楼层已切换，变量差分未写入。');
+  const previous = klona(options.previous ?? Mvu.getMvuData(scope));
+  if (!previous?.stat_data) throw new Error('当前楼层变量尚未初始化，无法记录变量差分。');
+  const next = { ...previous, stat_data: klona(obj) };
+  const suffix = (options.messageSuffix ?? '') + statDataPatch(previous.stat_data, next.stat_data);
+  if (!suffix) return;
+  const message = getChatMessages(messageId)[0];
+  if (!message) throw new Error('当前楼层尚未准备好，无法记录变量差分。');
+  const originalText = message.message;
+  const appendedText = originalText + suffix;
+  await setChatMessages([{ message_id: messageId, message: appendedText }], { refresh: 'none' });
+  try {
+    if (!isCurrent()) throw new Error('操作已取消或聊天、楼层已切换，变量差分写入已停止。');
+    await Mvu.replaceMvuData(next, scope);
+    if (!isEqual(Mvu.getMvuData(scope)?.stat_data, next.stat_data))
+      throw new Error('变量写入后读回结果不一致，请检查 MVU 或其他脚本是否覆盖了本次更新。');
+  } catch (error) {
+    if (chatId !== SillyTavern.getCurrentChatId())
+      throw new AggregateError([error], '变量差分写入失败，聊天已切换，无法安全撤回旧聊天的正文记录。');
+    try {
+      const currentText = getChatMessages(messageId)[0]?.message;
+      if (!currentText?.startsWith(appendedText)) throw new Error('正文已被修改，无法安全撤回本次变量差分。');
+      await setChatMessages(
+        [{ message_id: messageId, message: originalText + currentText.slice(appendedText.length) }],
+        {
+          refresh: 'none',
+        },
+      );
+    } catch (rollbackError) {
+      throw new AggregateError([error, rollbackError], '变量差分写入失败，正文记录回滚也失败，请检查当前楼层。');
+    }
+    throw error;
+  }
+  try {
+    await eventEmit('mag_variable_update_ended', next, previous);
+  } catch (error) {
+    console.error('变量差分已保存，但更新通知失败', error);
+  }
+};
+
 /**
  * 从正文中应用一次Mvu更新
  */
@@ -128,6 +183,7 @@ const updateMvuDataByDiff = async (diffObj: object) => {
 
 // 导出
 export const MvuUtil = {
+  updateMvuDataByObjWithPatch,
   updateMvuDataFromContent,
   updateMvuData,
   backUpMvuData,

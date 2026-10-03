@@ -14,7 +14,7 @@ const resolveFilename = (Module as any)._resolveFilename;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useMagicGirlStatStore } = require('../src/手机界面/store/StatStore');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { stageSettlementPatch } = require('../src/手机界面/store/stageJournal');
+const { statDataPatch } = require('../src/Utils/statDataPatch');
 
 const host = globalThis as any;
 let data: any;
@@ -43,7 +43,9 @@ host.eventEmit = async () => {
 host.getVariables = () => null;
 host.SillyTavern = { getCurrentChatId: () => 'test-chat' };
 
-function reset() {
+async function reset() {
+  // 手机刷新会排队自动结算；上一场景结束后再切换宿主快照。
+  await new Promise(resolve => setTimeout(resolve, 0));
   message = '原正文';
   failMessage = false;
   failMvu = false;
@@ -87,7 +89,7 @@ setActivePinia(createPinia());
 const store = useMagicGirlStatStore();
 
 async function main() {
-  reset();
+  await reset();
   data.任务候选['调查<目标>'] = task;
   await store.acceptTask('调查<目标>');
   assert.match(message, /<systemLog>\n<user>接取组织任务「调查&lt;目标&gt;」。/);
@@ -102,7 +104,7 @@ async function main() {
   assert.ok(abandonPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/放弃' && op.value === 1));
   assert.ok(abandonPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/放弃评级/D' && op.value === 1));
 
-  reset();
+  await reset();
   data.任务.领奖 = { ...task, 已完成: true };
   assert.equal(await store.claimTask('领奖'), 5);
   assert.match(message, /领取组织任务「领奖」的奖励，获得5点恶堕积分/);
@@ -115,7 +117,7 @@ async function main() {
   assert.ok(claimPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/完成' && op.value === 1));
   assert.ok(claimPatch.some((op: any) => op.path === '/任务统计/周记录/2026-9-28/完成评级/D' && op.value === 1));
 
-  reset();
+  await reset();
   data.世界.时间 = '2026-10-05T12:00[1]';
   data.任务['跨周/领奖'] = { ...task, 已完成: true };
   await store.claimTask('跨周/领奖');
@@ -128,7 +130,7 @@ async function main() {
     ),
   );
 
-  reset();
+  await reset();
   const completedPatch = [
     { op: 'replace', path: '/世界/时间', value: '2026-09-28T22:05[1]' },
     { op: 'replace', path: '/角色/主要角色/林沐沐/人设阶段/恶堕度/累计经验', value: 3 },
@@ -151,7 +153,7 @@ async function main() {
   assert.match(message, /领取组织任务「使魔的恶趣味跑腿」/);
   await assert.rejects(store.claimTask('使魔的恶趣味跑腿'), /没有这项已接任务/);
 
-  reset();
+  await reset();
   message = `<UpdateVariable><JSONPatch>${JSON.stringify(completedPatch)}</JSONPatch></UpdateVariable>`;
   const originalRollbackMessage = message;
   data.任务['使魔的恶趣味跑腿'] = { ...task, 已完成: true };
@@ -160,7 +162,7 @@ async function main() {
   assert.equal(message, originalRollbackMessage);
   assert.equal(data.角色.user.恶堕积分, 100);
 
-  reset();
+  await reset();
   data.商店.药剂 = { ...item };
   await store.purchaseItem('药剂', 2);
   assert.match(message, /购买「药剂」×2，消耗12点恶堕积分/);
@@ -168,7 +170,7 @@ async function main() {
   assert.equal(await store.sellOwnedItem('随身物品', '药剂', 1), 3);
   assert.match(message, /从随身物品出售「药剂」×1，获得3点恶堕积分/);
 
-  reset();
+  await reset();
   data.技能商店.火球 = { ...skill };
   await store.purchaseSkill('火球');
   assert.match(message, /购买技能「火球」，消耗8点恶堕积分/);
@@ -178,7 +180,7 @@ async function main() {
   assert.equal(await store.sellOwnedSkill('火球'), 9);
   assert.match(message, /出售技能「火球」，获得9点恶堕积分/);
 
-  reset();
+  await reset();
   await store.unlockSkillSlot();
   assert.equal(data.角色.user.技能栏位, 7);
   assert.equal(data.角色.user.恶堕积分, 50);
@@ -186,7 +188,7 @@ async function main() {
   await assert.rejects(store.unlockSkillSlot(), /积分不足/);
   assert.equal((message.match(/<systemLog>/g) ?? []).length, 1, '解锁失败不记录剧情操作');
 
-  reset();
+  await reset();
   data.角色.user.物品.药剂 = { ...item };
   await store.transferInventory([
     { from: '随身物品', name: '药剂', quantity: 2 },
@@ -196,7 +198,7 @@ async function main() {
   assert.match(message, /存入仓库药剂×2；从仓库取出药剂×1/);
   assert.equal(data.角色.user.物品.药剂.数量, 2);
 
-  reset();
+  await reset();
   data.系统 = { 已发现目标: ['鹭见凛'] };
   data.角色.主要角色 = { 鹭见凛: structuredClone(role), 林沐沐: structuredClone(role) };
   await store.chooseAdditionalTarget('主要角色', '林沐沐');
@@ -210,13 +212,13 @@ async function main() {
   await assert.rejects(store.chooseAdditionalTarget('主要角色', '林沐沐'), /已经是目标/);
   assert.equal((message.match(/<systemLog>/g) ?? []).length, 1);
 
-  reset();
+  await reset();
   data.系统 = { 已发现目标: ['鹭见凛'] };
   data.角色.次要角色 = { 路人: structuredClone(role) };
   await store.chooseAdditionalTarget('次要角色', '路人');
   assert.doesNotMatch(message, /林沐沐也察觉到了|被发现了/);
 
-  reset();
+  await reset();
   data.系统 = { 已发现目标: ['鹭见凛'] };
   data.角色.主要角色 = { 林沐沐: structuredClone(role) };
   failMvu = true;
@@ -225,21 +227,21 @@ async function main() {
   assert.equal(data.角色.user.恶堕积分, 100);
   assert.equal(message, '原正文');
 
-  reset();
+  await reset();
   data.商店.药剂 = { ...item };
   failMessage = true;
   await assert.rejects(store.purchaseItem('药剂', 1), /正文写入失败/);
   assert.equal(data.角色.user.恶堕积分, 100);
   assert.equal(message, '原正文');
 
-  reset();
+  await reset();
   data.商店.药剂 = { ...item };
   failMvu = true;
   await assert.rejects(store.purchaseItem('药剂', 1), /变量写入失败/);
   assert.equal(data.角色.user.恶堕积分, 100);
   assert.equal(message, '原正文');
 
-  reset();
+  await reset();
   data.角色.主要角色 = {
     测试角色: {
       当前评级: 'D',
@@ -270,7 +272,7 @@ async function main() {
   assert.ok(stagePatch.some((op: any) => op.path === '/角色/user/恶堕积分' && op.value === 160));
   assert.ok(stagePatch.some((op: any) => op.path === '/手机/恶堕奖励/已奖励等级/主要角色:测试角色' && op.value === 2));
   assert.ok(stagePatch.some((op: any) => op.path === '/手机/恶堕奖励/邮件' && op.value[0].等级 === 2));
-  assert.equal(stageSettlementPatch(data, structuredClone(data)), '', '无变化不生成正文补丁');
+  assert.equal(statDataPatch(data, structuredClone(data)), '', '无变化不生成正文补丁');
 
   data = structuredClone(stageInput);
   message = '原正文';

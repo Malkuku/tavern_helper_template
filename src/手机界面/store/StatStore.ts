@@ -60,7 +60,6 @@ import {
 } from '../apps/wechat/wechatNotifications';
 import { reconcileWorldbookStatData } from './worldbookInit';
 import { settleCharacterStages } from './stageProgression';
-import { stageSettlementPatch } from './stageJournal';
 import {
   refreshSuccessNotice,
   stageChangeNotices,
@@ -309,83 +308,22 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     return result;
   }
 
-  async function writeStatData(data: stat_data, previous: Mvu.MvuData) {
-    const next = { ...previous, stat_data: data };
-    await Mvu.replaceMvuData(next, { type: 'message', message_id: getLastMessageId() });
-    try {
-      await eventEmit('mag_variable_update_ended', next, previous);
-    } catch (error) {
-      console.error('变量已保存，但更新通知失败', error);
-    } finally {
-      refresh();
-    }
-  }
-
-  async function writeStageSettlement(data: stat_data, previous: Mvu.MvuData, generation: number) {
-    const patch = stageSettlementPatch(previous.stat_data as stat_data, data);
-    if (!patch) throw new Error('阶段结算没有可记录的变量差异。');
-    const chatId = SillyTavern.getCurrentChatId();
-    const messageId = getLastMessageId();
-    const message = getChatMessages(messageId)[0];
-    if (!message || generation !== chatGeneration) throw new Error('当前楼层已切换，阶段结算已取消。');
-    const originalText = message.message;
-    await setChatMessages([{ message_id: messageId, message: originalText + patch }], { refresh: 'none' });
-    try {
-      if (
-        generation !== chatGeneration ||
-        chatId !== SillyTavern.getCurrentChatId() ||
-        messageId !== getLastMessageId()
-      )
-        throw new Error('聊天或楼层已切换，阶段结算已取消。');
-      await writeStatData(data, previous);
-    } catch (error) {
-      if (chatId !== SillyTavern.getCurrentChatId())
-        throw new AggregateError([error], '阶段结算失败，聊天已切换，无法安全回滚旧聊天的正文记录。');
-      try {
-        await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
-      } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], '阶段结算失败，正文记录回滚也失败，请检查当前楼层。');
-      }
-      throw error;
-    }
-  }
-
-  async function writeLoggedStatData(
-    data: stat_data,
-    previous: Mvu.MvuData,
-    detail: string,
-    generation: number,
-    suffix = '',
-  ) {
-    const messageId = getLastMessageId();
-    const message = getChatMessages(messageId)[0];
-    if (!message) throw new Error('当前楼层尚未准备好，无法记录操作。');
-    const originalText = message.message;
-    if (generation !== chatGeneration || messageId !== getLastMessageId())
-      throw new Error('聊天或楼层已切换，操作已取消。');
-    await setChatMessages([{ message_id: messageId, message: originalText + phoneSystemLog(detail) + suffix }], {
-      refresh: 'none',
+  async function writeStatData(data: stat_data, previous: Mvu.MvuData, isCurrent = () => true) {
+    const generation = chatGeneration;
+    await MvuUtil.updateMvuDataByObjWithPatch(data, {
+      previous,
+      isCurrent: () => generation === chatGeneration && isCurrent(),
     });
-    const next = { ...previous, stat_data: data };
-    try {
-      if (generation !== chatGeneration || messageId !== getLastMessageId())
-        throw new Error('聊天或楼层已切换，操作已取消。');
-      await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
-    } catch (error) {
-      try {
-        await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
-      } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], '操作写入失败，正文记录回滚也失败，请检查当前楼层。');
-      }
-      throw error;
-    }
-    try {
-      await eventEmit('mag_variable_update_ended', next, previous);
-    } catch (error) {
-      console.error('操作已保存，但变量更新通知失败', error);
-    } finally {
-      refresh();
-    }
+    refresh();
+  }
+
+  async function writeLoggedStatData(data: stat_data, previous: Mvu.MvuData, detail: string, generation: number) {
+    await MvuUtil.updateMvuDataByObjWithPatch(data, {
+      previous,
+      messageSuffix: phoneSystemLog(detail),
+      isCurrent: () => generation === chatGeneration,
+    });
+    refresh();
   }
 
   function scheduleStageSettlement() {
@@ -408,7 +346,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const ratingChanged = settleUserRating(data);
       if (!baselinesChanged && !stagesChanged && !rewardsChanged && !ratingChanged) return;
       if (generation !== chatGeneration) return;
-      await writeStageSettlement(data, previous, generation);
+      await writeStatData(data, previous, () => generation === chatGeneration);
     })
       .catch(error => console.error('人设阶段经验结算失败', error))
       .finally(() => {
@@ -445,7 +383,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function changeCharacterData<T>(
     change: (data: stat_data) => T,
     log?: (before: stat_data, after: stat_data, result: T) => string,
-    suffix?: (before: stat_data, after: stat_data) => string,
   ): Promise<T> {
     const generation = chatGeneration;
     return queueStatWork(async () => {
@@ -457,13 +394,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const result = change(data);
       if (generation !== chatGeneration) throw new Error('聊天已切换，操作已取消。');
       if (log)
-        await writeLoggedStatData(
-          data,
-          previous,
-          log(previous.stat_data as stat_data, data, result),
-          generation,
-          suffix?.(previous.stat_data as stat_data, data),
-        );
+        await writeLoggedStatData(data, previous, log(previous.stat_data as stat_data, data, result), generation);
       else await writeStatData(data, previous);
       return result;
     });
@@ -498,32 +429,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       if (!message || !previous?.stat_data?.角色?.user) throw new Error('当前楼层尚未准备好，无法选择目标。');
       const data = klona(previous.stat_data) as stat_data;
       assignFirstTarget(data, key);
-      const originalText = message.message;
       if (generation !== chatGeneration || messageId !== getLastMessageId())
         throw new Error('聊天或楼层已切换，目标选择已取消。');
-      await setChatMessages([{ message_id: messageId, message: originalText + firstTargetSystemLog(key) }], {
-        refresh: 'none',
+      await MvuUtil.updateMvuDataByObjWithPatch(data, {
+        previous,
+        messageSuffix: firstTargetSystemLog(key),
+        isCurrent: () => generation === chatGeneration,
       });
-      const next = { ...previous, stat_data: data };
-      try {
-        if (generation !== chatGeneration || messageId !== getLastMessageId())
-          throw new Error('聊天或楼层已切换，目标选择已取消。');
-        await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
-      } catch (error) {
-        try {
-          await setChatMessages([{ message_id: messageId, message: originalText }], { refresh: 'none' });
-        } catch (rollbackError) {
-          throw new AggregateError([error, rollbackError], '目标选择失败，正文记录回滚也失败，请检查当前楼层。');
-        }
-        throw error;
-      }
-      try {
-        await eventEmit('mag_variable_update_ended', next, previous);
-      } catch (error) {
-        console.error('首次目标变量通知失败', error);
-      } finally {
-        refresh();
-      }
+      refresh();
     });
   }
 
@@ -728,7 +641,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(
       data => applyTaskAbandon(data, name),
       () => `放弃组织任务「${escapeSystemLogText(name)}」。`,
-      stageSettlementPatch,
     );
   }
 
@@ -737,7 +649,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       data => applyTaskClaim(data, name),
       (before, after, reward) =>
         `领取组织任务「${escapeSystemLogText(name)}」的奖励，获得${reward}点恶堕积分、${after.角色.user.评级贡献 - recoverNonnegativeInteger(before.角色.user.评级贡献)}点评级贡献。`,
-      stageSettlementPatch,
     );
   }
 
@@ -1343,7 +1254,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       else applyItemRefresh(data, message.message, !!directedRequestId);
       console.info(`[手机${kind}商店生成] 结果校验通过`, { id });
       if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !refreshing.value) return;
-      await writeStatData(data, previous);
+      await writeStatData(
+        data,
+        previous,
+        () => generation === chatGeneration && requestSerial === refreshRequestSerial && refreshing.value,
+      );
       refreshing.value = false;
       refreshError.value = '';
       if (generation === chatGeneration) enqueueTransientNotice(refreshSuccessNotice(kind));
@@ -1413,7 +1328,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       applyTaskRefresh(data, message.message);
       console.info('[手机任务生成] 结果校验通过', { id });
       if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !taskRefreshing.value) return;
-      await writeStatData(data, previous);
+      await writeStatData(
+        data,
+        previous,
+        () => generation === chatGeneration && requestSerial === refreshRequestSerial && taskRefreshing.value,
+      );
       taskRefreshing.value = false;
       taskRefreshError.value = '';
       if (generation === chatGeneration) enqueueTransientNotice(refreshSuccessNotice('任务'));
