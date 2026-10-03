@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   applyWeChatLogs,
   applyWeChatOperation,
+  canSendPrivateMessage,
   contentSummary,
   displayContentParts,
   deleteWeChatFromFloor,
@@ -40,6 +41,104 @@ const message = (id: number, sender: string, content: string, extra: object = {}
   ...extra,
 });
 const parse = (events: object[]) => parseWeChatLogs(`<WeChatLog>${JSON.stringify({ 事件: events })}</WeChatLog>`);
+const missingAccounts: 微信数据 = { 账号: {}, 会话: {}, 准备发送: null };
+const newcomer = '栗原桃香';
+const newcomerKey = `私聊:user&${newcomer}`;
+const newcomerLog = parse([
+  {
+    类型: '操作',
+    楼层ID: 1,
+    操作: '好友申请',
+    会话: newcomerKey,
+    时间: '2026-09-28T22:48[1]',
+    操作者: newcomer,
+    目标: 'user',
+    验证消息: '栗原桃香（加了，快通过）',
+    会话信息: { 类型: '私聊', 成员: ['user', newcomer] },
+  },
+  {
+    类型: '操作',
+    楼层ID: 2,
+    操作: '通过好友申请',
+    会话: newcomerKey,
+    时间: '2026-09-28T22:49[1]',
+    操作者: 'user',
+    目标: newcomer,
+  },
+  {
+    类型: '消息',
+    楼层ID: 3,
+    会话: newcomerKey,
+    时间: '2026-09-28T22:52[1]',
+    发送者: newcomer,
+    内容: ['CH-0482', '密钥是0001850024', '排班表等我回宿舍用平板发，手机里没存pdf'],
+  },
+]);
+const newcomerChat = applyWeChatLogs(missingAccounts, newcomerLog);
+assert.equal(newcomerChat.会话[newcomerKey].消息.length, 3);
+assert.equal(newcomerChat.账号[newcomer].昵称, newcomer);
+assert.ok(newcomerChat.账号[newcomer].头像);
+assert.deepEqual(newcomerChat.账号[newcomer].好友, ['user']);
+assert.deepEqual(missingAccounts, { 账号: {}, 会话: {}, 准备发送: null });
+assert.deepEqual(unappliedWeChatLogs(newcomerChat, newcomerLog), []);
+const directLog = parse([
+  {
+    类型: '消息',
+    楼层ID: 1,
+    会话: newcomerKey,
+    时间: time,
+    发送者: newcomer,
+    内容: ['第一次直接发来消息'],
+    会话信息: { 类型: '私聊', 成员: ['user', newcomer] },
+  },
+]);
+const directChat = applyWeChatLogs(missingAccounts, directLog);
+assert.deepEqual(directChat.账号[newcomer].好友, []);
+assert.deepEqual(directChat.账号.user.好友, []);
+assert.deepEqual(
+  visibleUserChats(directChat).map(([id]) => id),
+  [newcomerKey],
+);
+assert.ok(canSendPrivateMessage(directChat, directChat.会话[newcomerKey]), '已发生的聊天允许回复');
+const replied = applyWeChatLogs(
+  directChat,
+  parse([{ 类型: '消息', 楼层ID: 2, 会话: newcomerKey, 时间: time, 发送者: 'user', 内容: ['收到'] }]),
+);
+assert.equal(replied.会话[newcomerKey].消息.length, 2);
+const onlyRequest = applyWeChatOperation(missingAccounts, newcomerLog[0].事件[0] as any);
+assert.ok(onlyRequest.账号[newcomer]);
+assert.deepEqual(visibleUserChats(onlyRequest), []);
+assert.equal(canSendPrivateMessage(onlyRequest, onlyRequest.会话[newcomerKey]), false);
+const groupCreated = applyWeChatOperation(missingAccounts, {
+  类型: '操作',
+  操作: '创建群聊',
+  会话: '群聊:新群',
+  操作者: newcomer,
+  名称: '新群',
+  时间: time,
+});
+assert.ok(groupCreated.账号[newcomer]);
+const groupMessage = applyWeChatLogs(
+  groupCreated,
+  parse([{ 类型: '消息', 楼层ID: 2, 会话: '群聊:新群', 时间: time, 发送者: newcomer, 内容: ['群里也能聊天'] }]),
+);
+assert.equal(groupMessage.会话['群聊:新群'].消息.length, 2);
+const originalAccount = account('原昵称', []);
+const withExisting = { ...missingAccounts, 账号: { [newcomer]: originalAccount } };
+const preservedChat = applyWeChatLogs(withExisting, directLog);
+assert.deepEqual(preservedChat.账号[newcomer], originalAccount);
+assert.throws(
+  () =>
+    applyWeChatLogs(
+      missingAccounts,
+      parse([
+        ...directLog[0].事件,
+        { 类型: '消息', 楼层ID: 2, 会话: newcomerKey, 时间: time, 发送者: '不在会话的人', 内容: ['无效消息'] },
+      ]),
+    ),
+  /非成员/,
+);
+assert.deepEqual(missingAccounts.账号, {}, '失败不能留下半成品账号');
 const completeLog = `<WeChatLog>${JSON.stringify({ 事件: [message(1, 'user', '完整消息')] })}</WeChatLog>`;
 assert.deepEqual(parseWeChatLogs(`<WeChatLog>{"事件":[ ${completeLog}`), parseWeChatLogs(completeLog));
 assert.deepEqual(parseWeChatLogs(`${completeLog}<WeChatLog>{"事件":[`), parseWeChatLogs(completeLog));

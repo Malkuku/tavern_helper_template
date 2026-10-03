@@ -33,27 +33,30 @@ function claim(rating: 'D' | 'C' | 'B' | 'A' | 'S') {
   data.任务.测试 = task(rating);
   claimTask(data, '测试');
 }
-for (let i = 0; i < 10; i++) claim('D');
-assert.equal(data.角色.user.当前评级, 'C', '10 个 D 任务晋升 C');
-for (let i = 0; i < 10; i++) claim('C');
-assert.equal(data.角色.user.当前评级, 'B', '10 个 C 任务晋升 B');
-for (let i = 0; i < 10; i++) claim('B');
-assert.equal(data.角色.user.当前评级, 'A', '10 个 B 任务晋升 A');
-for (let i = 0; i < 10; i++) claim('A');
-assert.equal(data.角色.user.当前评级, 'S', '10 个 A 任务晋升 S');
-assert.equal(data.角色.user.评级贡献, 360);
-assert.equal(data.角色.user.恶堕积分, 400, '积分与贡献分开累加');
+for (const [current, next] of [
+  ['D', 'C'],
+  ['C', 'B'],
+  ['B', 'A'],
+  ['A', 'S'],
+] as const) {
+  for (let i = 0; i < 19; i++) claim(current);
+  assert.equal(data.角色.user.当前评级, current, `19 个 ${current} 任务仍未晋升`);
+  claim(current);
+  assert.equal(data.角色.user.当前评级, next, `20 个 ${current} 任务晋升 ${next}`);
+}
+assert.equal(data.角色.user.评级贡献, 720);
+assert.equal(data.角色.user.恶堕积分, 800, '积分与贡献分开累加');
 assert.deepEqual(ratingContribution, { D: 1, C: 3, B: 8, A: 24, S: 72 });
 
 for (const [points, next, count] of [
-  [0, 'C', 4],
-  [10, 'B', 4],
-  [40, 'A', 4],
-  [120, 'S', 4],
+  [0, 'C', 7],
+  [20, 'B', 8],
+  [80, 'A', 7],
+  [240, 'S', 7],
 ] as const) {
   const gained = ratingContribution[next] * count;
   assert.notEqual(userRatingFromContribution(points + gained - ratingContribution[next]), next);
-  assert.equal(userRatingFromContribution(points + gained), next, '4 个高一档任务可晋级');
+  assert.equal(userRatingFromContribution(points + gained), next, `${count} 个高一档任务可晋级`);
 }
 
 data.角色.user.评级贡献 = 0;
@@ -74,7 +77,7 @@ assert.deepEqual(
   ['2026-10-12', '2026-10-5', '2026-9-28'],
   '历史页显示包括空白周在内的所有周',
 );
-assert.equal(data.任务统计.周记录[week].完成, 40, '两周以前的汇总永久保留');
+assert.equal(data.任务统计.周记录[week].完成, 80, '两周以前的汇总永久保留');
 assert.equal(data.任务统计.周记录['2026-10-12'].完成, 1);
 assert.throws(() => claimTask(data, '测试'), /没有这项/, '任务不能重复领奖');
 assert.equal(effectiveTaskRating(undefined), 'D');

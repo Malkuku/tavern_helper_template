@@ -1,6 +1,7 @@
 import { klona } from 'klona';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 微信消息流项, 微信操作 } from '../../types';
 import { parseLocationShare } from '../map/locationShare';
+import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
 
 type MessageEvent = 微信消息 & { 类型: '消息'; 会话: string; 会话信息?: Pick<微信会话, '类型' | '名称' | '成员'> };
 export type OperationEvent = { 类型: '操作'; 操作: string; 时间: string; [key: string]: any };
@@ -206,9 +207,20 @@ export function visibleUserChats(data: 微信数据): [string, 微信会话][] {
   return Object.entries(data.会话).filter(([, session]) => {
     if (!session.成员.includes('user')) return false;
     if (session.类型 === '群聊') return true;
-    const other = session.成员.find(id => id !== 'user');
-    return !!other && !!data.账号.user?.好友.includes(other) && !!data.账号[other]?.好友.includes('user');
+    return canSendPrivateMessage(data, session);
   });
+}
+
+export function canSendPrivateMessage(data: 微信数据, session: 微信会话): boolean {
+  return session.消息.some(isWeChatMessage) || mutualFriends(data, session.成员[0], session.成员[1]);
+}
+
+function ensureEventAccounts(data: 微信数据, ids: string[]): void {
+  for (const id of new Set(ids)) {
+    if (typeof id !== 'string' || !id.trim()) throw new Error('聊天人物名称不能为空。');
+    if (Object.hasOwn(data.账号, id)) continue;
+    data.账号[id] = { 昵称: id === 'user' ? '我' : id, 头像: wechatRoleAvatar(undefined, id), 表情包: {}, 好友: [] };
+  }
 }
 
 export function operationSummary(item: 微信操作): string {
@@ -350,11 +362,10 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
           session = next.会话[event.会话] = { ...klona(event.会话信息), 消息: [] };
         }
         if (!session.成员.includes(event.发送者)) throw new Error(`会话 ${event.会话} 包含非成员消息。`);
+        ensureEventAccounts(next, session.成员);
         for (const item of event.内容) {
           if (typeof item === 'string' && item.startsWith('<转账 ')) transferRecipient(session, event.发送者, item);
         }
-        if (session.类型 === '私聊' && !mutualFriends(next, session.成员[0], session.成员[1]))
-          throw new Error('非好友不能发送普通私聊消息。');
         if (event.楼层ID !== session.消息.length + 1) throw new Error(`会话 ${event.会话} 的楼层 ID 不连续。`);
         if (event.引用) {
           const quoted = session.消息[event.引用.楼层ID - 1];
@@ -398,7 +409,7 @@ export function applyWeChatOperation(current: 微信数据, event: OperationEven
 }
 
 function applyOperationInPlace(next: 微信数据, event: OperationEvent): void {
-  if (!next.账号[event.操作者]) throw new Error('聊天操作人不存在。');
+  ensureEventAccounts(next, [event.操作者, ...(typeof event.目标 === 'string' ? [event.目标] : [])]);
   if (event.楼层ID !== (next.会话[event.会话]?.消息.length ?? 0) + 1)
     throw new Error(`会话 ${event.会话} 的楼层 ID 不连续。`);
   if (event.操作 === '创建群聊') {

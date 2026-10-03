@@ -66,21 +66,40 @@
             </section>
           </template>
           <template v-else-if="currentDetailTab === '性格与状态'">
-            <section class="field">
+            <section class="field full-width">
               <h3>性格</h3>
               <p>{{ currentCharacter.性格 || '暂无记录' }}</p>
             </section>
-            <section class="field">
-              <h3>身体状态</h3>
-              <p>特殊状态：{{ currentCharacter.身体.特殊状态.join('、') || '暂无记录' }}</p>
-              <ul>
-                <li v-for="part in bodyParts" :key="part">
-                  <strong>{{ part }}</strong>
-                  <p>当前状态：{{ currentCharacter.身体[part].当前状态 || '暂无记录' }}</p>
-                  <p>特征：{{ currentCharacter.身体[part].特征 || '暂无记录' }}</p>
-                  <p>开发程度：{{ currentCharacter.身体[part].开发程度 || '暂无记录' }}</p>
-                </li>
-              </ul>
+            <section class="body-profile full-width" aria-label="身体状态">
+              <header class="body-heading"><h3>身体状态</h3></header>
+              <div class="body-special">
+                <span class="body-label">特殊状态</span>
+                <div v-if="currentCharacter.身体.特殊状态.length" class="body-state-list">
+                  <span v-for="(state, index) in currentCharacter.身体.特殊状态" :key="index" class="body-state">
+                    {{ state }}
+                  </span>
+                </div>
+                <p v-else class="body-empty">暂无特殊状态</p>
+              </div>
+              <div class="body-parts">
+                <article v-for="part in bodyParts" :key="part" class="body-part">
+                  <h4>{{ part }}</h4>
+                  <dl>
+                    <div class="body-current">
+                      <dt>当前状态</dt>
+                      <dd>{{ currentCharacter.身体[part].当前状态 || '暂无记录' }}</dd>
+                    </div>
+                    <div class="body-detail">
+                      <dt>特征</dt>
+                      <dd>{{ currentCharacter.身体[part].特征 || '暂无记录' }}</dd>
+                    </div>
+                    <div class="body-detail">
+                      <dt>开发程度</dt>
+                      <dd>{{ currentCharacter.身体[part].开发程度 || '暂无记录' }}</dd>
+                    </div>
+                  </dl>
+                </article>
+              </div>
             </section>
           </template>
           <section v-else class="field full-width">
@@ -97,24 +116,37 @@
             <span>名称检索词：{{ currentCharacter.名称检索词.join('、') || '暂无记录' }}</span>
             <span>收录区域：{{ currentMapIndex || '未定位' }}</span>
           </div>
-          <button type="button" class="record-button" :disabled="isRecorded || isSaving" @click="recordCharacter">
-            {{ isRecorded ? '已收录' : isSaving ? '正在收录…' : '收录人物' }}
-          </button>
-          <button
-            v-if="isMinorRecorded"
-            type="button"
-            class="record-button"
-            :disabled="isSaving"
-            @click="requestCancelRecord"
-          >
-            取消收录
-          </button>
+          <div class="record-actions">
+            <span v-if="isRecorded && !isMinorRecorded" class="record-status">已存在主要角色档案</span>
+            <button
+              v-else
+              type="button"
+              class="record-button"
+              :class="{ secondary: isMinorRecorded }"
+              :disabled="isSaving || !!cancelRecordOriginal"
+              @click="isMinorRecorded ? requestCancelRecord() : recordCharacter()"
+            >
+              {{ isSaving ? (isMinorRecorded ? '正在取消…' : '正在收录…') : isMinorRecorded ? '取消收录' : '收录人物' }}
+            </button>
+          </div>
         </footer>
-        <div v-if="cancelRecordOriginal" class="cancel-record" role="alert">
-          <p>确认取消收录{{ selectedName }}？这会删除当前剧情中的次要角色变量，保留聊天记录。</p>
-          <button type="button" :disabled="isSaving" @click="cancelRecordOriginal = null">保留记录</button>
-          <button type="button" :disabled="isSaving" @click="cancelRecord">确认取消收录</button>
-        </div>
+        <section v-if="cancelRecordOriginal" class="cancel-record" aria-label="确认取消收录">
+          <h3>取消收录「{{ selectedName }}」？</h3>
+          <p>该人物将从当前剧情的角色档案中移除，聊天记录会保留。</p>
+          <div class="record-actions">
+            <button
+              type="button"
+              class="record-button secondary"
+              :disabled="isSaving"
+              @click="cancelRecordOriginal = null"
+            >
+              保留记录
+            </button>
+            <button type="button" class="record-button" :disabled="isSaving" @click="cancelRecord">
+              {{ isSaving ? '正在取消…' : '确认取消收录' }}
+            </button>
+          </div>
+        </section>
         <p v-if="feedback" class="feedback" role="status">{{ feedback }}</p>
       </article>
     </template>
@@ -496,7 +528,7 @@ button {
   border-radius: 8px;
   background: var(--archive-surface);
 }
-.field.full-width {
+.full-width {
   grid-column: 1 / -1;
 }
 .field h3 {
@@ -521,6 +553,105 @@ button {
 .field li::marker {
   color: var(--archive-accent);
 }
+.body-profile {
+  min-width: 0;
+}
+.body-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 3px 0 10px;
+}
+.body-heading h3 {
+  flex: none;
+  margin: 0;
+  color: var(--archive-accent);
+  font-size: 13px;
+}
+.body-heading::after {
+  flex: 1;
+  height: 1px;
+  background: var(--archive-line);
+  content: '';
+}
+.body-special {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--archive-line);
+  border-radius: 8px;
+  background: var(--archive-surface);
+}
+.body-label,
+.body-part dt {
+  color: var(--archive-muted);
+  font-size: 11px;
+}
+.body-state-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.body-state {
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid #70405b;
+  border-radius: 5px;
+  background: #382033;
+  color: #f5b7d2;
+  white-space: pre-wrap;
+}
+.body-empty {
+  margin: 0;
+  color: var(--archive-muted);
+  font-size: 12px;
+}
+.body-parts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.body-part {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--archive-line);
+  border-radius: 8px;
+  background: var(--archive-surface);
+}
+.body-part h4 {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--archive-line);
+  background: #30202f;
+  color: #f5b7d2;
+  font-size: 13px;
+  font-weight: 700;
+}
+.body-part dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+}
+.body-part dl > div {
+  display: grid;
+  gap: 4px;
+}
+.body-current {
+  padding-left: 9px;
+  border-left: 2px solid var(--archive-accent);
+}
+.body-detail + .body-detail {
+  padding-top: 10px;
+  border-top: 1px solid var(--archive-line);
+}
+.body-part dd {
+  margin: 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .profile-footer {
   display: flex;
   justify-content: space-between;
@@ -531,20 +662,41 @@ button {
 }
 .record-info {
   display: grid;
+  flex: 1;
   gap: 2px;
   min-width: 0;
   color: var(--archive-muted);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.record-status {
+  color: var(--archive-muted);
+  font-size: 12px;
+}
 .record-button {
   flex: 0 0 auto;
   padding: 7px 14px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 6px;
   background: #cc427e;
   color: #fff;
   font-weight: 700;
+}
+.record-button.secondary {
+  border-color: var(--archive-line);
+  background: var(--archive-surface);
+  color: var(--archive-text);
+}
+.record-button.secondary:hover:not(:disabled) {
+  border-color: #a65780;
+  background: #382033;
 }
 .record-button:hover:not(:disabled) {
   background: #df5b94;
@@ -553,6 +705,9 @@ button {
   background: #382033;
   color: var(--archive-muted);
   cursor: default;
+}
+.record-button.secondary:disabled {
+  color: var(--archive-muted);
 }
 button:focus-visible {
   outline: 2px solid var(--archive-accent);
@@ -564,11 +719,22 @@ button:focus-visible {
   color: #f5b7d2;
 }
 .cancel-record {
+  margin: 0 12px 12px;
   padding: 12px;
-  color: var(--archive-accent);
+  border: 1px solid #a65780;
+  border-radius: 8px;
+  background: var(--archive-surface);
 }
-.cancel-record button {
-  margin-right: 8px;
+.cancel-record h3 {
+  margin: 0 0 6px;
+  color: var(--archive-accent);
+  font-size: 13px;
+}
+.cancel-record p {
+  margin: 0 0 12px;
+  color: var(--archive-muted);
+  font-size: 12px;
+  line-height: 1.65;
 }
 .notice {
   padding: 16px;
@@ -581,14 +747,15 @@ button:focus-visible {
   color: #ff9dbb;
 }
 @media (max-width: 520px) {
-  .profile-grid {
+  .profile-grid,
+  .body-parts {
     grid-template-columns: 1fr;
   }
   .detail-tabs button {
     padding: 8px 2px;
     font-size: 12px;
   }
-  .field.full-width {
+  .full-width {
     grid-column: auto;
   }
   .profile-top {
@@ -597,6 +764,9 @@ button:focus-visible {
   .profile-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+  .cancel-record .record-actions button {
+    flex: 1 1 auto;
   }
 }
 </style>

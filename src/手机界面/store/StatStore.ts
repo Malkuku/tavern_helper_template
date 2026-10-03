@@ -8,6 +8,7 @@ import {
   addSticker,
   applyWeChatOperation,
   applyWeChatLogs,
+  canSendPrivateMessage,
   decideFriendRequest,
   deleteWeChatFromFloor,
   logConfirmsPending,
@@ -852,13 +853,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       let transferSession = session;
       if (session) {
         if (!session.成员.includes('user')) throw new Error('不能从 user 手机向非本人会话发送消息。');
-        if (
-          session.类型 === '私聊' &&
-          !session.成员.every(
-            id => id === 'user' || (current.账号.user?.好友.includes(id) && current.账号[id]?.好友.includes('user')),
-          )
-        )
-          throw new Error('非好友不能发送普通私聊消息。');
+        if (session.类型 === '私聊' && !canSendPrivateMessage(current, session))
+          throw new Error('请先通过好友申请，或等待对方发来消息。');
       } else {
         const other = conversation.startsWith('私聊:user&') ? conversation.slice('私聊:user&'.length) : '';
         if (

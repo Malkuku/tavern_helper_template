@@ -138,7 +138,7 @@ async function main() {
   assert.equal(texts.filter(text => text.includes('特征样例')).length, 4);
   assert.equal(texts.filter(text => text.includes('状态样例')).length, 4);
   assert.equal(texts.filter(text => text.includes('开发样例')).length, 4);
-  assert.ok(texts.some(text => text.includes('特殊状态：暂无记录')));
+  assert.ok(texts.some(text => text.includes('暂无特殊状态')));
 
   api.requestCancelRecord();
   await api.cancelRecord();

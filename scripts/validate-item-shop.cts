@@ -44,10 +44,10 @@ const data = {
 } as unknown as stat_data;
 for (const [contribution, surcharge] of [
   [0, 20],
-  [10, 30],
-  [40, 40],
-  [120, 50],
-  [360, 60],
+  [20, 30],
+  [80, 40],
+  [240, 50],
+  [720, 60],
 ]) {
   const ranked = structuredClone(data);
   ranked.角色.user.评级贡献 = contribution;
