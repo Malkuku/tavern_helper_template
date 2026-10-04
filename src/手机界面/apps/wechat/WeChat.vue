@@ -4,12 +4,16 @@
       消息更新失败：{{ store.wechatLogError }}
       <button type="button" @click="clearFailedLog">清除异常记录</button>
     </p>
-    <WeChatAccountManager
-      v-if="adminOpen"
-      :initial-view="managerInitialView"
-      :start-adding="managerStartAdding"
-      @close="closeAccountManager"
+    <WeChatStickerImport
+      v-if="stickerImportOpen"
+      account-id="user"
+      :accounts="accounts"
+      choose-files
+      @saved="stickerPicker?.clearSearch()"
+      @close="stickerImportOpen = false"
     />
+    <WeChatStickerManager v-if="stickerManagerOpen" :accounts="accounts" @close="closeStickerManager" />
+    <WeChatAccountManager v-else-if="adminOpen" @close="adminOpen = false" />
     <template v-else-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回 Weline" @click="selectedKey = null">
@@ -177,37 +181,15 @@
         <span>引用 {{ accounts[quoted.发送者]?.昵称 || quoted.发送者 }}：{{ contentSummary(quoted.内容) }}</span>
         <button type="button" aria-label="取消引用" @click.stop="quoted = null">取消引用</button>
       </div>
-      <div v-if="stickerOpen" class="wx-sticker-picker">
-        <div class="wx-sticker-picker-head">
-          <strong>我的表情 · {{ stickerNames.length }}</strong>
-          <button type="button" @click="openStickerManager()">管理表情</button>
-        </div>
-        <input
-          v-if="stickerNames.length"
-          v-model="stickerSearch"
-          class="wx-sticker-search"
-          type="search"
-          placeholder="搜索表情名称"
-          aria-label="搜索我的表情"
-        />
-        <div class="wx-custom-sticker-grid">
-          <p v-if="!stickerNames.length" class="wx-sticker-empty">还没有表情包，添加后就能在这里选择发送。</p>
-          <p v-else-if="!filteredStickerNames.length" class="wx-sticker-empty">没有找到匹配的表情。</p>
-          <button
-            v-for="name in filteredStickerNames"
-            :key="name"
-            class="wx-sticker-choice"
-            type="button"
-            :disabled="pendingLocked || sending || !worldTime"
-            @click="sendSticker(name)"
-          >
-            <img :src="resolveWechatImage(self?.表情包[name])" :alt="name" /><small>{{ name }}</small>
-          </button>
-          <button class="wx-sticker-add" type="button" @click="openStickerManager(true)">
-            <WeChatIcon name="plus" />添加表情
-          </button>
-        </div>
-      </div>
+      <WeChatStickerPicker
+        v-if="stickerOpen"
+        ref="stickerPicker"
+        :stickers="self?.表情包 ?? {}"
+        :disabled="pendingLocked || sending || !worldTime"
+        @add="stickerImportOpen = true"
+        @manage="openStickerManager"
+        @send="sendSticker"
+      />
       <form class="wx-compose" @submit.prevent="sendMessage">
         <button
           class="wx-compose-voice"
@@ -702,14 +684,7 @@
         }}</strong>
       </header>
       <template v-if="accountPage === 'settings'">
-        <button
-          class="wx-list-row wx-menu-row"
-          type="button"
-          @click="
-            managerInitialView = 'account';
-            adminOpen = true;
-          "
-        >
+        <button class="wx-list-row wx-menu-row" type="button" @click="adminOpen = true">
           <strong>账号管理</strong><WeChatIcon class="wx-row-chevron" name="chevron" />
         </button>
       </template>
@@ -838,13 +813,10 @@ import WeChatIcon from './WeChatIcon.vue';
 import WeChatServiceIcon from './WeChatServiceIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
-import {
-  readWechatImageFile,
-  refreshWechatImageLibrary,
-  readStickerPreferences,
-  resolveWechatImage,
-  storeWechatImage,
-} from './imageLibrary';
+import WeChatStickerManager from './WeChatStickerManager.vue';
+import WeChatStickerImport from './WeChatStickerImport.vue';
+import WeChatStickerPicker from './WeChatStickerPicker.vue';
+import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
 import { chooseImageCrop } from '../../imageCrop';
 import { nearbyAvatars } from './nearbyAvatars';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
@@ -855,17 +827,16 @@ import MapApp from '../map/MapApp.vue';
 const props = defineProps<{ openRequest?: { key: string; id: number } | null }>();
 const emit = defineEmits<{ 'open-map': [key: string] }>();
 const adminOpen = ref(false);
-const managerInitialView = ref<'account' | 'stickers'>('account');
-const managerStartAdding = ref(false);
-function openStickerManager(add = false) {
-  managerStartAdding.value = add;
-  managerInitialView.value = 'stickers';
+const stickerManagerOpen = ref(false);
+const stickerImportOpen = ref(false);
+const stickerPicker = ref<InstanceType<typeof WeChatStickerPicker>>();
+function openStickerManager() {
   stickerOpen.value = false;
-  adminOpen.value = true;
+  stickerManagerOpen.value = true;
 }
-function closeAccountManager() {
-  adminOpen.value = false;
-  if (managerInitialView.value === 'stickers' && selectedKey.value) stickerOpen.value = true;
+function closeStickerManager() {
+  stickerManagerOpen.value = false;
+  if (selectedKey.value) stickerOpen.value = true;
 }
 
 type Tab = 'chats' | 'contacts' | 'me';
@@ -1098,17 +1069,6 @@ async function sendLocation(key: string) {
     sending.value = false;
   }
 }
-const stickerNames = computed(() => {
-  const favorites = readStickerPreferences().favorites;
-  return Object.keys(self.value?.表情包 ?? {}).sort(
-    (a, b) => Number(favorites.includes(b)) - Number(favorites.includes(a)),
-  );
-});
-const stickerSearch = ref('');
-const filteredStickerNames = computed(() => {
-  const query = stickerSearch.value.trim().toLocaleLowerCase();
-  return query ? stickerNames.value.filter(name => name.toLocaleLowerCase().includes(query)) : stickerNames.value;
-});
 const tab = ref<Tab>('chats');
 const subPage = ref<'requests' | 'nearby' | null>(null);
 const nearbyText = ref('');

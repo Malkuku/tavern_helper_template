@@ -2,10 +2,10 @@
   <section class="wx-library" aria-label="Weline 图片库">
     <div class="wx-manager-section-head">
       <div>
-        <small>MEDIA LIBRARY</small>
+        <small v-if="!pickOnly">MEDIA LIBRARY</small>
         <h2>图片库</h2>
       </div>
-      <label class="wx-manager-primary"
+      <label v-if="!pickOnly" class="wx-manager-primary"
         >＋ 上传图片<input type="file" accept="image/*" multiple :disabled="compressing" @change="upload"
       /></label>
     </div>

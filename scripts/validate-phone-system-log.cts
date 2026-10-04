@@ -280,14 +280,14 @@ async function main() {
   store.refresh();
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.当前等级, 2);
-  assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.累计经验, 8, 'D 级 1→2 消耗 47 点，55 点结算后剩 8 点');
+  assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.累计经验, 5, 'D 级 1→2 消耗 50 点，55 点结算后剩 5 点');
   assert.equal(data.角色.user.恶堕积分, 160);
   const stagePatch = JSON.parse(message.match(/<JSONPatch>(.*?)<\/JSONPatch>/)?.[1] ?? '[]');
   assert.deepEqual(
     stagePatch.filter((op: any) => op.path.includes('/人设阶段/恶堕度/')),
     [
       { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/当前等级', value: 2 },
-      { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/累计经验', value: 8 },
+      { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/累计经验', value: 5 },
     ],
   );
   assert.ok(stagePatch.some((op: any) => op.path === '/角色/user/恶堕积分' && op.value === 160));

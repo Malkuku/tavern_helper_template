@@ -2,7 +2,9 @@ import type { stat_data, 阶段状态 } from '../types';
 
 export type StageKind = '恶堕度' | '好感度' | '创伤稳定度';
 
-const corruptionCostMultiplier = { D: 1, C: 1.1, B: 1.2, A: 1.4, S: 1.5 } as const;
+const corruptionBaseCosts = [30, 50, 80, 125, 210, 350] as const;
+// 倍率按十分之一存储，避免 50 × 1.1 的浮点误差被向上取整为 56。
+const corruptionCostMultiplier = { D: 10, C: 11, B: 12, A: 14, S: 15 } as const;
 
 function levelRange(stage: 阶段状态, path: string): { min: number; max: number } {
   if (!stage || typeof stage !== 'object' || !stage.描述 || typeof stage.描述 !== 'object')
@@ -36,9 +38,12 @@ export function stageExperienceCost(
   if (kind === '恶堕度') {
     if (rating && !Object.hasOwn(corruptionCostMultiplier, rating))
       throw new Error(`魔法少女当前评级“${rating}”无效。`);
-    const base = Math.ceil(30 * 1.55 ** Math.max(lowerLevel, 0));
+    const level = Math.max(lowerLevel, 0);
+    const base = corruptionBaseCosts[level] ?? Math.ceil(30 * 1.55 ** level);
     cost = Math.ceil(
-      base * (corruptionCostMultiplier[rating as keyof typeof corruptionCostMultiplier] ?? corruptionCostMultiplier.D),
+      (base *
+        (corruptionCostMultiplier[rating as keyof typeof corruptionCostMultiplier] ?? corruptionCostMultiplier.D)) /
+        10,
     );
   } else if (kind === '好感度') {
     const distance = Math.max(Math.abs(lowerLevel), Math.abs(lowerLevel + 1));

@@ -1,8 +1,20 @@
 <template>
   <section class="wx-account-page wx-manager">
-    <header class="wx-header">
-      <button class="wx-back" type="button" aria-label="返回" @click="closeManager">‹</button
-      ><strong>{{ view === 'stickers' ? '表情管理' : '账号管理' }}</strong>
+    <WeChatStickerManager
+      v-if="view === 'stickers' && selectedAccount"
+      :account-id="selectedId"
+      :accounts="accounts"
+      @close="view = 'account'"
+    />
+    <WeChatStickerImport
+      v-if="libraryStickerUrl && selectedAccount"
+      :account-id="selectedId"
+      :accounts="accounts"
+      :initial-image="libraryStickerUrl"
+      @close="libraryStickerUrl = ''"
+    />
+    <header v-if="view !== 'stickers'" class="wx-header">
+      <button class="wx-back" type="button" aria-label="返回" @click="closeManager">‹</button><strong>账号管理</strong>
     </header>
     <form v-if="view === 'account' && !unlocked" class="wx-manager-gate" @submit.prevent="unlock">
       <strong>进入账号管理</strong>
@@ -11,8 +23,8 @@
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       <button class="wx-manager-primary" type="submit">进入管理</button>
     </form>
-    <div v-else class="wx-manager-shell">
-      <section v-if="view !== 'stickers'" class="wx-manager-roster" aria-label="账号列表">
+    <div v-else-if="view !== 'stickers'" class="wx-manager-shell">
+      <section class="wx-manager-roster" aria-label="账号列表">
         <div class="wx-manager-section-head">
           <div>
             <small>ACCOUNTS</small>
@@ -40,17 +52,9 @@
           <p v-if="!filteredRoster.length" class="wx-manager-empty">没有找到账号。</p>
         </div>
       </section>
-      <label v-if="view === 'stickers'" class="wx-manager-account-select"
-        >管理账号
-        <select :value="selectedId" :disabled="stickerBusy" @change="selectAccountFromEvent">
-          <option v-for="entry in rosterEntries" :key="entry.id" :value="entry.id">
-            {{ entry.name }}{{ entry.hasAccount ? '' : '（未建号）' }}
-          </option>
-        </select>
-      </label>
       <nav class="wx-manager-tabs" aria-label="管理内容">
         <button type="button" :class="{ active: view === 'account' }" @click="changeView('account')">资料</button>
-        <button type="button" :class="{ active: view === 'stickers' }" @click="changeView('stickers')">表情包</button>
+        <button type="button" :disabled="!selectedAccount" @click="changeView('stickers')">表情包</button>
         <button type="button" :class="{ active: view === 'library' }" @click="changeView('library')">图片库</button>
       </nav>
       <section v-if="view === 'account' && selectedAccount" class="wx-manager-editor">
@@ -107,20 +111,6 @@
         </button>
         <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       </section>
-      <WeChatStickerManager
-        v-else-if="view === 'stickers' && selectedAccount"
-        :key="selectedId"
-        :account-id="selectedId"
-        :accounts="accounts"
-        :initial-image="libraryStickerUrl"
-        :initial-adding="startAdding"
-        @dirty="stickerDirty = $event"
-        @busy="stickerBusy = $event"
-      />
-      <section v-else-if="view === 'stickers'" class="wx-manager-editor">
-        <p class="wx-manager-empty">请先为此角色创建账号，再添加表情包。</p>
-        <button class="wx-manager-primary" type="button" @click="changeView('account')">前往创建账号</button>
-      </section>
       <WeChatImageLibrary
         v-else-if="view === 'library'"
         :accounts="accounts"
@@ -139,13 +129,11 @@ import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/rol
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { resolveWechatImage } from './imageLibrary';
 import WeChatStickerManager from './WeChatStickerManager.vue';
+import WeChatStickerImport from './WeChatStickerImport.vue';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatImageLibrary from './WeChatImageLibrary.vue';
 
 const emit = defineEmits<{ close: [] }>();
-const props = withDefaults(defineProps<{ initialView?: 'account' | 'stickers'; startAdding?: boolean }>(), {
-  initialView: 'account',
-});
 const store = useMagicGirlStatStore();
 const password = ref('');
 const unlocked = ref(false);
@@ -155,7 +143,7 @@ const saving = ref(false);
 const creating = ref(false);
 const selectedId = ref('user');
 const accountSearch = ref('');
-const view = ref<'account' | 'stickers' | 'library'>(props.initialView);
+const view = ref<'account' | 'stickers' | 'library'>('account');
 const accounts = computed(() => store.statData?.手机?.微信?.账号 ?? {});
 const accountEntries = computed(() => Object.entries(accounts.value));
 const roleEntries = computed(() => {
@@ -188,15 +176,12 @@ const name = ref('');
 const avatar = ref('');
 const friends = ref<string[]>([]);
 const libraryStickerUrl = ref('');
-const stickerDirty = ref(false);
-const stickerBusy = ref(false);
 const isDirty = computed(
   () =>
     !!selectedAccount.value &&
     (name.value !== selectedAccount.value.昵称 ||
       avatar.value !== selectedAccount.value.头像 ||
-      JSON.stringify(friends.value) !== JSON.stringify(selectedAccount.value.好友) ||
-      stickerDirty.value),
+      JSON.stringify(friends.value) !== JSON.stringify(selectedAccount.value.好友)),
 );
 
 function unlock() {
@@ -220,38 +205,26 @@ watch(
 );
 
 function selectAccount(id: string) {
-  if (stickerBusy.value) return;
   if (id === selectedId.value) return;
   if (isDirty.value && !window.confirm('当前账号有未保存的修改，切换后会丢失。继续切换？')) return;
   selectedId.value = id;
-  stickerDirty.value = false;
   libraryStickerUrl.value = '';
   notice.value = '';
 }
-function selectAccountFromEvent(event: Event) {
-  const input = event.target as HTMLSelectElement;
-  selectAccount(input.value);
-  input.value = selectedId.value;
-}
 function changeView(next: 'account' | 'stickers' | 'library') {
-  if (stickerBusy.value) return;
   if (next === view.value) return;
   if (view.value === 'account' && isDirty.value && !window.confirm('账号资料尚未保存，切换后会丢失。继续？')) return;
-  if (view.value === 'stickers' && stickerDirty.value && !window.confirm('待添加表情尚未保存，切换后会丢失。继续？'))
-    return;
   if (view.value === 'account') {
     name.value = selectedAccount.value?.昵称 ?? '';
     avatar.value = selectedAccount.value?.头像 ?? '';
     friends.value = [...(selectedAccount.value?.好友 ?? [])];
   }
-  stickerDirty.value = false;
   libraryStickerUrl.value = '';
   view.value = next;
   notice.value = '';
   error.value = '';
 }
 function closeManager() {
-  if (stickerBusy.value) return;
   if (isDirty.value && !window.confirm('当前账号有未保存的修改，离开后会丢失。继续返回？')) return;
   emit('close');
 }
@@ -280,7 +253,6 @@ function chooseAvatar(url: string) {
   notice.value = '头像已选中，点击“保存账号”后生效。';
 }
 function chooseSticker(url: string) {
-  view.value = 'stickers';
   libraryStickerUrl.value = url;
 }
 async function save() {

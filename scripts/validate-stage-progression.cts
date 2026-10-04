@@ -36,15 +36,28 @@ assert.deepEqual(
     Array.from({ length: 6 }, (_, level) => stageExperienceCost('恶堕度', level, 0, 6, rating)),
   ),
   [
-    [30, 47, 73, 112, 174, 269],
-    [33, 52, 81, 124, 192, 296],
-    [36, 57, 88, 135, 209, 323],
-    [42, 66, 103, 157, 244, 377],
-    [45, 71, 110, 168, 261, 404],
+    [30, 50, 80, 125, 210, 350],
+    [33, 55, 88, 138, 231, 385],
+    [36, 60, 96, 150, 252, 420],
+    [42, 70, 112, 175, 294, 490],
+    [45, 75, 120, 188, 315, 525],
   ],
   '恶堕经验按角色评级提高',
 );
 assert.equal(stageExperienceCost('恶堕度', 0, 0, 6, ''), 30, '评级未确定时沿用 D 级需求');
+assert.equal(stageExperienceCost('恶堕度', -1, -2, 6), 30, '负等级沿用最低基础需求');
+for (const [level, cost] of [30, 50, 80, 125, 210, 350].entries()) {
+  const boundary = data(stage(0, 5, 5, 0), stage(-2, 3, 1, 0), stage(0, 6, level, cost - 1));
+  assert.equal(settleCharacterStages(boundary), false, `${level}→${level + 1} 少一点经验不晋级`);
+  assert.deepEqual(stageExperienceProgress(stage(0, 6, level, cost / 2), '恶堕度'), {
+    direction: 'forward',
+    percent: 50,
+  });
+  boundary.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验++;
+  assert.equal(settleCharacterStages(boundary), true, `${level}→${level + 1} 达到新需求晋级`);
+  assert.equal(boundary.角色.主要角色.索菲亚.人设阶段.恶堕度.当前等级, level + 1);
+  assert.equal(boundary.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验, 0);
+}
 assert.throws(() => stageExperienceCost('恶堕度', 0, 0, 6, 'A级'), /当前评级.*无效/);
 assert.equal(stageExperienceCost('好感度', -2, -2, 3), 32, '好感度负极端边界与正极端对称');
 assert.deepEqual(stageExperienceProgress(stage(0, 5, 3, 13), '创伤稳定度'), {
@@ -118,12 +131,12 @@ assert.equal(relationships.角色.主要角色.索菲亚.人设阶段.好感度.
 
 const corruption = data(stage(0, 5, 5, 0), stage(-2, 3, 1, 0), stage(0, 8, 2, -10));
 assert.equal(settleCharacterStages(corruption), false, '恶堕负经验不使等级回退');
-corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验 += 83;
+corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验 += 90;
 assert.equal(settleCharacterStages(corruption), true);
 assert.equal(corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.当前等级, 3);
 assert.equal(corruption.角色.主要角色.索菲亚.人设阶段.恶堕度.累计经验, 0);
 
-const rated = data(stage(0, 5, 5, 0), stage(-2, 3, 1, 0), stage(0, 8, 0, 108));
+const rated = data(stage(0, 5, 5, 0), stage(-2, 3, 1, 0), stage(0, 8, 0, 112));
 rated.角色.主要角色.索菲亚.当前评级 = 'A';
 assert.equal(settleCharacterStages(rated), true);
 assert.equal(rated.角色.主要角色.索菲亚.人设阶段.恶堕度.当前等级, 2);
