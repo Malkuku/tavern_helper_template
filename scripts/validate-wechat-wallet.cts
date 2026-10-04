@@ -161,9 +161,9 @@ async function main() {
   await reset();
   await store.exchangePointsForMoney(1);
   assert.equal(data.角色.user.恶堕积分, 4);
-  assert.equal(data.角色.user.金钱, -1900);
+  assert.equal(data.角色.user.金钱, -1000);
   assert.equal(data.手机.组织兑换通知.length, 1);
-  assert.deepEqual(data.手机.组织兑换通知[0], { 时间: time, 点数: 1, 日元: 100 });
+  assert.deepEqual(data.手机.组织兑换通知[0], { 时间: time, 点数: 1, 日元: 1000 });
   assert.equal(data.手机.微信.账号[organizationNoticeAccount], undefined, '假好友不进入真实账号');
   assert.equal(data.手机.微信.会话[organizationNoticeKey], undefined, '通知不进入普通消息协议');
   assert.equal(store.wechatNotification.key, organizationNoticeKey, '通知触发 Weline 提醒');
@@ -191,7 +191,7 @@ async function main() {
       目标: { 楼层ID: 1, 内容下标: 0 },
     }),
   );
-  assert.equal(data.角色.user.金钱, -1900, '阅读和互动失败不重复加钱');
+  assert.equal(data.角色.user.金钱, -1000, '阅读和互动失败不重复加钱');
   await assert.rejects(store.deleteWeChatFloor(organizationNoticeKey, 1), /无法删除/);
   await assert.rejects(store.requestWeChatFriend(organizationNoticeAccount, '添加好友'));
   assert.throws(
@@ -202,10 +202,10 @@ async function main() {
     /不能由聊天正文写入/,
   );
   assert.equal(data.手机.组织兑换通知.length, 1, '普通聊天操作与伪造日志不能改写通知');
-  assert.match(message, /消耗1点恶堕积分，兑换100日元/);
+  assert.match(message, /消耗1点恶堕积分，兑换1000日元/);
   await store.exchangePointsForMoney(4);
   assert.equal(data.角色.user.恶堕积分, 0);
-  assert.equal(data.角色.user.金钱, -1500);
+  assert.equal(data.角色.user.金钱, 3000);
   for (const points of [1, 0, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {
     const before = structuredClone(data);
     await assert.rejects(store.exchangePointsForMoney(points));
@@ -213,7 +213,7 @@ async function main() {
   }
   await reset(-0.25, 2);
   await Promise.all([store.exchangePointsForMoney(1), store.exchangePointsForMoney(1)]);
-  assert.equal(data.角色.user.金钱, 199.75);
+  assert.equal(data.角色.user.金钱, 1999.75);
   assert.equal(data.角色.user.恶堕积分, 0, '排队兑换使用最新余额');
   for (const kind of ['正文', '变量']) {
     await reset();
@@ -301,8 +301,8 @@ async function validateWalletUi() {
   await submit({ preventDefault() {} });
   await pending;
   assert.equal(data.角色.user.恶堕积分, 1, '重复点击不重复扣点');
-  assert.equal(data.角色.user.金钱, -1900);
-  assert.equal(state.exchangeNotice.value, '￥100 已到账，通知已发送至 Weline。');
+  assert.equal(data.角色.user.金钱, -1000);
+  assert.equal(state.exchangeNotice.value, '￥1000 已到账，通知已发送至 Weline。');
   assert.equal(data.手机.组织兑换通知.length, 1, '重复点击不重复发通知');
   failMvu = true;
   await submit({ preventDefault() {} });

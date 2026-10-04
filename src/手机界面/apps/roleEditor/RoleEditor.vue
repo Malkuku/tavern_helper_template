@@ -21,47 +21,12 @@
           <h2>{{ runtimeMinorKey }}</h2>
           <p class="pre-hint">修改会直接写入当前剧情变量，不会更改主世界书资源。</p>
           <label class="pre-check"><input v-model="runtimeMinorDraft.在场" type="checkbox" />在场</label>
-          <label
-            >身份（每行一项）<textarea
-              :value="runtimeMinorDraft.身份.join('\n')"
-              @input="setMinorList('身份', $event)"
-            ></textarea>
-          </label>
           <label>背景<textarea v-model="runtimeMinorDraft.背景" rows="4"></textarea></label>
           <label>当前评级<input v-model="runtimeMinorDraft.当前评级" placeholder="未确认可留空" /></label>
           <label>外貌<textarea v-model="runtimeMinorDraft.外貌" rows="4"></textarea></label>
           <label>性格<textarea v-model="runtimeMinorDraft.性格" rows="4"></textarea></label>
-          <label
-            >名称检索词（每行一项）<textarea
-              :value="runtimeMinorDraft.名称检索词.join('\n')"
-              @input="setMinorList('名称检索词', $event)"
-            ></textarea>
-          </label>
-          <label
-            >区域检索词（每行一项）<textarea
-              :value="runtimeMinorDraft.区域检索词.join('\n')"
-              @input="setMinorList('区域检索词', $event)"
-            ></textarea>
-          </label>
-          <label
-            >身体特殊状态（每行一项）<textarea
-              :value="runtimeMinorDraft.身体.特殊状态.join('\n')"
-              @input="setMinorSpecialStates($event)"
-            ></textarea>
-          </label>
-          <div v-for="part in bodyPartNames" :key="part" class="pre-body-part">
-            <h3>{{ part }}</h3>
-            <label>当前状态<textarea v-model="runtimeMinorDraft.身体[part].当前状态"></textarea></label>
-            <label>特征<textarea v-model="runtimeMinorDraft.身体[part].特征"></textarea></label>
-            <label>开发程度<textarea v-model="runtimeMinorDraft.身体[part].开发程度"></textarea></label>
-          </div>
-          <label
-            >能力描述（每行一项）<textarea
-              :value="runtimeMinorDraft.能力描述.join('\n')"
-              @input="setMinorList('能力描述', $event)"
-            ></textarea>
-          </label>
         </section>
+        <RoleDetailFields v-model:data="runtimeMinorDraft" type="次要角色" runtime />
         <div class="pre-actions">
           <button type="button" class="primary" :disabled="busy" @click="requestMinorSave">保存到当前剧情</button>
           <button type="button" class="pre-danger" :disabled="busy" @click="requestMinorDelete()">删除变量记录</button>
@@ -72,6 +37,15 @@
           <h1>角色编辑器</h1>
           <p>编辑角色资源并保存到主世界书。加入和替换会写入当前剧情。</p>
         </section>
+        <div class="pre-create">
+          <input v-model="search" type="search" aria-label="搜索角色" placeholder="搜索姓名、作者或版本说明" />
+          <select v-model="typeFilter" aria-label="筛选角色类型">
+            <option value="">全部类型</option>
+            <option>主要角色</option>
+            <option>次要角色</option>
+            <option value="user">主角版本</option>
+          </select>
+        </div>
         <div class="pre-create">
           <select v-model="newType" aria-label="新角色类型">
             <option value="主要角色">主要角色</option>
@@ -133,6 +107,12 @@
           </button>
         </div>
         <p v-if="dirty && activeId" class="pre-hint">先保存资源，再加入或替换当前剧情。</p>
+        <label v-if="runtimeExists && draft.type !== 'user'" class="pre-replace-option">
+          <input v-model="replaceStages" type="checkbox" />同时替换人设阶段（等级、经验与全部描述）
+        </label>
+        <p v-if="runtimeExists && draft.type !== 'user'" class="pre-hint">
+          默认保留当前剧情人设阶段；勾选后会使用资源中的初始阶段。
+        </p>
 
         <section class="pre-card">
           <h2>角色身份</h2>
@@ -200,10 +180,10 @@
             <label>背景<textarea v-model="draft.data.背景" rows="4"></textarea></label>
             <label>外貌<textarea v-model="draft.data.外貌" rows="4"></textarea></label>
             <label>性格<textarea v-model="draft.data.性格" rows="4"></textarea></label>
-            <p class="pre-hint">身份、身体状态和能力描述可在“编辑完整数据”中逐项修改。</p>
             <label class="pre-check"><input v-model="draft.data.在场" type="checkbox" />初始在场</label>
           </template>
         </section>
+        <RoleDetailFields v-if="!fullData" :key="activeId || draft.type" v-model:data="draft.data" :type="draft.type" />
       </template>
     </div>
 
@@ -231,13 +211,17 @@ import { roleAvatarStyleNames } from '../../../尘史使徒/UI/components/common
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import { chooseImageCrop } from '../../imageCrop';
 import { minorRoleSchema } from '../../store/initialDataSchema';
+import RoleDetailFields from './RoleDetailFields.vue';
+import { loadMinorStageTemplates } from '../../store/minorStages';
 import type { 次要角色人设 } from '../../types';
 import {
   applyPhoneRoleToRuntime,
+  applyPhoneRoleToStatData,
   getPhoneRuntimeRoles,
   loadPhoneRoleAssets,
   savePhoneRoleAsset,
   validateRoleAsset,
+  validateRoleStages,
   type PhoneRoleAsset,
   type PhoneRoleRegistry,
   type PhoneRoleType,
@@ -261,8 +245,11 @@ const busy = ref(false);
 const error = ref('');
 const notice = ref('');
 const newType = ref<PhoneRoleType>('主要角色');
+const search = ref('');
+const typeFilter = ref('');
 const avatarStyleNames = roleAvatarStyleNames;
 const fullData = ref(false);
+const replaceStages = ref(false);
 const dataJson = ref('');
 type Dialog = {
   kind: 'save' | 'runtime' | 'minor-save' | 'minor-delete' | 'discard';
@@ -275,8 +262,24 @@ const dialog = ref<Dialog | null>(null);
 let minorActionChatId: string | null = null;
 const leaving = ref(false);
 const refreshing = ref(false);
-const rows = computed(() => Object.entries(registry.value).map(([id, asset]) => ({ id, asset })));
-const runtimeMinorKeys = computed(() => Object.keys(runtime.value.次要角色 ?? {}));
+const rows = computed(() =>
+  Object.entries(registry.value)
+    .filter(
+      ([, asset]) =>
+        (!typeFilter.value || asset.type === typeFilter.value) &&
+        `${asset.key} ${asset.author} ${asset.desc}`
+          .toLocaleLowerCase()
+          .includes(search.value.trim().toLocaleLowerCase()),
+    )
+    .map(([id, asset]) => ({ id, asset })),
+);
+const runtimeMinorKeys = computed(() =>
+  Object.keys(runtime.value.次要角色 ?? {}).filter(
+    key =>
+      (!typeFilter.value || typeFilter.value === '次要角色') &&
+      key.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase()),
+  ),
+);
 const dirty = computed(
   () =>
     (!!runtimeMinorDraft.value &&
@@ -311,6 +314,7 @@ function defaultData(type: PhoneRoleType): Record<string, any> {
       外貌: '',
       性格: '',
       当前评级: '',
+      评级贡献: 0,
       金钱: 0,
       恶堕积分: 0,
       技能: {},
@@ -356,6 +360,7 @@ function setDraft(id: string, asset: PhoneRoleAsset | null) {
   originalJson.value = asset ? JSON.stringify(asset) : '';
   dataJson.value = asset ? JSON.stringify(asset.data, null, 2) : '';
   fullData.value = false;
+  replaceStages.value = false;
   error.value = '';
   notice.value = '';
 }
@@ -372,21 +377,6 @@ function openRuntimeMinor(key: string) {
   error.value = '';
   notice.value = '';
 }
-const bodyPartNames = ['小穴', '口穴', '菊穴', '胸部'] as const;
-function setMinorSpecialStates(event: Event) {
-  if (runtimeMinorDraft.value)
-    runtimeMinorDraft.value.身体.特殊状态 = (event.target as HTMLTextAreaElement).value
-      .split('\n')
-      .map(item => item.trim())
-      .filter(Boolean);
-}
-function setMinorList(field: '身份' | '名称检索词' | '区域检索词' | '能力描述', event: Event) {
-  if (runtimeMinorDraft.value)
-    runtimeMinorDraft.value[field] = (event.target as HTMLTextAreaElement).value
-      .split('\n')
-      .map(item => item.trim())
-      .filter(Boolean);
-}
 function requestMinorSave() {
   if (!runtimeMinorDraft.value || !runtimeMinorOriginal.value) return;
   const checked = minorRoleSchema.safeParse(runtimeMinorDraft.value);
@@ -395,6 +385,12 @@ function requestMinorSave() {
     return;
   }
   const fields = changedFields(runtimeMinorOriginal.value, checked.data);
+  try {
+    validateRoleStages(checked.data);
+  } catch (cause) {
+    error.value = messageOf(cause);
+    return;
+  }
   if (!fields.length) {
     notice.value = '没有需要保存的修改。';
     return;
@@ -499,11 +495,11 @@ function toggleFullData() {
   if (!draft.value) return;
   if (fullData.value) {
     try {
-      draft.value.data = JSON.parse(dataJson.value);
+      draft.value.data = validateRoleAsset({ ...draft.value, data: JSON.parse(dataJson.value) }).data;
       fullData.value = false;
       error.value = '';
     } catch (cause) {
-      error.value = `完整数据不是有效 JSON：${messageOf(cause)}`;
+      error.value = `无法切换到可视化编辑：${messageOf(cause)}`;
     }
   } else {
     dataJson.value = JSON.stringify(draft.value.data, null, 2);
@@ -543,24 +539,43 @@ function requestSave() {
     error.value = messageOf(cause);
   }
 }
-function requestRuntime() {
+async function requestRuntime() {
   if (!draft.value || !activeId.value) return;
   if (dirty.value) {
     error.value = '请先保存角色资源，再加入或替换当前剧情。';
     return;
   }
-  const before = draft.value.type === 'user' ? runtime.value.user : runtime.value[draft.value.type]?.[draft.value.key];
-  const after = { ...draft.value.data, meta: draft.value.meta };
-  const fields = before ? changedFields(before, after) : [];
-  dialog.value = {
-    kind: 'runtime',
-    title: runtimeExists.value ? '替换当前角色' : '加入当前剧情',
-    body: runtimeExists.value
-      ? '当前角色的全部数据会被这个资源版本替换，Weline 头像也会同步。'
-      : '角色会加入当前剧情，并生成对应 Weline 账号与头像。',
-    action: runtimeExists.value ? '确认替换' : '确认加入',
-    fields,
-  };
+  busy.value = true;
+  error.value = '';
+  try {
+    const asset = klona(draft.value);
+    const templates = asset.type === '次要角色' ? await loadMinorStageTemplates() : undefined;
+    if (JSON.stringify(draft.value) !== JSON.stringify(asset) || dirty.value)
+      throw new Error('角色草稿已变化，请先保存后重新操作。');
+    const before = asset.type === 'user' ? runtime.value.user : runtime.value[asset.type]?.[asset.key];
+    const result = applyPhoneRoleToStatData(
+      { 角色: runtime.value, 手机: { 微信: { 账号: {} } } },
+      asset,
+      runtimeExists.value,
+      templates,
+      replaceStages.value,
+    );
+    const after = asset.type === 'user' ? result.角色.user : result.角色[asset.type][asset.key];
+    const fields = before ? changedFields(before, after) : [];
+    dialog.value = {
+      kind: 'runtime',
+      title: runtimeExists.value ? '替换当前角色' : '加入当前剧情',
+      body: runtimeExists.value
+        ? `角色资料与 Weline 头像会更新。${replaceStages.value ? '人设阶段也会替换为资源中的等级、经验和描述。' : '当前剧情的完整人设阶段保持原样。'}`
+        : '角色会加入当前剧情，并生成对应 Weline 账号与头像。',
+      action: runtimeExists.value ? '确认替换' : '确认加入',
+      fields,
+    };
+  } catch (cause) {
+    error.value = messageOf(cause);
+  } finally {
+    busy.value = false;
+  }
 }
 async function confirmDialog() {
   const action = dialog.value;
@@ -602,7 +617,7 @@ async function confirmDialog() {
       if (JSON.stringify(latest[activeId.value]) !== JSON.stringify(registry.value[activeId.value]))
         throw new Error('角色资源已被其他编辑修改，请刷新后再加入或替换。');
       const wasExisting = runtimeExists.value;
-      await applyPhoneRoleToRuntime(draft.value, wasExisting);
+      await applyPhoneRoleToRuntime(draft.value, wasExisting, replaceStages.value);
       runtime.value = await getPhoneRuntimeRoles();
       notice.value = wasExisting ? '当前剧情角色已替换。' : '角色已加入当前剧情。';
     }

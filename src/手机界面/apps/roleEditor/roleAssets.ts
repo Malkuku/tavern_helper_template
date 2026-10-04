@@ -44,7 +44,23 @@ export function validateRoleAsset(asset: PhoneRoleAsset): PhoneRoleAsset {
   if (result.type === 'user' && result.key !== 'user') throw new Error('主角资源的身份必须为 user。');
   const parsed = schemas[result.type].safeParse(result.data);
   if (!parsed.success) throw new Error(`角色数据不符合 ${result.type} 结构：${z.prettifyError(parsed.error)}`);
+  validateRoleStages(parsed.data);
   return { ...result, data: parsed.data };
+}
+
+export function validateRoleStages(data: Record<string, any>): void {
+  for (const [kind, stage] of Object.entries(data.人设阶段 ?? {}) as [string, any][]) {
+    const levels = Object.keys(stage.描述)
+      .map(Number)
+      .sort((a, b) => a - b);
+    if (
+      !levels.length ||
+      levels.some((level, index) => !Number.isSafeInteger(level) || (index > 0 && level !== levels[index - 1] + 1))
+    )
+      throw new Error(`${kind}描述必须使用连续整数等级。`);
+    if (!Number.isSafeInteger(stage.当前等级) || !Object.hasOwn(stage.描述, String(stage.当前等级)))
+      throw new Error(`${kind}当前等级必须是已有描述的整数等级。`);
+  }
 }
 
 export function parseRoleRegistry(content: string): PhoneRoleRegistry {
@@ -110,7 +126,11 @@ export function changeRuntimeMinorRole(
   if (JSON.stringify(roles[key]) !== JSON.stringify(original))
     throw new Error('次要角色已被其他操作修改，请刷新后重试。');
   if (next === null) delete roles[key];
-  else roles[key] = minorRoleSchema.parse(next);
+  else {
+    const checked = minorRoleSchema.parse(next);
+    validateRoleStages(checked);
+    roles[key] = checked;
+  }
 }
 
 export function applyPhoneRoleToStatData(
@@ -118,6 +138,7 @@ export function applyPhoneRoleToStatData(
   asset: PhoneRoleAsset,
   overwrite: boolean,
   minorTemplate?: MinorStageTemplates,
+  replaceStages = false,
 ): Record<string, any> {
   const next = klona(current);
   const roles = next.角色;
@@ -128,11 +149,14 @@ export function applyPhoneRoleToStatData(
   const exists = asset.type === 'user' ? Object.keys(bucket).length > 0 : Object.hasOwn(bucket, asset.key);
   if (exists && !overwrite) throw new Error('角色已经在当前剧情中，请选择替换。');
   let runtime = runtimeRoleOf(asset);
+  const existing = exists && asset.type !== 'user' ? bucket[asset.key] : undefined;
+  if (existing?.人设阶段 && !replaceStages) runtime.人设阶段 = klona(existing.人设阶段);
   if (asset.type === '次要角色') {
     if (!minorTemplate) throw new Error('缺少次要角色通用阶段模板。');
-    runtime = completeMinorRole(runtime, minorTemplate, exists ? bucket[asset.key] : undefined);
+    runtime = completeMinorRole(runtime, minorTemplate, replaceStages ? undefined : existing);
   }
   if (asset.type === '主要角色') runtime = completeCurrentRating(runtime, exists ? bucket[asset.key] : undefined);
+  validateRoleStages(runtime);
   if (asset.type === 'user') roles.user = runtime;
   else bucket[asset.key] = runtime;
   const id = asset.type === 'user' ? 'user' : asset.key;
@@ -156,14 +180,18 @@ export async function getPhoneRuntimeRoles(): Promise<Record<string, any>> {
   return klona(current.stat_data.角色);
 }
 
-export async function applyPhoneRoleToRuntime(asset: PhoneRoleAsset, overwrite: boolean): Promise<void> {
+export async function applyPhoneRoleToRuntime(
+  asset: PhoneRoleAsset,
+  overwrite: boolean,
+  replaceStages = false,
+): Promise<void> {
   validateRoleAsset(asset);
   const minorTemplate = asset.type === '次要角色' ? await loadMinorStageTemplates() : undefined;
   await waitGlobalInitialized('Mvu');
   if (getLastMessageId() < 0) throw new Error('当前聊天没有可写入的消息楼层。');
   const previous = klona(Mvu.getMvuData({ type: 'message', message_id: -1 }) as Record<string, any>);
   if (!previous?.stat_data) throw new Error('当前剧情缺少角色数据。');
-  const next = applyPhoneRoleToStatData(previous.stat_data, asset, overwrite, minorTemplate);
+  const next = applyPhoneRoleToStatData(previous.stat_data, asset, overwrite, minorTemplate, replaceStages);
   try {
     await MvuUtil.updateMvuDataByObj(next);
   } catch (error) {

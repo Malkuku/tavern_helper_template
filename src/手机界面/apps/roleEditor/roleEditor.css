@@ -83,6 +83,84 @@
   padding: 15px 14px 86px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  overflow-x: hidden;
+}
+.pre-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+.pre-tabs button,
+.pre-list-field button,
+.pre-level button,
+.pre-stage button {
+  min-height: 34px;
+  padding: 7px 10px;
+  color: #6d4e8c;
+  background: #faf8fc;
+  border: 1px solid #d9cde4;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pre-tabs button.active {
+  color: #fff;
+  background: #8765aa;
+}
+.pre-list-field,
+.pre-level {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  color: #6e687b;
+  font-size: 12px;
+}
+.pre-list-row,
+.pre-stage-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.pre-stage-progress {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.pre-level {
+  padding: 10px;
+  border: 1px solid #e8dfeb;
+  border-radius: 10px;
+}
+.pre-level summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.pre-level[open] > label {
+  margin-top: 10px;
+}
+.pre-stage-preview {
+  margin: 0;
+  padding: 10px;
+  background: #f6f2f9;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pre-replace-option {
+  display: flex;
+  gap: 8px;
+  align-items: start;
+  font-size: 12px;
+}
+.pre-card,
+.pre-card label {
+  min-width: 0;
+}
+.pre-card :is(input, textarea, select) {
+  box-sizing: border-box;
+  max-width: 100%;
 }
 .pre-intro {
   margin: 3px 3px 16px;
@@ -107,6 +185,16 @@
 .pre-create select {
   flex: 1;
   min-width: 0;
+}
+.pre-create input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #ded6e4;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 12px;
 }
 .pre-create button,
 .pre-actions button,

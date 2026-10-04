@@ -2,7 +2,7 @@ import type { stat_data, 微信数据 } from '../../types';
 
 export const organizationNoticeKey = '通知:组织财务';
 export const organizationNoticeAccount = '$organization-finance';
-export const yenPerPoint = 100;
+export const yenPerPoint = 1000;
 
 export function exchangeOrganizationPoints(data: stat_data, points: number): void {
   if (!Number.isSafeInteger(points) || points <= 0) throw new Error('兑换点数必须为正整数。');

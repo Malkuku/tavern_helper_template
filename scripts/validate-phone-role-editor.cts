@@ -39,6 +39,21 @@ const oldMain = structuredClone(rin);
 delete oldMain.data.当前评级;
 const replacedMain = applyPhoneRoleToStatData(assembled, oldMain, true);
 assert.equal(replacedMain.角色.主要角色.鹭见凛.当前评级, 'A');
+const progressed = structuredClone(assembled);
+progressed.角色.主要角色.鹭见凛.人设阶段.恶堕度.当前等级 = 3;
+progressed.角色.主要角色.鹭见凛.人设阶段.恶堕度.累计经验 = -7;
+progressed.角色.主要角色.鹭见凛.人设阶段.恶堕度.描述['3'] = '剧情发展后的自定义人设';
+const protectedMain = applyPhoneRoleToStatData(progressed, rin, true);
+assert.deepEqual(protectedMain.角色.主要角色.鹭见凛.人设阶段, progressed.角色.主要角色.鹭见凛.人设阶段);
+const explicitMain = applyPhoneRoleToStatData(progressed, rin, true, undefined, true);
+assert.deepEqual(explicitMain.角色.主要角色.鹭见凛.人设阶段, rin.data.人设阶段);
+assert.equal(progressed.角色.主要角色.鹭见凛.人设阶段.恶堕度.累计经验, -7);
+const invalidStage = structuredClone(rin);
+invalidStage.data.人设阶段.好感度.当前等级 = 999;
+assert.throws(() => validateRoleAsset(invalidStage), /当前等级/);
+const discontinuous = structuredClone(rin);
+delete discontinuous.data.人设阶段.恶堕度.描述['2'];
+assert.throws(() => validateRoleAsset(discontinuous), /连续整数/);
 
 const minor = {
   author: 'test',
@@ -102,8 +117,9 @@ const specialized = applyPhoneRoleToStatData(
   } as any,
   true,
   minorTemplate,
+  true,
 );
-assert.equal(specialized.角色.次要角色[minor.key].人设阶段.恶堕度.当前等级, 3);
+assert.equal(specialized.角色.次要角色[minor.key].人设阶段.恶堕度.当前等级, minorTemplate.恶堕度.当前等级);
 assert.equal(specialized.角色.次要角色[minor.key].人设阶段.恶堕度.描述['3'], '角色专属阶段');
 assert.equal(specialized.角色.次要角色[minor.key].人设阶段.好感度.描述['2'], '专属好感描述');
 assert.throws(() => applyPhoneRoleToStatData(assembled, minor as any, false), /缺少次要角色通用阶段模板/);
