@@ -165,8 +165,8 @@
               @close="advanceNotificationPreview"
             />
             <WeChatNotification
-              v-else-if="statStore.wechatNotification && statStore.statData?.手机?.微信"
-              :data="statStore.statData.手机.微信"
+              v-else-if="statStore.wechatNotification && wechatView"
+              :data="wechatView"
               :notice="statStore.wechatNotification"
               @open="openNotificationChat"
               @close="statStore.dismissWeChatNotification()"
@@ -193,8 +193,8 @@
     </Transition>
     <ImageCropper v-if="imageCropRequest" :request="imageCropRequest" />
     <WeChatNotification
-      v-if="!open && statStore.wechatNotification && statStore.statData?.手机?.微信"
-      :data="statStore.statData.手机.微信"
+      v-if="!open && statStore.wechatNotification && wechatView"
+      :data="wechatView"
       :notice="statStore.wechatNotification"
       @open="openNotificationChat"
       @close="statStore.dismissWeChatNotification()"
@@ -225,6 +225,7 @@ import WeChatNotification from './components/WeChatNotification.vue';
 import WitchNotification from './components/WitchNotification.vue';
 import ImageCropper from './components/ImageCropper.vue';
 import { imageCropRequest } from './imageCrop';
+import { organizationWeChatView } from './apps/witch/organizationExchange';
 import {
   activeWitchNoticeHistory,
   nextWitchNotice,
@@ -238,6 +239,7 @@ import type { 微信数据, 微信消息 } from './types';
 
 const open = ref(false);
 const statStore = useMagicGirlStatStore();
+const wechatView = computed(() => organizationWeChatView(statStore.statData));
 type NotificationPreview = { kind: 'weline' } | { kind: 'witch'; notice: WitchNotice };
 const notificationPreviewQueue = ref<NotificationPreview[]>([]);
 const notificationPreview = computed(() => notificationPreviewQueue.value[0] ?? null);
@@ -547,7 +549,7 @@ function openPhone() {
 }
 function openNotificationChat() {
   const key = statStore.wechatNotification?.key;
-  const session = key && statStore.statData?.手机?.微信?.会话[key];
+  const session = key && wechatView.value?.会话[key];
   if (!key || !session?.成员.includes('user')) return;
   if (!open.value) {
     didDrag = false;

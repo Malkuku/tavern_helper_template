@@ -1195,6 +1195,12 @@
   background: var(--wx-panel);
   color: var(--wx-text);
 }
+.wechat .wx-organization-notices {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
 .wechat .wx-details-page {
   position: absolute;
   inset: 0;

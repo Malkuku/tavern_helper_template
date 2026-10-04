@@ -128,9 +128,19 @@
             >
               道具
             </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="subpage === '日元兑换'"
+              :class="{ active: subpage === '日元兑换' }"
+              @click="subpage = '日元兑换'"
+            >
+              兑换
+            </button>
           </div>
-          <SkillShop v-if="subpage !== '道具商店'" />
-          <ItemShop v-else />
+          <PointExchange v-if="subpage === '日元兑换'" />
+          <ItemShop v-else-if="subpage === '道具商店'" />
+          <SkillShop v-else />
         </template>
 
         <template v-else>
@@ -203,6 +213,7 @@ import SkillShop from '../skillShop/SkillShop.vue';
 import ItemShop from '../itemShop/ItemShop.vue';
 import WitchMark from './WitchMark.vue';
 import WitchNavIcon from './WitchNavIcon.vue';
+import PointExchange from './PointExchange.vue';
 import './witch.css';
 
 type Tab = 'home' | 'tasks' | 'observe' | 'shop' | 'mine';

@@ -2,6 +2,7 @@ import { klona } from 'klona';
 import type { 微信会话, 微信数据, 微信消息, 微信消息内容, 微信消息流项, 微信操作 } from '../../types';
 import { parseLocationShare } from '../map/locationShare';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
+import { organizationNoticeAccount, organizationNoticeKey } from '../witch/organizationExchange';
 
 type MessageEvent = 微信消息 & { 类型: '消息'; 会话: string; 会话信息?: Pick<微信会话, '类型' | '名称' | '成员'> };
 export type OperationEvent = { 类型: '操作'; 操作: string; 时间: string; [key: string]: any };
@@ -217,6 +218,7 @@ export function canSendPrivateMessage(data: 微信数据, session: 微信会话)
 
 function ensureEventAccounts(data: 微信数据, ids: string[]): void {
   for (const id of new Set(ids)) {
+    if (id === organizationNoticeAccount) throw new Error('组织财务仅用于只读通知，不能作为聊天账号。');
     if (typeof id !== 'string' || !id.trim()) throw new Error('聊天人物名称不能为空。');
     if (Object.hasOwn(data.账号, id)) continue;
     data.账号[id] = { 昵称: id === 'user' ? '我' : id, 头像: wechatRoleAvatar(undefined, id), 表情包: {}, 好友: [] };
@@ -349,6 +351,7 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
     const mismatch = pendingMismatch(next, log);
     if (mismatch) throw new Error(`主动聊天日志中的 user 消息与准备发送${mismatch}`);
     for (const event of log.事件) {
+      if (event.会话 === organizationNoticeKey) throw new Error('组织财务通知不能由聊天正文写入。');
       if (event.类型 === '消息') {
         let session = next.会话[event.会话];
         if (!session) {
@@ -401,6 +404,7 @@ export function applyWeChatLogs(current: 微信数据, logs: WeChatLog[]): 微�
 }
 
 export function applyWeChatOperation(current: 微信数据, event: OperationEvent): 微信数据 {
+  if (event.会话 === organizationNoticeKey) throw new Error('组织财务会话不支持聊天互动。');
   const next = normalizeWeChatIds(current);
   event = { ...event, 楼层ID: next.会话[event.会话]?.消息.length + 1 || 1 };
   if (!validEvent(event)) throw new Error('聊天操作格式无效。');

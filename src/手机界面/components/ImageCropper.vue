@@ -1,5 +1,5 @@
 <template>
-  <div class="image-crop-backdrop" role="presentation">
+  <div ref="backdrop" class="image-crop-backdrop" role="presentation">
     <section class="image-crop-dialog" role="dialog" aria-modal="true" aria-label="裁剪图片">
       <header>
         <strong>裁剪图片</strong
@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { cropGeometry, finishImageCrop, type CropAspect, type ImageCropRequest } from '../imageCrop';
 
 const props = defineProps<{ request: ImageCropRequest }>();
@@ -79,14 +79,22 @@ const offsetX = ref(0);
 const offsetY = ref(0);
 const error = ref('');
 const busy = ref(false);
-const viewportWidth = ref(window.innerWidth);
-const viewportHeight = ref(window.innerHeight);
-function resize() {
-  viewportWidth.value = window.innerWidth;
-  viewportHeight.value = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-onUnmounted(() => window.removeEventListener('resize', resize));
+const backdrop = ref<HTMLElement>();
+const viewportWidth = ref(0);
+const viewportHeight = ref(0);
+let resizeObserver: ResizeObserver | undefined;
+onMounted(() => {
+  const element = backdrop.value!;
+  // 浮层在宿主文档中，脚本 window 是后台 iframe，不能用其尺寸计算裁剪框。
+  const resize = () => {
+    viewportWidth.value = element.clientWidth;
+    viewportHeight.value = element.clientHeight;
+  };
+  resize();
+  resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(element);
+});
+onUnmounted(() => resizeObserver?.disconnect());
 const ratio = computed(() => {
   if (aspect.value === 'square') return 1;
   if (aspect.value === 'landscape') return 4 / 3;
@@ -94,7 +102,7 @@ const ratio = computed(() => {
   return imageWidth.value && imageHeight.value ? imageWidth.value / imageHeight.value : 1;
 });
 const frameWidth = computed(() =>
-  Math.max(80, Math.min(320, viewportWidth.value - 64, viewportHeight.value * 0.42 * ratio.value)),
+  Math.max(1, Math.min(320, viewportWidth.value - 62, viewportHeight.value * 0.42 * ratio.value)),
 );
 const frameHeight = computed(() => frameWidth.value / ratio.value);
 const geometry = computed(() =>
@@ -190,6 +198,7 @@ async function confirmCrop() {
 
 <style scoped>
 .image-crop-backdrop {
+  box-sizing: border-box;
   position: fixed;
   inset: 0;
   z-index: 10010;
@@ -205,7 +214,8 @@ async function confirmCrop() {
   justify-items: center;
   gap: 12px;
   width: min(420px, 100%);
-  max-height: calc(100dvh - 24px);
+  min-width: 0;
+  max-height: 100%;
   overflow: auto;
   padding: 16px;
   border: 1px solid #6977ad;
@@ -222,6 +232,8 @@ async function confirmCrop() {
   justify-content: space-between;
   gap: 6px;
   width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .image-crop-dialog header strong {
   font-size: 17px;
@@ -253,6 +265,7 @@ async function confirmCrop() {
   font-size: 20px;
 }
 .image-crop-frame {
+  box-sizing: content-box;
   position: relative;
   flex: none;
   overflow: hidden;
@@ -280,6 +293,7 @@ async function confirmCrop() {
 }
 .image-crop-zoom input {
   flex: 1;
+  min-width: 0;
 }
 .image-crop-error {
   color: #ffb7c4 !important;

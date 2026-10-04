@@ -71,6 +71,12 @@ import {
 } from './corruptionRewards';
 import { settleUserRating } from './userRating';
 import { directedRefreshSurcharge } from '../apps/shopRefresh';
+import {
+  exchangeOrganizationPoints,
+  organizationWeChatView,
+  organizationNoticeKey,
+  yenPerPoint,
+} from '../apps/witch/organizationExchange';
 import { changeRuntimeMinorRole as applyRuntimeMinorChange } from '../apps/roleEditor/roleAssets';
 import {
   applySkillRefresh,
@@ -110,17 +116,26 @@ function paymentCents(content: unknown, kind: '红包' | '转账'): number {
 }
 
 function settlePayments(data: stat_data, before: 微信数据, after: 微信数据): void {
-  const user = data.角色?.user;
-  if (!user || !Number.isFinite(user.金钱)) throw new Error('角色金钱变量无效。');
-  let balance = Math.round(user.金钱 * 100);
+  let balance: number | undefined;
+  const changeBalance = (cents: number) => {
+    const user = data.角色?.user;
+    if (!user || !Number.isFinite(user.金钱)) throw new Error('角色金钱变量无效。');
+    balance ??= Math.round(user.金钱 * 100);
+    const next = balance + cents;
+    if (!Number.isSafeInteger(next)) throw new Error('角色金钱超出有效范围。');
+    if (cents < 0 && next < 0) throw new Error('余额不足，无法转账。');
+    balance = next;
+  };
   for (const [key, session] of Object.entries(after.会话)) {
     const oldCount = before.会话[key]?.消息.length ?? 0;
     for (const item of session.消息.slice(oldCount)) {
       if ('发送者' in item) {
         if (item.发送者 === 'user') {
           for (const content of item.内容) {
-            if (typeof content === 'string' && content.startsWith('<转账 ')) balance -= paymentCents(content, '转账');
-            if (typeof content === 'string' && content.startsWith('<红包 ')) balance -= paymentCents(content, '红包');
+            if (typeof content === 'string' && content.startsWith('<转账 '))
+              changeBalance(-paymentCents(content, '转账'));
+            if (typeof content === 'string' && content.startsWith('<红包 '))
+              changeBalance(-paymentCents(content, '红包'));
           }
         }
         continue;
@@ -131,12 +146,11 @@ function settlePayments(data: stat_data, before: 微信数据, after: 微信数�
       if (!target || !('发送者' in target)) throw new Error('款项目标不存在。');
       const kind = item.操作 === '领取红包' ? '红包' : '转账';
       const amount = paymentCents(target.内容[item.目标.内容下标], kind);
-      if (item.操作 === '退回转账' && target.发送者 === 'user') balance += amount;
-      else if (item.操作 !== '退回转账' && item.操作者 === 'user' && target.发送者 !== 'user') balance += amount;
+      if (item.操作 === '退回转账' && target.发送者 === 'user') changeBalance(amount);
+      else if (item.操作 !== '退回转账' && item.操作者 === 'user' && target.发送者 !== 'user') changeBalance(amount);
     }
   }
-  if (balance < 0) throw new Error('余额不足，无法转账。');
-  user.金钱 = balance / 100;
+  if (balance !== undefined) data.角色.user.金钱 = balance / 100;
 }
 
 function escapeSystemLogText(value: string): string {
@@ -278,7 +292,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   function markWeChatRead(key: string) {
-    const session = statData.value?.手机?.微信?.会话[key];
+    const session = organizationWeChatView(statData.value)?.会话[key];
     if (!session?.成员.includes('user') || !readChatId) return;
     if (readCursors[key] !== session.消息.length) {
       readCursors = { ...readCursors, [key]: session.消息.length };
@@ -402,6 +416,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     await changeCharacterData(data => {
       applyProfileEdit(data, field, value);
     });
+  }
+
+  async function exchangePointsForMoney(points: number): Promise<void> {
+    await changeCharacterData(
+      data => {
+        worldTimeAfterWeChatLogs(data.世界?.时间 ?? '', []);
+        exchangeOrganizationPoints(data, points);
+      },
+      () =>
+        `在「魔女恶堕计划」消耗${points}点恶堕积分，兑换${points * yenPerPoint}日元，已入账并发送 Weline 到账通知。`,
+    );
   }
 
   async function readCorruptionRewardMail(id: string): Promise<void> {
@@ -745,6 +770,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     quote?: 微信消息 & { 内容下标?: number },
     cardAccount?: { id: string; name: string; avatar: string },
   ) {
+    if (conversation === organizationNoticeKey) throw new Error('组织财务会话仅接收通知，无法发送消息。');
     const generation = chatGeneration;
     await updateWeChat((current, stat) => {
       for (const item of content) {
@@ -834,6 +860,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   }
 
   async function deleteWeChatFloor(conversation: string, floorId: number) {
+    if (conversation === organizationNoticeKey) throw new Error('组织财务通知无法删除。');
     const lastId = getLastMessageId();
     const originals = getChatMessages(`0-${lastId}`).filter(
       message => message.role === 'assistant' && message.message.includes('<WeChatLog>'),
@@ -1393,7 +1420,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
 
   function refresh() {
     try {
-      const previousWechat = statData.value?.手机?.微信 ?? null;
+      const previousWechat = organizationWeChatView(statData.value);
       const currentChatId = SillyTavern.getCurrentChatId();
       if (stageChatId !== currentChatId) {
         stageChatId = currentChatId;
@@ -1415,7 +1442,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           ...statData.value,
           手机: { ...statData.value.手机, 微信: normalizeWeChatIds(statData.value.手机.微信) },
         };
-      if (statData.value?.手机?.微信) syncWeChatNotifications(previousWechat, statData.value.手机.微信);
+      const wechatView = organizationWeChatView(statData.value);
+      if (wechatView) syncWeChatNotifications(previousWechat, wechatView);
       const staleRequestId = statData.value?.手机?.定向刷新?.请求ID;
       if (
         staleRequestId &&
@@ -1624,6 +1652,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     replace,
     update,
     saveProfileField,
+    exchangePointsForMoney,
     readCorruptionRewardMail,
     changeRuntimeMinorRole,
     unlockCharacterInfo,

@@ -14,6 +14,13 @@
     />
     <WeChatStickerManager v-if="stickerManagerOpen" :accounts="accounts" @close="closeStickerManager" />
     <WeChatAccountManager v-else-if="adminOpen" @close="adminOpen = false" />
+    <OrganizationNotice
+      v-else-if="selectedKey === organizationNoticeKey"
+      :notices="store.statData?.手机?.组织兑换通知 ?? []"
+      :world-time="worldTime"
+      :accounts="accounts"
+      @close="selectedKey = null"
+    />
     <template v-else-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回 Weline" @click="selectedKey = null">
@@ -816,6 +823,12 @@ import WeChatAccountManager from './WeChatAccountManager.vue';
 import WeChatStickerManager from './WeChatStickerManager.vue';
 import WeChatStickerImport from './WeChatStickerImport.vue';
 import WeChatStickerPicker from './WeChatStickerPicker.vue';
+import OrganizationNotice from './OrganizationNotice.vue';
+import {
+  organizationWeChatView,
+  organizationNoticeKey,
+  organizationNoticeAccount,
+} from '../witch/organizationExchange';
 import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
 import { chooseImageCrop } from '../../imageCrop';
 import { nearbyAvatars } from './nearbyAvatars';
@@ -993,7 +1006,7 @@ watch(
     if (failure) generating.value = false;
   },
 );
-const wechat = computed(() => store.statData?.手机?.微信 ?? null);
+const wechat = computed(() => organizationWeChatView(store.statData));
 const accounts = computed<微信数据['账号']>(() => wechat.value?.账号 ?? {});
 const self = computed(() => accounts.value.user);
 const accountPage = ref<'profile' | 'services' | 'wallet' | 'payments' | 'settings' | null>(null);
@@ -1203,12 +1216,16 @@ const cardAccounts = computed<微信数据['账号']>(() => {
   return candidates;
 });
 const cardCandidates = computed(() =>
-  Object.entries(cardAccounts.value).filter(([id]) => id !== 'user' && id !== '$template'),
+  Object.entries(cardAccounts.value).filter(
+    ([id]) => id !== 'user' && id !== '$template' && id !== organizationNoticeAccount,
+  ),
 );
 const filteredCardCandidates = computed(() =>
   cardCandidates.value.filter(([id, account]) => `${id} ${account.昵称}`.includes(cardQuery.value.trim())),
 );
-const filteredForwardChats = computed(() => chats.value.filter(item => item.title.includes(forwardQuery.value.trim())));
+const filteredForwardChats = computed(() =>
+  chats.value.filter(item => item.key !== organizationNoticeKey && item.title.includes(forwardQuery.value.trim())),
+);
 const inviteCandidates = computed(() =>
   cardCandidates.value.filter(([id]) => self.value?.好友.includes(id) && !selectedSession.value?.成员.includes(id)),
 );

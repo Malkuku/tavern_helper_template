@@ -64,7 +64,10 @@ export const Schema = object({
       }),
     ).optional(),
     次要角色: map(
-      object({ 身体: body.optional(), 人设阶段: object({ 好感度: stage.optional(), 恶堕度: stage.optional() }).optional() }),
+      object({
+        身体: body.optional(),
+        人设阶段: object({ 好感度: stage.optional(), 恶堕度: stage.optional() }).optional(),
+      }),
     ).optional(),
   }).optional(),
   地图: map(mapNode).optional(),
@@ -85,6 +88,7 @@ export const Schema = object({
     技能主动刷新次数: number.optional(),
   }).optional(),
   手机: object({
+    组织兑换通知: z.array(object({ 时间: worldTime, 点数: number, 日元: number })).optional(),
     微信: object({
       账号: map(object({ 好友: z.array(z.string()).optional(), 表情包: map(z.string()).optional() })).optional(),
       会话: map(object({ 成员: z.array(z.string()).optional(), 消息: z.array(z.unknown()).optional() })).optional(),

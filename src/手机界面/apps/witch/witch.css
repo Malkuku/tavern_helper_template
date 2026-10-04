@@ -150,6 +150,39 @@
 .witch-home {
   padding: 24px 18px 30px;
 }
+.witch-point-exchange {
+  padding: 24px 18px 30px;
+}
+.witch-point-exchange h2 {
+  margin: 12px 0;
+  font-size: 21px;
+}
+.witch-exchange-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--witch-line);
+  border-radius: 16px;
+  background: var(--witch-surface);
+}
+.witch-exchange-card input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+}
+.witch-exchange-card p {
+  margin: 0;
+}
+.witch-exchange-caption {
+  color: var(--witch-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.witch-exchange-error {
+  color: #ff9bb5;
+}
 .witch-home-intro {
   margin: 0 2px 19px;
   animation: witch-content-enter 0.38s ease-out both;
