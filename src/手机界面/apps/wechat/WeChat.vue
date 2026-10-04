@@ -286,7 +286,7 @@
             inputmode="decimal"
           />
         </div>
-        <p class="wx-transfer-balance">零钱余额 ¥{{ walletBalance }}</p>
+        <p class="wx-transfer-balance">零钱余额 ￥{{ walletBalance }}</p>
         <p v-if="transferInsufficient" class="wx-picker-error" role="alert">余额不足</p>
         <input v-model="paymentRemark" aria-label="转账说明" placeholder="添加转账说明" />
         <p v-if="error" class="wx-picker-error" role="alert">{{ error }}</p>
@@ -733,13 +733,13 @@
           <button type="button" @click="accountPage = 'payments'">
             <WeChatServiceIcon name="payment" /><span>收付款</span></button
           ><button type="button" @click="accountPage = 'wallet'">
-            <WeChatServiceIcon name="wallet" /><span>钱包</span><small>¥{{ walletBalance }}</small>
+            <WeChatServiceIcon name="wallet" /><span>钱包</span><small>￥{{ walletBalance }}</small>
           </button>
         </div>
       </template>
       <template v-else-if="accountPage === 'payments'"
         ><div class="wx-wallet-card">
-          <span>零钱余额</span><strong>¥{{ walletBalance }}</strong
+          <span>零钱余额</span><strong>￥{{ walletBalance }}</strong
           ><small>选择好友发起转账；收到的款项在聊天中确认收款</small>
         </div>
         <div class="wx-service-group wx-payment-contacts">
@@ -751,7 +751,7 @@
       >
       <template v-else-if="accountPage === 'wallet'">
         <div class="wx-wallet-card">
-          <span>余额</span><strong>¥{{ walletBalance }}</strong
+          <span>余额</span><strong>￥{{ walletBalance }}</strong
           ><small>收到的款项可在聊天中确认</small>
         </div>
         <button class="wx-list-row wx-menu-row" type="button" @click="accountPage = 'payments'">
