@@ -3,7 +3,7 @@ import type { stat_data, 任务 } from '../types';
 export type Rating = 任务['评级'];
 export const ratings: readonly Rating[] = ['D', 'C', 'B', 'A', 'S'];
 export const ratingContribution: Record<Rating, number> = { D: 1, C: 3, B: 8, A: 24, S: 72 };
-export const ratingThreshold: Record<Rating, number> = { D: 0, C: 20, B: 80, A: 240, S: 720 };
+export const ratingThreshold: Record<Rating, number> = { D: 0, C: 12, B: 48, A: 144, S: 432 };
 
 export function userRatingFromContribution(total: number): Rating {
   if (!Number.isSafeInteger(total) || total < 0) throw new Error('累计评级贡献无效。');

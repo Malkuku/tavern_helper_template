@@ -2,7 +2,7 @@ import type { stat_data, 阶段状态 } from '../types';
 
 export type StageKind = '恶堕度' | '好感度' | '创伤稳定度';
 
-const corruptionCostMultiplier = { D: 1.1, C: 1.2, B: 1.4, A: 1.6, S: 1.8 } as const;
+const corruptionCostMultiplier = { D: 1, C: 1.1, B: 1.2, A: 1.4, S: 1.5 } as const;
 
 function levelRange(stage: 阶段状态, path: string): { min: number; max: number } {
   if (!stage || typeof stage !== 'object' || !stage.描述 || typeof stage.描述 !== 'object')

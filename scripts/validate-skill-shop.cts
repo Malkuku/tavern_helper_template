@@ -39,14 +39,14 @@ assert.ok(initialStatDataSchema.shape.技能商店.safeParse(JSON.parse(example[
 
 for (const [points, expected] of [
   [0, 'D'],
-  [19, 'D'],
-  [20, 'C'],
-  [79, 'C'],
-  [80, 'B'],
-  [239, 'B'],
-  [240, 'A'],
-  [719, 'A'],
-  [720, 'S'],
+  [11, 'D'],
+  [12, 'C'],
+  [47, 'C'],
+  [48, 'B'],
+  [143, 'B'],
+  [144, 'A'],
+  [431, 'A'],
+  [432, 'S'],
 ] as const)
   assert.equal(userRatingFromContribution(points), expected);
 
@@ -85,7 +85,7 @@ assert.equal(data.角色.user.当前评级, 'D', '技能升级不改变玩家评
 assert.equal(data.角色.user.评级贡献, 0);
 assert.equal(sellSkill(data, '旧技能'), 40);
 assert.equal(data.角色.user.当前评级, 'D', '出售技能不降级');
-data.角色.user.评级贡献 = 80;
+data.角色.user.评级贡献 = 48;
 assert.equal(settleUserRating(data), true);
 assert.equal(data.角色.user.当前评级, 'B');
 assert.equal(settleUserRating(data), false);

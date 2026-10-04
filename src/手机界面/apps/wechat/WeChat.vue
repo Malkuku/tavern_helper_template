@@ -32,7 +32,7 @@
       <div ref="messagesElement" class="wx-messages">
         <p v-if="!selectedSession.消息.length && !pending" class="wx-empty">还没有消息，发一条开始聊天。</p>
         <template v-for="(message, index) in selectedSession.消息" :key="index">
-          <time v-if="showMessageTime(index)" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
+          <time v-if="messageTimeDividers[index]" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
           <div v-if="!isWeChatMessage(message)" class="wx-system-tip">{{ operationSummary(message) }}</div>
           <template v-else>
             <div
@@ -833,6 +833,7 @@ import {
   visibleUserChats,
 } from './wechatData';
 import type { OperationEvent } from './wechatData';
+import { displayWeChatTime, weChatTimeDividers } from './wechatTime';
 import WeChatAvatar from './WeChatAvatar.vue';
 import WeChatIcon from './WeChatIcon.vue';
 import WeChatServiceIcon from './WeChatServiceIcon.vue';
@@ -1357,16 +1358,9 @@ function cancelMessageHold() {
 const stickerOpen = ref(false);
 const messagesElement = ref<HTMLElement>();
 
+const messageTimeDividers = computed(() => weChatTimeDividers(selectedSession.value?.消息 || []));
 function displayTime(value: string): string {
-  return value.match(/T(\d{1,2}:\d{2})/)?.[1] || value;
-}
-function showMessageTime(index: number): boolean {
-  const messages = selectedSession.value?.消息;
-  if (!messages || index === 0) return true;
-  const current = messages[index].时间.match(/T(\d{1,2}):(\d{2})/);
-  const previous = messages[index - 1].时间.match(/T(\d{1,2}):(\d{2})/);
-  if (!current || !previous) return false;
-  return Number(current[1]) * 60 + Number(current[2]) - (Number(previous[1]) * 60 + Number(previous[2])) >= 5;
+  return displayWeChatTime(value, worldTime.value);
 }
 function selectTab(next: Tab) {
   tab.value = next;
