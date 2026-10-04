@@ -5,7 +5,6 @@ import { ref } from 'vue';
 import { klona } from 'klona';
 import type { stat_data, 微信数据, 微信消息, 微信消息内容, 次要角色人设 } from '../types';
 import {
-  addSticker,
   applyWeChatOperation,
   applyWeChatLogs,
   canSendPrivateMessage,
@@ -30,7 +29,6 @@ import {
   type AccountMediaSnapshot,
 } from '../apps/wechat/accountManagement';
 import {
-  addNamedSticker,
   hasWechatImage,
   isImageDataUrl,
   refreshWechatImageLibrary,
@@ -992,37 +990,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     return key;
   }
 
-  async function addWeChatSticker(name: string, source: string) {
-    const user = statData.value?.手机?.微信?.账号?.user;
-    if (!user) throw new Error('Weline 用户账号不存在。');
-    if (Object.hasOwn(user.表情包, name.trim())) throw new Error('当前账号已有同名表情。');
-    const url = addNamedSticker(name, source);
-    try {
-      await updateWeChat(
-        current => addSticker(current, name, url),
-        undefined,
-        data => {
-          updateVariablesWith(
-            variables => ({ ...variables, [WECHAT_MEDIA_SNAPSHOT_KEY]: mediaSnapshot(data.手机.微信.账号) }),
-            {
-              type: 'script',
-              script_id: getScriptId(),
-            },
-          );
-        },
-      );
-      return { warning: '' };
-    } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : '账号更新失败。';
-      const assigned = statData.value?.手机?.微信?.账号?.user?.表情包[name.trim()] === url;
-      return {
-        warning: assigned
-          ? `表情已选用，但媒体备份更新失败：${reason}`
-          : `表情已入库，但当前账号选用失败：${reason} 请到“管理表情”中重新选用。`,
-      };
-    }
-  }
-
   async function syncStickerSnapshot() {
     const generation = chatGeneration;
     await waitGlobalInitialized('Mvu');
@@ -1689,6 +1656,5 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     performWeChatOperation,
     updateWeChatProfile,
     updateWeChatAccount,
-    addWeChatSticker,
   };
 });

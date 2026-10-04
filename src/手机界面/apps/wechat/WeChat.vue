@@ -4,7 +4,12 @@
       消息更新失败：{{ store.wechatLogError }}
       <button type="button" @click="clearFailedLog">清除异常记录</button>
     </p>
-    <WeChatAccountManager v-if="adminOpen" :initial-view="managerInitialView" @close="closeAccountManager" />
+    <WeChatAccountManager
+      v-if="adminOpen"
+      :initial-view="managerInitialView"
+      :start-adding="managerStartAdding"
+      @close="closeAccountManager"
+    />
     <template v-else-if="selectedSession && selectedKey">
       <header class="wx-header wx-chat-header">
         <button class="wx-back" type="button" aria-label="返回 Weline" @click="selectedKey = null">
@@ -175,7 +180,7 @@
       <div v-if="stickerOpen" class="wx-sticker-picker">
         <div class="wx-sticker-picker-head">
           <strong>我的表情 · {{ stickerNames.length }}</strong>
-          <button type="button" @click="openStickerManager">管理表情</button>
+          <button type="button" @click="openStickerManager()">管理表情</button>
         </div>
         <input
           v-if="stickerNames.length"
@@ -198,15 +203,9 @@
           >
             <img :src="resolveWechatImage(self?.表情包[name])" :alt="name" /><small>{{ name }}</small>
           </button>
-          <button class="wx-sticker-add" type="button" @click="stickerFileInput?.click()">
-            <WeChatIcon name="plus" />上传表情
+          <button class="wx-sticker-add" type="button" @click="openStickerManager(true)">
+            <WeChatIcon name="plus" />添加表情
           </button>
-          <input ref="stickerFileInput" class="wx-hidden-file" type="file" accept="image/*" @change="readStickerFile" />
-          <form v-if="newStickerSource" class="wx-sticker-form" @submit.prevent="saveSticker">
-            <img :src="newStickerSource" alt="新表情包预览" />
-            <input v-model="newStickerName" aria-label="表情包名称" maxlength="30" placeholder="给表情包起个名字" />
-            <button type="submit" :disabled="savingSticker">入库并选用</button>
-          </form>
         </div>
       </div>
       <form class="wx-compose" @submit.prevent="sendMessage">
@@ -839,7 +838,13 @@ import WeChatIcon from './WeChatIcon.vue';
 import WeChatServiceIcon from './WeChatServiceIcon.vue';
 import WeChatMessageContent from './WeChatMessageContent.vue';
 import WeChatAccountManager from './WeChatAccountManager.vue';
-import { readWechatImageFile, refreshWechatImageLibrary, resolveWechatImage, storeWechatImage } from './imageLibrary';
+import {
+  readWechatImageFile,
+  refreshWechatImageLibrary,
+  readStickerPreferences,
+  resolveWechatImage,
+  storeWechatImage,
+} from './imageLibrary';
 import { chooseImageCrop } from '../../imageCrop';
 import { nearbyAvatars } from './nearbyAvatars';
 import { wechatRoleAvatar } from '../../../尘史使徒/UI/components/common/roleAvatarFallback';
@@ -851,7 +856,9 @@ const props = defineProps<{ openRequest?: { key: string; id: number } | null }>(
 const emit = defineEmits<{ 'open-map': [key: string] }>();
 const adminOpen = ref(false);
 const managerInitialView = ref<'account' | 'stickers'>('account');
-function openStickerManager() {
+const managerStartAdding = ref(false);
+function openStickerManager(add = false) {
+  managerStartAdding.value = add;
   managerInitialView.value = 'stickers';
   stickerOpen.value = false;
   adminOpen.value = true;
@@ -979,41 +986,6 @@ const extraActions = [
   { label: '转账', icon: 'transfer' },
   { label: '名片', icon: 'contacts' },
 ];
-const stickerFileInput = ref<HTMLInputElement>();
-const newStickerName = ref('');
-const newStickerSource = ref('');
-const savingSticker = ref(false);
-async function readStickerFile(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-  error.value = '';
-  try {
-    const cropped = await chooseImageCrop(file);
-    if (!cropped) return;
-    newStickerSource.value = await readWechatImageFile(cropped);
-    newStickerName.value = file.name.replace(/\.[^.]+$/, '');
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '无法读取图片。';
-  } finally {
-    input.value = '';
-  }
-}
-async function saveSticker() {
-  if (!newStickerSource.value || savingSticker.value) return;
-  savingSticker.value = true;
-  error.value = '';
-  try {
-    const result = await store.addWeChatSticker(newStickerName.value, newStickerSource.value);
-    newStickerName.value = '';
-    newStickerSource.value = '';
-    if (result.warning) error.value = result.warning;
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '保存表情包失败。';
-  } finally {
-    savingSticker.value = false;
-  }
-}
 function syncTheme() {
   darkMode.value = getVariables({ type: 'script', script_id: getScriptId() })?.darkMode !== false;
 }
@@ -1126,7 +1098,12 @@ async function sendLocation(key: string) {
     sending.value = false;
   }
 }
-const stickerNames = computed(() => Object.keys(self.value?.表情包 ?? {}));
+const stickerNames = computed(() => {
+  const favorites = readStickerPreferences().favorites;
+  return Object.keys(self.value?.表情包 ?? {}).sort(
+    (a, b) => Number(favorites.includes(b)) - Number(favorites.includes(a)),
+  );
+});
 const stickerSearch = ref('');
 const filteredStickerNames = computed(() => {
   const query = stickerSearch.value.trim().toLocaleLowerCase();

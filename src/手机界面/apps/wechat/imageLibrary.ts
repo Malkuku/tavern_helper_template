@@ -5,11 +5,35 @@ import { removeImagePlacement, WECHAT_IMAGE_CATEGORIES_KEY } from './imageCatego
 export const WECHAT_IMAGE_LIBRARY_KEY = 'magicGirlWeChatImageLibrary';
 export const WECHAT_MEDIA_SNAPSHOT_KEY = 'magicGirlWeChatMediaSnapshot';
 export const WECHAT_STICKER_LIBRARY_KEY = 'magicGirlWeChatStickerLibrary';
+export const WECHAT_STICKER_PREFERENCES_KEY = 'magicGirlWeChatStickerPreferences';
 const prefix = 'script-image://';
 const stickerPrefix = 'sticker://';
 const scope = () => ({ type: 'script' as const, script_id: getScriptId() });
 const libraryState = shallowRef<Record<string, string>>({});
 const stickerState = shallowRef<Record<string, string>>({});
+const stickerPreferences = shallowRef<{ archived: string[]; favorites: string[] }>({ archived: [], favorites: [] });
+
+export function readStickerPreferences() {
+  return stickerPreferences.value;
+}
+
+export function setStickerPreference(names: string[], kind: 'archived' | 'favorites', enabled: boolean): void {
+  const library = readWechatStickerLibrary();
+  if (kind === 'archived' && names.some(name => !Object.hasOwn(library, name)))
+    throw new Error('只能归档共享库中的表情。');
+  updateVariablesWith(variables => {
+    const raw = variables[WECHAT_STICKER_PREFERENCES_KEY] ?? {};
+    const current = new Set<string>(
+      Array.isArray(raw[kind]) ? raw[kind].filter((name: unknown) => typeof name === 'string') : [],
+    );
+    for (const name of names) {
+      if (enabled) current.add(name);
+      else current.delete(name);
+    }
+    return { ...variables, [WECHAT_STICKER_PREFERENCES_KEY]: { ...raw, [kind]: [...current] } };
+  }, scope());
+  refreshWechatImageLibrary();
+}
 
 export function isImageDataUrl(value: unknown): value is string {
   return typeof value === 'string' && /^data:image\/[\w.+-]+;base64,[A-Za-z0-9+/=]+$/.test(value);
@@ -26,6 +50,11 @@ export function readWechatImageLibrary(): Record<string, string> {
 export function refreshWechatImageLibrary(): void {
   libraryState.value = readWechatImageLibrary();
   stickerState.value = readWechatStickerLibrary();
+  const raw = getVariables(scope())?.[WECHAT_STICKER_PREFERENCES_KEY];
+  stickerPreferences.value = {
+    archived: Array.isArray(raw?.archived) ? raw.archived.filter((name: unknown) => typeof name === 'string') : [],
+    favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((name: unknown) => typeof name === 'string') : [],
+  };
 }
 
 export function readWechatStickerLibrary(): Record<string, string> {

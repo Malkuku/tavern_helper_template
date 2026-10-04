@@ -9,8 +9,10 @@
         >＋ 上传图片<input type="file" accept="image/*" multiple :disabled="compressing" @change="upload"
       /></label>
     </div>
-    <p class="wx-library-help">点选图片可复制地址、设为头像，或命名后引入共享表情库。</p>
-    <button v-if="images.length" type="button" :disabled="compressing" @click="compressExisting">
+    <p class="wx-library-help">
+      {{ pickOnly ? '点击图片即可加入待添加清单。' : '点选图片可复制地址、设为头像，或添加为表情。' }}
+    </p>
+    <button v-if="images.length && !pickOnly" type="button" :disabled="compressing" @click="compressExisting">
       {{ compressing ? '压缩中…' : '压缩已有图片' }}
     </button>
     <input
@@ -74,16 +76,20 @@
         type="button"
         :class="{ active: selectedUrl === url }"
         :aria-label="`查看图片 ${imageIdFromUrl(url)}`"
-        @click="selectImage(url)"
+        @click="pickOnly ? emit('sticker', url) : selectImage(url)"
       >
         <img :src="data" alt="" /><span>{{ imageLabels[url]?.join('、') || imageIdFromUrl(url).slice(0, 8) }}</span>
       </button>
     </div>
-    <div v-if="selectedImage" ref="selectionElement" class="wx-library-selection">
+    <div v-if="selectedImage && !pickOnly" ref="selectionElement" class="wx-library-selection">
       <img :src="selectedImage[1]" alt="当前选中的图片" />
       <div class="wx-library-selection-body">
         <strong>当前图片</strong>
-        <small>{{ usedImages.has(selectedImage[0]) ? '当前账号正在引用' : '可供账号引用' }}</small>
+        <small>{{
+          usedImages.has(selectedImage[0])
+            ? '账号或共享表情库正在使用，无法清理'
+            : '可供账号引用；清理时还会检查媒体备份'
+        }}</small>
         <label
           >图片引用<input ref="referenceInput" readonly :value="selectedImage[0]" @focus="referenceInput?.select()"
         /></label>
@@ -115,7 +121,7 @@
         </button>
       </div>
     </div>
-    <details class="wx-library-organize">
+    <details v-if="!pickOnly" class="wx-library-organize">
       <summary>管理文件夹</summary>
       <form class="wx-library-inline-form" @submit.prevent="addGroup">
         <input v-model="newGroupName" maxlength="30" placeholder="新建一级文件夹" aria-label="一级文件夹名称" />
@@ -164,7 +170,9 @@ import {
 } from './imageLibrary';
 import { chooseImageCrop } from '../../imageCrop';
 
-const props = defineProps<{ accounts: 微信数据['账号']; assignable: boolean }>();
+const props = withDefaults(defineProps<{ accounts: 微信数据['账号']; assignable: boolean; pickOnly?: boolean }>(), {
+  pickOnly: false,
+});
 const emit = defineEmits<{ avatar: [url: string]; sticker: [url: string] }>();
 refreshWechatImageLibrary();
 const images = ref(imageLibraryEntries());

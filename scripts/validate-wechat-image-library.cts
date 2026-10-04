@@ -27,7 +27,6 @@ import {
   resolveWechatImage,
   storeWechatImage,
 } from '../src/手机界面/apps/wechat/imageLibrary';
-import { addSticker } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
 
 let variables: Record<string, any> = {};
@@ -82,7 +81,10 @@ assert.deepEqual(updated.账号.alice.好友, ['user', 'bob']);
 assert.deepEqual(updated.账号.user.好友, ['alice']);
 assert.deepEqual(updated.账号.bob.好友, ['alice']);
 assert.deepEqual(current.账号.user.好友, [], '编辑不应修改原对象');
-assert.equal(addSticker(updated, '星星', url).账号.user.表情包.星星, url);
+assert.equal(
+  saveWechatAccount(updated, 'user', '我', '', { 星星: url }, updated.账号.user.好友).账号.user.表情包.星星,
+  url,
+);
 const removed = saveWechatAccount(updated, 'alice', '爱丽丝2', '', {}, []);
 assert.deepEqual(removed.账号.user.好友, []);
 assert.deepEqual(removed.账号.bob.好友, []);

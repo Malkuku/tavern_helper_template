@@ -547,15 +547,3 @@ export function decideFriendRequest(current: 微信数据, applicantId: string, 
     时间: time,
   });
 }
-
-export function addSticker(current: 微信数据, name: string, source: string): 微信数据 {
-  const user = current.账号.user;
-  if (!user) throw new Error('Weline 用户账号不存在。');
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error('请填写表情包名称。');
-  if (!source.startsWith('data:image/') && !source.startsWith('script-image://')) throw new Error('请选择图片文件。');
-  if (user.表情包[trimmed]) throw new Error('表情包名称已存在。');
-  const next = klona(current);
-  next.账号.user.表情包[trimmed] = source;
-  return next;
-}
