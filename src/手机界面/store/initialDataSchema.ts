@@ -16,7 +16,7 @@ export const itemSchema = z.strictObject({
   图标: svgIcon.optional(),
   描述: z.string(),
   作用: z.string(),
-  评级: z.enum(['D', 'C', 'B', 'A', 'S']),
+  评级: z.enum(['N', 'D', 'C', 'B', 'A', 'S']),
   价格: z.number().int().nonnegative().safe(),
   数量: z.number().int().positive().safe(),
   耐久: z.number().int().nonnegative().safe(),

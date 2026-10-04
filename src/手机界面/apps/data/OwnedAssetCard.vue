@@ -1,7 +1,7 @@
 <template>
   <section
     class="owned-asset-card"
-    :class="[skill ? 'owned-asset-skill' : 'owned-asset-item', skill && ratingVisualClass(skill.评级)]"
+    :class="[skill ? 'owned-asset-skill' : 'owned-asset-item', ratingVisualClass(entry.评级)]"
   >
     <div class="owned-asset-topline">
       <button type="button" class="owned-asset-heading" :aria-expanded="expanded" @click="$emit('toggle')">
@@ -16,7 +16,7 @@
         <span v-if="skill" class="owned-asset-badge owned-asset-grade"
           >{{ skill.评级 }}{{ skill.启用 === false ? ' · 未启用' : '' }}</span
         >
-        <span v-else-if="item" class="owned-asset-badge">× {{ item.数量 }}</span>
+        <span v-else-if="item" class="owned-asset-badge owned-asset-grade">{{ item.评级 }} · × {{ item.数量 }}</span>
       </button>
       <div v-if="$slots.control" class="owned-asset-control"><slot name="control" /></div>
     </div>
@@ -26,9 +26,7 @@
         <span>作用</span>
         <p>{{ entry.作用 }}</p>
       </div>
-      <p v-if="item" class="owned-asset-meta">
-        {{ item.评级 }} 级 · 单件基准价 {{ item.价格 }} 积分 · 当前耐久 {{ item.耐久 }}
-      </p>
+      <p v-if="item" class="owned-asset-meta">{{ item.评级 }} 级 · 当前耐久 {{ item.耐久 }}</p>
       <div v-if="$slots.actions" class="owned-asset-actions"><slot name="actions" /></div>
     </div>
   </section>
@@ -69,6 +67,10 @@ const item = computed(() => (props.kind === '道具' ? (props.entry as 物品) :
 }
 .owned-asset-control {
   flex: none;
+}
+.owned-asset-card.witch-grade-n {
+  --grade-color: #9296a0;
+  --grade-glow: #9296a020;
 }
 .owned-asset-card.witch-grade-d {
   --grade-color: #aab5c6;

@@ -12,11 +12,12 @@ const data = {
   角色: {
     user: { 物品: { 药瓶: { 图标: icon, 描述: '恢复药剂', 作用: '恢复', 评级: 'D', 价格: 3, 数量: 4, 耐久: 1 } } },
   },
-  仓库: { 药瓶: { 图标: icon, 描述: '恢复药剂', 作用: '恢复', 评级: 'D', 价格: 3, 数量: 2, 耐久: 2 } },
+  仓库: { 药瓶: { 图标: icon, 描述: '恢复药剂', 作用: '恢复', 评级: 'D', 价格: 7, 数量: 2, 耐久: 2 } },
 } as unknown as stat_data;
 applyInventoryTransfers(data, [{ from: '随身物品', name: '药瓶', quantity: 3 }]);
 assert.equal(data.角色.user.物品.药瓶.数量, 1);
 assert.equal(data.仓库.药瓶.数量, 5);
+assert.equal(data.仓库.药瓶.价格, 7, '仅价格不同仍可合并，保留目标价格元数据');
 assert.equal(data.仓库.药瓶.耐久, 2, '按 2 件耐久 2 与 3 件耐久 1 加权后向上取整');
 applyInventoryTransfers(data, [{ from: '仓库', name: '药瓶', quantity: 5 }]);
 assert.equal(data.角色.user.物品.药瓶.数量, 6);

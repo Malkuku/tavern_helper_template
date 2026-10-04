@@ -129,7 +129,7 @@ export interface 物品 {
   图标?: string;
   描述: string;
   作用: string;
-  评级: 'D' | 'C' | 'B' | 'A' | 'S';
+  评级: 'N' | 'D' | 'C' | 'B' | 'A' | 'S';
   /** 单件基准价值，单位为恶堕积分。 */
   价格: number;
   数量: number;

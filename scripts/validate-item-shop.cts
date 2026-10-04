@@ -7,11 +7,12 @@ import {
   buyItem,
   itemRefreshQuote,
   parseItemResult,
-  sellItem,
+  discardItem,
 } from '../src/手机界面/apps/itemShop/itemShop';
 import { initialStatDataSchema } from '../src/手机界面/store/initialDataSchema';
 import type { stat_data } from '../src/手机界面/types';
 import { directedRefreshSurcharge } from '../src/手机界面/apps/shopRefresh';
+import { applyInventoryTransfers } from '../src/手机界面/apps/data/inventoryTransfer';
 
 const icon =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#5274a2" d="M8 12h32v24H8z"/></svg>';
@@ -54,18 +55,37 @@ for (const [contribution, surcharge] of [
   assert.equal(directedRefreshSurcharge(ranked), surcharge);
 }
 const stock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`道具${index}`, item(3 + index, 2, 10)]));
-stock.旧扣 = { ...item(999, 2, 8), 图标: icon.replace('#5274a2', '#ffffff'), 描述: '错误的新描述' };
+stock.旧扣 = { ...item(9, 2, 8), 图标: icon.replace('#5274a2', '#ffffff'), 描述: '错误的新描述' };
 delete stock.道具0;
 const message = `<shopVariable>${JSON.stringify(stock)}</shopVariable>`;
 assert.equal(initialStatDataSchema.shape.商店.safeParse({ 道具: item(3, 1) }).success, true);
 const freeItemData = structuredClone(data);
 freeItemData.角色.user.恶堕积分 = 0;
 freeItemData.商店 = { 免费道具: item(0, 2) };
+freeItemData.商店.免费道具.评级 = 'N';
+assert.equal(initialStatDataSchema.shape.商店.safeParse(freeItemData.商店).success, true, 'N 级道具可通过货架校验');
+assert.equal(initialStatDataSchema.shape.仓库.safeParse(freeItemData.商店).success, true, 'N 级道具可通过仓库校验');
+assert.equal(initialStatDataSchema.shape.角色.shape.user.shape.物品.safeParse(freeItemData.商店).success, true);
+assert.equal(
+  initialStatDataSchema.shape.技能商店.safeParse({ 测试技能: { 描述: '测试', 作用: '测试', 评级: 'N', 价格: 0 } })
+    .success,
+  false,
+  '道具 N 级不扩展技能评级',
+);
 assert.ok(parseItemResult(`<shopVariable>${JSON.stringify(freeItemData.商店)}</shopVariable>`, freeItemData).免费道具);
 buyItem(freeItemData, '免费道具', 1);
 assert.equal(freeItemData.角色.user.物品.免费道具.数量, 1, '零积分可购买免费道具');
+assert.equal(freeItemData.角色.user.物品.免费道具.评级, 'N', 'N 级道具购买后保留评级');
+const nTransferData = structuredClone(freeItemData);
+applyInventoryTransfers(nTransferData, [{ from: '随身物品', name: '免费道具', quantity: 1 }]);
+assert.equal(nTransferData.仓库.免费道具.评级, 'N', 'N 级道具可转入仓库');
+applyInventoryTransfers(nTransferData, [{ from: '仓库', name: '免费道具', quantity: 1 }]);
+buyItem(nTransferData, '免费道具', 1);
+assert.equal(nTransferData.角色.user.物品.免费道具.数量, 2, 'N 级同名道具正常合并');
 assert.equal(freeItemData.角色.user.恶堕积分, 0, '购买免费道具不扣积分');
-assert.equal(sellItem(freeItemData, '随身物品', '免费道具', 1), 0, '免费道具出售返还零积分');
+discardItem(freeItemData, '随身物品', '免费道具', 1);
+assert.equal(freeItemData.角色.user.物品.免费道具, undefined, '全部丢弃后删除条目');
+assert.equal(freeItemData.角色.user.恶堕积分, 0, '丢弃不返还积分');
 assert.equal(itemRefreshQuote(data).price, 0, '本周首次普通刷新免费');
 const directedData = structuredClone(data);
 directedData.手机 = {
@@ -88,7 +108,10 @@ for (const count of [7, 8]) {
     `有效的 ${count} 件道具可直接上架`,
   );
 }
-assert.equal(parsed.旧扣.价格, 3, '同名道具保持旧规格');
+assert.equal(parsed.旧扣.价格, 9, '同名道具保留本次解析价格');
+const priceMismatch = structuredClone(data);
+priceMismatch.仓库.旧扣 = item(7, 1, 2);
+assert.equal(parseItemResult(message, priceMismatch).旧扣.价格, 9, '随身、仓库与货架价格不一致仍使用解析价格');
 assert.equal(parsed.旧扣.图标, icon, '同名道具保持旧 SVG');
 const conflictingSources = structuredClone(data);
 conflictingSources.仓库.旧扣 = { ...item(5, 1), 描述: '不同规格' };
@@ -107,7 +130,7 @@ assert.equal(
   '超过玩家当前评级一档的道具不得上架',
 );
 assert.throws(() => parseItemResult('<shopVariable>{}</shopVariable>', data), /没有可上架的商品/);
-assert.equal(parseItemResult(message + message, data).旧扣.价格, 3, '同楼旧标签不阻断最新结果');
+assert.equal(parseItemResult(message + message, data).旧扣.价格, 9, '同楼旧标签不阻断最新结果');
 const unsafeItem = { ...stock, 道具1: { ...stock.道具1, 图标: '<svg onload="alert(1)"></svg>', 备注: '额外说明' } };
 const sanitized = parseItemResult(`<shopVariable>${JSON.stringify(unsafeItem)}</shopVariable>`, data);
 assert.equal(sanitized.道具1.图标, undefined, '无效图标回退为默认图标');
@@ -143,15 +166,23 @@ buyItem(data, '旧扣', 2);
 assert.equal(data.角色.user.物品.旧扣.数量, 3);
 assert.equal(data.角色.user.物品.旧扣.耐久, 6, '一件耐久 2 与两件耐久 8 加权向上取整');
 assert.equal(data.商店.旧扣, undefined);
-assert.equal(data.角色.user.恶堕积分, 194);
-assert.equal(sellItem(data, '随身物品', '旧扣', 2), 2, '奇数单件价格先向下取整再乘数量');
+assert.equal(data.角色.user.恶堕积分, 182, '按解析价格结算购买并合并不同价格的持有物');
+discardItem(data, '随身物品', '旧扣', 2);
 assert.equal(data.角色.user.物品.旧扣.数量, 1);
-assert.equal(sellItem(data, '仓库', '仓库药剂', 1), 2);
+discardItem(data, '仓库', '仓库药剂', 1);
 assert.equal(data.仓库.仓库药剂.数量, 1);
 const unchanged = structuredClone(data);
 assert.throws(() => buyItem(data, '道具1', 99), /数量/);
-assert.throws(() => sellItem(data, '仓库', '仓库药剂', 99), /数量/);
-assert.deepEqual(data, unchanged, '失败购买和出售不得改变量');
+for (const quantity of [0, -1, 0.5, 99, NaN]) {
+  assert.throws(() => discardItem(data, '仓库', '仓库药剂', quantity), /数量/);
+}
+assert.throws(() => discardItem(data, '仓库', '不存在', 1), /没有/);
+assert.deepEqual(data, unchanged, '失败购买和丢弃不得改变量');
+assert.equal(data.角色.user.恶堕积分, 182, '丢弃随身及仓库物品均不变更积分');
+const damagedPrice = structuredClone(data);
+damagedPrice.仓库.仓库药剂.价格 = NaN;
+discardItem(damagedPrice, '仓库', '仓库药剂', 1);
+assert.equal(damagedPrice.仓库.仓库药剂, undefined, '丢弃不依赖价格字段');
 data.系统.商店主动刷新次数 = 200;
 assert.equal(itemRefreshQuote(data).price, 5, '多次刷新费用保持 5 积分');
 data.世界.时间 = '2026-9-28T00:00[1]';

@@ -50,10 +50,9 @@ export function parseItemResult(message: string, data: stat_data): Record<string
       item.描述 = source.描述;
       item.作用 = source.作用;
       item.评级 = source.评级;
-      item.价格 = source.价格;
       item.图标 = source.图标 || item.图标;
     }
-    if (!isWithinGeneratedRating(playerRating, item.评级)) continue;
+    if (item.评级 !== 'N' && !isWithinGeneratedRating(playerRating, item.评级)) continue;
     accepted.push([name, item]);
   }
   if (!accepted.length) throw new Error('道具生成结果没有可上架的商品。');
@@ -91,19 +90,12 @@ export function buyItem(data: stat_data, name: string, quantity: number): void {
   data.角色.user.恶堕积分 -= cost;
 }
 
-export function sellItem(data: stat_data, side: InventorySide, name: string, quantity: number): number {
+export function discardItem(data: stat_data, side: InventorySide, name: string, quantity: number): void {
   const inventory = inventoryOf(data, side);
   const item = inventory[name];
   if (!item) throw new Error(`${side}没有这件道具。`);
-  if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > item.数量)
-    throw new Error('出售数量无效或超过持有数量。');
-  if (!Number.isSafeInteger(item.价格) || item.价格 < 0) throw new Error('道具单件基准价格无效。');
-  const refund = Math.floor(item.价格 / 2) * quantity;
-  if (!Number.isSafeInteger(refund)) throw new Error('出售返还超出有效范围。');
-  const balance = data.角色.user.恶堕积分;
-  if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(balance + refund)) throw new Error('恶堕积分余额无效。');
+  if (!Number.isSafeInteger(item.数量) || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > item.数量)
+    throw new Error('丢弃数量无效或超过持有数量。');
   item.数量 -= quantity;
   if (item.数量 === 0) delete inventory[name];
-  data.角色.user.恶堕积分 += refund;
-  return refund;
 }

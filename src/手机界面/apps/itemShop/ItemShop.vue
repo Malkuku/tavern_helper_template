@@ -42,15 +42,15 @@
 
       <nav class="item-shop-tabs" aria-label="道具商店页面">
         <button type="button" :class="{ active: tab === 'shop' }" @click="tab = 'shop'">购买道具</button>
-        <button type="button" :class="{ active: tab === 'sell' }" @click="tab = 'sell'">出售道具</button>
+        <button type="button" :class="{ active: tab === 'discard' }" @click="tab = 'discard'">丢弃道具</button>
       </nav>
-      <div v-if="tab === 'sell'" class="item-shop-sides" aria-label="出售来源">
+      <div v-if="tab === 'discard'" class="item-shop-sides" aria-label="丢弃来源">
         <button
           v-for="side in sides"
           :key="side"
           type="button"
-          :class="{ active: saleSide === side }"
-          @click="saleSide = side"
+          :class="{ active: discardSide === side }"
+          @click="discardSide = side"
         >
           {{ side }}
         </button>
@@ -58,26 +58,18 @@
 
       <div class="item-shop-list">
         <p v-if="!entries.length" class="item-shop-empty">
-          {{ tab === 'shop' ? '货架上还没有道具，刷新看看。' : `${saleSide}没有可出售的道具。` }}
+          {{ tab === 'shop' ? '货架上还没有道具，刷新看看。' : `${discardSide}没有可丢弃的道具。` }}
         </p>
-        <article v-for="[name, item] in entries" :key="name" class="item-shop-card">
-          <button
-            type="button"
-            class="item-shop-heading entry-toggle"
-            :aria-expanded="expandedName === name"
-            @click="toggleEntry(name)"
-          >
-            <InventoryIcon :svg="item.图标" kind="道具" />
-            <div>
-              <strong>{{ name }}</strong
-              ><small>{{ item.评级 }} 级 · 库存 {{ item.数量 }} · 耐久 {{ item.耐久 }}</small>
-            </div>
-            <span class="entry-chevron" aria-hidden="true">{{ expandedName === name ? '⌃' : '⌄' }}</span>
-          </button>
-          <div v-if="expandedName === name" class="entry-details">
-            <p>{{ item.描述 }}</p>
-            <div class="item-shop-effect">{{ item.作用 }}</div>
-            <small>单件基准价 {{ item.价格 }} 积分</small>
+        <OwnedAssetCard
+          v-for="[name, item] in entries"
+          :key="name"
+          :name="name"
+          :entry="item"
+          kind="道具"
+          :expanded="expandedName === name"
+          @toggle="toggleEntry(name)"
+        >
+          <template #actions>
             <label class="item-shop-quantity">
               数量
               <input
@@ -85,48 +77,50 @@
                 min="1"
                 :max="item.数量"
                 step="1"
-                :value="quantityFor(`${tab}:${saleSide}:${name}`)"
-                @input="setQuantity(`${tab}:${saleSide}:${name}`, $event)"
+                :value="quantityFor(`${tab}:${discardSide}:${name}`)"
+                @input="setQuantity(`${tab}:${discardSide}:${name}`, $event)"
               />
             </label>
             <button
               v-if="tab === 'shop'"
+              class="asset-use-button"
               type="button"
               :disabled="
                 busy ||
-                !validQuantity(item.数量, quantityFor(`shop:${saleSide}:${name}`)) ||
-                balance < item.价格 * quantityFor(`shop:${saleSide}:${name}`)
+                !validQuantity(item.数量, quantityFor(`shop:${discardSide}:${name}`)) ||
+                balance < item.价格 * quantityFor(`shop:${discardSide}:${name}`)
               "
-              @click="run(() => store.purchaseItem(name, quantityFor(`shop:${saleSide}:${name}`)))"
+              @click="run(() => store.purchaseItem(name, quantityFor(`shop:${discardSide}:${name}`)))"
             >
-              购买 · {{ item.价格 * quantityFor(`shop:${saleSide}:${name}`) }} 积分
+              购买
             </button>
             <template v-else>
-              <div v-if="confirmSale === `${saleSide}:${name}`" class="item-shop-confirm">
+              <div v-if="confirmDiscard === `${discardSide}:${name}`" class="item-shop-confirm">
                 <span
-                  >从{{ saleSide }}卖出 {{ quantityFor(`sell:${saleSide}:${name}`) }} 件，获得
-                  {{ refund(item.价格, quantityFor(`sell:${saleSide}:${name}`)) }} 积分。</span
+                  >从{{ discardSide }}丢弃 {{ quantityFor(`discard:${discardSide}:${name}`) }} 件，不返还积分。</span
                 >
                 <button
                   type="button"
-                  :disabled="busy || !validQuantity(item.数量, quantityFor(`sell:${saleSide}:${name}`))"
-                  @click="sell(name)"
+                  class="asset-use-button danger"
+                  :disabled="busy || !validQuantity(item.数量, quantityFor(`discard:${discardSide}:${name}`))"
+                  @click="discard(name)"
                 >
-                  确认卖出
+                  确认丢弃
                 </button>
-                <button type="button" @click="confirmSale = null">取消</button>
+                <button type="button" class="asset-use-button" @click="confirmDiscard = null">取消</button>
               </div>
               <button
                 v-else
                 type="button"
-                :disabled="busy || !validQuantity(item.数量, quantityFor(`sell:${saleSide}:${name}`))"
-                @click="confirmSale = `${saleSide}:${name}`"
+                class="asset-use-button danger"
+                :disabled="busy || !validQuantity(item.数量, quantityFor(`discard:${discardSide}:${name}`))"
+                @click="confirmDiscard = `${discardSide}:${name}`"
               >
-                出售 · {{ refund(item.价格, quantityFor(`sell:${saleSide}:${name}`)) }} 积分
+                丢弃
               </button>
             </template>
-          </div>
-        </article>
+          </template>
+        </OwnedAssetCard>
       </div>
       <p v-if="error" class="item-shop-error" role="alert">{{ error }}</p>
     </div>
@@ -139,18 +133,18 @@ import { useMagicGirlStatStore } from '../../store/StatStore';
 import { itemRefreshQuote } from './itemShop';
 import { directedRefreshSurcharge } from '../shopRefresh';
 import type { InventorySide } from '../data/inventoryTransfer';
-import InventoryIcon from '../data/InventoryIcon.vue';
+import OwnedAssetCard from '../data/OwnedAssetCard.vue';
 import RefreshFeedback from '../witch/RefreshFeedback.vue';
 
 const store = useMagicGirlStatStore();
-const tab = ref<'shop' | 'sell'>('shop');
+const tab = ref<'shop' | 'discard'>('shop');
 const sides: InventorySide[] = ['随身物品', '仓库'];
-const saleSide = ref<InventorySide>('随身物品');
+const discardSide = ref<InventorySide>('随身物品');
 const busy = ref(false);
 const error = ref('');
 const preference = ref('');
 const directed = ref(false);
-const confirmSale = ref<string | null>(null);
+const confirmDiscard = ref<string | null>(null);
 const expandedName = ref('');
 const quantities = ref<Record<string, number>>({});
 const balance = computed(() => store.statData?.角色.user.恶堕积分 ?? 0);
@@ -159,7 +153,7 @@ const entries = computed(() => {
   return Object.entries(
     tab.value === 'shop'
       ? store.statData.商店
-      : saleSide.value === '随身物品'
+      : discardSide.value === '随身物品'
         ? store.statData.角色.user.物品
         : store.statData.仓库,
   );
@@ -184,17 +178,14 @@ function quantityFor(key: string): number {
 }
 function setQuantity(key: string, event: Event) {
   quantities.value[key] = Number((event.target as HTMLInputElement).value);
-  confirmSale.value = null;
+  confirmDiscard.value = null;
 }
 function toggleEntry(name: string) {
   expandedName.value = expandedName.value === name ? '' : name;
-  confirmSale.value = null;
+  confirmDiscard.value = null;
 }
 function validQuantity(available: number, quantity: number): boolean {
   return Number.isSafeInteger(quantity) && quantity > 0 && quantity <= available;
-}
-function refund(price: number, quantity: number): number {
-  return Math.floor(price / 2) * quantity;
 }
 async function run(action: () => Promise<unknown>) {
   busy.value = true;
@@ -207,16 +198,16 @@ async function run(action: () => Promise<unknown>) {
     busy.value = false;
   }
 }
-function sell(name: string) {
-  const side = saleSide.value;
-  const quantity = quantityFor(`sell:${side}:${name}`);
+function discard(name: string) {
+  const side = discardSide.value;
+  const quantity = quantityFor(`discard:${side}:${name}`);
   void run(async () => {
-    await store.sellOwnedItem(side, name, quantity);
-    confirmSale.value = null;
+    await store.discardOwnedItem(side, name, quantity);
+    confirmDiscard.value = null;
   });
 }
-watch([tab, saleSide], () => {
+watch([tab, discardSide], () => {
   expandedName.value = '';
-  confirmSale.value = null;
+  confirmDiscard.value = null;
 });
 </script>

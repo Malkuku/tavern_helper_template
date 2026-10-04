@@ -84,7 +84,7 @@ import {
   applyItemRefresh,
   buyItem as applyItemPurchase,
   itemRefreshQuote,
-  sellItem as applyItemSale,
+  discardItem as applyItemDiscard,
 } from '../apps/itemShop/itemShop';
 import {
   abandonTask as applyTaskAbandon,
@@ -620,11 +620,10 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     );
   }
 
-  async function sellOwnedItem(side: InventorySide, name: string, quantity: number): Promise<number> {
-    return changeCharacterData(
-      data => applyItemSale(data, side, name, quantity),
-      (_before, _after, refund) =>
-        `从${side}出售「${escapeSystemLogText(name)}」×${quantity}，获得${refund}点恶堕积分。`,
+  async function discardOwnedItem(side: InventorySide, name: string, quantity: number): Promise<void> {
+    await changeCharacterData(
+      data => applyItemDiscard(data, side, name, quantity),
+      () => `从${side}丢弃「${escapeSystemLogText(name)}」×${quantity}。`,
     );
   }
 
@@ -1640,7 +1639,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refreshItemShop,
     cancelItemRefresh,
     purchaseItem,
-    sellOwnedItem,
+    discardOwnedItem,
     refreshTaskBoard,
     cancelTaskRefresh,
     acceptTask,

@@ -167,8 +167,29 @@ async function main() {
   await store.purchaseItem('药剂', 2);
   assert.match(message, /购买「药剂」×2，消耗12点恶堕积分/);
   assert.equal(data.角色.user.物品.药剂.数量, 2);
-  assert.equal(await store.sellOwnedItem('随身物品', '药剂', 1), 3);
-  assert.match(message, /从随身物品出售「药剂」×1，获得3点恶堕积分/);
+  await store.discardOwnedItem('随身物品', '药剂', 1);
+  assert.match(message, /从随身物品丢弃「药剂」×1/);
+  assert.equal(data.角色.user.恶堕积分, 88, '丢弃不返还积分');
+  assert.equal(data.角色.user.物品.药剂.数量, 1);
+  const beforeFailedDiscard = message;
+  await assert.rejects(store.discardOwnedItem('随身物品', '药剂', 2), /数量/);
+  assert.equal(message, beforeFailedDiscard, '丢弃失败不追加日志或差分');
+  failMvu = true;
+  await assert.rejects(store.discardOwnedItem('随身物品', '药剂', 1), /变量写入失败/);
+  assert.equal(message, beforeFailedDiscard, '写入失败撤回丢弃日志及差分');
+  assert.equal(data.角色.user.物品.药剂.数量, 1);
+
+  await reset();
+  data.仓库.药剂 = { ...item };
+  await store.discardOwnedItem('仓库', '药剂', 3);
+  assert.match(message, /从仓库丢弃「药剂」×3/);
+  assert.equal(data.仓库.药剂, undefined);
+  assert.equal(data.角色.user.恶堕积分, 100);
+  assert.match(message, /"op":"remove","path":"\/仓库\/药剂"/);
+  if (process.argv.includes('--items-only')) {
+    console.info('手机道具日志与差分验证通过：购买、双来源丢弃、无返还、数量拒绝和写入失败撤回。');
+    return;
+  }
 
   await reset();
   data.技能商店.火球 = { ...skill };
@@ -259,14 +280,14 @@ async function main() {
   store.refresh();
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.当前等级, 2);
-  assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.累计经验, 3);
+  assert.equal(data.角色.主要角色.测试角色.人设阶段.恶堕度.累计经验, 8, 'D 级 1→2 消耗 47 点，55 点结算后剩 8 点');
   assert.equal(data.角色.user.恶堕积分, 160);
   const stagePatch = JSON.parse(message.match(/<JSONPatch>(.*?)<\/JSONPatch>/)?.[1] ?? '[]');
   assert.deepEqual(
     stagePatch.filter((op: any) => op.path.includes('/人设阶段/恶堕度/')),
     [
       { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/当前等级', value: 2 },
-      { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/累计经验', value: 3 },
+      { op: 'replace', path: '/角色/主要角色/测试角色/人设阶段/恶堕度/累计经验', value: 8 },
     ],
   );
   assert.ok(stagePatch.some((op: any) => op.path === '/角色/user/恶堕积分' && op.value === 160));

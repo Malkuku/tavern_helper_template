@@ -12,11 +12,11 @@ export function inventoryOf(data: stat_data, side: InventorySide): Record<string
 }
 
 export function sameItemSpec(left: 物品, right: 物品): boolean {
-  return left.描述 === right.描述 && left.作用 === right.作用 && left.评级 === right.评级 && left.价格 === right.价格;
+  return left.描述 === right.描述 && left.作用 === right.作用 && left.评级 === right.评级;
 }
 
 export function mergeItemStack(target: 物品, incoming: 物品, quantity: number): void {
-  if (!sameItemSpec(target, incoming)) throw new Error('同名道具的描述、作用、评级或价格不一致，无法合并。');
+  if (!sameItemSpec(target, incoming)) throw new Error('同名道具的描述、作用或评级不一致，无法合并。');
   const total = target.数量 + quantity;
   const durabilitySum = target.耐久 * target.数量 + incoming.耐久 * quantity;
   if (!Number.isSafeInteger(total) || !Number.isSafeInteger(durabilitySum))
