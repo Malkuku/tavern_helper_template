@@ -94,11 +94,19 @@ function button(label: string) {
   return nodes(actionTree()).find(node => node.type === 'button' && visibleText(node).trim() === label);
 }
 async function main() {
-  assert.equal(visibleText(button('购买')).trim(), '购买');
-  assert.ok(!visibleText(actionTree()).includes('987'), '购买按钮不显示价格');
+  assert.match(visibleText(actionTree()), /单价 987 积分/);
+  assert.equal(button('购买 · 987 积分').props.disabled, false);
+  state.setQuantity('shop:随身物品:商品', { target: { value: '2' } });
+  assert.equal(button('购买 · 1974 积分').props.disabled, false, '总价随数量变化');
+  state.setQuantity('shop:随身物品:商品', { target: { value: '3' } });
+  assert.equal(button('购买 · 2961 积分').props.disabled, true, '余额不足时禁用购买');
+  data.商店.商品.价格 = 0;
+  assert.equal(button('购买 · 0 积分').props.disabled, false, '免费商品仍显示零积分总价');
+  data.商店.商品.价格 = 987;
   state.tab.value = 'discard';
   state.discardSide.value = '仓库';
   await Vue.nextTick();
+  assert.ok(!visibleText(actionTree()).includes('987'), '仓库丢弃列表不显示价格');
   state.quantities.value['discard:仓库:仓库道具'] = 2;
   button('丢弃').props.onClick();
   assert.equal(calls.length, 0, '首次点击只打开确认');
@@ -119,7 +127,8 @@ async function main() {
   state.discardSide.value = '随身物品';
   await Vue.nextTick();
   assert.equal(state.entries.value[0][0], '随身道具');
-  console.info('道具界面验证通过：六档配色、隐藏价格、来源切换、数量、确认和失败提示。');
+  assert.ok(!visibleText(actionTree()).includes('987'), '随身丢弃列表不显示价格');
+  console.info('道具界面验证通过：六档配色、购买单价和总价、持有价格隐藏、来源切换、数量、确认和失败提示。');
 }
 void main().catch(error => {
   console.error(error);

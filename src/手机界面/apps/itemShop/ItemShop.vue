@@ -70,6 +70,7 @@
           @toggle="toggleEntry(name)"
         >
           <template #actions>
+            <small v-if="tab === 'shop'">单价 {{ item.价格 }} 积分</small>
             <label class="item-shop-quantity">
               数量
               <input
@@ -92,7 +93,7 @@
               "
               @click="run(() => store.purchaseItem(name, quantityFor(`shop:${discardSide}:${name}`)))"
             >
-              购买
+              购买 · {{ item.价格 * quantityFor(`shop:${discardSide}:${name}`) }} 积分
             </button>
             <template v-else>
               <div v-if="confirmDiscard === `${discardSide}:${name}`" class="item-shop-confirm">
