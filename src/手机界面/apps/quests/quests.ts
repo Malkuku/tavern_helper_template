@@ -72,13 +72,15 @@ export function nextTaskWeekTime(time: string): string {
 }
 
 export function taskRefreshState(data: stat_data): {
+  available: boolean;
+  remaining: number;
   count: number;
   next: string;
 } {
   const now = worldDate(data.世界.时间);
   const next = data.系统.任务下次刷新时间;
   const recordedCount = data.系统.任务主动刷新次数;
-  if (!Number.isSafeInteger(recordedCount) || recordedCount < 0 || recordedCount === Number.MAX_SAFE_INTEGER)
+  if (!Number.isSafeInteger(recordedCount) || recordedCount < 0 || recordedCount > 5)
     throw new Error('任务刷新次数无效。');
   const marker = next ? worldDate(next) : null;
   const weekStart = new Date(now);
@@ -87,7 +89,8 @@ export function taskRefreshState(data: stat_data): {
   // 旧存档的标记是次日 00:00；本周内已成功的一次仍计入本周。
   const legacyDailyMarker = marker && marker.getUTCDay() !== 1;
   const count = !marker || (legacyDailyMarker ? marker <= weekStart : now >= marker) ? 0 : recordedCount;
-  return { count, next: nextMonday(now) };
+  const remaining = 5 - count;
+  return { available: remaining > 0, remaining, count, next: nextMonday(now) };
 }
 
 function parseResult(message: string, active: stat_data['任务'], playerRating: 任务评级): Record<string, 任务> {
@@ -114,6 +117,7 @@ function parseResult(message: string, active: stat_data['任务'], playerRating:
 
 export function refreshTasks(data: stat_data, message: string): void {
   const state = taskRefreshState(data);
+  if (!state.available) throw new Error('本周任务刷新次数已用完。');
   const result = parseResult(message, data.任务, userRatingFromContribution(data.角色.user.评级贡献));
   data.任务候选 = result;
   data.系统.任务下次刷新时间 = state.next;

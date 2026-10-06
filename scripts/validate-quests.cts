@@ -55,7 +55,7 @@ const data: any = {
   任务统计: { 开始周: '2026-9-28', 周记录: { '2026-9-28': emptyTaskWeek('2026-9-28') } },
 };
 
-assert.equal(taskRefreshState(data).count, 0);
+assert.equal(taskRefreshState(data).available, true);
 assert.throws(() => refreshTasks(data, '<questVariable>{}</questVariable>'), /没有可接取的候选任务/);
 for (const count of [5, 7, 8]) {
   const variableCountData = structuredClone(data);
@@ -94,21 +94,22 @@ assert.equal(tolerantData.任务候选.任务1.备注, undefined, '额外字段�
 refreshTasks(data, result);
 assert.equal(Object.keys(data.任务候选).length, 6);
 assert.equal(data.系统.任务下次刷新时间, '2026-10-5T00:00[1]');
-assert.equal(taskRefreshState(data).count, 1);
-const weeklyRefreshes = structuredClone(data);
-for (let used = 2; used <= 7; used++) {
-  refreshTasks(weeklyRefreshes, result);
-  assert.equal(taskRefreshState(weeklyRefreshes).count, used, `本周第 ${used} 次刷新可成功`);
+assert.equal(taskRefreshState(data).remaining, 4);
+const weeklyQuota = structuredClone(data);
+for (let used = 2; used <= 5; used++) {
+  refreshTasks(weeklyQuota, result);
+  assert.equal(taskRefreshState(weeklyQuota).remaining, 5 - used);
 }
-assert.equal(weeklyRefreshes.系统.任务主动刷新次数, 7);
-weeklyRefreshes.世界.时间 = '2026-10-5T00:00[1]';
-assert.equal(taskRefreshState(weeklyRefreshes).count, 0, '周一只重置本周刷新计数');
-refreshTasks(weeklyRefreshes, result);
-assert.equal(weeklyRefreshes.系统.任务主动刷新次数, 1);
+assert.throws(() => refreshTasks(weeklyQuota, result), /次数已用完/);
+assert.equal(weeklyQuota.系统.任务主动刷新次数, 5);
+weeklyQuota.世界.时间 = '2026-10-5T00:00[1]';
+assert.equal(taskRefreshState(weeklyQuota).remaining, 5, '周一恢复五次刷新机会');
+refreshTasks(weeklyQuota, result);
+assert.equal(weeklyQuota.系统.任务主动刷新次数, 1);
 const legacyDaily = structuredClone(data);
 legacyDaily.系统.任务下次刷新时间 = '2026-9-29T00:00[2]';
 legacyDaily.世界.时间 = '2026-9-30T09:00[3]';
-assert.equal(taskRefreshState(legacyDaily).count, 1, '旧每日刷新记录计入本周已刷新次数');
+assert.equal(taskRefreshState(legacyDaily).remaining, 4, '旧每日刷新记录计入本周已用次数');
 
 for (let index = 1; index <= 5; index++) acceptTask(data, `任务${index}`);
 assert.equal(Object.keys(data.任务候选).length, 1, '第五项可接取且从候选移除');
@@ -140,7 +141,7 @@ assert.equal(activeTaskCount(overLimit.任务), 6, '剧情插入任务即使超�
 assert.throws(() => acceptTask(overLimit, '手动新增'), /最多同时接取 5 项/);
 
 data.世界.时间 = '2026-9-29T00:00[2]';
-assert.equal(taskRefreshState(data).count, 1);
+assert.equal(taskRefreshState(data).available, true);
 const duplicateData = structuredClone(data);
 refreshTasks(duplicateData, result);
 for (const name of Object.keys(data.任务))
