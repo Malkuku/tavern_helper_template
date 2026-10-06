@@ -171,7 +171,7 @@ const quote = computed(() => {
     };
   }
 });
-const directedSurcharge = computed(() => (store.statData ? directedRefreshSurcharge(store.statData) : 20));
+const directedSurcharge = computed(() => (store.statData ? directedRefreshSurcharge(store.statData, '道具') : 5));
 const refreshPrice = computed(() => quote.value.price + (directed.value ? directedSurcharge.value : 0));
 
 function quantityFor(key: string): number {

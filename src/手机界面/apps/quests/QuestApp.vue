@@ -7,12 +7,12 @@
         <p>已接 {{ activeEntries.length }}/{{ maxAcceptedTasks }} · 本周已领奖 {{ stats?.current.完成 ?? 0 }}/7 项</p>
         <button
           type="button"
-          :disabled="busy || store.taskRefreshing || !refreshAvailable"
+          :disabled="busy || store.taskRefreshing || !refreshState"
           @click="run(() => store.refreshTaskBoard())"
         >
-          {{ store.taskRefreshing ? '刷新中…' : refreshAvailable ? '刷新任务' : '本周次数已用完' }}
+          {{ store.taskRefreshing ? '刷新中…' : '刷新任务' }}
         </button>
-        <p>本周剩余刷新 {{ refreshState?.remaining ?? 0 }}/5 次</p>
+        <p>本周已刷新 {{ refreshState?.count ?? 0 }} 次</p>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消生成
         </button>
@@ -192,7 +192,6 @@ const refreshState = computed(() => {
     return null;
   }
 });
-const refreshAvailable = computed(() => refreshState.value?.available ?? false);
 
 function ratingSummary(counts: Record<任务评级, number>): string {
   return (['D', 'C', 'B', 'A', 'S'] as const).map(rating => `${rating} ${counts[rating]}`).join(' · ');

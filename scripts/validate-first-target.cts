@@ -22,13 +22,14 @@ function emptyData(): stat_data {
 assert.deepEqual(firstTargetKeys, ['鹭见凛', '雨宫雫', '索菲亚', '小鸟游琉璃']);
 assert.deepEqual(
   firstTargetChoices.map(choice => choice.item.name),
-  ['青叶学园转学生证明', '孤儿院志愿者登记函', '白鹭大学交换生证明', '投资研究助理工作证明'],
+  ['青叶学园转学生证明', '孤儿院志愿者登记函', '白鹭大学交换生证明', '小鸟游琉璃私人助理工作证'],
 );
 assert.match(firstTargetChoices[0].quest.goal, /转学生身份进入青叶学园/);
 assert.match(firstTargetChoices[0].item.effect, /进入青叶学园/);
 assert.match(firstTargetChoices[1].quest.goal, /工作人员同意/);
 assert.match(firstTargetChoices[2].quest.goal, /交换生身份参加校园公益活动/);
-assert.match(firstTargetChoices[3].quest.goal, /投资研究助理身份参加公开行业活动/);
+assert.match(firstTargetChoices[3].quest.goal, /私人助理身份处理小鸟游琉璃交办的一项日常事务/);
+assert.match(firstTargetChoices[3].item.effect, /已受聘为小鸟游琉璃的私人助理/);
 for (const choice of firstTargetChoices) {
   const key = choice.key;
   const data = emptyData();

@@ -2188,3 +2188,265 @@
     animation: none !important;
   }
 }
+
+/* 在场面板主题：沿用观测组件，只调整视觉，不改变手机默认主题。 */
+.witch-app[data-observation-theme='refined'] {
+  --witch-bg: #111017;
+  --witch-surface: #1b1823;
+  --witch-line: #ffffff12;
+  --witch-text: #eeeaf5;
+  --witch-muted: #a49aac;
+  --witch-soft: #26202f;
+  background: radial-gradient(ellipse at 100% 0, #69528220, transparent 48%), var(--witch-bg);
+  border-color: #ffffff16;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px #00000020;
+}
+.witch-app[data-observation-theme='refined'] .panel-heading {
+  padding: 8px 16px 0;
+  border: 0;
+}
+.witch-app[data-observation-theme='refined'] .panel-heading h2 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #b8adc8;
+}
+.witch-app[data-observation-theme='refined'] .panel-heading h2 span {
+  margin-left: 7px;
+  padding: 3px 7px;
+  border-radius: 20px;
+  background: #ffffff08;
+  font-size: 10px;
+  color: #a89ab9;
+}
+.witch-app[data-observation-theme='refined'] .panel-heading button {
+  background-color: transparent !important;
+  font-size: 11px;
+  color: #a49aac !important;
+  -webkit-text-fill-color: #a49aac !important;
+}
+.witch-app[data-observation-theme='refined'] .panel-content {
+  padding: 4px 14px 16px;
+}
+.witch-app[data-observation-theme='refined'] .character-heading {
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.witch-app[data-observation-theme='refined'] .selector-avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 15px;
+  border: 1px solid #b7a0d42e;
+  background: linear-gradient(135deg, #392d48, #211b2e);
+  box-shadow: none;
+}
+.witch-app[data-observation-theme='refined'] .character-picker {
+  gap: 0;
+}
+.witch-app[data-observation-theme='refined'] .caption {
+  padding-left: 3px;
+  font-size: 10px;
+  color: #a296b2;
+}
+.witch-app[data-observation-theme='refined'] .character-picker select {
+  min-height: 32px;
+  padding: 1px 0;
+  border: 0 !important;
+  background-color: transparent !important;
+  border-radius: 4px;
+  box-shadow: none;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.witch-app[data-observation-theme='refined'] .character-picker select:focus-visible {
+  outline: 2px solid #ae97cf;
+  outline-offset: 3px;
+}
+.witch-app[data-observation-theme='refined'] .rating {
+  display: grid;
+  place-items: center;
+  padding: 7px 10px;
+  border: 1px solid #c9b0e92b;
+  border-radius: 11px;
+  background: #b394d90c;
+  color: #c9b8e0;
+  font-size: 13px;
+  font-weight: 650;
+}
+.witch-app[data-observation-theme='refined'] .data-pages {
+  margin: 0 0 19px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid #ffffff08;
+  border-radius: 12px;
+  background: #09090e7a;
+}
+.witch-app[data-observation-theme='refined'] .data-pages button {
+  min-height: 40px;
+  padding: 9px;
+  border-radius: 9px;
+  font-size: 12px;
+  background-color: transparent !important;
+  color: #a297af !important;
+  -webkit-text-fill-color: #a297af !important;
+}
+.witch-app[data-observation-theme='refined'] .data-pages button.active {
+  background: linear-gradient(120deg, #4b395f, #3d304f) !important;
+  color: #f0e8fb !important;
+  -webkit-text-fill-color: #f0e8fb !important;
+  box-shadow:
+    0 2px 8px #00000026,
+    inset 0 1px #ffffff0d;
+}
+.witch-app[data-observation-theme='refined'] .data-sections {
+  gap: 12px;
+}
+.witch-app[data-observation-theme='refined'] .monitor-heading {
+  margin: 0;
+  padding: 0 2px;
+}
+.witch-app[data-observation-theme='refined'] .monitor-heading span {
+  display: none;
+}
+.witch-app[data-observation-theme='refined'] .monitor-heading h3 {
+  margin: 0;
+  font-size: 11px;
+  color: #b5a8c5;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.witch-app[data-observation-theme='refined'] .data-card {
+  padding: 15px;
+  border: 1px solid #ffffff0d;
+  border-radius: 15px;
+  background: #1b1823;
+  box-shadow: 0 3px 10px #00000012;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage {
+  display: flex;
+  flex-direction: column;
+  --stage-accent: #93cbd0;
+  --stage-wash: #25373b;
+  background: linear-gradient(125deg, color-mix(in srgb, var(--stage-wash) 32%, #1b1823), #1b1823 72%);
+  border-color: color-mix(in srgb, var(--stage-accent) 20%, transparent);
+}
+.witch-app[data-observation-theme='refined'] .observation-stage[data-stage='好感度'] {
+  --stage-accent: #e6a0ba;
+  --stage-wash: #4d283e;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage[data-stage='恶堕度'] {
+  --stage-accent: #bda3e8;
+  --stage-wash: #3d2b54;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-head {
+  order: 0;
+  gap: 10px;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 21px;
+  border-radius: 10px;
+  animation: none;
+  border-color: color-mix(in srgb, var(--stage-accent) 20%, transparent);
+  background: color-mix(in srgb, var(--stage-accent) 8%, transparent);
+}
+.witch-app[data-observation-theme='refined'] .stage-help-button {
+  font-size: 13px;
+  border-bottom-color: transparent;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-title small {
+  font-size: 9px;
+  color: #9e93ab;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-level {
+  gap: 5px;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-level small {
+  font-size: 9px;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-level strong {
+  font-size: 25px;
+  font-weight: 500;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-progress {
+  order: 1;
+  margin-top: 13px;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-progress-track {
+  height: 5px;
+  background: #ffffff0b;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-progress-track > span {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--stage-accent) 50%, #6e5d7f), var(--stage-accent));
+  box-shadow: none;
+}
+.witch-app[data-observation-theme='refined']
+  .observation-stage-progress.backward
+  .observation-stage-progress-track
+  > span {
+  background: linear-gradient(90deg, #b46682, #ef9bb9);
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-description {
+  order: 2;
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.85;
+  color: #d1c8dc;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-adjacent {
+  order: 3;
+  margin-top: 12px;
+  padding: 10px 0 0;
+  border-left: 0;
+  border-top: 1px solid #ffffff0a;
+  background: transparent;
+  color: #a89db5;
+  font-size: 11px;
+}
+.witch-app[data-observation-theme='refined'] .observation-stage-adjacent span {
+  color: var(--stage-accent);
+  font-size: 10px;
+}
+.witch-app[data-observation-theme='refined'] .observation-corruption-reward {
+  order: 4;
+  font-size: 10px;
+  color: #b7a3cc;
+}
+.witch-app[data-observation-theme='refined'] .body-unlock > .data-card {
+  margin-top: 0;
+}
+.witch-app[data-observation-theme='refined'] .body-card-toggle {
+  min-height: 34px;
+  background-color: transparent !important;
+}
+.witch-app[data-observation-theme='refined'] .body-observation-card .monitor-card-head {
+  margin-bottom: 9px;
+}
+.witch-app[data-observation-theme='refined'] .body-card-toggle span {
+  color: #a493b9;
+}
+.witch-app[data-observation-theme='refined'] .body-current {
+  padding: 11px 12px;
+  border-left: 2px solid #9b81b95c;
+  border-radius: 0 9px 9px 0;
+  background: #ffffff03;
+}
+.witch-app[data-observation-theme='refined'] .body-current span,
+.witch-app[data-observation-theme='refined'] .body-detail span {
+  color: #a99abd;
+  font-size: 10px;
+}
+.witch-app[data-observation-theme='refined'] .body-current p,
+.witch-app[data-observation-theme='refined'] .body-detail p,
+.witch-app[data-observation-theme='refined'] .data-prose {
+  color: #cfc5da;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.witch-app[data-observation-theme='refined'] .body-detail {
+  border-top-color: #ffffff0a;
+}

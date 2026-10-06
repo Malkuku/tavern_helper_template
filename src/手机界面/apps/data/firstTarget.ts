@@ -55,16 +55,16 @@ export const firstTargetChoices = [
     key: '小鸟游琉璃',
     title: '魔法少女「千见」',
     identity: '金融从业者',
-    lead: '喜欢有风险和选择空间的局面；空洞的收益保证难以引起兴趣。',
+    lead: '喜欢观察别人的选择；在她身边做事，细心与可靠比夸夸其谈更有用。',
     quest: {
-      description: '小鸟游琉璃在金融行业积累了财富，擅长判断风险，也喜欢观察别人的选择。',
-      goal: '以投资研究助理身份参加公开行业活动，准备一份说明风险与选择的提案，争取与小鸟游琉璃再次交流。',
+      description: '小鸟游琉璃已聘用你担任私人助理。她喜欢观察别人的选择，也会留意你如何处理身边的小事。',
+      goal: '以私人助理身份处理小鸟游琉璃交办的一项日常事务，在相处中与她建立后续联系。',
     },
     item: {
-      name: '投资研究助理工作证明',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="15" rx="2"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 17l3-3 2 1 4-4M15 11h2v2"/></svg>',
-      description: '组织为玩家安排的投资研究助理掩护身份与配套工作证明，附公开行业活动报名信息。',
-      effect: '用于以研究助理身份报名公开行业活动；不能获取内部资料或保证与小鸟游琉璃见面。',
+      name: '小鸟游琉璃私人助理工作证',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2"/><path d="M8 16c.6-2 2-3 4-3s3.4 1 4 3M8 19h8"/></svg>',
+      description: '组织为玩家安排的私人助理身份及工作证，登记为小鸟游琉璃的在职助理，负责她交办的日常事务。',
+      effect: '证明你已受聘为小鸟游琉璃的私人助理，可在职责范围内随行并处理日常安排；具体事务由她交办。',
     },
   },
 ] as const;

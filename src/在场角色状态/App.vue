@@ -1,5 +1,5 @@
 <template>
-  <section class="presence-panel" aria-label="在场角色状态">
+  <section class="witch-app presence-panel" data-observation-theme="refined" aria-label="在场角色状态">
     <header class="panel-heading">
       <h2>
         在场角色 <span>{{ characters.length }} 人</span>
@@ -18,77 +18,73 @@
       <p v-else-if="!selected" class="empty">当前没有在场角色。</p>
       <template v-else>
         <div class="character-heading">
+          <ObservationAvatar :src="selected.role.meta?.avatar" />
           <label class="character-picker">
-            <span class="caption">当前角色 · {{ selectedIndex + 1 }} / {{ characters.length }}</span>
+            <span class="caption">{{ selected.kind }} · {{ selectedIndex + 1 }} / {{ characters.length }}</span>
             <select
               :value="selectedId"
               aria-label="选择在场角色"
               @change="selectedId = ($event.target as HTMLSelectElement).value"
             >
               <option v-for="character in characters" :key="character.id" :value="character.id">
-                {{ character.name }} · {{ character.kind }}
+                {{ character.name
+                }}{{
+                  characters.some(other => other.id !== character.id && other.name === character.name)
+                    ? ` · ${character.kind}`
+                    : ''
+                }}
               </option>
             </select>
           </label>
           <span class="rating">{{ selected.role.当前评级 || '评级未记录' }}</span>
         </div>
-        <nav class="page-tabs" aria-label="状态分类">
-          <button type="button" :aria-pressed="page === '阶段'" @click="page = '阶段'">阶段</button>
-          <button type="button" :aria-pressed="page === '身体'" @click="page = '身体'">身体</button>
+        <nav class="data-pages" aria-label="状态分类">
+          <button type="button" :class="{ active: page === '阶段' }" @click="page = '阶段'">阶段</button>
+          <button type="button" :class="{ active: page === '身体' }" @click="page = '身体'">身体</button>
         </nav>
-        <div v-if="page === '阶段'" class="stages">
-          <section
-            v-for="name in visibleStageNames"
-            :key="name"
-            class="stage"
-            :class="{ trauma: name === '创伤稳定度', affection: name === '好感度', corruption: name === '恶堕度' }"
-          >
-            <header>
-              <h3>{{ name }}</h3>
-              <span v-if="canReadField(data, selected, name) && stage(name)">Lv.{{ stage(name)!.当前等级 }}</span>
-            </header>
-            <p v-if="!canReadField(data, selected, name)" class="locked">未解锁 · 请在手机观测中解锁</p>
-            <p v-else class="prose">{{ stageDescription(name) }}</p>
+        <div v-if="page === '阶段'" class="data-sections">
+          <section class="monitor-heading">
+            <span>01 / 当前状态</span>
+            <h3>心象状态</h3>
           </section>
-          <p class="footnote">
-            <template v-if="selected.kind === '主要角色'">创伤稳定度表示心理应对阶段；</template>
-            等级与描述以本楼层记录为准。
-          </p>
+          <section v-for="name in visibleStageNames" :key="name" class="data-card observation-stage" :data-stage="name">
+            <div v-if="!canReadField(data, selected, name) || !stage(name)" class="item-heading">
+              <StageHelp :kind="name" />
+              <span :class="canReadField(data, selected, name) ? 'unlock-mark' : 'lock-mark'">{{
+                canReadField(data, selected, name) ? '已解锁' : '未解锁'
+              }}</span>
+            </div>
+            <p v-if="!canReadField(data, selected, name)" class="lock-caption">未解锁 · 请在手机观测中解锁</p>
+            <ObservationStageContent
+              v-else-if="stage(name)"
+              :stage="stage(name)!"
+              :kind="name"
+              :rating="selected.role.当前评级"
+              titled
+            />
+            <p v-else class="data-prose">暂无阶段记录。</p>
+          </section>
         </div>
         <div v-else-if="!canReadField(data, selected, '身体状态')" class="empty locked">
           身体状态未解锁 · 请在手机观测中解锁
         </div>
-        <div v-else class="body-page">
-          <details :key="selected.id" class="special-status">
-            <summary>
-              特殊状态 <span>{{ specialStates.length }} 项</span>
-            </summary>
-            <ul v-if="specialStates.length">
-              <li v-for="(value, index) in specialStates" :key="index" class="prose">{{ statusText(value) }}</li>
-            </ul>
-            <p v-else class="muted">暂无特殊状态记录。</p>
-          </details>
-          <nav class="part-tabs" aria-label="身体部位">
-            <button
-              v-for="part in bodyParts"
-              :key="part"
-              type="button"
-              :aria-pressed="selectedPart === part"
-              @click="selectedPart = part"
-            >
-              {{ part }}
-            </button>
-          </nav>
-          <section class="part-content">
-            <h3>{{ selectedPart }} <span class="caption">当前状态</span></h3>
-            <p class="prose">{{ bodyPart?.当前状态 || '暂无当前状态记录。' }}</p>
-            <template v-for="field in ['特征', '开发程度'] as const" :key="field">
-              <details v-if="bodyPart?.[field]" :key="`${selected.id}:${selectedPart}:${field}`">
-                <summary>{{ field }}</summary>
-                <p class="prose">{{ bodyPart[field] }}</p>
-              </details>
-            </template>
+        <div v-else class="data-sections body-unlock">
+          <section class="monitor-heading">
+            <span>02 / 状态观测</span>
+            <h3>身体状态</h3>
           </section>
+          <section v-if="specialStates.length" class="data-card">
+            <h3>特殊状态</h3>
+            <p class="data-prose">{{ specialStates.map(statusText).join('、') }}</p>
+          </section>
+          <ObservationBodyCard
+            v-for="part in bodyParts"
+            :key="`${selected.id}:${part}`"
+            :name="part"
+            :part="selected.role.身体?.[part]"
+            :expanded="expandedBodyParts.includes(part)"
+            @toggle="toggleBodyPart(part)"
+          />
         </div>
       </template>
     </div>
@@ -98,6 +94,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { stat_data, 人设阶段 } from '../手机界面/types';
+import '../手机界面/apps/witch/witch.css';
+import ObservationStageContent from '../手机界面/apps/data/ObservationStageContent.vue';
+import ObservationBodyCard from '../手机界面/apps/data/ObservationBodyCard.vue';
+import StageHelp from '../手机界面/apps/data/StageHelp.vue';
+import ObservationAvatar from '../手机界面/apps/data/ObservationAvatar.vue';
 import { bodyParts, canReadField, presentCharacters, stageNames, statusText } from './model';
 
 const data = ref<stat_data>();
@@ -106,14 +107,13 @@ const error = ref('');
 const collapsed = ref(false);
 const selectedId = ref('');
 const page = ref<'阶段' | '身体'>('阶段');
-const selectedPart = ref<(typeof bodyParts)[number]>(bodyParts[0]);
+const expandedBodyParts = ref<string[]>([]);
 const characters = computed(() => presentCharacters(data.value));
 const selectedIndex = computed(() => characters.value.findIndex(character => character.id === selectedId.value));
 const selected = computed(() => characters.value[selectedIndex.value]);
 const visibleStageNames = computed(() =>
   selected.value?.kind === '主要角色' ? stageNames : stageNames.filter(name => name !== '创伤稳定度'),
 );
-const bodyPart = computed(() => selected.value?.role.身体?.[selectedPart.value]);
 const specialStates = computed(() => {
   const states = selected.value?.role.身体?.特殊状态;
   return Array.isArray(states) ? states : [];
@@ -126,7 +126,7 @@ watch(characters, list => {
 });
 watch(selectedId, () => {
   page.value = '阶段';
-  selectedPart.value = bodyParts[0];
+  expandedBodyParts.value = [];
 });
 
 function stage(name: keyof 人设阶段) {
@@ -134,10 +134,13 @@ function stage(name: keyof 人设阶段) {
   return stages && name in stages ? (stages as Partial<人设阶段>)[name] : undefined;
 }
 
-function stageDescription(name: keyof 人设阶段): string {
-  const value = stage(name);
-  if (!value || !Number.isFinite(value.当前等级)) return '暂无阶段记录。';
-  return value.描述?.[String(value.当前等级)] || '当前等级暂无描述。';
+watch(page, () => {
+  expandedBodyParts.value = [];
+});
+function toggleBodyPart(part: string) {
+  expandedBodyParts.value = expandedBodyParts.value.includes(part)
+    ? expandedBodyParts.value.filter(name => name !== part)
+    : [...expandedBodyParts.value, part];
 }
 
 function refresh() {
@@ -188,49 +191,18 @@ body,
 
 <style scoped>
 .presence-panel {
+  box-sizing: border-box;
   width: min(100%, 520px);
   margin: 0 auto;
-  border: 1px solid #55405e;
+  height: auto;
+  overflow: visible;
+  border: 1px solid var(--witch-line);
   border-radius: 14px;
-  background: #211a2a;
-  color: #f4eef8;
-  font:
-    14px/1.65 -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    'Noto Sans SC',
-    sans-serif;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
-.presence-panel,
-.presence-panel * {
-  box-sizing: border-box;
-}
-button,
-select {
-  font: inherit;
-}
-button,
-summary,
-select {
-  touch-action: manipulation;
-}
-button {
-  min-height: 44px;
-  border: 0;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-button:focus-visible,
-select:focus-visible,
-summary:focus-visible {
-  outline: 2px solid #c4a5ed;
-  outline-offset: -2px;
-}
 .panel-heading,
-.character-heading,
-.stage header {
+.character-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -238,31 +210,22 @@ summary:focus-visible {
 }
 .panel-heading {
   padding: 0 12px;
-  border-bottom: 1px solid #48364f;
+  border-bottom: 1px solid var(--witch-line);
 }
-h2,
-h3,
-p {
+.panel-heading h2 {
   margin: 0;
-}
-h2 {
   font-size: 15px;
 }
-h2 span,
+.panel-heading span,
 .caption,
-.rating,
-.muted,
-.footnote {
-  color: #c3b4ce;
+.rating {
+  color: var(--witch-muted);
   font-size: 12px;
 }
-h2 span {
-  margin-left: 5px;
-  font-weight: 400;
-}
 .panel-heading button {
+  min-height: 44px;
   padding: 0 10px;
-  color: #d7bee9;
+  border-radius: 7px;
 }
 .panel-content {
   padding: 12px;
@@ -281,121 +244,19 @@ select {
   min-width: 0;
   min-height: 44px;
   padding: 7px;
-  border: 1px solid #695275;
-  border-radius: 7px;
-  background: #30243c;
-  color: #f4eef8;
   text-overflow: ellipsis;
 }
 .rating {
   flex: 0 0 auto;
   max-width: 80px;
 }
-.page-tabs,
-.part-tabs {
-  display: grid;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 9px;
-  background: #17131f;
-}
-.page-tabs {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.part-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 12px 0;
-}
-.page-tabs button,
-.part-tabs button {
-  min-width: 0;
-  border-radius: 6px;
-  padding: 4px;
-}
-button[aria-pressed='true'] {
-  background: #513b65;
-  color: #fff;
-}
-.stage {
-  padding: 13px 0;
-}
-.stage + .stage {
-  border-top: 1px solid #42334b;
-}
-h3 {
-  font-size: 14px;
-  font-weight: 600;
-}
-.stage header {
-  margin-bottom: 5px;
-}
-.stage header span {
-  font-size: 12px;
-}
-.trauma header {
-  color: #e8ce94;
-}
-.affection header {
-  color: #f0b1cb;
-}
-.corruption header {
-  color: #cab1f1;
-}
-.prose {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.locked {
-  color: #b9aac5;
-  font-size: 13px;
-}
 .empty {
   padding: 18px 0;
-  color: #c3b4ce;
+  color: var(--witch-muted);
 }
 .empty button {
-  padding: 0 12px;
-  margin-top: 8px;
-  border-radius: 6px;
-  background: #513b65;
-}
-.footnote {
-  padding-top: 8px;
-  border-top: 1px solid #42334b;
-  font-size: 11px;
-}
-.special-status {
-  margin-top: 10px;
-}
-summary {
   min-height: 44px;
-  padding: 9px 0;
-  cursor: pointer;
-}
-summary span {
-  color: #c3b4ce;
-  font-size: 12px;
-  margin-left: 6px;
-}
-ul {
-  margin: 0;
-  padding-left: 20px;
-}
-li + li {
-  margin-top: 8px;
-}
-.part-content h3 {
-  margin-bottom: 8px;
-}
-.part-content h3 span {
-  margin-left: 8px;
-  font-weight: 400;
-}
-.part-content details {
-  border-top: 1px solid #42334b;
-  margin-top: 12px;
-}
-.part-content details p {
-  padding-bottom: 4px;
+  padding: 0 12px;
+  border-radius: 7px;
 }
 </style>

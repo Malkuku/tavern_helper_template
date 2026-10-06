@@ -43,16 +43,17 @@ const data = {
   仓库: { 仓库药剂: item(5, 2, 1) },
   商店: { 旧扣: item(3, 2, 10) },
 } as unknown as stat_data;
-for (const [contribution, surcharge] of [
-  [0, 20],
-  [12, 30],
-  [48, 40],
-  [144, 50],
-  [432, 60],
+for (const [contribution, itemSurcharge, skillSurcharge] of [
+  [0, 5, 20],
+  [12, 10, 30],
+  [48, 15, 40],
+  [144, 20, 50],
+  [432, 25, 60],
 ]) {
   const ranked = structuredClone(data);
   ranked.角色.user.评级贡献 = contribution;
-  assert.equal(directedRefreshSurcharge(ranked), surcharge);
+  assert.equal(directedRefreshSurcharge(ranked, '道具'), itemSurcharge);
+  assert.equal(directedRefreshSurcharge(ranked, '技能'), skillSurcharge, '技能定向价格保持原规则');
 }
 const stock = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`道具${index}`, item(3 + index, 2, 10)]));
 stock.旧扣 = { ...item(9, 2, 8), 图标: icon.replace('#5274a2', '#ffffff'), 描述: '错误的新描述' };
@@ -96,8 +97,16 @@ applyItemRefresh(
   `<shopVariable>${JSON.stringify(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`测试${i}`, item(3, 1)])))}</shopVariable>`,
   true,
 );
-assert.equal(directedData.角色.user.恶堕积分, 180, 'D 级首次定向道具刷新仍收取 20 点附加费');
+assert.equal(directedData.角色.user.恶堕积分, 195, 'D 级首次定向道具刷新收取 5 点附加费');
 assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本次偏好');
+const directedInsufficient = structuredClone(data);
+directedInsufficient.角色.user.恶堕积分 = 4;
+directedInsufficient.手机 = {
+  定向刷新: { 请求ID: 'item-request-low-balance', 类型: '道具', 要求: '适合调查的工具', 普通报价: 0 },
+};
+const directedInsufficientBefore = structuredClone(directedInsufficient);
+assert.throws(() => applyItemRefresh(directedInsufficient, message, true), /积分不足，需要 5 点/);
+assert.deepEqual(directedInsufficient, directedInsufficientBefore, '定向余额不足时不扣费、不改货架或请求');
 const parsed = parseItemResult(message, data);
 assert.equal(Object.keys(parsed).length, 6);
 for (const count of [7, 8]) {

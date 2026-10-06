@@ -174,7 +174,7 @@ const quote = computed(() => {
     return { price: Number.POSITIVE_INFINITY, count: 0, next: '' };
   }
 });
-const directedSurcharge = computed(() => (store.statData ? directedRefreshSurcharge(store.statData) : 20));
+const directedSurcharge = computed(() => (store.statData ? directedRefreshSurcharge(store.statData, '技能') : 20));
 const refreshPrice = computed(() => quote.value.price + (directed.value ? directedSurcharge.value : 0));
 function toggleEntry(name: string) {
   expandedName.value = expandedName.value === name ? '' : name;

@@ -28,5 +28,5 @@ assert.equal(data.任务候选.任务2.当前进度, '未接取');
 assert.equal(data.任务候选.任务2.已完成, false);
 assert.equal(data.系统.任务主动刷新次数, 1);
 assert.equal(data.系统.任务下次刷新时间, '2026-10-5T00:00[1]');
-assert.equal(taskRefreshState(data).remaining, 4);
+assert.equal(taskRefreshState(data).count, 1);
 console.info('任务正文结果回归通过。');

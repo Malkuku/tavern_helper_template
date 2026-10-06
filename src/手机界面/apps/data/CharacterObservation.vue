@@ -114,30 +114,10 @@
             :data-stage="key"
           >
             <template #title><StageHelp :kind="key" /></template>
-            <div class="observation-stage-head">
-              <span class="observation-stage-icon" aria-hidden="true">{{ stageMeta[key].icon }}</span>
-              <span class="observation-stage-meaning">{{ stageMeta[key].meaning }}</span>
-              <div class="observation-stage-level">
-                <small>等级</small><strong>{{ stage.当前等级 }}</strong>
-              </div>
-            </div>
-            <p class="observation-stage-description">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
-            <StageProgress :stage="stage" :kind="key" :rating="selectedMain.当前评级" />
-            <CorruptionNextReward v-if="key === '恶堕度'" :level="stage.当前等级" :rating="selectedMain.当前评级" />
+            <ObservationStageContent :stage="stage" :kind="key" :rating="selectedMain.当前评级" />
           </LockedField>
           <section v-else class="data-card observation-stage" :data-stage="key">
-            <div class="observation-stage-head">
-              <span class="observation-stage-icon" aria-hidden="true">{{ stageMeta[key].icon }}</span>
-              <div class="observation-stage-title">
-                <StageHelp :kind="key" />
-                <small>{{ stageMeta[key].meaning }}</small>
-              </div>
-              <div class="observation-stage-level">
-                <small>等级</small><strong>{{ stage.当前等级 }}</strong>
-              </div>
-            </div>
-            <p class="observation-stage-description">{{ currentLevelDescription(stage) || '暂无记录' }}</p>
-            <StageProgress :stage="stage" :kind="key" />
+            <ObservationStageContent :stage="stage" :kind="key" titled />
           </section>
         </template>
       </template>
@@ -163,17 +143,11 @@
           data-stage="好感度"
         >
           <template #title><StageHelp kind="好感度" /></template>
-          <div class="observation-stage-head">
-            <span class="observation-stage-icon" aria-hidden="true">♡</span>
-            <span class="observation-stage-meaning">关系亲近程度</span>
-            <div class="observation-stage-level">
-              <small>等级</small><strong>{{ selectedMinor.人设阶段.好感度.当前等级 }}</strong>
-            </div>
-          </div>
-          <p class="observation-stage-description">
-            {{ currentLevelDescription(selectedMinor.人设阶段.好感度) || '暂无当前阶段描述' }}
-          </p>
-          <StageProgress :stage="selectedMinor.人设阶段.好感度" kind="好感度" />
+          <ObservationStageContent
+            :stage="selectedMinor.人设阶段.好感度"
+            kind="好感度"
+            :rating="selectedMinor.当前评级"
+          />
         </LockedField>
         <LockedField
           v-if="selectedMinor.人设阶段?.恶堕度"
@@ -184,18 +158,11 @@
           data-stage="恶堕度"
         >
           <template #title><StageHelp kind="恶堕度" /></template>
-          <div class="observation-stage-head">
-            <span class="observation-stage-icon" aria-hidden="true">✦</span>
-            <span class="observation-stage-meaning">恶堕进程</span>
-            <div class="observation-stage-level">
-              <small>等级</small><strong>{{ selectedMinor.人设阶段.恶堕度.当前等级 }}</strong>
-            </div>
-          </div>
-          <p class="observation-stage-description">
-            {{ currentLevelDescription(selectedMinor.人设阶段.恶堕度) || '暂无当前阶段描述' }}
-          </p>
-          <StageProgress :stage="selectedMinor.人设阶段.恶堕度" kind="恶堕度" :rating="selectedMinor.当前评级" />
-          <CorruptionNextReward :level="selectedMinor.人设阶段.恶堕度.当前等级" :rating="selectedMinor.当前评级" />
+          <ObservationStageContent
+            :stage="selectedMinor.人设阶段.恶堕度"
+            kind="恶堕度"
+            :rating="selectedMinor.当前评级"
+          />
         </LockedField>
       </template>
     </template>
@@ -214,33 +181,14 @@
           <h3>特殊状态</h3>
           <p class="data-prose">{{ (selectedMain ?? selectedMinor)!.身体.特殊状态.map(formatValue).join('、') }}</p>
         </section>
-        <section v-for="[key, part] in bodyEntries" :key="key" class="data-card monitor-card body-observation-card">
-          <button
-            v-if="part.特征 || part.开发程度"
-            type="button"
-            class="monitor-card-head body-card-toggle"
-            :aria-expanded="expandedBodyParts.includes(key)"
-            @click="toggleBodyPart(key)"
-          >
-            <strong>{{ key }}</strong>
-            <span aria-hidden="true">{{ expandedBodyParts.includes(key) ? '⌃' : '⌄' }}</span>
-          </button>
-          <div v-else class="monitor-card-head">
-            <strong>{{ key }}</strong>
-          </div>
-          <div class="body-current">
-            <span>当前状态</span>
-            <p>{{ part.当前状态 || '暂无记录' }}</p>
-          </div>
-          <div v-if="expandedBodyParts.includes(key) && part.特征" class="body-detail">
-            <span>特征</span>
-            <p>{{ part.特征 }}</p>
-          </div>
-          <div v-if="expandedBodyParts.includes(key) && part.开发程度" class="body-detail">
-            <span>开发程度</span>
-            <p>{{ part.开发程度 }}</p>
-          </div>
-        </section>
+        <ObservationBodyCard
+          v-for="[key, part] in bodyEntries"
+          :key="key"
+          :name="key"
+          :part="part"
+          :expanded="expandedBodyParts.includes(key)"
+          @toggle="toggleBodyPart(key)"
+        />
       </LockedField>
     </template>
     <template v-else>
@@ -450,7 +398,7 @@
 <script setup lang="ts">
 import type { 角色人设, stat_data, 次要角色人设 } from '../../types';
 import { computed, nextTick, ref, watch } from 'vue';
-import { currentLevelDescription, entries } from './entries';
+import { entries } from './entries';
 import { useMagicGirlStatStore } from '../../store/StatStore';
 import {
   availableCharacterImageForms,
@@ -467,8 +415,8 @@ import ObservationAvatar from './ObservationAvatar.vue';
 import LockedField from './LockedField.vue';
 import RatingEmblem from './RatingEmblem.vue';
 import StageHelp from './StageHelp.vue';
-import StageProgress from './StageProgress.vue';
-import CorruptionNextReward from './CorruptionNextReward.vue';
+import ObservationStageContent from './ObservationStageContent.vue';
+import ObservationBodyCard from './ObservationBodyCard.vue';
 
 const props = defineProps<{
   data: stat_data;
@@ -586,11 +534,6 @@ const pendingTarget = computed(() =>
     : undefined,
 );
 const stageEntries = computed(() => entries(selectedMain.value?.人设阶段));
-const stageMeta = {
-  创伤稳定度: { icon: '◇', meaning: '心理应对模式' },
-  好感度: { icon: '♡', meaning: '关系亲近程度' },
-  恶堕度: { icon: '✦', meaning: '恶堕进程' },
-} as const;
 const bodyEntries = computed(() =>
   (selectedMain.value ?? selectedMinor.value)?.身体
     ? (['小穴', '口穴', '菊穴', '胸部'] as const).map(

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { dirname, resolve } from 'node:path';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 import * as Vue from 'vue';
 import { compileScript, compileTemplate, parse } from 'vue/compiler-sfc';
 import * as model from '../src/在场角色状态/model';
+import { stageExperienceProgress } from '../src/手机界面/store/stageProgression';
 
 type Node = { type: string; text: string; children: Node[]; props: Record<string, any>; parent?: Node };
 const node = (type: string, text = ''): Node => ({ type, text, children: [], props: {} });
@@ -49,8 +51,8 @@ function content(target: Node): string {
 const long = '长篇身体状态记录，完整保留文字与换行。\n'.repeat(60);
 const stage = (prefix: string) => ({
   当前等级: 2,
-  累计经验: 0,
-  描述: { '2': `${prefix}当前阶段`, '3': '禁止泄露的未来阶段' },
+  累计经验: 10,
+  描述: { '1': `${prefix}回退阶段`, '2': `${prefix}当前阶段`, '3': `${prefix}相邻阶段` },
 });
 const body = () => ({
   特殊状态: ['特殊状态正文', { 名称: '结构化状态', 描述: '测试' }],
@@ -93,6 +95,41 @@ let reads = 0;
 const listeners = new Map<string, () => void>();
 let initialize = () => Promise.resolve();
 const filename = 'src/在场角色状态/App.vue';
+const phoneSource = readFileSync('src/手机界面/apps/data/CharacterObservation.vue', 'utf8');
+assert.match(phoneSource, /import ObservationStageContent/);
+assert.match(phoneSource, /import ObservationBodyCard/);
+assert.doesNotMatch(phoneSource, /class="observation-stage-head"|class="body-current"/, '手机旧重复 DOM 应退出');
+const childCache = new Map<string, any>();
+function loadChild(filename: string) {
+  if (childCache.has(filename)) return childCache.get(filename);
+  const { descriptor } = parse(readFileSync(filename, 'utf8'), { filename });
+  const script = compileScript(descriptor, { id: filename });
+  const template = compileTemplate({
+    source: descriptor.template!.content,
+    filename,
+    id: filename,
+    compilerOptions: { bindingMetadata: script.bindings },
+  });
+  assert.deepEqual(template.errors, []);
+  const child = { exports: {} as any };
+  runInNewContext(
+    transpileModule(`${script.content}\n${template.code}`, {
+      compilerOptions: { target: ScriptTarget.ES2022, module: ModuleKind.CommonJS },
+    }).outputText,
+    {
+      exports: child.exports,
+      module: child,
+      require(id: string) {
+        if (id === 'vue') return Vue;
+        const full = resolve(dirname(filename), id);
+        return id.endsWith('.vue') ? { default: loadChild(full) } : require(full);
+      },
+    },
+  );
+  child.exports.default.render = child.exports.render;
+  childCache.set(filename, child.exports.default);
+  return child.exports.default;
+}
 const { descriptor } = parse(readFileSync(filename, 'utf8'), { filename });
 const script = compileScript(descriptor, { id: 'present-status-test' });
 const template = compileTemplate({
@@ -113,6 +150,8 @@ runInNewContext(
     require(id: string) {
       if (id === 'vue') return Vue;
       if (id === './model') return model;
+      if (id.endsWith('.css')) return {};
+      if (id.endsWith('.vue')) return { default: loadChild(resolve(dirname(filename), id)) };
       throw new Error(`Unexpected import: ${id}`);
     },
     console: { error() {} },
@@ -172,21 +211,36 @@ async function main() {
   assert.match(text(), /2 人/);
   assert.match(text(), /稳定度当前阶段/);
   assert.match(text(), /好感当前阶段/);
-  assert.doesNotMatch(text(), /禁止泄露|当前正文|离场角色|非布尔角色/);
+  assert.doesNotMatch(text(), /当前正文|离场角色|非布尔角色/);
+  assert.match(text(), /稳定度相邻阶段/);
+  const progressTracks = () => all(root).filter(n => n.props.class === 'observation-stage-progress-track');
+  assert.equal(progressTracks().length, 3, '三项状态条必须实际渲染');
+  const expected = stageExperienceProgress(latest.角色.主要角色.同名角色.人设阶段.好感度, '好感度');
+  assert.equal(progressTracks()[1].children[0].props.style.width, `${expected.percent}%`);
+  latest.角色.主要角色.同名角色.人设阶段.好感度.累计经验 = -10;
+  listeners.get('update')!();
+  await flush();
+  assert.match(text(), /回退方向|好感回退阶段/);
+  assert.ok(all(root).some(n => String(n.props.class).includes('observation-stage-progress backward')));
+  latest = structuredClone(fixture);
+  latest.角色.主要角色.同名角色.人设阶段.创伤稳定度.当前等级 = 3;
+  listeners.get('update')!();
+  await flush();
+  assert.equal(progressTracks()[0].children[0].props.style.width, '100%', '最高级状态条填满');
+  latest = structuredClone(fixture);
+  listeners.get('update')!();
+  await flush();
   await click('身体');
   assert.ok(text().includes(`小穴当前正文：${long}`), '长文本与换行必须完整保留');
-  assert.doesNotMatch(text(), /口穴当前正文|菊穴当前正文|胸部当前正文|稳定度当前阶段/);
-  const details = all(root).filter(target => target.type === 'details');
-  assert.equal(details.length, 3, '特殊状态、特征、开发程度分别折叠');
-  assert.ok(
-    details.every(target => !target.props.open),
-    '初始不得自动展开长文详情',
-  );
-  const firstPartDetails = details[1];
-  await click('胸部');
-  assert.ok(!all(root).includes(firstPartDetails), '切部位应重新创建关闭的详情');
-  assert.ok(text().includes(`胸部当前正文：${long}`));
-  assert.doesNotMatch(text(), /小穴当前正文/);
+  for (const part of model.bodyParts) assert.ok(text().includes(`${part}当前正文：${long}`));
+  assert.doesNotMatch(text(), /特征正文|开发正文|稳定度当前阶段/);
+  const bodyButton = all(root).find(n => n.type === 'button' && content(n).startsWith('胸部'))!;
+  bodyButton.props.onClick();
+  await flush();
+  assert.match(text(), /胸部特征正文|胸部开发正文/);
+  bodyButton.props.onClick();
+  await flush();
+  assert.doesNotMatch(text(), /特征正文|开发正文/);
   const ids = model.presentCharacters(latest).map(character => character.id);
   assert.notEqual(ids[0], ids[1], '同名主次角色身份不能混淆');
   await select(ids[1]);
@@ -249,7 +303,7 @@ async function main() {
   assert.equal(reads, readCount, '初始化等待期间卸载，不得迟到读取或注册监听');
   assert.equal(listeners.size, 0);
   console.info(
-    '在场角色状态验证通过：真实 Vue 渲染/按钮、长文单部位、解锁隔离、同名主次角色、离场回退、缺字段、错误重试与卸载。',
+    '在场角色状态验证通过：共用手机真实组件、三项状态条、回退/最高级、身体卡片展开、解锁隔离、角色切换、缺字段、错误重试与卸载。',
   );
 }
 main().catch(error => {
