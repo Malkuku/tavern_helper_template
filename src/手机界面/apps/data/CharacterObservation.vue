@@ -241,7 +241,6 @@
             kind="主要角色"
             :character-key="selectedMainKey!"
             field="核心能力"
-            hint="创伤会改变她驾驭魔力的方式。能力边界随创伤稳定度起伏，档案只显示此刻的表现。"
           >
             <div class="archive-record">
               <span>能力本质</span>
@@ -252,7 +251,12 @@
               <p>{{ currentMainAbilityLimit || '当前阶段暂无记录' }}</p>
             </div>
           </LockedField>
-          <LockedField class="archive-secret-field" kind="主要角色" :character-key="selectedMainKey!" field="核心创伤">
+          <LockedField
+            class="archive-secret-field archive-trauma"
+            kind="主要角色"
+            :character-key="selectedMainKey!"
+            field="核心创伤"
+          >
             <p class="data-prose">{{ selectedMain.核心创伤 || '暂无记录' }}</p>
           </LockedField>
         </section>

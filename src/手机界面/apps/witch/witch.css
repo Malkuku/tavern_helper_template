@@ -1629,6 +1629,11 @@
   font-size: 11px;
   line-height: 1.55;
 }
+.witch-app .archive-trauma .item-heading h3,
+.witch-app .archive-trauma .data-prose,
+.witch-app[data-observation-theme='refined'] .archive-trauma .data-prose {
+  color: #ff747f;
+}
 .witch-app .archive-ability {
   border-color: #9c739e;
   background: linear-gradient(145deg, #30213b, #231825);
