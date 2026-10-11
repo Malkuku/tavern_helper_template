@@ -29,7 +29,7 @@ export function isNewGenerationResult(
   startId: number,
   startText: string,
 ): message is ChatMessage {
-  if (!message || message.role !== 'assistant') return false;
+  if (!message || (message.role !== 'assistant' && message.role !== 'user')) return false;
   const currentResult = latestGeneratedTag(message.message, marker);
   if (!currentResult) return false;
   if (message.message_id > startId) return true;

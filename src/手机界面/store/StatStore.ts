@@ -733,7 +733,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           if (generation !== chatGeneration) return;
           try {
             const message = getChatMessages(failed.messageId)[0];
-            if (!message || message.role !== 'assistant') continue;
+            if (!message || (message.role !== 'assistant' && message.role !== 'user')) continue;
             if (message.message.slice(failed.index, failed.index + failed.tag.length) !== failed.tag) continue;
             await setChatMessages(
               [

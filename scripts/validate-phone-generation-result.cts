@@ -10,42 +10,47 @@ for (const marker of ['<questVariable', '<shopVariable', '<skillVariable'] as co
   const tag = marker.slice(1);
   const oldResult = `<${tag}>{"旧":1}</${tag}>`;
   const newResult = `<${tag}>{"新":2}</${tag}>`;
-  const message = (message_id: number, text: string, role = 'assistant') =>
-    ({
-      message_id,
-      role,
-      message: text,
-    }) as ChatMessage;
+  for (const role of ['assistant', 'user'] as const) {
+    const message = (message_id: number, text: string, messageRole = role) =>
+      ({
+        message_id,
+        role: messageRole,
+        message: text,
+      }) as ChatMessage;
 
+    assert.equal(
+      isNewGenerationResult(message(8, `正文${newResult}`), marker, 8, '原正文'),
+      true,
+      `${tag} 同楼生成应被接收`,
+    );
+    assert.equal(isNewGenerationResult(message(9, newResult), marker, 8, '原正文'), true, `${tag} 新楼生成应被接收`);
+    assert.equal(
+      isNewGenerationResult(message(8, `改过的正文${oldResult}`), marker, 8, `原正文${oldResult}`),
+      false,
+      `${tag} 旧结果不能因无关正文变化而重复结算`,
+    );
+    assert.equal(
+      isNewGenerationResult(message(8, `正文${newResult}`), marker, 8, `正文${oldResult}`),
+      true,
+      `${tag} 同楼替换结果应被接收`,
+    );
+    assert.equal(
+      isNewGenerationResult(message(8, `正文${oldResult}${newResult}`), marker, 8, `正文${oldResult}`),
+      true,
+      `${tag} 同楼新增结果应被接收`,
+    );
+    assert.equal(latestGeneratedPayload(`${oldResult}${newResult}`, marker), '{"新":2}');
+    assert.equal(
+      isNewGenerationResult(message(8, `正文${oldResult}${oldResult}`), marker, 8, `正文${oldResult}`),
+      true,
+    );
+    assert.equal(isNewGenerationResult(message(8, `正文${oldResult}<${tag}>{`), marker, 8, `正文${oldResult}`), false);
+    assert.equal(isNewGenerationResult(message(7, newResult), marker, 8, '原正文'), false, `${tag} 旧楼结果不能结算`);
+  }
   assert.equal(
-    isNewGenerationResult(message(8, `正文${newResult}`), marker, 8, '原正文'),
-    true,
-    `${tag} 同楼生成应被接收`,
-  );
-  assert.equal(isNewGenerationResult(message(9, newResult), marker, 8, '原正文'), true, `${tag} 新楼生成应被接收`);
-  assert.equal(
-    isNewGenerationResult(message(8, `改过的正文${oldResult}`), marker, 8, `原正文${oldResult}`),
+    isNewGenerationResult({ message_id: 8, role: 'system', message: newResult } as ChatMessage, marker, 8, '原正文'),
     false,
-    `${tag} 旧结果不能因无关正文变化而重复结算`,
-  );
-  assert.equal(
-    isNewGenerationResult(message(8, `正文${newResult}`), marker, 8, `正文${oldResult}`),
-    true,
-    `${tag} 同楼替换结果应被接收`,
-  );
-  assert.equal(
-    isNewGenerationResult(message(8, `正文${oldResult}${newResult}`), marker, 8, `正文${oldResult}`),
-    true,
-    `${tag} 同楼新增结果应被接收`,
-  );
-  assert.equal(latestGeneratedPayload(`${oldResult}${newResult}`, marker), '{"新":2}');
-  assert.equal(isNewGenerationResult(message(8, `正文${oldResult}${oldResult}`), marker, 8, `正文${oldResult}`), true);
-  assert.equal(isNewGenerationResult(message(8, `正文${oldResult}<${tag}>{`), marker, 8, `正文${oldResult}`), false);
-  assert.equal(isNewGenerationResult(message(7, newResult), marker, 8, '原正文'), false, `${tag} 旧楼结果不能结算`);
-  assert.equal(
-    isNewGenerationResult(message(8, newResult, 'user'), marker, 8, '原正文'),
-    false,
-    `${tag} 非 assistant 结果不能结算`,
+    `${tag} 系统楼层结果不能结算`,
   );
 }
 

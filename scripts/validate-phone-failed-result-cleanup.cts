@@ -69,7 +69,8 @@ host.MutationObserver = class {
 
 host.waitGlobalInitialized = async () => undefined;
 host.getLastMessageId = () => 7;
-host.getChatMessages = () => [{ message_id: 7, role: 'assistant', message }];
+const messageRole = process.argv.includes('--user-floor') ? 'user' : 'assistant';
+host.getChatMessages = () => [{ message_id: 7, role: messageRole, message }];
 host.setChatMessages = async ([edit]: any[]) => {
   cleanupAttempts++;
   if (failFirstCleanup) {
