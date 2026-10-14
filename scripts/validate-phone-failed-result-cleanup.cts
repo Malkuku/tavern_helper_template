@@ -157,23 +157,30 @@ async function main() {
   await until(() => cleanupAttempts >= 2 && !message.includes(tag));
   assert.ok(message.startsWith(`正文${validTag}`), '旧失败标签被清理，新结果保留并正常结算');
   assert.match(message.slice(`正文${validTag}`.length), /<JSONPatch>/, '货架结算留下可重放的正文差分');
-  assert.equal(data.系统.商店主动刷新次数, 1);
+  const balanceAfterFirstRefresh = data.角色.user.恶堕积分;
   await store.refreshItemShop();
   await new Promise(resolve => setTimeout(resolve, 5100));
   assert.equal(store.itemRefreshing, true, '生成结束五秒后正文仍可继续写入结果');
-  await until(() => data.系统.商店主动刷新次数 === 2);
+  await until(() => data.角色.user.恶堕积分 === balanceAfterFirstRefresh - 2);
   assert.equal(store.itemRefreshError, '', '迟到结果不应被误报为没有返回');
   await store.refreshItemShop();
-  await until(() => data.系统.商店主动刷新次数 === 3);
+  await until(() => data.角色.user.恶堕积分 === balanceAfterFirstRefresh - 4);
   assert.equal(store.itemRefreshError, '', '正文写入没有消息或按钮事件时仍应接收结果');
   await store.refreshSkillShop();
-  await until(() => data.系统.技能主动刷新次数 === 1);
+  await until(() => !!data.技能商店.新技能);
   assert.ok(data.技能商店.新技能, '无通知的技能正文写入后应上架');
   assert.equal(store.skillRefreshError, '');
   await store.refreshTaskBoard();
-  await until(() => data.系统.任务主动刷新次数 === 1);
+  await until(() => !!data.任务候选.新任务);
   assert.ok(data.任务候选.新任务, '无通知的任务正文写入后应成为候选');
   assert.equal(store.taskRefreshError, '');
+
+  data.任务候选.新任务.强制委托 = true;
+  const beforeForcedRefresh = structuredClone(data);
+  await assert.rejects(store.refreshTaskBoard(), /先接取全部强制委托/);
+  assert.deepEqual(data, beforeForcedRefresh, '真实 Store 入口不能绕过强制候选');
+  assert.equal(store.taskRefreshing, false, '被强制候选阻止时不启动生成');
+  delete data.任务候选.新任务.强制委托;
 
   function emit(name: string) {
     for (const listener of listeners.get(name) ?? []) listener(7);

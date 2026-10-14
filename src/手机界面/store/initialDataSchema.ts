@@ -161,7 +161,7 @@ export const initialStatDataSchema = z.strictObject({
   世界: z.strictObject({ 时间: z.string().min(1), 地点: z.string(), 天气: z.string(), 地图索引: z.string() }),
   仓库: z.record(z.string(), itemSchema),
   任务: z.record(z.string(), questSchema),
-  任务候选: z.record(z.string(), questSchema),
+  任务候选: z.record(z.string(), questSchema.extend({ 强制委托: z.boolean().optional() })),
   任务统计: z.strictObject({ 开始周: z.string(), 周记录: z.record(z.string(), questWeekSchema) }),
   商店: z.record(z.string(), itemSchema),
   技能商店: z.record(z.string(), skillSchema),

@@ -74,7 +74,7 @@ export const Schema = object({
   世界: object({ 时间: worldTime, 地图索引: z.string().optional() }).optional(),
   仓库: map(item).optional(),
   任务: map(quest).optional(),
-  任务候选: map(quest).optional(),
+  任务候选: map(quest.extend({ 强制委托: z.boolean().optional() })).optional(),
   商店: map(item).optional(),
   技能商店: map(skill).optional(),
   任务统计: object({ 周记录: map(object({ 完成: number.optional(), 放弃: number.optional() })).optional() }).optional(),

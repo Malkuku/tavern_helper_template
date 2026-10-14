@@ -70,7 +70,7 @@ refreshTasks(
 );
 assert.equal(invalidRewardData.任务候选.任务1, undefined, '奖励字段错误的候选不展示');
 assert.equal(Object.keys(invalidRewardData.任务候选).length, 5);
-assert.equal(invalidRewardData.系统.任务主动刷新次数, 1, '部分有效仍结算一次');
+assert.equal(invalidRewardData.系统.任务主动刷新次数, 0, '刷新不再更新旧计次字段');
 const missingPenaltyData = structuredClone(data);
 refreshTasks(
   missingPenaltyData,
@@ -93,23 +93,8 @@ assert.equal(tolerantData.任务候选.任务1.已失败, false, '候选失败�
 assert.equal(tolerantData.任务候选.任务1.备注, undefined, '额外字段不写入变量');
 refreshTasks(data, result);
 assert.equal(Object.keys(data.任务候选).length, 6);
-assert.equal(data.系统.任务下次刷新时间, '2026-10-5T00:00[1]');
-assert.equal(taskRefreshState(data).remaining, 4);
-const weeklyQuota = structuredClone(data);
-for (let used = 2; used <= 5; used++) {
-  refreshTasks(weeklyQuota, result);
-  assert.equal(taskRefreshState(weeklyQuota).remaining, 5 - used);
-}
-assert.throws(() => refreshTasks(weeklyQuota, result), /次数已用完/);
-assert.equal(weeklyQuota.系统.任务主动刷新次数, 5);
-weeklyQuota.世界.时间 = '2026-10-5T00:00[1]';
-assert.equal(taskRefreshState(weeklyQuota).remaining, 5, '周一恢复五次刷新机会');
-refreshTasks(weeklyQuota, result);
-assert.equal(weeklyQuota.系统.任务主动刷新次数, 1);
-const legacyDaily = structuredClone(data);
-legacyDaily.系统.任务下次刷新时间 = '2026-9-29T00:00[2]';
-legacyDaily.世界.时间 = '2026-9-30T09:00[3]';
-assert.equal(taskRefreshState(legacyDaily).remaining, 4, '旧每日刷新记录计入本周已用次数');
+for (let index = 0; index < 10; index++) refreshTasks(data, result);
+assert.equal(taskRefreshState(data).available, true, '无强制候选时刷新次数无限制');
 
 for (let index = 1; index <= 5; index++) acceptTask(data, `任务${index}`);
 assert.equal(Object.keys(data.任务候选).length, 1, '第五项可接取且从候选移除');

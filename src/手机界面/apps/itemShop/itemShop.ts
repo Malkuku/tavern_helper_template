@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { stat_data, 物品 } from '../../types';
 import { itemSchema } from '../../store/initialDataSchema';
 import { inventoryOf, mergeItemStack, sameItemSpec, type InventorySide } from '../data/inventoryTransfer';
-import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
+import { directedRefreshPrice, shopRefreshPrice } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { latestGeneratedPayload } from '../generationResult';
 import { isWithinGeneratedRating, userRatingFromContribution } from '../../store/userRating';
@@ -19,8 +19,8 @@ const generatedItemSchema = z.object({
 });
 const generatedRecordSchema = z.record(z.string(), z.unknown());
 
-export function itemRefreshQuote(data: stat_data): { next: string; count: number; price: number } {
-  return weeklyShopQuote(data, '道具');
+export function itemRefreshQuote(_data: stat_data): { price: number } {
+  return { price: shopRefreshPrice('道具') };
 }
 
 export function parseItemResult(message: string, data: stat_data): Record<string, 物品> {
@@ -67,8 +67,6 @@ export function applyItemRefresh(data: stat_data, message: string, directed = fa
   if (!Number.isSafeInteger(balance) || balance < price) throw new Error(`恶堕积分不足，需要 ${price} 点。`);
   data.商店 = shop;
   data.角色.user.恶堕积分 -= price;
-  data.系统.商店下次刷新时间 = quote.next;
-  data.系统.商店主动刷新次数 = quote.count + 1;
   if (directed) data.手机.定向刷新 = null;
 }
 

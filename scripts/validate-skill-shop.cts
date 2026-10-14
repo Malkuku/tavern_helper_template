@@ -63,14 +63,14 @@ const data: any = {
   技能商店: {},
 };
 const stock = { 旧技能: skill('C', 80), 新技能: skill('D', 30), 越级技能: skill('B', 220) };
-assert.equal(refreshQuote(data).price, 0, '技能本周首次普通刷新免费');
+assert.equal(refreshQuote(data).price, 5, '技能普通刷新固定 5 点');
 applySkillRefresh(data, `<skillVariable>${JSON.stringify(stock)}</skillVariable>`);
-assert.equal(data.角色.user.恶堕积分, 200, '技能首次刷新不扣积分');
+assert.equal(data.角色.user.恶堕积分, 195, '技能首次刷新收取 5 点');
 assert.equal(refreshQuote(data).price, 5, '第二次刷新报价 5 积分');
 for (const [count, price] of [
-  [2, 10],
-  [3, 15],
-  [4, 20],
+  [2, 5],
+  [3, 5],
+  [4, 5],
 ] as const) {
   data.系统.技能主动刷新次数 = count;
   assert.equal(refreshQuote(data).price, price);

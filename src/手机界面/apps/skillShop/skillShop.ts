@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { 可购技能, 技能, stat_data } from '../../types';
 import { skillSchema } from '../../store/initialDataSchema';
-import { directedRefreshPrice, weeklyShopQuote } from '../shopRefresh';
+import { directedRefreshPrice, shopRefreshPrice } from '../shopRefresh';
 import { isGeneratedShopIcon } from '../shopIcon';
 import { isWithinGeneratedRating, userRatingFromContribution } from '../../store/userRating';
 import { latestGeneratedPayload } from '../generationResult';
@@ -18,8 +18,8 @@ const generatedSkillSchema = z.object({
 });
 const generatedRecordSchema = z.record(z.string(), z.unknown());
 
-export function refreshQuote(data: stat_data): { next: string; count: number; price: number } {
-  return weeklyShopQuote(data, '技能');
+export function refreshQuote(_data: stat_data): { price: number } {
+  return { price: shopRefreshPrice('技能') };
 }
 
 function validPrice(value: number): boolean {
@@ -104,8 +104,6 @@ export function applySkillRefresh(data: stat_data, message: string, directed = f
     throw new Error(`恶堕积分不足，需要 ${price} 点。`);
   data.技能商店 = shop;
   data.角色.user.恶堕积分 -= price;
-  data.系统.技能下次刷新时间 = quote.next;
-  data.系统.技能主动刷新次数 = quote.count + 1;
   if (directed) data.手机.定向刷新 = null;
 }
 

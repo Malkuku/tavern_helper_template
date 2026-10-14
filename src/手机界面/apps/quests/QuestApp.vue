@@ -10,9 +10,12 @@
           :disabled="busy || store.taskRefreshing || !refreshAvailable"
           @click="run(() => store.refreshTaskBoard())"
         >
-          {{ store.taskRefreshing ? '刷新中…' : refreshAvailable ? '刷新任务' : '本周次数已用完' }}
+          {{ store.taskRefreshing ? '刷新中…' : refreshAvailable ? '刷新任务' : '请先接取强制委托' }}
         </button>
-        <p>本周剩余刷新 {{ refreshState?.remaining ?? 0 }}/5 次</p>
+        <p v-if="refreshState?.mandatoryCount">
+          尚有 {{ refreshState.mandatoryCount }} 项强制委托，全部接取后才能刷新。
+          <template v-if="activeEntries.length >= maxAcceptedTasks">接取名额已满，请先领奖或放弃已有任务。</template>
+        </p>
         <button v-if="store.taskRefreshing" type="button" class="secondary" @click="store.cancelTaskRefresh()">
           取消生成
         </button>

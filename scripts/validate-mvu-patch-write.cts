@@ -111,12 +111,12 @@ async function main() {
   await MvuUtil.updateMvuDataByObjWithPatch(next);
   assert.ok(saved.商店.温感束缚织带, '用户最后一段标签的商品实际保存');
   assert.equal(saved.角色.user.恶堕积分, 256, '第二次刷新收取 2 积分');
-  assert.equal(saved.系统.商店主动刷新次数, 2);
+  assert.equal(saved.系统.商店主动刷新次数, 1, '固定收费不再更新旧计次字段');
   assert.ok(message.startsWith(source), '完整原正文和已有标签逐字保留');
   assert.equal(notifications, 1);
   // 原正文的剧情补丁依赖真实角色；这里只重放本次脚本追加的差分。
   const refreshJournal = message.slice(source.length);
-  assert.deepEqual(replay(baseline, refreshJournal), saved, '原楼层货架为空时，正文重算恢复货架、积分和计次');
+  assert.deepEqual(replay(baseline, refreshJournal), saved, '原楼层货架为空时，正文重算恢复货架和积分');
   const beforePurchase = structuredClone(saved);
   const purchased = structuredClone(saved);
   buyItem(purchased, '温感束缚织带', purchased.商店.温感束缚织带.数量);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { stat_data, 任务 } from '../../types';
+import type { stat_data, 任务, 任务候选 } from '../../types';
 import { questSchema } from '../../store/initialDataSchema';
 import { latestGeneratedPayload } from '../generationResult';
 import { isWithinGeneratedRating, ratingContribution, userRatingFromContribution } from '../../store/userRating';
@@ -24,7 +24,7 @@ export const zeroRatingCounts = (): Record<任务评级, number> => ({ D: 0, C: 
 const resultQuestSchema = z
   .object(questSchema.shape)
   .omit({ 当前进度: true, 已完成: true, 已失败: true })
-  .extend({ 失败惩罚: z.string().trim().min(1) });
+  .extend({ 失败惩罚: z.string().trim().min(1), 强制委托: z.boolean().optional() });
 const generatedRecordSchema = z.record(z.string(), z.unknown());
 const timePattern = /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}):(\d{2})\[([1-7])\]$/;
 
@@ -73,27 +73,13 @@ export function nextTaskWeekTime(time: string): string {
 
 export function taskRefreshState(data: stat_data): {
   available: boolean;
-  remaining: number;
-  count: number;
-  next: string;
+  mandatoryCount: number;
 } {
-  const now = worldDate(data.世界.时间);
-  const next = data.系统.任务下次刷新时间;
-  const recordedCount = data.系统.任务主动刷新次数;
-  if (!Number.isSafeInteger(recordedCount) || recordedCount < 0 || recordedCount > 5)
-    throw new Error('任务刷新次数无效。');
-  const marker = next ? worldDate(next) : null;
-  const weekStart = new Date(now);
-  weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
-  weekStart.setUTCHours(0, 0, 0, 0);
-  // 旧存档的标记是次日 00:00；本周内已成功的一次仍计入本周。
-  const legacyDailyMarker = marker && marker.getUTCDay() !== 1;
-  const count = !marker || (legacyDailyMarker ? marker <= weekStart : now >= marker) ? 0 : recordedCount;
-  const remaining = 5 - count;
-  return { available: remaining > 0, remaining, count, next: nextMonday(now) };
+  const mandatoryCount = Object.values(data.任务候选).filter(task => task.强制委托 === true).length;
+  return { available: mandatoryCount === 0, mandatoryCount };
 }
 
-function parseResult(message: string, active: stat_data['任务'], playerRating: 任务评级): Record<string, 任务> {
+function parseResult(message: string, active: stat_data['任务'], playerRating: 任务评级): Record<string, 任务候选> {
   const payload = latestGeneratedPayload(message, '<questVariable');
   if (payload === undefined) throw new Error('任务生成结果缺少完整的 questVariable 标签。');
   let raw: unknown;
@@ -104,7 +90,7 @@ function parseResult(message: string, active: stat_data['任务'], playerRating:
   }
   const result = generatedRecordSchema.safeParse(raw);
   if (!result.success) throw new Error('任务生成结果必须是候选任务对象。');
-  const accepted: [string, 任务][] = [];
+  const accepted: [string, 任务候选][] = [];
   for (const [name, value] of Object.entries(result.data)) {
     if (!name.trim() || Object.hasOwn(active, name)) continue;
     const parsed = resultQuestSchema.safeParse(value);
@@ -116,12 +102,9 @@ function parseResult(message: string, active: stat_data['任务'], playerRating:
 }
 
 export function refreshTasks(data: stat_data, message: string): void {
-  const state = taskRefreshState(data);
-  if (!state.available) throw new Error('本周任务刷新次数已用完。');
+  if (!taskRefreshState(data).available) throw new Error('请先接取全部强制委托，再刷新任务。');
   const result = parseResult(message, data.任务, userRatingFromContribution(data.角色.user.评级贡献));
   data.任务候选 = result;
-  data.系统.任务下次刷新时间 = state.next;
-  data.系统.任务主动刷新次数 = state.count + 1;
 }
 
 export function emptyTaskWeek(week: string): stat_data['任务统计']['周记录'][string] {
@@ -173,7 +156,8 @@ export function acceptTask(data: stat_data, name: string): void {
   if (Object.hasOwn(data.任务, name)) throw new Error('这项任务已经接取。');
   if (activeTaskCount(data.任务) >= maxAcceptedTasks)
     throw new Error(`最多同时接取 ${maxAcceptedTasks} 项任务，已完成未领奖仍占名额。`);
-  data.任务[name] = { ...task, 当前进度: '进行中', 已失败: false };
+  const { 强制委托: _mandatory, ...accepted } = task;
+  data.任务[name] = { ...accepted, 当前进度: '进行中', 已失败: false };
   delete data.任务候选[name];
 }
 

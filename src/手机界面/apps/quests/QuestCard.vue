@@ -1,5 +1,9 @@
 <template>
-  <article class="quest-card" :class="ratingVisualClass(effectiveTaskRating(task.评级))">
+  <article
+    class="quest-card"
+    :class="[ratingVisualClass(effectiveTaskRating(task.评级)), { 'quest-card-mandatory': !accepted && task.强制委托 }]"
+  >
+    <div v-if="!accepted && task.强制委托" class="quest-card-mandatory-label">强制委托 · 接取后可继续刷新</div>
     <div class="quest-card-heading">
       <strong>{{ name }}</strong
       ><span>{{ effectiveTaskRating(task.评级) }} 级</span>
@@ -21,11 +25,11 @@
 
 <script setup lang="ts">
 import { ratingContribution } from '../../store/userRating';
-import type { 任务 } from '../../types';
+import type { 任务候选 } from '../../types';
 import { ratingVisualClass } from '../witch/ratingVisual';
 import { effectiveTaskRating, effectiveTaskReward } from './quests';
 
-defineProps<{ name: string; task: 任务; accepted: boolean }>();
+defineProps<{ name: string; task: 任务候选; accepted: boolean }>();
 </script>
 
 <style scoped>
@@ -110,6 +114,22 @@ defineProps<{ name: string; task: 任务; accepted: boolean }>();
   justify-content: space-between;
   gap: 9px;
   min-width: 0;
+}
+.quest-card.quest-card-mandatory {
+  outline: 2px solid #ff826d;
+  outline-offset: 2px;
+  background: linear-gradient(155deg, #3c202d, #251722);
+}
+.quest-card-mandatory-label {
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid #ff826d;
+  border-radius: 6px;
+  background: #6a2d34;
+  color: #ffe2d7;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.5;
 }
 .quest-card-heading strong {
   font-size: 14px;

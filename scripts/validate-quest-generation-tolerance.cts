@@ -21,7 +21,7 @@ assert.equal(Object.keys(data.任务候选).length, 6);
 assert.equal(data.任务候选.任务1.当前进度, '未接取');
 assert.equal(data.任务候选.任务1.已完成, false);
 assert.equal(data.任务候选.任务1.备注, undefined);
-assert.equal(data.系统.任务主动刷新次数, 1);
+assert.equal(data.系统.任务主动刷新次数, 0);
 
 for (const count of [5, 7, 8]) {
   const current = { ...structuredClone(data), 系统: { 任务下次刷新时间: '', 任务主动刷新次数: 0 } };
@@ -35,7 +35,7 @@ refreshTasks(partial, `<questVariable>${JSON.stringify({ ...stock, 任务1: { ..
 assert.equal(partial.任务候选.任务1, undefined, '无效奖励的任务不展示');
 assert.equal(partial.任务候选.任务2, undefined, '与已接任务重名的候选不展示');
 assert.equal(Object.keys(partial.任务候选).length, 4);
-assert.equal(partial.系统.任务主动刷新次数, 1);
+assert.equal(partial.系统.任务主动刷新次数, 0);
 const invalid = { ...structuredClone(data), 系统: { 任务下次刷新时间: '', 任务主动刷新次数: 0 } };
 const before = structuredClone(invalid);
 assert.throws(() => refreshTasks(invalid, '<questVariable>{}</questVariable>'), /没有可接取的候选任务/);
