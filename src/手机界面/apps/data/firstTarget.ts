@@ -16,7 +16,7 @@ export const firstTargetChoices = [
       name: '青叶学园转学生证明',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 17h8M12 9l.8 1.6 1.8.3-1.3 1.3.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.3 1.8-.3L12 9Z"/></svg>',
       description: '组织为玩家安排的转学生掩护身份与配套入学证明，资料可供青叶学园核验。',
-      effect: '用于以转学生身份进入青叶学园，参加公开校园活动；不能直接获得学生会权限或鹭见凛的信任。',
+      effect: '用于以转学生身份进入青叶学园，参加公开校园活动（可以和组织的其它人暗中联系以获取进一步加入学生会的帮助）。',
     },
   },
   {
@@ -26,13 +26,13 @@ export const firstTargetChoices = [
     lead: '常借姐姐人偶表达自己；接触时应尊重她本人的意愿。',
     quest: {
       description: '雨宫雫住在孤儿院，平时安静谨慎，魔法少女活动时常借姐姐人偶与人交流。',
-      goal: '以登记志愿者身份参加孤儿院获准的公开活动，经工作人员同意后与雨宫雫本人进行一次自愿交流。',
+      goal: '以务工人员身份进入孤儿院，完成院方安排的一项日常工作，在工作中与雨宫雫本人进行一次自愿交流。',
     },
     item: {
-      name: '孤儿院志愿者登记函',
+      name: '孤儿院务工工作证',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M15 3v4h3M8 17h6M11 14.5l-2.6-2.6a1.8 1.8 0 0 1 2.6-2.5 1.8 1.8 0 0 1 2.6 2.5L11 14.5Z"/></svg>',
-      description: '组织为玩家准备的志愿者掩护身份及活动登记函，记载可报名的公开活动。',
-      effect: '用于向孤儿院工作人员申请参加公开活动；进入院内及接触孩子仍须取得工作人员同意。',
+      description: '组织为玩家安排的孤儿院务工身份及工作证，登记为院内务工人员，负责院方安排的日常工作。',
+      effect: '证明你已受聘在孤儿院务工，可在工作职责范围内进入院内并处理日常事务；具体工作由院方安排。',
     },
   },
   {
@@ -64,7 +64,7 @@ export const firstTargetChoices = [
       name: '小鸟游琉璃私人助理工作证',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2"/><path d="M8 16c.6-2 2-3 4-3s3.4 1 4 3M8 19h8"/></svg>',
       description: '组织为玩家安排的私人助理身份及工作证，登记为小鸟游琉璃的在职助理，负责她交办的日常事务。',
-      effect: '证明你已受聘为小鸟游琉璃的私人助理，可在职责范围内随行并处理日常安排；具体事务由她交办。',
+      effect: '证明你已受聘为小鸟游琉璃的私人助理，可在职责范围内随行并处理日常安排（注意，所谓的私人助理只是打杂和供她消遣的，要做好被她使唤和玩弄的准备）。',
     },
   },
 ] as const;
