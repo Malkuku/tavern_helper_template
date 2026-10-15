@@ -2,7 +2,14 @@
 import assert from 'node:assert/strict';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { join } from 'node:path';
+// eslint-disable-next-line import-x/no-nodejs-modules
+import { readFileSync } from 'node:fs';
+// eslint-disable-next-line import-x/no-nodejs-modules
+import { runInNewContext } from 'node:vm';
 import { createPinia, setActivePinia } from 'pinia';
+import * as Vue from 'vue';
+import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc';
+import { transpileModule, ModuleKind } from 'typescript';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports, import-x/no-nodejs-modules
 const nodeModule = require('node:module') as any;
@@ -53,13 +60,22 @@ let cleanupAttempts = 0;
 let failFirstCleanup = true;
 let generationCount = 0;
 let tavernBusy = false;
+let stopButtonVisible = false;
+let assistantStop: (() => void) | undefined;
 
 const sendButton = {
   hasAttribute: () => false,
   classList: { contains: () => false },
 };
+const stopButton = {
+  click() {
+    host.SillyTavern.stopGeneration();
+    // 助手在停止按钮上另有处理器；直接调用酒馆接口不会触发它。
+    assistantStop?.();
+  },
+};
 host.window = {
-  parent: { document: { getElementById: () => sendButton } },
+  parent: { document: { getElementById: (id: string) => (id === 'mes_stop' ? stopButton : sendButton) } },
   getComputedStyle: () => ({ display: tavernBusy ? 'none' : 'block', visibility: 'visible' }),
 };
 host.MutationObserver = class {
@@ -136,6 +152,44 @@ host.eventEmit = async (name: string) => {
 setActivePinia(createPinia());
 const store = useMagicGirlStatStore();
 const dispose = store.initialize();
+const originalCrypto = Object.getOwnPropertyDescriptor(host, 'crypto');
+Object.defineProperty(host, 'crypto', { value: {}, configurable: true });
+
+function loadRefreshPage(app: string) {
+  const filename = join(process.cwd(), 'src/手机界面/apps', app);
+  const { descriptor } = parse(readFileSync(filename, 'utf8'), { filename });
+  const script = compileScript(descriptor, { id: 'refresh-cancel' });
+  const template = compileTemplate({
+    source: descriptor.template!.content,
+    filename,
+    id: 'refresh-cancel',
+    compilerOptions: { bindingMetadata: script.bindings },
+  });
+  assert.deepEqual(template.errors, []);
+  const page = { exports: {} as any };
+  const localRequire = nodeModule.createRequire(filename);
+  runInNewContext(
+    transpileModule(`${script.content}\n${template.code}`, {
+      compilerOptions: { module: ModuleKind.CommonJS },
+    }).outputText,
+    {
+      exports: page.exports,
+      module: page,
+      require(id: string) {
+        if (id === 'vue') return Vue;
+        if (id.endsWith('StatStore')) return { useMagicGirlStatStore: () => store };
+        if (id.endsWith('.vue')) return { default: { name: id } };
+        return localRequire(id);
+      },
+    },
+  );
+  const state = page.exports.default.setup({}, { expose() {} });
+  if (state.directed) {
+    state.directed.value = true;
+    state.preference.value = '调查与防御';
+  }
+  return () => page.exports.render({}, [], {}, Vue.proxyRefs(state));
+}
 
 async function until(check: () => boolean, timeout = 5000) {
   const end = Date.now() + timeout;
@@ -188,9 +242,13 @@ async function main() {
   let stopCalls = 0;
   host.SillyTavern.stopGeneration = () => {
     stopCalls++;
-    tavernBusy = false;
+    // 内置接口只隐藏停止按钮，不能中止助手的请求或释放助手占用的发送按钮。
+    stopButtonVisible = false;
     emit('generation_stopped');
     return true;
+  };
+  assistantStop = () => {
+    tavernBusy = false;
   };
   const generationEvents = ['Chat_On_SkillShop', 'Chat_On_ItemShop', 'Chat_On_Quest'];
   host.eventEmit = async (name: string) => {
@@ -230,7 +288,7 @@ async function main() {
         // 完整结果已到达并排队时，停止事件也必须优先取消结算。
         message += scenario.result;
         emit('message_received');
-        host.SillyTavern.stopGeneration();
+        stopButton.click();
       }
       assert.equal(scenario.refreshing(), false, `${source}取消应立即结束手机刷新`);
       assert.equal(tavernBusy, false, '手机取消也应停止宿主生成');
@@ -263,7 +321,61 @@ async function main() {
     assert.match(scenario.error(), /已取消生成/, '中止导致的旧事件拒绝不能覆盖取消状态');
     await until(() => data.手机.定向刷新 === null);
   }
-  console.info('手机失败标签清理、迟到结果与生成双向取消验证通过。');
+
+  for (const app of ['skillShop/SkillShop.vue', 'itemShop/ItemShop.vue', 'quests/QuestApp.vue']) {
+    const render = loadRefreshPage(app);
+    let rejectGeneration!: (error: Error) => void;
+    host.eventEmit = (name: string) => {
+      if (!generationEvents.includes(name)) return Promise.resolve();
+      tavernBusy = true;
+      stopButtonVisible = true;
+      return new Promise((_resolve, reject) => (rejectGeneration = reject));
+    };
+    const intro = () => render().children[0].children[0];
+    const refreshButton = () => intro().children.find((node: any) => node.type === 'button');
+    refreshButton().props.onClick();
+    await until(() => !!rejectGeneration);
+    assert.equal(refreshButton().props.disabled, true, '活动生成期间不能重复刷新');
+    const cancel = intro().children.find((node: any) => node.type === 'button' && node.children.trim() === '取消生成');
+    cancel.props.onClick();
+    await until(() => refreshButton().props.disabled === false);
+    assert.equal(tavernBusy, false, '完整停止按钮处理链恢复酒馆发送按钮');
+    assert.equal(stopButtonVisible, false, '停止后不残留停止按钮');
+    await until(() => data.手机.定向刷新 === null);
+    const oldReject = rejectGeneration;
+    rejectGeneration = undefined as any;
+    refreshButton().props.onClick();
+    await until(() => !!rejectGeneration);
+    oldReject(new Error('旧生成已中止'));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(refreshButton().props.disabled, true, '旧事件拒绝不能取消新刷新');
+    intro()
+      .children.find((node: any) => node.type === 'button' && node.children.trim() === '取消生成')
+      .props.onClick();
+    rejectGeneration(new Error('生成已中止'));
+    await until(() => refreshButton().props.disabled === false);
+  }
+
+  host.eventEmit = async (name: string) => {
+    if (generationEvents.includes(name)) throw new Error('生成启动失败');
+  };
+  await store.refreshItemShop('调查道具');
+  await until(() => !store.itemRefreshing && data.手机.定向刷新 === null);
+  assert.match(store.itemRefreshError, /生成启动失败/, '异步事件失败必须显示并解除刷新状态');
+
+  host.eventEmit = async () => undefined;
+  await store.refreshItemShop('旧偏好');
+  store.cancelItemRefresh();
+  await store.refreshItemShop('新偏好');
+  assert.equal(data.手机.定向刷新.要求, '新偏好', '取消后的排队清理不能抹掉立即重试的偏好');
+  assert.equal(Object.hasOwn(data.手机.定向刷新, '请求ID'), false, '定向刷新不保存重复请求编号');
+  const beforeDirected = data.角色.user.恶堕积分;
+  message += validTag;
+  emit('message_received');
+  await until(() => !store.itemRefreshing);
+  assert.equal(data.角色.user.恶堕积分, beforeDirected - 7, '重试后仍按定向刷新价格结算');
+  assert.equal(data.手机.定向刷新, null);
+  console.info('手机失败标签清理、迟到结果、无 randomUUID 定向刷新与真实页面取消/重试验证通过。');
 }
 
 void main()
@@ -271,4 +383,8 @@ void main()
     console.error(error);
     process.exitCode = 1;
   })
-  .finally(() => dispose());
+  .finally(() => {
+    dispose();
+    if (originalCrypto) Object.defineProperty(host, 'crypto', originalCrypto);
+    else delete host.crypto;
+  });

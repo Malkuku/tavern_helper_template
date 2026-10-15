@@ -107,7 +107,7 @@ for (const [kind, refresh, quote, message, price, surcharge] of [
     refresh(shop, message);
     assert.equal(shop.角色.user.恶堕积分, before - price, '重复和跨周都收固定费');
   }
-  shop.手机.定向刷新 = { 请求ID: '定向测试', 类型: kind, 要求: '调查', 普通报价: price };
+  shop.手机.定向刷新 = { 类型: kind, 要求: '调查', 普通报价: price };
   const before = shop.角色.user.恶堕积分;
   refresh(shop, message, true);
   assert.equal(shop.角色.user.恶堕积分, before - price - surcharge);

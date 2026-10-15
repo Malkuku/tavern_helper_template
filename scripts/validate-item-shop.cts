@@ -90,7 +90,7 @@ assert.equal(freeItemData.角色.user.恶堕积分, 0, '丢弃不返还积分');
 assert.equal(itemRefreshQuote(data).price, 2, '道具普通刷新固定 2 点');
 const directedData = structuredClone(data);
 directedData.手机 = {
-  定向刷新: { 请求ID: 'item-request', 类型: '道具', 要求: '适合调查的工具', 普通报价: 2 },
+  定向刷新: { 类型: '道具', 要求: '适合调查的工具', 普通报价: 2 },
 };
 applyItemRefresh(
   directedData,
@@ -102,7 +102,7 @@ assert.equal(directedData.手机.定向刷新, null, '成功结算后清除本�
 const directedInsufficient = structuredClone(data);
 directedInsufficient.角色.user.恶堕积分 = 4;
 directedInsufficient.手机 = {
-  定向刷新: { 请求ID: 'item-request-low-balance', 类型: '道具', 要求: '适合调查的工具', 普通报价: 2 },
+  定向刷新: { 类型: '道具', 要求: '适合调查的工具', 普通报价: 2 },
 };
 const directedInsufficientBefore = structuredClone(directedInsufficient);
 assert.throws(() => applyItemRefresh(directedInsufficient, message, true), /积分不足，需要 7 点/);

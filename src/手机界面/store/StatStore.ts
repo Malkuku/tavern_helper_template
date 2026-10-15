@@ -169,14 +169,14 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   const skillRefreshing = ref(false);
   let skillRefreshStartMessageId = -1;
   let skillRefreshStartMessage = '';
-  let skillRefreshRequestId = '';
+  let skillRefreshDirected = false;
   const itemRefreshError = ref('');
   const itemRefreshing = ref(false);
   let skillResultCheckQueued = false;
   let itemResultCheckQueued = false;
   let itemRefreshStartMessageId = -1;
   let itemRefreshStartMessage = '';
-  let itemRefreshRequestId = '';
+  let itemRefreshDirected = false;
   const taskRefreshError = ref('');
   const taskRefreshing = ref(false);
   let taskResultCheckQueued = false;
@@ -489,12 +489,11 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     );
   }
 
-  async function clearDirectedRefresh(requestId: string, generation: number) {
-    if (!requestId) return;
+  async function clearDirectedRefresh(generation: number, requestSerial = refreshRequestSerial) {
     await queueStatWork(async () => {
-      if (generation !== chatGeneration) return;
+      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial) return;
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
-      if (previous?.stat_data?.手机?.定向刷新?.请求ID !== requestId) return;
+      if (!previous?.stat_data?.手机?.定向刷新) return;
       const data = klona(previous.stat_data) as stat_data;
       data.手机.定向刷新 = null;
       await writeStatData(data, previous);
@@ -507,7 +506,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const requested = preference?.trim() ?? '';
     if (preference !== undefined && !requested) throw new Error('请先填写希望生成的内容。');
     const generation = chatGeneration;
-    const requestId = requested ? crypto.randomUUID() : '';
+    const requestSerial = ++refreshRequestSerial;
     preparingShopRefresh = true;
     try {
       await waitGlobalInitialized('Mvu');
@@ -523,9 +522,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           throw new Error(`恶堕积分不足，需要 ${price} 点。`);
         if (requested || current.手机.定向刷新) {
           const data = klona(current);
-          data.手机.定向刷新 = requested
-            ? { 请求ID: requestId, 类型: kind, 要求: requested, 普通报价: quote.price }
-            : null;
+          data.手机.定向刷新 = requested ? { 类型: kind, 要求: requested, 普通报价: quote.price } : null;
           if (generation !== chatGeneration) throw new Error('聊天已切换，商店刷新已取消。');
           await writeStatData(data, previous);
         }
@@ -542,32 +539,33 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const startMessage = startMessageId >= 0 ? (getChatMessages(startMessageId)[0]?.message ?? '') : '';
     refreshError.value = '';
     refreshing.value = true;
-    const requestSerial = ++refreshRequestSerial;
     if (kind === '技能') {
       skillRefreshStartMessageId = startMessageId;
       skillRefreshStartMessage = startMessage;
-      skillRefreshRequestId = requestId;
+      skillRefreshDirected = !!requested;
     } else {
       itemRefreshStartMessageId = startMessageId;
       itemRefreshStartMessage = startMessage;
-      itemRefreshRequestId = requestId;
+      itemRefreshDirected = !!requested;
     }
     console.info(`[手机${kind}商店生成] 已触发`, { startMessageId, startLength: startMessage.length });
-    try {
-      await eventEmit(kind === '技能' ? 'Chat_On_SkillShop' : 'Chat_On_ItemShop');
-      console.info(`[手机${kind}商店生成] 事件已返回`, { lastMessageId: getLastMessageId() });
-    } catch (error) {
-      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial) return;
-      refreshing.value = false;
-      refreshRequestSerial++;
-      try {
-        await clearDirectedRefresh(requestId, generation);
-      } catch (cleanupError) {
-        console.error('定向刷新请求清理失败', cleanupError);
-      }
-      refreshError.value = error instanceof Error ? error.message : `${kind}商店刷新事件触发失败。`;
-      throw error;
-    }
+    // 事件监听器可能等待整段生成；页面只等待请求启动，刷新状态由结果和取消入口管理。
+    void eventEmit(kind === '技能' ? 'Chat_On_SkillShop' : 'Chat_On_ItemShop')
+      .then(() => {
+        console.info(`[手机${kind}商店生成] 事件已返回`, { lastMessageId: getLastMessageId() });
+      })
+      .catch(async error => {
+        if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !refreshing.value) return;
+        refreshing.value = false;
+        refreshRequestSerial++;
+        refreshError.value = error instanceof Error ? error.message : `${kind}商店刷新事件触发失败。`;
+        try {
+          await clearDirectedRefresh(generation);
+        } catch (cleanupError) {
+          console.error('定向刷新请求清理失败', cleanupError);
+        }
+        console.error(`${kind}商店刷新事件触发失败`, error);
+      });
   }
 
   async function refreshSkillShop(preference?: string) {
@@ -586,13 +584,13 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     refreshing.value = false;
     refreshRequestSerial++;
     refreshError.value = `已取消生成；迟到的${kind}生成结果不会结算。`;
-    const requestId = kind === '技能' ? skillRefreshRequestId : kind === '道具' ? itemRefreshRequestId : '';
-    void clearDirectedRefresh(requestId, chatGeneration).catch(error =>
-      console.error(`${kind}定向刷新请求清理失败`, error),
-    );
+    void clearDirectedRefresh(chatGeneration).catch(error => console.error(`${kind}定向刷新请求清理失败`, error));
     if (stopHost) {
       try {
-        SillyTavern.stopGeneration();
+        // 走宿主停止按钮的完整处理链，同时停止酒馆及助手生成并恢复发送按钮。
+        const stopButton = window.parent.document.getElementById('mes_stop');
+        if (!stopButton) throw new Error('未找到酒馆停止按钮。');
+        stopButton.click();
       } catch (error) {
         refreshError.value = `已取消刷新等待，但停止酒馆生成失败：${error instanceof Error ? error.message : String(error)}`;
         console.error('停止酒馆生成失败', error);
@@ -696,16 +694,17 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       startMessageId: taskRefreshStartMessageId,
       startLength: taskRefreshStartMessage.length,
     });
-    try {
-      await eventEmit('Chat_On_Quest');
-      console.info('[手机任务生成] 事件已返回', { lastMessageId: getLastMessageId() });
-    } catch (error) {
-      if (generation !== chatGeneration || requestSerial !== refreshRequestSerial) return;
-      taskRefreshing.value = false;
-      refreshRequestSerial++;
-      taskRefreshError.value = error instanceof Error ? error.message : '任务刷新事件触发失败。';
-      throw error;
-    }
+    void eventEmit('Chat_On_Quest')
+      .then(() => {
+        console.info('[手机任务生成] 事件已返回', { lastMessageId: getLastMessageId() });
+      })
+      .catch(error => {
+        if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !taskRefreshing.value) return;
+        taskRefreshing.value = false;
+        refreshRequestSerial++;
+        taskRefreshError.value = error instanceof Error ? error.message : '任务刷新事件触发失败。';
+        console.error('任务刷新事件触发失败', error);
+      });
   }
 
   function cancelTaskRefresh() {
@@ -1200,7 +1199,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     const marker = kind === '技能' ? '<skillVariable' : '<shopVariable';
     const startMessageId = kind === '技能' ? skillRefreshStartMessageId : itemRefreshStartMessageId;
     const startMessage = kind === '技能' ? skillRefreshStartMessage : itemRefreshStartMessage;
-    const directedRequestId = kind === '技能' ? skillRefreshRequestId : itemRefreshRequestId;
+    const directed = kind === '技能' ? skillRefreshDirected : itemRefreshDirected;
     if (!refreshing.value) return;
     if (kind === '技能' ? skillResultCheckQueued : itemResultCheckQueued) return;
     if (kind === '技能') skillResultCheckQueued = true;
@@ -1241,10 +1240,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
       if (!previous?.stat_data?.系统 || !previous.stat_data.角色?.user) throw new Error(`${kind}商店变量尚未初始化。`);
       const data = klona(previous.stat_data) as stat_data;
-      if (directedRequestId && data.手机.定向刷新?.请求ID !== directedRequestId)
-        throw new Error('定向刷新请求已变化，请重新提交。');
-      if (kind === '技能') applySkillRefresh(data, message.message, !!directedRequestId);
-      else applyItemRefresh(data, message.message, !!directedRequestId);
+      if (kind === '技能') applySkillRefresh(data, message.message, directed);
+      else applyItemRefresh(data, message.message, directed);
       console.info(`[手机${kind}商店生成] 结果校验通过`, { id });
       if (generation !== chatGeneration || requestSerial !== refreshRequestSerial || !refreshing.value) return;
       await writeStatData(
@@ -1260,7 +1257,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
       .catch(async error => {
         if (requestSerial !== refreshRequestSerial || generation !== chatGeneration) return;
         refreshing.value = false;
-        void clearDirectedRefresh(directedRequestId, generation).catch(cleanupError =>
+        void clearDirectedRefresh(generation, requestSerial).catch(cleanupError =>
           console.error('定向刷新请求清理失败', cleanupError),
         );
         const detail = error instanceof Error ? error.message : `${kind}生成结果无效。`;
@@ -1444,16 +1441,15 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         };
       const wechatView = organizationWeChatView(statData.value);
       if (wechatView) syncWeChatNotifications(previousWechat, wechatView);
-      const staleRequestId = statData.value?.手机?.定向刷新?.请求ID;
       if (
-        staleRequestId &&
+        statData.value?.手机?.定向刷新 &&
         !preparingShopRefresh &&
         !skillRefreshing.value &&
         !itemRefreshing.value &&
         !staleDirectedClearQueued
       ) {
         staleDirectedClearQueued = true;
-        void clearDirectedRefresh(staleRequestId, chatGeneration)
+        void clearDirectedRefresh(chatGeneration)
           .catch(error => console.error('遗留定向刷新请求清理失败', error))
           .finally(() => {
             staleDirectedClearQueued = false;

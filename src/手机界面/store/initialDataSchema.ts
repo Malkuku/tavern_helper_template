@@ -178,7 +178,6 @@ export const initialStatDataSchema = z.strictObject({
   手机: z.strictObject({
     定向刷新: z
       .strictObject({
-        请求ID: z.string().min(1),
         类型: z.enum(['技能', '道具']),
         要求: z.string().trim().min(1),
         普通报价: z.number().int().nonnegative().safe(),
