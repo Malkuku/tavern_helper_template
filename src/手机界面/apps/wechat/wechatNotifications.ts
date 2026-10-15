@@ -1,17 +1,22 @@
 import type { 微信数据, 微信消息 } from '../../types';
-import { isWeChatMessage } from './wechatData';
+import { isWeChatMessage, messageEntries, nextWeChatFloor } from './wechatData';
 
 export type ReadCursors = Record<string, number>;
 
 export function initialReadCursors(data: 微信数据): ReadCursors {
-  return Object.fromEntries(Object.entries(data.会话).map(([key, session]) => [key, session.消息.length]));
+  return Object.fromEntries(
+    Object.entries(data.会话).map(([key, session]) => [key, nextWeChatFloor(session.消息) - 1]),
+  );
 }
 
 export function reconcileReadCursors(data: 微信数据, cursors: ReadCursors): ReadCursors {
   return Object.fromEntries(
     Object.entries(data.会话).map(([key, session]) => [
       key,
-      Math.min(Number.isSafeInteger(cursors[key]) && cursors[key] >= 0 ? cursors[key] : 0, session.消息.length),
+      Math.min(
+        Number.isSafeInteger(cursors[key]) && cursors[key] >= 0 ? cursors[key] : 0,
+        nextWeChatFloor(session.消息) - 1,
+      ),
     ]),
   );
 }
@@ -21,7 +26,9 @@ export function unreadConversationKeys(data: 微信数据, cursors: ReadCursors)
     .filter(
       ([key, session]) =>
         session.成员.includes('user') &&
-        session.消息.slice(cursors[key] ?? 0).some(item => isWeChatMessage(item) && item.发送者 !== 'user'),
+        messageEntries(session.消息).some(
+          ([floor, item]) => Number(floor) > (cursors[key] ?? 0) && isWeChatMessage(item) && item.发送者 !== 'user',
+        ),
     )
     .map(([key]) => key);
 }
@@ -33,8 +40,9 @@ export function newIncomingMessages(
   if (!previous) return [];
   return Object.entries(current.会话).flatMap(([key, session]) =>
     session.成员.includes('user')
-      ? session.消息
-          .slice(previous.会话[key]?.消息.length ?? 0)
+      ? messageEntries(session.消息)
+          .filter(([floor]) => !previous.会话[key]?.消息[floor])
+          .map(([, item]) => item)
           .filter((item): item is 微信消息 => isWeChatMessage(item) && item.发送者 !== 'user')
           .map(message => ({ key, message }))
       : [],

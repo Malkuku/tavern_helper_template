@@ -248,12 +248,12 @@ const previewWeChatData: 微信数据 = {
     user: { 昵称: '我', 头像: '', 表情包: {}, 好友: ['通知测试'] },
     通知测试: { 昵称: '通知测试', 头像: '', 表情包: {}, 好友: ['user'] },
   },
-  会话: { '私聊:user&通知测试': { 类型: '私聊', 成员: ['user', '通知测试'], 消息: [] } },
+  会话: { '私聊:user&通知测试': { 类型: '私聊', 成员: ['user', '通知测试'], 消息: {} } },
   准备发送: null,
 };
 const previewWeChatNotice: { key: string; message: 微信消息 } = {
   key: '私聊:user&通知测试',
-  message: { 楼层ID: 0, 发送者: '通知测试', 时间: '', 内容: ['这是一条 Weline 消息预览。'] },
+  message: { 发送者: '通知测试', 时间: '', 内容: ['这是一条 Weline 消息预览。'] },
 };
 function startNotificationPreview() {
   const sample = (title: string, message: string, warning = false): NotificationPreview => ({

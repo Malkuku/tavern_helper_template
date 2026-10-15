@@ -163,7 +163,7 @@ assert.ok(assembled.data.手机.微信.账号['987'].头像);
 assert.deepEqual(assembled.data.手机.微信.会话['私聊:user&林沐沐'], {
   类型: '私聊',
   成员: ['user', '林沐沐'],
-  消息: [],
+  消息: {},
 });
 assert.deepEqual(
   Object.entries(openingDocument.固定数据.手机.微信.会话).filter(([key]) => key !== '私聊:user&林沐沐'),
@@ -183,7 +183,7 @@ const firstAiMessage = applyWeChatLogs(assembled.data.手机.微信, [
     ],
   },
 ]);
-assert.equal(firstAiMessage.会话['私聊:user&林沐沐'].消息.length, 1);
+assert.equal(Object.keys(firstAiMessage.会话['私聊:user&林沐沐'].消息).length, 1);
 assert.deepEqual(assembled.data.手机.恶堕奖励.邮件, []);
 assert.equal(assembled.data.手机.定向刷新, null);
 for (const [key, role] of Object.entries(assembled.data.角色.主要角色) as [string, any][]) {

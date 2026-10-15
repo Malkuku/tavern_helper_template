@@ -232,7 +232,6 @@ export interface 微信账号 {
 }
 
 export interface 微信消息 {
-  楼层ID: number;
   发送者: 微信账号ID;
   时间: 微信时间;
   /**
@@ -256,7 +255,7 @@ export interface 微信引用快照 {
 export interface 微信转发私聊 {
   私聊: {
     成员: 微信账号ID[];
-    消息: 微信消息[];
+    消息: Record<string, 微信消息>;
   };
 }
 
@@ -264,7 +263,7 @@ export interface 微信转发群聊 {
   群聊: {
     名称: string;
     成员: 微信账号ID[];
-    消息: 微信消息[];
+    消息: Record<string, 微信消息>;
   };
 }
 
@@ -275,7 +274,6 @@ export interface 微信转发内容 {
 export type 微信消息内容 = string | 微信转发内容;
 
 export interface 微信操作 {
-  楼层ID: number;
   时间: 微信时间;
   操作:
     | '好友申请'
@@ -301,7 +299,7 @@ export interface 微信会话 {
   名称?: string;
   成员: 微信账号ID[];
   群主?: 微信账号ID;
-  消息: 微信消息流项[];
+  消息: Record<string, 微信消息流项>;
 }
 
 /** user 在微信界面连续添加的暂存内容；显式确认后触发正文生成。 */

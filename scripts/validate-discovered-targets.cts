@@ -36,8 +36,8 @@ assert.ok(noRequest.手机.微信.账号['987']);
 
 const privateKey = `私聊:user&${first}`;
 const groupKey = '群聊:测试隐藏成员';
-data.手机.微信.会话[privateKey] = { 类型: '私聊', 成员: ['user', first], 消息: [] };
-data.手机.微信.会话[groupKey] = { 类型: '群聊', 成员: ['user', first, second], 消息: [] };
+data.手机.微信.会话[privateKey] = { 类型: '私聊', 成员: ['user', first], 消息: {} };
+data.手机.微信.会话[groupKey] = { 类型: '群聊', 成员: ['user', first, second], 消息: {} };
 assert.deepEqual(Object.keys(data.手机.微信.会话), [...openingSessions, privateKey, groupKey]);
 
 data.系统.已发现目标 = [first];

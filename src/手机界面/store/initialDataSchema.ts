@@ -146,7 +146,9 @@ const session: z.ZodType<微信会话> = z.custom<微信会话>(
     '成员' in value &&
     Array.isArray(value.成员) &&
     '消息' in value &&
-    Array.isArray(value.消息),
+    value.消息 !== null &&
+    typeof value.消息 === 'object' &&
+    !Array.isArray(value.消息),
   '微信会话结构无效',
 );
 

@@ -46,8 +46,8 @@
         </button>
       </header>
       <div ref="messagesElement" class="wx-messages">
-        <p v-if="!selectedSession.消息.length && !pending" class="wx-empty">还没有消息，发一条开始聊天。</p>
-        <template v-for="(message, index) in selectedSession.消息" :key="index">
+        <p v-if="!selectedMessages.length && !pending" class="wx-empty">还没有消息，发一条开始聊天。</p>
+        <template v-for="([floorKey, message], index) in selectedMessages" :key="floorKey">
           <time v-if="messageTimeDividers[index]" class="wx-time-divider">{{ displayTime(message.时间) }}</time>
           <div v-if="!isWeChatMessage(message)" class="wx-system-tip">{{ operationSummary(message) }}</div>
           <template v-else>
@@ -75,9 +75,18 @@
                   class="wx-bubble"
                   :class="{ 'wx-bubble-special': isSpecialCard(part), 'wx-bubble-sticker': isSticker(part) }"
                   @contextmenu.prevent="
-                    openMessageMenu(message, message.内容[sourceIndex], sourceIndex, $event.clientX, $event.clientY)
+                    openMessageMenu(
+                      floorKey,
+                      message,
+                      message.内容[sourceIndex],
+                      sourceIndex,
+                      $event.clientX,
+                      $event.clientY,
+                    )
                   "
-                  @touchstart.passive="startMessageHold(message, message.内容[sourceIndex], sourceIndex, $event)"
+                  @touchstart.passive="
+                    startMessageHold(floorKey, message, message.内容[sourceIndex], sourceIndex, $event)
+                  "
                   @touchend="endMessageHold"
                   @touchmove="cancelMessageHold"
                   @touchcancel="cancelMessageHoldGesture"
@@ -89,7 +98,7 @@
                     :group="selectedSession.类型 === '群聊'"
                     :states="message.特殊内容状态"
                     :start-index="sourceIndex"
-                    @open-payment="openPayment(message, $event)"
+                    @open-payment="openPayment(floorKey, message, $event)"
                     @open-card="openCard"
                     @open-location="openLocation"
                   />
@@ -185,7 +194,11 @@
       </div>
       <p v-if="error" class="wx-error" role="alert">{{ error }}</p>
       <div v-if="quoted" class="wx-compose-quote">
-        <span>引用 {{ accounts[quoted.发送者]?.昵称 || quoted.发送者 }}：{{ contentSummary(quoted.内容) }}</span>
+        <span
+          >引用 {{ accounts[quoted.message.发送者]?.昵称 || quoted.message.发送者 }}：{{
+            contentSummary(quoted.message.内容)
+          }}</span
+        >
         <button type="button" aria-label="取消引用" @click.stop="quoted = null">取消引用</button>
       </div>
       <WeChatStickerPicker
@@ -360,7 +373,7 @@
         </div>
         <div v-if="forwardDestination" class="wx-picker-confirm">
           <strong>发送给：</strong><span>{{ chats.find(item => item.key === forwardDestination)?.title }}</span>
-          <p>{{ contentSummary(forwarding.内容) }}</p>
+          <p>{{ contentSummary(forwarding.message.内容) }}</p>
           <div class="wx-picker-buttons">
             <button type="button" @click="forwardDestination = null">取消</button
             ><button type="button" :disabled="sending" @click="sendForward(forwardDestination)">发送</button>
@@ -425,7 +438,7 @@
                 >查找聊天记录<input v-model="detailSearch" placeholder="搜索消息内容"
               /></label>
               <div v-if="detailSearch.trim()" class="wx-detail-results">
-                <div v-for="item in detailSearchResults" :key="item.楼层ID">
+                <div v-for="[floorKey, item] in detailSearchResults" :key="floorKey">
                   {{ item.发送者 === 'user' ? '我' : accounts[item.发送者]?.昵称 || item.发送者 }}：{{
                     contentSummary(item.内容)
                   }}
@@ -808,6 +821,7 @@ import {
   friendRequest,
   incomingFriendRequests,
   isWeChatMessage,
+  messageEntries,
   operationSummary,
   parseTransferMessage,
   privateChatKey,
@@ -874,6 +888,7 @@ const transferInsufficient = computed(() => {
 const paymentRemark = ref('');
 const paymentView = ref<{
   message: 微信消息;
+  floorKey: string;
   index: number;
   kind: '红包' | '转账';
   amount: string;
@@ -886,7 +901,7 @@ const cardPickerOpen = ref(false);
 const cardQuery = ref('');
 const cardMessage = ref('');
 const selectedCard = ref<string | null>(null);
-const forwarding = ref<微信消息 | null>(null);
+const forwarding = ref<SelectedMessage | null>(null);
 const forwardQuery = ref('');
 const forwardDestination = ref<string | null>(null);
 const detailsOpen = ref(false);
@@ -1152,9 +1167,10 @@ const selectedSession = computed<微信会话 | null>(() => {
   if (existing) return existing;
   const other = selectedKey.value.startsWith('私聊:user&') ? selectedKey.value.slice('私聊:user&'.length) : '';
   return other && self.value?.好友.includes(other) && accounts.value[other]
-    ? { 类型: '私聊', 成员: ['user', other], 消息: [] }
+    ? { 类型: '私聊', 成员: ['user', other], 消息: {} }
     : null;
 });
+const selectedMessages = computed(() => messageEntries(selectedSession.value?.消息 ?? {}));
 const selectedTitle = computed(() =>
   selectedKey.value && selectedSession.value && wechat.value
     ? chatAppearance.value[selectedKey.value]?.name || chatTitle(selectedKey.value, selectedSession.value, wechat.value)
@@ -1166,7 +1182,7 @@ const pendingLocked = computed(() => !!pending.value && pending.value.已确认 
 const chats = computed(() =>
   (wechat.value ? visibleUserChats(wechat.value) : [])
     .map(([key, session]) => {
-      const last = session.消息.at(-1);
+      const last = messageEntries(session.消息).at(-1)?.[1];
       return {
         key,
         title: chatAppearance.value[key]?.name || chatTitle(key, session, wechat.value!),
@@ -1235,9 +1251,10 @@ const groupCandidates = computed(() =>
   ),
 );
 const detailSearchResults = computed(() =>
-  (selectedSession.value?.消息 || [])
-    .filter(isWeChatMessage)
-    .filter(item => contentSummary(item.内容).includes(detailSearch.value.trim())),
+  selectedMessages.value.filter(
+    (entry): entry is [string, 微信消息] =>
+      isWeChatMessage(entry[1]) && contentSummary(entry[1].内容).includes(detailSearch.value.trim()),
+  ),
 );
 const incomingRequests = computed(() => incomingFriendRequests(wechat.value));
 const respondingTo = ref<string | null>(null);
@@ -1260,7 +1277,7 @@ const messageInput = ref<HTMLInputElement>();
 const requestMessage = ref('');
 const error = ref('');
 const sending = ref(false);
-type SelectedMessage = 微信消息 & { 内容下标?: number };
+type SelectedMessage = { floorKey: string; message: 微信消息; contentIndex: number };
 const quoted = ref<SelectedMessage | null>(null);
 const messageMenu = ref<SelectedMessage | null>(null);
 const messageMenuPosition = ref({ left: '8px', top: '8px' });
@@ -1273,7 +1290,14 @@ function isSticker(item: 微信消息内容): boolean {
 }
 let messageHoldTimer: ReturnType<typeof setTimeout> | undefined;
 let messageHoldOpened = false;
-function openMessageMenu(message: 微信消息, part: 微信消息内容, index: number, clientX: number, clientY: number) {
+function openMessageMenu(
+  floorKey: string,
+  message: 微信消息,
+  part: 微信消息内容,
+  index: number,
+  clientX: number,
+  clientY: number,
+) {
   cancelMessageHold();
   const rect = chatRoot.value?.getBoundingClientRect();
   if (!rect) return;
@@ -1281,9 +1305,9 @@ function openMessageMenu(message: 微信消息, part: 微信消息内容, index:
     left: `${Math.max(8, Math.min(clientX - rect.left - 116, rect.width - 240))}px`,
     top: `${Math.max(8, Math.min(clientY - rect.top - 112, rect.height - 104))}px`,
   };
-  messageMenu.value = { ...message, 内容: [part], 内容下标: index };
+  messageMenu.value = { floorKey, message: { ...message, 内容: [part] }, contentIndex: index };
 }
-function startMessageHold(message: 微信消息, part: 微信消息内容, index: number, event: TouchEvent) {
+function startMessageHold(floorKey: string, message: 微信消息, part: 微信消息内容, index: number, event: TouchEvent) {
   cancelMessageHold();
   messageHoldOpened = false;
   const touch = event.touches[0];
@@ -1291,7 +1315,7 @@ function startMessageHold(message: 微信消息, part: 微信消息内容, index
   const { clientX, clientY } = touch;
   messageHoldTimer = setTimeout(() => {
     messageHoldOpened = true;
-    openMessageMenu(message, part, index, clientX, clientY);
+    openMessageMenu(floorKey, message, part, index, clientX, clientY);
   }, 500);
 }
 function endMessageHold(event: TouchEvent) {
@@ -1312,7 +1336,7 @@ function cancelMessageHold() {
 const stickerOpen = ref(false);
 const messagesElement = ref<HTMLElement>();
 
-const messageTimeDividers = computed(() => weChatTimeDividers(selectedSession.value?.消息 || []));
+const messageTimeDividers = computed(() => weChatTimeDividers(selectedMessages.value.map(([, message]) => message)));
 function displayTime(value: string): string {
   return displayWeChatTime(value, worldTime.value);
 }
@@ -1433,7 +1457,7 @@ async function requestCardFriend() {
   await requestFriend(cardView.value);
   if (!error.value) cardView.value = null;
 }
-function openPayment(message: 微信消息, index: number) {
+function openPayment(floorKey: string, message: 微信消息, index: number) {
   const item = message.内容[index];
   if (typeof item !== 'string') return;
   const transfer = parseTransferMessage(item);
@@ -1444,6 +1468,7 @@ function openPayment(message: 微信消息, index: number) {
       ? transfer?.recipient
       : selectedSession.value?.成员.find(id => id !== message.发送者);
   paymentView.value = {
+    floorKey,
     message,
     index,
     kind: transfer ? '转账' : '红包',
@@ -1473,11 +1498,9 @@ async function resolvePayment(operation: '领取红包' | '领取转账' | '退�
     操作: operation,
     操作者: 'user',
     会话: conversation,
-    目标: { 楼层ID: view.message.楼层ID, 内容下标: view.index },
+    目标: { 楼层ID: Number(view.floorKey), 内容下标: view.index },
   });
-  const updated = wechat.value?.会话[conversation]?.消息.find(
-    item => isWeChatMessage(item) && item.楼层ID === view.message.楼层ID,
-  );
+  const updated = wechat.value?.会话[conversation]?.消息[view.floorKey];
   if (!error.value || (updated && isWeChatMessage(updated) && updated.特殊内容状态?.[view.index])) {
     paymentView.value = null;
   }
@@ -1486,23 +1509,32 @@ async function poke(id: string) {
   if (!selectedKey.value || id === 'user') return;
   await performOperation({ 操作: '拍一拍', 操作者: 'user', 目标: id, 会话: selectedKey.value });
 }
-function startForward(message: 微信消息) {
+function startForward(message: SelectedMessage) {
   forwarding.value = message;
   forwardQuery.value = '';
   forwardDestination.value = null;
 }
 async function sendForward(destination: string) {
   const source = selectedSession.value;
-  const message = forwarding.value;
-  if (!source || !message || !selectedKey.value) return;
+  const selected = forwarding.value;
+  const message = selected?.message;
+  if (!source || !selected || !message || !selectedKey.value) return;
   sending.value = true;
   error.value = '';
   try {
-    const snapshot = { 楼层ID: message.楼层ID, 发送者: message.发送者, 时间: message.时间, 内容: message.内容 };
+    const snapshot = { 发送者: message.发送者, 时间: message.时间, 内容: message.内容 };
     const forwarded: 微信消息内容 =
       source.类型 === '私聊'
-        ? { 转发: { 私聊: { 成员: [...source.成员], 消息: [snapshot] } } }
-        : { 转发: { 群聊: { 名称: source.名称 || selectedKey.value, 成员: [...source.成员], 消息: [snapshot] } } };
+        ? { 转发: { 私聊: { 成员: [...source.成员], 消息: { [selected.floorKey]: snapshot } } } }
+        : {
+            转发: {
+              群聊: {
+                名称: source.名称 || selectedKey.value,
+                成员: [...source.成员],
+                消息: { [selected.floorKey]: snapshot },
+              },
+            },
+          };
     await store.sendWeChatMessage(destination, [forwarded]);
     forwarding.value = null;
     forwardDestination.value = null;
@@ -1587,7 +1619,7 @@ async function sendMessage() {
   sending.value = true;
   error.value = '';
   try {
-    await store.sendWeChatMessage(selectedKey.value, [text], quoted.value ?? undefined);
+    await store.sendWeChatMessage(selectedKey.value, [text], quoteSnapshot());
     draft.value = '';
     quoted.value = null;
     await scrollBottom();
@@ -1597,7 +1629,13 @@ async function sendMessage() {
     sending.value = false;
   }
 }
-function quoteMessage(message: 微信消息) {
+function quoteSnapshot() {
+  const selected = quoted.value;
+  return selected
+    ? { ...selected.message, 楼层ID: Number(selected.floorKey), 内容下标: selected.contentIndex }
+    : undefined;
+}
+function quoteMessage(message: SelectedMessage) {
   quoted.value = message;
   stickerOpen.value = false;
 }
@@ -1607,7 +1645,7 @@ async function deleteMessageFloor() {
   messageMenu.value = null;
   error.value = '';
   try {
-    await store.deleteWeChatFloor(selectedKey.value, message.楼层ID);
+    await store.deleteWeChatFloor(selectedKey.value, Number(message.floorKey));
     quoted.value = null;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '删除失败。';
@@ -1625,7 +1663,7 @@ async function sendSticker(name: string) {
   sending.value = true;
   error.value = '';
   try {
-    await store.sendWeChatMessage(selectedKey.value, [`<表情包>${name}</表情包>`], quoted.value ?? undefined);
+    await store.sendWeChatMessage(selectedKey.value, [`<表情包>${name}</表情包>`], quoteSnapshot());
     quoted.value = null;
     stickerOpen.value = false;
     await scrollBottom();
@@ -1689,7 +1727,7 @@ async function respondFriend(id: string, accept: boolean) {
     respondingTo.value = null;
   }
 }
-watch(() => selectedSession.value?.消息.length, scrollBottom);
+watch(() => selectedMessages.value.length, scrollBottom);
 watch(wechat, data => {
   if (selectedKey.value && !selectedSession.value) {
     selectedKey.value = null;
@@ -1707,7 +1745,7 @@ watch(wechat, data => {
 });
 watch(selectedKey, key => store.setActiveWeChatConversation(key));
 watch(
-  () => selectedSession.value?.消息.length,
+  () => selectedMessages.value.length,
   () => {
     if (selectedKey.value) store.setActiveWeChatConversation(selectedKey.value);
   },

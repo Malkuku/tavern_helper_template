@@ -125,6 +125,7 @@ export function applyVariablePatch(patchArray: unknown[]): Record<string, unknow
 
       const segments = parsePath(path);
       switch (op) {
+        case 'add':
         case 'replace':
         case 'insert':
           setAtPath(root, segments, value, op === 'insert' && segments.at(-1) === '-');

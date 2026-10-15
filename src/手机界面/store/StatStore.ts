@@ -11,7 +11,8 @@ import {
   decideFriendRequest,
   deleteWeChatFromFloor,
   logConfirmsPending,
-  normalizeWeChatIds,
+  messageEntries,
+  nextWeChatFloor,
   parseTransferMessage,
   parseWeChatLogs,
   privateChatKey,
@@ -127,8 +128,8 @@ function settlePayments(data: stat_data, before: 微信数据, after: 微信数�
     balance = next;
   };
   for (const [key, session] of Object.entries(after.会话)) {
-    const oldCount = before.会话[key]?.消息.length ?? 0;
-    for (const item of session.消息.slice(oldCount)) {
+    for (const [floor, item] of messageEntries(session.消息)) {
+      if (before.会话[key]?.消息[floor]) continue;
       if ('发送者' in item) {
         if (item.发送者 === 'user') {
           for (const content of item.内容) {
@@ -142,7 +143,7 @@ function settlePayments(data: stat_data, before: 微信数据, after: 微信数�
       }
       if (!['领取红包', '领取转账', '退回转账'].includes(item.操作)) continue;
       if (typeof item.目标 !== 'object' || !item.目标) throw new Error('款项目标无效。');
-      const target = session.消息[item.目标.楼层ID - 1];
+      const target = session.消息[String(item.目标.楼层ID)];
       if (!target || !('发送者' in target)) throw new Error('款项目标不存在。');
       const kind = item.操作 === '领取红包' ? '红包' : '转账';
       const amount = paymentCents(target.内容[item.目标.内容下标], kind);
@@ -294,8 +295,8 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   function markWeChatRead(key: string) {
     const session = organizationWeChatView(statData.value)?.会话[key];
     if (!session?.成员.includes('user') || !readChatId) return;
-    if (readCursors[key] !== session.消息.length) {
-      readCursors = { ...readCursors, [key]: session.消息.length };
+    if (readCursors[key] !== nextWeChatFloor(session.消息) - 1) {
+      readCursors = { ...readCursors, [key]: nextWeChatFloor(session.消息) - 1 };
       persistReadCursors();
     }
     unreadChatKeys.value = unreadChatKeys.value.filter(item => item !== key);
@@ -766,7 +767,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
   async function sendWeChatMessage(
     conversation: string,
     content: 微信消息内容[],
-    quote?: 微信消息 & { 内容下标?: number },
+    quote?: 微信消息 & { 楼层ID: number; 内容下标?: number },
     cardAccount?: { id: string; name: string; avatar: string },
   ) {
     if (conversation === organizationNoticeKey) throw new Error('组织财务会话仅接收通知，无法发送消息。');
@@ -797,12 +798,12 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
           !current.账号[other]
         )
           throw new Error('目标私聊不存在或对方不是好友。');
-        transferSession = { 类型: '私聊', 成员: ['user', other], 消息: [] };
+        transferSession = { 类型: '私聊', 成员: ['user', other], 消息: {} };
       }
       for (const item of content) {
         if (typeof item === 'string' && item.startsWith('<转账 ')) transferRecipient(transferSession, 'user', item);
       }
-      let wechat = normalizeWeChatIds(current);
+      let wechat = klona(current);
       if (cardAccount && !wechat.账号[cardAccount.id]) {
         if (!stat.角色.主要角色[cardAccount.id] && !stat.角色.次要角色[cardAccount.id])
           throw new Error('名片中的角色已不存在。');
@@ -814,7 +815,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         return wechat;
       }
       wechat.准备发送 = {
-        楼层ID: (wechat.会话[conversation]?.消息.length ?? 0) + 1,
+        楼层ID: nextWeChatFloor(wechat.会话[conversation]?.消息 ?? {}),
         会话: conversation,
         时间: worldTime,
         内容: klona(content),
@@ -1088,7 +1089,7 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
     if (generation !== chatGeneration) return;
     const previous = Mvu.getMvuData({ type: 'message', message_id: -1 });
     if (!previous?.stat_data?.手机?.微信) throw new Error('Weline 数据尚未初始化，收到的消息仍待处理。');
-    const current = normalizeWeChatIds(previous.stat_data.手机.微信);
+    const current = previous.stat_data.手机.微信;
     const validateLocations = (entries: typeof logs) => {
       for (const log of entries)
         for (const event of log.事件) {
@@ -1434,11 +1435,6 @@ export const useMagicGirlStatStore = defineStore('magic-girl-stat', () => {
         }
         previousStageLevels = currentLevels;
       }
-      if (statData.value?.手机?.微信)
-        statData.value = {
-          ...statData.value,
-          手机: { ...statData.value.手机, 微信: normalizeWeChatIds(statData.value.手机.微信) },
-        };
       const wechatView = organizationWeChatView(statData.value);
       if (wechatView) syncWeChatNotifications(previousWechat, wechatView);
       if (

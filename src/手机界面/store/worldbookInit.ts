@@ -87,7 +87,7 @@ function completeWechatAccounts(data: JsonRecord): void {
       sessions[key] = {
         类型: '私聊',
         成员: id === 'user' ? [id, friend] : friend === 'user' ? [friend, id] : [id, friend].sort(),
-        消息: [],
+        消息: {},
       };
     }
   }

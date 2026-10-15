@@ -36,12 +36,16 @@ export function organizationWeChatView(data: stat_data | null): 微信数据 | n
       [organizationNoticeKey]: {
         类型: '私聊',
         成员: ['user', organizationNoticeAccount],
-        消息: notices.map((notice, index) => ({
-          楼层ID: index + 1,
-          发送者: organizationNoticeAccount,
-          时间: notice.时间,
-          内容: [`兑换到账 ￥${notice.日元}，已扣除 ${notice.点数} 点恶堕积分。`],
-        })),
+        消息: Object.fromEntries(
+          notices.map((notice, index) => [
+            String(index + 1),
+            {
+              发送者: organizationNoticeAccount,
+              时间: notice.时间,
+              内容: [`兑换到账 ￥${notice.日元}，已扣除 ${notice.点数} 点恶堕积分。`],
+            },
+          ]),
+        ),
       },
     },
   };

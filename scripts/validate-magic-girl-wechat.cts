@@ -8,7 +8,8 @@ import {
   displayContentParts,
   deleteWeChatFromFloor,
   logConfirmsPending,
-  normalizeWeChatIds,
+  messageEntries,
+  nextWeChatFloor,
   parseTransferMessage,
   parseWeChatLogs,
   unappliedWeChatLogs,
@@ -17,6 +18,8 @@ import {
   worldTimeAfterWeChatLogs,
 } from '../src/手机界面/apps/wechat/wechatData';
 import type { 微信数据 } from '../src/手机界面/types';
+import { statDataPatch } from '../src/Utils/statDataPatch';
+import { parseVariableLogs } from '../src/Utils/VariableLogParser';
 import { locationShare } from '../src/手机界面/apps/map/locationShare';
 
 const time = '2026-09-26T03:10[6]';
@@ -75,7 +78,7 @@ const newcomerLog = parse([
   },
 ]);
 const newcomerChat = applyWeChatLogs(missingAccounts, newcomerLog);
-assert.equal(newcomerChat.会话[newcomerKey].消息.length, 3);
+assert.equal(Object.keys(newcomerChat.会话[newcomerKey].消息).length, 3);
 assert.equal(newcomerChat.账号[newcomer].昵称, newcomer);
 assert.ok(newcomerChat.账号[newcomer].头像);
 assert.deepEqual(newcomerChat.账号[newcomer].好友, ['user']);
@@ -104,7 +107,7 @@ const replied = applyWeChatLogs(
   directChat,
   parse([{ 类型: '消息', 楼层ID: 2, 会话: newcomerKey, 时间: time, 发送者: 'user', 内容: ['收到'] }]),
 );
-assert.equal(replied.会话[newcomerKey].消息.length, 2);
+assert.equal(Object.keys(replied.会话[newcomerKey].消息).length, 2);
 const onlyRequest = applyWeChatOperation(missingAccounts, newcomerLog[0].事件[0] as any);
 assert.ok(onlyRequest.账号[newcomer]);
 assert.deepEqual(visibleUserChats(onlyRequest), []);
@@ -122,7 +125,7 @@ const groupMessage = applyWeChatLogs(
   groupCreated,
   parse([{ 类型: '消息', 楼层ID: 2, 会话: '群聊:新群', 时间: time, 发送者: newcomer, 内容: ['群里也能聊天'] }]),
 );
-assert.equal(groupMessage.会话['群聊:新群'].消息.length, 2);
+assert.equal(Object.keys(groupMessage.会话['群聊:新群'].消息).length, 2);
 const originalAccount = account('原昵称', []);
 const withExisting = { ...missingAccounts, 账号: { [newcomer]: originalAccount } };
 const preservedChat = applyWeChatLogs(withExisting, directLog);
@@ -198,7 +201,7 @@ const first = parse([
 ]);
 const stored = applyWeChatLogs(empty, first);
 assert.deepEqual(
-  stored.会话[key].消息.map(item => item.楼层ID),
+  messageEntries(stored.会话[key].消息).map(([id]) => Number(id)),
   [1, 2],
 );
 
@@ -208,28 +211,10 @@ waiting.准备发送 = { 楼层ID: 3, 会话: key, 时间: time, 内容: ['想�
 const second = parse([message(3, 'user', '想你了不可以吗？'), message(4, '小鸟游琉璃', '少来')]);
 const remaining = unappliedWeChatLogs(waiting, [...first, ...second]);
 assert.deepEqual(remaining[0].事件, second[0].事件);
-const oldLog = parse(first[0].事件.map(({ 楼层ID: _id, ...event }) => event));
-assert.deepEqual(unappliedWeChatLogs(waiting, [...oldLog, ...second])[0].事件, second[0].事件);
-assert.throws(
-  () =>
-    unappliedWeChatLogs(waiting, [
-      ...oldLog,
-      ...parse([
-        {
-          类型: '消息',
-          会话: key,
-          发送者: 'user',
-          时间: time,
-          内容: ['想你了不可以吗？'],
-        },
-      ]),
-    ]),
-  /旧日志缺少楼层 ID/,
-);
 const done = applyWeChatLogs(waiting, remaining);
 assert.equal(done.准备发送, null);
 assert.deepEqual(
-  done.会话[key].消息.map(item => item.楼层ID),
+  messageEntries(done.会话[key].消息).map(([id]) => Number(id)),
   [1, 2, 3, 4],
 );
 assert.deepEqual(unappliedWeChatLogs(done, [...first, ...second]), []);
@@ -243,26 +228,26 @@ batch.准备发送.已确认 = true;
 assert.equal(logConfirmsPending(batch, batchLog[0]), true);
 const batchDone = applyWeChatLogs(batch, batchLog);
 assert.equal(batchDone.准备发送, null);
-assert.deepEqual((batchDone.会话[key].消息[2] as { 内容: string[] }).内容, ['第一条', '<名片 角色="凛">', '附言']);
+assert.deepEqual((batchDone.会话[key].消息['3'] as { 内容: string[] }).内容, ['第一条', '<名片 角色="凛">', '附言']);
 
 // 同文、同时间仍可占用两个不同楼层；同 ID 改写必须报错。
 const same = parse([message(5, 'user', '在吗'), message(6, 'user', '在吗')]);
 const once = applyWeChatLogs(done, [{ 事件: [same[0].事件[0]] }]);
 assert.equal(unappliedWeChatLogs(once, same)[0].事件.length, 1);
-assert.equal(applyWeChatLogs(once, unappliedWeChatLogs(once, same)).会话[key].消息.length, 6);
-assert.throws(() => unappliedWeChatLogs(once, parse([message(5, 'user', '改写')])), /不一致/);
+assert.equal(Object.keys(applyWeChatLogs(once, unappliedWeChatLogs(once, same)).会话[key].消息).length, 6);
+assert.throws(() => unappliedWeChatLogs(once, parse([message(5, 'user', '改写')])), /冲突/);
 assert.throws(() => applyWeChatLogs(done, parse([message(6, 'user', '跳号')])), /不连续/);
 const quote = { 楼层ID: 2, 内容下标: 0, 发送者: '小鸟游琉璃', 时间: time, 内容: ['在'] };
-assert.equal(applyWeChatLogs(done, parse([message(5, 'user', '收到', { 引用: quote })])).会话[key].消息.length, 5);
+assert.equal(
+  Object.keys(applyWeChatLogs(done, parse([message(5, 'user', '收到', { 引用: quote })])).会话[key].消息).length,
+  5,
+);
 assert.throws(
   () => applyWeChatLogs(done, parse([message(5, 'user', '收到', { 引用: { ...quote, 楼层ID: 1 } })])),
   /引用的楼层 ID/,
 );
 
-// 旧变量按数组顺序补号；引用和款项用楼层 ID 定位。
-const legacy = structuredClone(done);
-delete (legacy.会话[key].消息[0] as { 楼层ID?: number }).楼层ID;
-assert.equal(normalizeWeChatIds(legacy).会话[key].消息[0].楼层ID, 1);
+// 引用和款项用楼层 key 定位。
 const payment = applyWeChatLogs(done, parse([message(5, 'user', '<转账 金额="50g">奶茶</转账>')]));
 const paid = applyWeChatOperation(payment, {
   类型: '操作',
@@ -273,8 +258,8 @@ const paid = applyWeChatOperation(payment, {
   时间: time,
   目标: { 楼层ID: 5, 内容下标: 0 },
 });
-assert.equal(paid.会话[key].消息[4].楼层ID, 5);
-assert.equal((paid.会话[key].消息[4] as { 特殊内容状态?: Record<number, string> }).特殊内容状态?.[0], '已收款');
+assert.equal(Number(Object.keys(paid.会话[key].消息)[4]), 5);
+assert.equal((paid.会话[key].消息['5'] as { 特殊内容状态?: Record<number, string> }).特殊内容状态?.[0], '已收款');
 assert.throws(
   () =>
     applyWeChatOperation(paid, {
@@ -290,7 +275,7 @@ assert.throws(
 );
 const groupKey = '群聊:transfer-test';
 const group = structuredClone(empty);
-group.会话[groupKey] = { 类型: '群聊', 名称: '测试群', 成员: ['user', '小鸟游琉璃', '凛'], 消息: [] };
+group.会话[groupKey] = { 类型: '群聊', 名称: '测试群', 成员: ['user', '小鸟游琉璃', '凛'], 消息: {} };
 const addressedTransfer = '<转账 金额="50" 收款人="凛">奶茶</转账>';
 assert.deepEqual(parseTransferMessage(addressedTransfer), { amount: '50', recipient: '凛', remark: '奶茶' });
 assert.equal(transferRecipient(group.会话[groupKey], 'user', addressedTransfer), '凛');
@@ -341,7 +326,7 @@ const groupReceive = (actor: string) =>
   });
 assert.throws(() => groupReceive('小鸟游琉璃'), /指定收款人/);
 assert.equal(
-  (groupReceive('凛').会话[groupKey].消息[0] as { 特殊内容状态?: Record<number, string> }).特殊内容状态?.[0],
+  (groupReceive('凛').会话[groupKey].消息['1'] as { 特殊内容状态?: Record<number, string> }).特殊内容状态?.[0],
   '已收款',
 );
 const incomingGroup = applyWeChatLogs(
@@ -367,12 +352,12 @@ assert.equal(
       操作者: 'user',
       时间: time,
       目标: { 楼层ID: 1, 内容下标: 0 },
-    }).会话[groupKey].消息[0] as { 特殊内容状态?: Record<number, string> }
+    }).会话[groupKey].消息['1'] as { 特殊内容状态?: Record<number, string> }
   ).特殊内容状态?.[0],
   '已收款',
 );
 const legacyGroup = structuredClone(group);
-legacyGroup.会话[groupKey].消息.push({ 楼层ID: 1, 发送者: 'user', 时间: time, 内容: ['<转账 金额="5">旧记录</转账>'] });
+legacyGroup.会话[groupKey].消息['1'] = { 发送者: 'user', 时间: time, 内容: ['<转账 金额="5">未指定收款人</转账>'] };
 assert.throws(
   () =>
     applyWeChatOperation(legacyGroup, {
@@ -400,14 +385,14 @@ const other = applyWeChatLogs(
     },
   ]),
 );
-assert.equal(other.会话['私聊:user&凛'].消息[0].楼层ID, 1);
-assert.equal(other.会话[key].消息.at(-1)?.楼层ID, 6);
+assert.deepEqual(Object.keys(other.会话['私聊:user&凛'].消息), ['1']);
+assert.equal(nextWeChatFloor(other.会话[key].消息), 7);
 const truncated = deleteWeChatFromFloor(other, key, 5);
 assert.deepEqual(
-  truncated.会话[key].消息.map(item => item.楼层ID),
+  messageEntries(truncated.会话[key].消息).map(([id]) => Number(id)),
   [1, 2, 3, 4],
 );
-assert.equal(truncated.会话['私聊:user&凛'].消息.length, 1);
+assert.equal(Object.keys(truncated.会话['私聊:user&凛'].消息).length, 1);
 assert.throws(() => deleteWeChatFromFloor(other, key, 7), /不存在/);
 const npcAccounts = structuredClone(empty);
 npcAccounts.账号.索菲亚 = account('索菲亚', []);
@@ -426,7 +411,7 @@ const npcRequest = applyWeChatLogs(
     },
   ]),
 );
-assert.equal(npcRequest.会话['私聊:索菲亚&小鸟游琉璃'].消息.length, 1);
+assert.equal(Object.keys(npcRequest.会话['私聊:索菲亚&小鸟游琉璃'].消息).length, 1);
 const applicant = structuredClone(empty);
 applicant.账号.索菲亚 = account('索菲亚', []);
 const incoming = applyWeChatLogs(
@@ -479,4 +464,56 @@ const rejected = applyWeChatLogs(
   ]),
 );
 assert.deepEqual(visibleUserChats(rejected), [], '拒绝后仍不显示私聊');
-console.log('微信会话楼层 ID 验证通过');
+// 第100楼仅生成该对象字段补丁，历史与消息本体都不携带重复身份。
+const hundredEvents = Array.from({ length: 100 }, (_, index) =>
+  message(
+    index + 1,
+    '小鸟游琉璃',
+    '第' + (index + 1) + '条',
+    index === 0 ? { 会话信息: { 类型: '私聊', 成员: ['user', '小鸟游琉璃'] } } : {},
+  ),
+);
+const ninetyNine = applyWeChatLogs(empty, parse(hundredEvents.slice(0, 99)));
+const hundredLog = parse(hundredEvents.slice(99));
+const hundred = applyWeChatLogs(ninetyNine, hundredLog);
+const patchText = statDataPatch({ 手机: { 微信: ninetyNine } }, { 手机: { 微信: hundred } });
+const patch = JSON.parse(patchText.match(/<JSONPatch>([\s\S]*?)<\/JSONPatch>/)![1]);
+assert.deepEqual(patch, [
+  {
+    op: 'add',
+    path: '/手机/微信/会话/' + key + '/消息/100',
+    value: { 发送者: '小鸟游琉璃', 时间: time, 内容: ['第100条'] },
+  },
+]);
+assert.ok(!patchText.includes('第99条'));
+const visiblePatch = parseVariableLogs(patchText, { includeUpdateVariable: true });
+assert.equal(visiblePatch[0].type, 'variableedit');
+assert.deepEqual((visiblePatch[0].data as any).手机.微信.会话[key].消息['100'], patch[0].value);
+assert.deepEqual(unappliedWeChatLogs(hundred, [...hundredLog, ...hundredLog]), []);
+assert.deepEqual(applyWeChatLogs(ninetyNine, [...hundredLog, ...hundredLog]), hundred, '同正文重复日志仅入库一次');
+assert.equal(statDataPatch(hundred, applyWeChatLogs(hundred, hundredLog)), '');
+assert.equal(nextWeChatFloor(hundred.会话[key].消息), 101);
+assert.deepEqual(
+  messageEntries({
+    '100': hundred.会话[key].消息['100'],
+    '2': hundred.会话[key].消息['2'],
+    '10': hundred.会话[key].消息['10'],
+  }).map(([id]) => Number(id)),
+  [2, 10, 100],
+);
+for (const [, item] of messageEntries(hundred.会话[key].消息)) assert.ok(!Object.hasOwn(item, '楼层ID'));
+const forwarded = {
+  转发: {
+    私聊: {
+      成员: ['user', '小鸟游琉璃'],
+      消息: {
+        '2': { 发送者: 'user', 时间: time, 内容: ['快照2'] },
+        '10': { 发送者: '小鸟游琉璃', 时间: time, 内容: ['快照10'] },
+      },
+    },
+  },
+};
+const forwardLog = parse([{ ...message(101, 'user', ''), 内容: [forwarded] }]);
+const withForward = applyWeChatLogs(hundred, forwardLog);
+assert.deepEqual((withForward.会话[key].消息['101'] as any).内容[0], forwarded);
+console.log('微信会话楼层键验证通过：100楼字段差分、重放、顺序、引用、转发、款项与删除。');

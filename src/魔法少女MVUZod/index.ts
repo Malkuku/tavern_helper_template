@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
 
@@ -6,14 +5,10 @@ import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/ta
 // looseObject 保留剧情和旧存档的附加字段。
 const object = z.looseObject;
 const number = z.number().finite();
-const map = <T extends z.ZodType>(value: T) =>
-  z.record(z.string(), value);
+const map = <T extends z.ZodType>(value: T) => z.record(z.string(), value);
 
 // 只校验字符串结构，不检查真实日历与星期是否一致。
-const worldTime = z.string().regex(
-  /^\d{4}-\d{1,2}-\d{1,2}T\d{2}:\d{2}\[[1-7]\]$/,
-  '时间格式应为 YYYY-M-DTHH:mm[1-7]'
-);
+const worldTime = z.string().regex(/^\d{4}-\d{1,2}-\d{1,2}T\d{2}:\d{2}\[[1-7]\]$/, '时间格式应为 YYYY-M-DTHH:mm[1-7]');
 
 const stage = object({
   当前等级: number.optional(),
@@ -59,7 +54,7 @@ const mapNode: z.ZodType = z.lazy(() =>
       z: z.array(number).optional(),
     }).optional(),
     子地图: map(mapNode).optional(),
-  })
+  }),
 );
 
 export const Schema = object({
@@ -80,7 +75,7 @@ export const Schema = object({
           好感度: stage.optional(),
           恶堕度: stage.optional(),
         }).optional(),
-      })
+      }),
     ).optional(),
 
     次要角色: map(
@@ -90,7 +85,7 @@ export const Schema = object({
           好感度: stage.optional(),
           恶堕度: stage.optional(),
         }).optional(),
-      })
+      }),
     ).optional(),
   }).optional(),
 
@@ -108,7 +103,7 @@ export const Schema = object({
   任务候选: map(
     quest.extend({
       强制委托: z.boolean().optional(),
-    })
+    }),
   ).optional(),
 
   商店: map(item).optional(),
@@ -120,7 +115,7 @@ export const Schema = object({
       object({
         完成: number.optional(),
         放弃: number.optional(),
-      })
+      }),
     ).optional(),
   }).optional(),
 
@@ -135,27 +130,29 @@ export const Schema = object({
   }).optional(),
 
   手机: object({
-    组织兑换通知: z.array(
-      object({
-        时间: worldTime,
-        点数: number,
-        日元: number,
-      })
-    ).optional(),
+    组织兑换通知: z
+      .array(
+        object({
+          时间: worldTime,
+          点数: number,
+          日元: number,
+        }),
+      )
+      .optional(),
 
     微信: object({
       账号: map(
         object({
           好友: z.array(z.string()).optional(),
           表情包: map(z.string()).optional(),
-        })
+        }),
       ).optional(),
 
       会话: map(
         object({
           成员: z.array(z.string()).optional(),
-          消息: z.array(z.unknown()).optional(),
-        })
+          消息: map(z.unknown()).optional(),
+        }),
       ).optional(),
     }).optional(),
 

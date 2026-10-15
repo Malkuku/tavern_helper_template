@@ -82,7 +82,7 @@
       </button>
       <details v-else class="wx-rich wx-forward">
         <summary>转发的{{ '私聊' in item.转发 ? '私聊' : '群聊' }}记录 · {{ forwardMessages(item).length }} 条</summary>
-        <div v-for="(message, messageIndex) in forwardMessages(item)" :key="messageIndex" class="wx-forward-line">
+        <div v-for="[floor, message] in forwardMessages(item)" :key="floor" class="wx-forward-line">
           <strong>{{ accounts[message.发送者]?.昵称 || message.发送者 }}</strong>
           <WeChatMessageContent
             v-if="depth < 2"
@@ -105,7 +105,7 @@ import type { 微信数据, 微信消息, 微信消息内容, 微信转发内容
 import { parseLocationShare } from '../map/locationShare';
 import { resolveWechatImage } from './imageLibrary';
 import { stickerSourceByName } from './stickerSource';
-import { displayContentParts, parseTransferMessage } from './wechatData';
+import { displayContentParts, messageEntries, parseTransferMessage } from './wechatData';
 
 const props = withDefaults(
   defineProps<{
@@ -157,7 +157,7 @@ function paymentCaption(value: string): string {
   return props.sender === 'user' ? '你发起了一笔转账' : '待收款';
 }
 
-function forwardMessages(item: 微信转发内容): 微信消息[] {
-  return '私聊' in item.转发 ? item.转发.私聊.消息 : item.转发.群聊.消息;
+function forwardMessages(item: 微信转发内容): [string, 微信消息][] {
+  return messageEntries('私聊' in item.转发 ? item.转发.私聊.消息 : item.转发.群聊.消息);
 }
 </script>

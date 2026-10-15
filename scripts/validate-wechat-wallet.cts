@@ -35,7 +35,7 @@ const fixture = (money = -2000, points = 5) => ({
   手机: {
     微信: {
       账号: { user: account(['好友']), 好友: account(['user']) },
-      会话: { [chat]: { 类型: '私聊', 成员: ['user', '好友'], 消息: [] } },
+      会话: { [chat]: { 类型: '私聊', 成员: ['user', '好友'], 消息: {} } },
       准备发送: null,
     },
   },
@@ -106,10 +106,10 @@ async function main() {
   await deliver([messageEvent(1, 'user', ['你好', '<表情包>气笑了</表情包>'])]);
   assert.equal(store.wechatLogError, '');
   assert.equal(data.手机.微信.准备发送, null);
-  assert.equal(data.手机.微信.会话[chat].消息.length, 1);
+  assert.equal(Object.keys(data.手机.微信.会话[chat].消息).length, 1);
   assert.equal(data.角色.user.金钱, -2000);
   await deliver([messageEvent(2, '好友', ['收到'])]);
-  assert.equal(data.手机.微信.会话[chat].消息.length, 2);
+  assert.equal(Object.keys(data.手机.微信.会话[chat].消息).length, 2);
   assert.equal(data.角色.user.金钱, -2000);
   await reset(-1.234);
   await store.sendWeChatMessage(chat, ['不应改写余额']);
@@ -131,7 +131,7 @@ async function main() {
   await assert.rejects(store.performWeChatOperation(operation('领取转账', 'user')));
   assert.equal(data.角色.user.金钱, -1900);
   await reset();
-  data.手机.微信.会话[chat].消息 = [{ 楼层ID: 1, 发送者: 'user', 时间: time, 内容: ['<转账 金额="100">旧款</转账>'] }];
+  data.手机.微信.会话[chat].消息 = { '1': { 发送者: 'user', 时间: time, 内容: ['<转账 金额="100">旧款</转账>'] } };
   await store.performWeChatOperation(operation('退回转账', '好友'));
   assert.equal(data.角色.user.金钱, -1900);
 
@@ -142,7 +142,7 @@ async function main() {
     await deliver([messageEvent(1, 'user', ['<转账 金额="100">付款</转账>'])]);
     assert.match(store.wechatLogError, /余额不足/);
     assert.equal(data.角色.user.金钱, money);
-    assert.equal(data.手机.微信.会话[chat].消息.length, 0);
+    assert.equal(Object.keys(data.手机.微信.会话[chat].消息).length, 0);
     assert.ok(data.手机.微信.准备发送, '付款失败保留待发送');
   }
   await reset(100);
@@ -156,7 +156,7 @@ async function main() {
     { 类型: '操作', 楼层ID: 2, 时间: time, ...operation('退回转账', '好友') },
   ]);
   assert.match(store.wechatLogError, /余额不足/, '后续退款不能掩盖当前付款透支');
-  assert.equal(data.手机.微信.会话[chat].消息.length, 0);
+  assert.equal(Object.keys(data.手机.微信.会话[chat].消息).length, 0);
 
   await reset();
   await store.exchangePointsForMoney(1);

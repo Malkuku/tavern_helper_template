@@ -257,7 +257,7 @@ async function main() {
     ],
   })}</WeChatLog>`;
   const applied = applyWeChatLogs(current.stat_data.手机.微信, parseWeChatLogs(log));
-  assert.equal(applied.会话[`私聊:user&${name}`].消息.length, 3);
+  assert.equal(Object.keys(applied.会话[`私聊:user&${name}`].消息).length, 3);
   assert.ok(applied.账号.user.好友.includes(name));
   assert.ok(applied.账号[name].好友.includes('user'));
 
